@@ -1,0 +1,44 @@
+{
+  "name": "LIDR - Kimi/DeepSeek",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+  "waitFor": "postCreateCommand",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "customizations": {
+    "codespaces": {
+      "openFiles": ["estimador-cag/README.md"]
+    },
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "GitHub.vscode-github-actions",
+        "Google.gemini-code-assist",
+        "JohnnyZ93.oai-compatible-copilot"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "github.copilot.enable": {
+          "*": true,
+          "plaintext": true,
+          "markdown": true
+        }
+      }
+    }
+  },
+  "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.bashrc && export PATH=\"$HOME/.local/bin:$PATH\" && cd estimador-cag && uv sync && uv run ipython kernel install --user --name=lidr && echo '>>> Entorno listo'",
+  "postStartCommand": "docker --version && docker compose version && uv --version && cd estimador-cag && uv run fastapi --version && echo '>>> Todo listo'",
+  "forwardPorts": [8000, 5432, 8888],
+  "portsAttributes": {
+    "8000": { "label": "FastAPI", "onAutoForward": "notify" },
+    "5432": { "label": "PostgreSQL", "onAutoForward": "silent" },
+    "8888": { "label": "Jupyter", "onAutoForward": "notify" }
+  },
+  "remoteUser": "root"
+}

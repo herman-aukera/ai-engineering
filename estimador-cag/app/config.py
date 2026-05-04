@@ -1,0 +1,70 @@
+"""
+LAYER: config (settings & wiring)
+RESPONSIBILITY: Load environment variables, validate them via Pydantic, and define tier routing
+WHY IT EXISTS: Prevents secret leakage into source code and centralizes environment-dependent
+               configuration. Fails fast on startup if configuration is invalid.
+DEPENDS ON: pydantic_settings (BaseSettings), openai (OpenAI client factory)
+"""
+
+from typing import Literal
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import model_validator
+from openai import OpenAI
+
+TierName = Literal["flash", "pro", "backup", "backup_pro"]
+
+
+class Settings(BaseSettings):
+    """Pydantic Settings validates env vars at import time. Fails fast on missing secrets."""
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    llm_tier: TierName = "flash"
+
+    deepseek_api_key: str = "dummy"
+    deepseek_model: str = "deepseek-v4-flash"
+    deepseek_model_pro: str = "deepseek-v4-pro"
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
+
+    kimi_api_key: str = "dummy"
+    kimi_model: str = "kimi-k2.5"
+    kimi_model_pro: str = "kimi-k2.6"
+    kimi_base_url: str = "https://api.moonshot.ai/v1"
+
+    database_url: str = "postgresql://dev:dev@localhost:5432/lidr"
+
+    @model_validator(mode="after")
+    def validate_api_keys(self):
+        """Fail-fast automatico: si ambas keys son dummy, la app no arranca."""
+        if self.deepseek_api_key == "dummy" and self.kimi_api_key == "dummy":
+            raise ValueError(
+                "Al menos una API key debe configurarse: DEEPSEEK_API_KEY o KIMI_API_KEY"
+            )
+        return self
+
+    @property
+    def tier_ladder(self) -> list[TierName]:
+        """Ordered list of tiers for escalation logic."""
+        return ["flash", "pro", "backup", "backup_pro"]
+
+
+settings = Settings()
+
+
+def get_model_config(tier: TierName | None = None) -> tuple[OpenAI, str]:
+    """Factory: returns an (OpenAI-compatible client, model_name) tuple."""
+    tier = tier or settings.llm_tier
+
+    if tier == "flash":
+        return OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url), settings.deepseek_model
+    elif tier == "pro":
+        return OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url), settings.deepseek_model_pro
+    elif tier == "backup":
+        return OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url), settings.kimi_model
+    elif tier == "backup_pro":
+        return OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url), settings.kimi_model_pro
+    else:
+        raise ValueError(f"Tier desconocido: {tier}")
