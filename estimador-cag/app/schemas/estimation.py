@@ -11,7 +11,10 @@ from pydantic import BaseModel, Field
 
 class EstimateRequest(BaseModel):
     """Inbound payload for POST /api/v1/estimate."""
-    transcription: str = Field(..., min_length=10, description="Texto de la transcripcion de reunion")
+    transcription: str = Field(
+        ..., min_length=10,
+        description="Texto de la transcripcion de reunion"
+    )
     tier: str = Field(default="flash", description="Tier de LLM: flash, pro, backup, backup_pro")
 
 

@@ -6,8 +6,9 @@ DEPENDS ON: app.config (Settings, tier routing), app.context.examples (CAG data)
 """
 
 import logging
-from datetime import datetime, timezone
-from app.config import settings, get_model_config, TierName
+from datetime import UTC, datetime
+
+from app.config import TierName, get_model_config, settings
 from app.context.examples import ESTIMATION_EXAMPLES
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,10 @@ def estimate(transcription: str, tier: TierName | None = None) -> dict:
             content = response.choices[0].message.content
             usage = response.usage
 
-            logger.info(f"Respuesta OK: tier={attempt_tier}, tokens={usage.prompt_tokens}/{usage.completion_tokens}")
+            logger.info(
+        f"Respuesta OK: tier={attempt_tier}, "
+        f"tokens={usage.prompt_tokens}/{usage.completion_tokens}"
+    )
 
             return {
                 "estimation": content,
@@ -80,10 +84,54 @@ def estimate(transcription: str, tier: TierName | None = None) -> dict:
                 "provider": _get_provider(attempt_tier),
                 "input_tokens": usage.prompt_tokens,
                 "output_tokens": usage.completion_tokens,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
         except Exception as e:
             logger.warning(f"Tier {attempt_tier} fallo: {e}. Escalando...")
             continue
 
     raise RuntimeError("Todos los tiers de LLM fallaron. Verifica API keys y quotas.")
+
+
+def estimate_stream(transcription: str, tier: TierName | None = None):
+    """
+    Synchronous generator yielding estimation tokens one by one.
+    LAYER: services
+    RESPONSIBILITY: Streaming LLM call for real-time UX in Streamlit.
+    WHY IT EXISTS: Session 3 Nivel 2 requires token-by-token streaming.
+    DEPENDS ON: app.config (get_model_config, settings), app.context.examples.
+    """
+    system_prompt = build_system_prompt()
+    effective_tier = tier or settings.llm_tier
+    ladder = settings.tier_ladder
+    start_idx = ladder.index(effective_tier)
+    tiers_to_try = ladder[start_idx:]
+
+    for attempt_tier in tiers_to_try:
+        try:
+            client, model = get_model_config(attempt_tier)
+            logger.info(f"Streaming tier={attempt_tier}, model={model}")
+
+            stream = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"TRANSCRIPCION DE REUNION:\n{transcription}"},
+                ],
+                temperature=0.3,
+                max_tokens=2000,
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
+            return  # Successful stream ends here
+        except Exception as e:
+            logger.warning(f"Stream tier {attempt_tier} fallo: {e}. Escalando...")
+            continue
+
+    raise RuntimeError(
+        "Todos los tiers de LLM fallaron en streaming. "
+        "Verifica API keys y quotas."
+    )
