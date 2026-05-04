@@ -7,9 +7,10 @@ DEPENDS ON: pydantic_settings (BaseSettings), openai (OpenAI client factory)
 """
 
 from typing import Literal
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator
+
 from openai import OpenAI
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 TierName = Literal["flash", "pro", "backup", "backup_pro"]
 
@@ -59,12 +60,20 @@ def get_model_config(tier: TierName | None = None) -> tuple[OpenAI, str]:
     tier = tier or settings.llm_tier
 
     if tier == "flash":
-        return OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url), settings.deepseek_model
+        client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url)
+        return client, settings.deepseek_model
     elif tier == "pro":
-        return OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url), settings.deepseek_model_pro
+        client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url)
+        return client, settings.deepseek_model_pro
     elif tier == "backup":
-        return OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url), settings.kimi_model
+        return (
+            OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url),
+            settings.kimi_model,
+        )
     elif tier == "backup_pro":
-        return OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url), settings.kimi_model_pro
+        return (
+            OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url),
+            settings.kimi_model_pro,
+        )
     else:
         raise ValueError(f"Tier desconocido: {tier}")

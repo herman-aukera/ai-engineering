@@ -2,7 +2,7 @@ name: CI - Estimador CAG
 
 on:
   push:
-    branches: [main, sesion-02-estimador-cag]
+    branches: [main, sesion-02-estimador-cag, sesion-03-streamlit]
   pull_request:
     branches: [main]
 
@@ -25,9 +25,11 @@ jobs:
           test -d estimador-cag/app/services || exit 1
           test -d estimador-cag/app/context || exit 1
           test -d estimador-cag/app/schemas || exit 1
+          test -d estimador-cag/app/middleware || exit 1
           test -d estimador-cag/tests || exit 1
           test -f estimador-cag/app/config.py || exit 1
           test -f estimador-cag/app/main.py || exit 1
+          test -f estimador-cag/streamlit_app.py || exit 1
           test -f estimador-cag/.env.example || exit 1
           test -f estimador-cag/pyproject.toml || exit 1
           echo "✅ Folder structure OK"
@@ -46,7 +48,7 @@ jobs:
 
       - name: Lint with ruff
         working-directory: ./estimador-cag
-        run: uv run ruff check app/ tests/
+        run: uv run ruff check app/ tests/ streamlit_app.py
 
       - name: Check Python syntax
         working-directory: ./estimador-cag
@@ -54,8 +56,12 @@ jobs:
           uv run python -m py_compile app/main.py
           uv run python -m py_compile app/config.py
           uv run python -m py_compile app/services/llm_service.py
+          uv run python -m py_compile app/services/provider.py
+          uv run python -m py_compile app/services/cache.py
+          uv run python -m py_compile app/middleware/logging.py
           uv run python -m py_compile app/routers/estimations.py
           uv run python -m py_compile app/schemas/estimation.py
+          uv run python -m py_compile streamlit_app.py
           echo "✅ Python syntax OK"
 
       - name: Run pytest
@@ -72,4 +78,6 @@ jobs:
           sleep 5
           curl -f http://localhost:8000/health || exit 1
           echo "✅ Health endpoint responds 200"
+          curl -f http://localhost:8000/metrics || exit 1
+          echo "✅ Metrics endpoint responds 200"
           pkill -f uvicorn || true

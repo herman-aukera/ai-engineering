@@ -7,7 +7,7 @@ DEPENDS ON: Nothing (pure data)
 
 ESTIMATION_EXAMPLES = [
     {
-        "meeting_summary": "El cliente necesita una plataforma web de gestion de inventario con roles de usuario, dashboard de metricas y exportacion a Excel. 10 usuarios concurrentes.",
+        "meeting_summary": "El cliente necesita una plataforma web de gestion de inventario con roles de usuario, dashboard de metricas y exportacion a Excel. 10 usuarios concurrentes.", \
         "estimation": """## Estimacion: Plataforma de Gestion de Inventario
 
 ### Desglose de tareas:
@@ -22,7 +22,7 @@ ESTIMATION_EXAMPLES = [
 **Duracion estimada: 6-8 semanas**""",
     },
     {
-        "meeting_summary": "Landing page con formulario de contacto, integracion HubSpot CRM, blog con editor WYSIWYG. Diseno en Figma. 4 semanas de plazo.",
+        "meeting_summary": "Landing page con formulario de contacto, integracion HubSpot CRM, blog con editor WYSIWYG. Diseno en Figma. 4 semanas de plazo.",\
         "estimation": """## Estimacion: Landing Page + Blog + CRM
 
 ### Desglose de tareas:
