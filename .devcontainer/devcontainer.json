@@ -42,28 +42,25 @@
   },
   "postCreateCommand": "echo 'export UV_LINK_MODE=copy' >> ~/.bashrc && curl -LsSf https://astral.sh/uv/install.sh | sh && echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.bashrc && export PATH=\"$HOME/.local/bin:$PATH\" && cd estimador-cag && uv sync && uv run ipython kernel install --user --name=lidr && bash /workspaces/ai-engineering/.devcontainer/cline-config/setup-cline.sh && echo '>>> Entorno listo'",
   "postStartCommand": "docker --version && docker compose version && uv --version && cd estimador-cag && uv run fastapi --version && uv run streamlit --version && echo '>>> Todo listo'",
-  "forwardPorts": [
-    8000,
-    5432,
-    8501,
-    8888
-  ],
+  "forwardPorts": [8000, 8501, 8888, 5432],
   "portsAttributes": {
     "8000": {
-      "label": "FastAPI",
+      "label": "FastAPI backend and /demo",
+      "onAutoForward": "notify",
+      "visibility": "public"
+    },
+    "8501": {
+      "label": "Streamlit UI",
+      "onAutoForward": "openPreview",
+      "visibility": "public"
+    },
+    "8888": {
+      "label": "Jupyter",
       "onAutoForward": "notify"
     },
     "5432": {
       "label": "PostgreSQL",
       "onAutoForward": "silent"
-    },
-    "8501": {
-      "label": "Streamlit",
-      "onAutoForward": "notify"
-    },
-    "8888": {
-      "label": "Jupyter",
-      "onAutoForward": "notify"
     }
   },
   "remoteUser": "root"
