@@ -1,6 +1,9 @@
 {
   "name": "LIDR - Kimi/DeepSeek + Streamlit + Cline",
   "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+  "remoteEnv": {
+    "UV_LINK_MODE": "copy"
+  },
   "waitFor": "postCreateCommand",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
@@ -37,7 +40,7 @@
       }
     }
   },
-  "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.bashrc && export PATH=\"$HOME/.local/bin:$PATH\" && cd estimador-cag && uv sync && uv run ipython kernel install --user --name=lidr && bash /workspaces/ai-engineering/.devcontainer/cline-config/setup-cline.sh && echo '>>> Entorno listo'",
+  "postCreateCommand": "echo 'export UV_LINK_MODE=copy' >> ~/.bashrc && curl -LsSf https://astral.sh/uv/install.sh | sh && echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.bashrc && export PATH=\"$HOME/.local/bin:$PATH\" && cd estimador-cag && uv sync && uv run ipython kernel install --user --name=lidr && bash /workspaces/ai-engineering/.devcontainer/cline-config/setup-cline.sh && echo '>>> Entorno listo'",
   "postStartCommand": "docker --version && docker compose version && uv --version && cd estimador-cag && uv run fastapi --version && uv run streamlit --version && echo '>>> Todo listo'",
   "forwardPorts": [
     8000,
