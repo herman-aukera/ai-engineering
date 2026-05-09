@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 
 from app.config import TierName, get_model_config, settings
 from app.context.examples import ESTIMATION_EXAMPLES
+from app.services.cache import cached_estimate
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,17 @@ def _get_provider(tier: str) -> str:
     elif tier in ("backup", "backup_pro"):
         return "kimi"
     return "unknown"
+
+def _temperature_for_model(model: str) -> float:
+    """
+    Return provider-safe temperature.
+
+    Kimi K2 models reject arbitrary temperature values and require 1.
+    DeepSeek accepts lower deterministic values such as 0.3.
+    """
+    if model.startswith("kimi-k2."):
+        return 1.0
+    return 0.3
 
 
 def build_system_prompt() -> str:
@@ -42,7 +54,7 @@ Ejemplos de referencia:
 
 {examples_text}"""
 
-
+@cached_estimate(ttl_seconds=300)
 def estimate(transcription: str, tier: TierName | None = None) -> dict:
     """
     Synchronous LLM call with automatic tier fallback.
@@ -65,12 +77,18 @@ def estimate(transcription: str, tier: TierName | None = None) -> dict:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"TRANSCRIPCION DE REUNION:\n{transcription}"},
                 ],
-                temperature=0.3,
+                temperature=_temperature_for_model(model),
                 max_tokens=2000,
             )
 
             content = response.choices[0].message.content
             usage = response.usage
+
+            if not content or not content.strip():
+                raise RuntimeError(
+        f"Empty response content from model={model}, tier={attempt_tier}. "
+        "Provider returned tokens but no visible estimation."
+    )
 
             logger.info(
         f"Respuesta OK: tier={attempt_tier}, "
@@ -118,7 +136,7 @@ def estimate_stream(transcription: str, tier: TierName | None = None):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"TRANSCRIPCION DE REUNION:\n{transcription}"},
                 ],
-                temperature=0.3,
+                temperature=_temperature_for_model(model),
                 max_tokens=2000,
                 stream=True,
             )

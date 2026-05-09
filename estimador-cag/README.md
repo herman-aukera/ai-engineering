@@ -52,3 +52,15 @@ uv run ruff check app/ tests/
 - **Session 3:** Streamlit wrapper, streaming, provider abstraction
 - **Modules 3-4:** RAG with embeddings, retrieval, ingestion
 - **Module 5:** Agents with orchestrator, tools, validators
+
+## Human test path in Codespaces
+
+This project can be tested by a developer with curl and by a non technical user through Streamlit or the browser SSE demo.
+
+### Option A: Streamlit interface
+
+Start the FastAPI backend:
+
+```bash
+cd /workspaces/ai-engineering/estimador-cag
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
