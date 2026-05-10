@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     kimi_base_url: str = "https://api.moonshot.ai/v1"
 
     database_url: str = "postgresql://dev:dev@localhost:5432/lidr"
+    redis_url: str = "redis://localhost:6379/0"
+    cache_ttl_seconds: int = 86400
 
     @model_validator(mode="after")
     def validate_api_keys(self):

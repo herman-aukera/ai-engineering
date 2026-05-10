@@ -31,3 +31,5 @@ class EstimateResponse(BaseModel):
     input_tokens: int = Field(..., description="Tokens de entrada")
     output_tokens: int = Field(..., description="Tokens de salida")
     timestamp: str = Field(..., description="Timestamp ISO 8601 UTC de la respuesta")
+    cached: bool = Field(default=False, description="True when the response came from exact cache")
+    cache_backend: str = Field(default="unknown", description="Cache backend used: redis, memory_fallback, or unknown")

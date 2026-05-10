@@ -8,9 +8,11 @@ DEPENDS ON: app.config (Settings, tier routing), app.context.examples (CAG data)
 import logging
 from datetime import UTC, datetime
 
+from redis import Redis
+
 from app.config import TierName, get_model_config, settings
 from app.context.examples import ESTIMATION_EXAMPLES
-from app.services.cache import cached_estimate
+from app.services.cache import RedisEstimationCache
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +56,61 @@ Ejemplos de referencia:
 
 {examples_text}"""
 
-@cached_estimate(ttl_seconds=300)
+
+
+def build_redis_cache() -> RedisEstimationCache:
+    """
+    Build the Redis exact response cache from application settings.
+
+    LAYER: services
+    RESPONSIBILITY: Create the process-independent cache backend used by estimate().
+    WHY IT EXISTS: Keeps Redis client construction out of endpoint code and makes
+                   cache wiring testable.
+    DEPENDS ON: settings.redis_url, settings.cache_ttl_seconds, redis.Redis.
+    """
+    redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+    return RedisEstimationCache(
+        redis_client=redis_client,
+        ttl_seconds=settings.cache_ttl_seconds,
+    )
+
+def estimate_with_exact_cache(
+    *,
+    transcription: str,
+    tier: str,
+    model: str,
+    system_prompt: str,
+    cache,
+    model_call,
+) -> dict:
+    """
+    Orchestrate exact response caching around an LLM estimation call.
+
+    LAYER: services
+    RESPONSIBILITY: Check exact cache before calling the model and store fresh responses.
+    WHY IT EXISTS: Keeps cache orchestration testable without making real provider calls.
+    DEPENDS ON: cache object with make_key/get/set/backend_name and a zero-arg model_call.
+    """
+    cache_key = cache.make_key(
+        tier=tier,
+        model=model,
+        system_prompt=system_prompt,
+        transcription=transcription,
+    )
+
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        result = cached_result.copy()
+        result["cached"] = True
+        result["cache_backend"] = cache.backend_name
+        return result
+
+    result = model_call().copy()
+    result["cached"] = False
+    result["cache_backend"] = cache.backend_name
+    cache.set(cache_key, result.copy())
+    return result
+
 def estimate(transcription: str, tier: TierName | None = None) -> dict:
     """
     Synchronous LLM call with automatic tier fallback.
@@ -71,39 +127,54 @@ def estimate(transcription: str, tier: TierName | None = None) -> dict:
             client, model = get_model_config(attempt_tier)
             logger.info(f"Llamando tier={attempt_tier}, model={model}")
 
-            response = client.chat.completions.create(
+            cache = build_redis_cache()
+
+            def model_call() -> dict:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {
+                            "role": "user",
+                            "content": f"TRANSCRIPCION DE REUNION:\n{transcription}",
+                        },
+                    ],
+                    temperature=_temperature_for_model(model),
+                    max_tokens=2000,
+                )
+
+                content = response.choices[0].message.content
+                usage = response.usage
+
+                if not content or not content.strip():
+                    raise RuntimeError(
+                        f"Empty response content from model={model}, tier={attempt_tier}. "
+                        "Provider returned tokens but no visible estimation."
+                    )
+
+                logger.info(
+                    f"Respuesta OK: tier={attempt_tier}, "
+                    f"tokens={usage.prompt_tokens}/{usage.completion_tokens}"
+                )
+
+                return {
+                    "estimation": content,
+                    "model": model,
+                    "tier": attempt_tier,
+                    "provider": _get_provider(attempt_tier),
+                    "input_tokens": usage.prompt_tokens,
+                    "output_tokens": usage.completion_tokens,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+
+            return estimate_with_exact_cache(
+                transcription=transcription,
+                tier=attempt_tier,
                 model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"TRANSCRIPCION DE REUNION:\n{transcription}"},
-                ],
-                temperature=_temperature_for_model(model),
-                max_tokens=2000,
+                system_prompt=system_prompt,
+                cache=cache,
+                model_call=model_call,
             )
-
-            content = response.choices[0].message.content
-            usage = response.usage
-
-            if not content or not content.strip():
-                raise RuntimeError(
-        f"Empty response content from model={model}, tier={attempt_tier}. "
-        "Provider returned tokens but no visible estimation."
-    )
-
-            logger.info(
-        f"Respuesta OK: tier={attempt_tier}, "
-        f"tokens={usage.prompt_tokens}/{usage.completion_tokens}"
-    )
-
-            return {
-                "estimation": content,
-                "model": model,
-                "tier": attempt_tier,
-                "provider": _get_provider(attempt_tier),
-                "input_tokens": usage.prompt_tokens,
-                "output_tokens": usage.completion_tokens,
-                "timestamp": datetime.now(UTC).isoformat(),
-            }
         except Exception as e:
             logger.warning(f"Tier {attempt_tier} fallo: {e}. Escalando...")
             continue

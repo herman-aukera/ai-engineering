@@ -58,6 +58,7 @@ def record_call_metrics(result: dict):
         "output_tokens": result.get("output_tokens"),
         "timestamp": result.get("timestamp"),
         "cached": result.get("cached", False),
+        "cache_backend": result.get("cache_backend", "unknown"),
     }
     _metrics_history.append(_last_call)
     logger.info(f"Metrics recorded: {_last_call['tier']} tokens={_last_call['input_tokens']}/{_last_call['output_tokens']}")
