@@ -261,8 +261,9 @@ def test_litellm_provider_stream_yields_visible_chunks(monkeypatch):
     assert calls["temperature"] == 0.3
 
 
-def test_litellm_provider_stream_rejects_empty_visible_content(monkeypatch):
+def test_litellm_provider_stream_falls_back_to_sync_completion_when_stream_is_empty(monkeypatch):
     provider = LiteLLMProvider()
+    calls = {"sync": 0}
 
     class FakeDelta:
         content = None
@@ -274,16 +275,127 @@ def test_litellm_provider_stream_rejects_empty_visible_content(monkeypatch):
         choices = [FakeChoice()]
 
     def fake_completion(**kwargs):
-        return [FakeChunk()]
+        if kwargs.get("stream") is True:
+            return [FakeChunk()]
+
+        calls["sync"] += 1
+
+        class FakeMessage:
+            content = "sync fallback estimate"
+
+        class FakeSyncChoice:
+            message = FakeMessage()
+            finish_reason = "stop"
+
+        class FakeUsage:
+            prompt_tokens = 10
+            completion_tokens = 20
+
+        class FakeResponse:
+            choices = [FakeSyncChoice()]
+            usage = FakeUsage()
+
+        return FakeResponse()
 
     monkeypatch.setattr("app.services.litellm_provider.litellm.completion", fake_completion)
 
-    with pytest.raises(RuntimeError, match="Empty streaming response content"):
-        list(
-            provider.stream(
-                transcription="Build a landing page",
-                system_prompt="You are an estimator",
-                tier="flash",
-                max_tokens=2000,
-            )
+    chunks = list(
+        provider.stream(
+            transcription="Build a landing page",
+            system_prompt="You are an estimator",
+            tier="flash",
+            max_tokens=2000,
         )
+    )
+
+    assert chunks == ["sync fallback estimate"]
+    assert calls["sync"] == 1
+
+
+def test_litellm_provider_stream_ignores_reasoning_content_and_falls_back_to_sync(monkeypatch):
+    provider = LiteLLMProvider()
+
+    class FakeDelta:
+        content = None
+        reasoning_content = "I am thinking about the task and should not show this."
+
+    class FakeChoice:
+        delta = FakeDelta()
+
+    class FakeChunk:
+        choices = [FakeChoice()]
+
+    def fake_completion(**kwargs):
+        if kwargs.get("stream") is True:
+            return [FakeChunk()]
+
+        class FakeMessage:
+            content = "## Estimación: Clean final answer"
+
+        class FakeSyncChoice:
+            message = FakeMessage()
+            finish_reason = "stop"
+
+        class FakeUsage:
+            prompt_tokens = 10
+            completion_tokens = 20
+
+        class FakeResponse:
+            choices = [FakeSyncChoice()]
+            usage = FakeUsage()
+
+        return FakeResponse()
+
+    monkeypatch.setattr("app.services.litellm_provider.litellm.completion", fake_completion)
+
+    chunks = list(
+        provider.stream(
+            transcription="Build an inventory platform",
+            system_prompt="You are an estimator",
+            tier="flash",
+            max_tokens=2000,
+        )
+    )
+
+    assert chunks == ["## Estimación: Clean final answer"]
+    assert "thinking" not in "".join(chunks)
+
+
+def test_litellm_provider_complete_strips_process_preamble_before_estimate_heading(monkeypatch):
+    provider = LiteLLMProvider()
+
+    class FakeMessage:
+        content = (
+            "El usuario solicita una estimación detallada. "
+            "Debo seguir las reglas. "
+            "## Estimación: Plataforma de Gestión de Inventario\n\n"
+            "### Desglose de tareas\n"
+            "1. Backend API: 60 horas"
+        )
+
+    class FakeChoice:
+        message = FakeMessage()
+        finish_reason = "stop"
+
+    class FakeUsage:
+        prompt_tokens = 10
+        completion_tokens = 20
+
+    class FakeResponse:
+        choices = [FakeChoice()]
+        usage = FakeUsage()
+
+    def fake_completion(**kwargs):
+        return FakeResponse()
+
+    monkeypatch.setattr("app.services.litellm_provider.litellm.completion", fake_completion)
+
+    result = provider.complete(
+        transcription="Build an inventory platform",
+        system_prompt="You are an estimator",
+        tier="flash",
+        max_tokens=2000,
+    )
+
+    assert result["estimation"].startswith("## Estimación:")
+    assert "El usuario solicita" not in result["estimation"]
