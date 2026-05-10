@@ -149,11 +149,6 @@ def test_estimate_uses_redis_cache_hit_without_calling_provider(monkeypatch):
         chat = FakeChat()
 
     monkeypatch.setattr(llm_service, "build_redis_cache", lambda: FakeCache())
-    monkeypatch.setattr(
-        llm_service,
-        "get_model_config",
-        lambda tier: (FakeClient(), "deepseek-v4-flash"),
-    )
 
     result = llm_service.estimate(
         transcription="unique redis cache hit transcript",
