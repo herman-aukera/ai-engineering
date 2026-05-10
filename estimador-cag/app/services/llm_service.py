@@ -6,13 +6,13 @@ DEPENDS ON: app.config (Settings, tier routing), app.context.examples (CAG data)
 """
 
 import logging
-from datetime import UTC, datetime
 
 from redis import Redis
 
-from app.config import TierName, get_model_config, settings
+from app.config import TierName, settings
 from app.context.examples import ESTIMATION_EXAMPLES
 from app.services.cache import RedisEstimationCache
+from app.services.litellm_provider import LiteLLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -113,114 +113,59 @@ def estimate_with_exact_cache(
 
 def estimate(transcription: str, tier: TierName | None = None) -> dict:
     """
-    Synchronous LLM call with automatic tier fallback.
-    MEJORA: Incluye provider y timestamp en la respuesta.
+    Synchronous LLM call with Redis exact cache and LiteLLM provider fallback.
+
+    LAYER: services
+    RESPONSIBILITY: Orchestrate CAG prompt creation, Redis exact cache, LiteLLM call,
+                    fallback routing, and normalized response metadata.
+    WHY IT EXISTS: Keeps HTTP routers thin while centralizing the application use case.
+    DEPENDS ON: build_system_prompt, build_redis_cache, LiteLLMProvider.
     """
     system_prompt = build_system_prompt()
     effective_tier = tier or settings.llm_tier
-    ladder = settings.tier_ladder
-    start_idx = ladder.index(effective_tier)
-    tiers_to_try = ladder[start_idx:]
+    provider = LiteLLMProvider()
+    resolved = provider.resolve_model(effective_tier)
+    cache = build_redis_cache()
 
-    for attempt_tier in tiers_to_try:
-        try:
-            client, model = get_model_config(attempt_tier)
-            logger.info(f"Llamando tier={attempt_tier}, model={model}")
+    def model_call() -> dict:
+        logger.info(f"Calling LiteLLM starting_tier={effective_tier}, model={resolved.model}")
+        return provider.complete_with_fallback(
+            transcription=transcription,
+            system_prompt=system_prompt,
+            starting_tier=effective_tier,
+            tier_ladder=settings.tier_ladder,
+            max_tokens=2000,
+        )
 
-            cache = build_redis_cache()
-
-            def model_call() -> dict:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {
-                            "role": "user",
-                            "content": f"TRANSCRIPCION DE REUNION:\n{transcription}",
-                        },
-                    ],
-                    temperature=_temperature_for_model(model),
-                    max_tokens=2000,
-                )
-
-                content = response.choices[0].message.content
-                usage = response.usage
-
-                if not content or not content.strip():
-                    raise RuntimeError(
-                        f"Empty response content from model={model}, tier={attempt_tier}. "
-                        "Provider returned tokens but no visible estimation."
-                    )
-
-                logger.info(
-                    f"Respuesta OK: tier={attempt_tier}, "
-                    f"tokens={usage.prompt_tokens}/{usage.completion_tokens}"
-                )
-
-                return {
-                    "estimation": content,
-                    "model": model,
-                    "tier": attempt_tier,
-                    "provider": _get_provider(attempt_tier),
-                    "input_tokens": usage.prompt_tokens,
-                    "output_tokens": usage.completion_tokens,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                }
-
-            return estimate_with_exact_cache(
-                transcription=transcription,
-                tier=attempt_tier,
-                model=model,
-                system_prompt=system_prompt,
-                cache=cache,
-                model_call=model_call,
-            )
-        except Exception as e:
-            logger.warning(f"Tier {attempt_tier} fallo: {e}. Escalando...")
-            continue
-
-    raise RuntimeError("Todos los tiers de LLM fallaron. Verifica API keys y quotas.")
+    return estimate_with_exact_cache(
+        transcription=transcription,
+        tier=effective_tier,
+        model=resolved.model,
+        system_prompt=system_prompt,
+        cache=cache,
+        model_call=model_call,
+    )
 
 
 def estimate_stream(transcription: str, tier: TierName | None = None):
     """
-    Synchronous generator yielding estimation tokens one by one.
+    Stream estimation tokens through the LiteLLM provider abstraction.
+
     LAYER: services
-    RESPONSIBILITY: Streaming LLM call for real-time UX in Streamlit.
-    WHY IT EXISTS: Session 3 Nivel 2 requires token-by-token streaming.
-    DEPENDS ON: app.config (get_model_config, settings), app.context.examples.
+    RESPONSIBILITY: Build the CAG prompt and delegate streaming to LiteLLMProvider.
+    WHY IT EXISTS: Keeps streaming provider details out of FastAPI and Streamlit.
+    DEPENDS ON: build_system_prompt, LiteLLMProvider.
     """
     system_prompt = build_system_prompt()
     effective_tier = tier or settings.llm_tier
-    ladder = settings.tier_ladder
-    start_idx = ladder.index(effective_tier)
-    tiers_to_try = ladder[start_idx:]
+    provider = LiteLLMProvider()
 
-    for attempt_tier in tiers_to_try:
-        try:
-            client, model = get_model_config(attempt_tier)
-            logger.info(f"Streaming tier={attempt_tier}, model={model}")
+    logger.info(f"Streaming with LiteLLM tier={effective_tier}")
 
-            stream = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"TRANSCRIPCION DE REUNION:\n{transcription}"},
-                ],
-                temperature=_temperature_for_model(model),
-                max_tokens=2000,
-                stream=True,
-            )
-            for chunk in stream:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield delta
-            return  # Successful stream ends here
-        except Exception as e:
-            logger.warning(f"Stream tier {attempt_tier} fallo: {e}. Escalando...")
-            continue
-
-    raise RuntimeError(
-        "Todos los tiers de LLM fallaron en streaming. "
-        "Verifica API keys y quotas."
+    yield from provider.stream(
+        transcription=transcription,
+        system_prompt=system_prompt,
+        tier=effective_tier,
+        max_tokens=2000,
     )
+
