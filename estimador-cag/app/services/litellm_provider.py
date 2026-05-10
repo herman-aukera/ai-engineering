@@ -115,7 +115,8 @@ class LiteLLMProvider:
             max_tokens=max_tokens,
         )
 
-        content = response.choices[0].message.content
+        raw_content = response.choices[0].message.content
+        content = self._clean_estimation_content(raw_content)
         if not content or not content.strip():
             raise RuntimeError(
                 f"Empty response content from model={resolved.model}, tier={resolved.tier}. "
@@ -188,7 +189,11 @@ class LiteLLMProvider:
         RESPONSIBILITY: Normalize LiteLLM streaming chunks into visible text tokens.
         WHY IT EXISTS: Keeps streaming provider behavior behind the same abstraction
                        as synchronous completion.
-        DEPENDS_ON: litellm.completion, resolve_model.
+
+        FALLBACK POLICY:
+        Some OpenAI-compatible providers can return a valid streaming response with
+        no visible delta.content chunks. When that happens, we fallback to a normal
+        synchronous completion and yield the complete visible answer once.
         """
         resolved = self.resolve_model(tier)
         messages = [
@@ -207,14 +212,72 @@ class LiteLLMProvider:
         )
 
         emitted_any = False
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                emitted_any = True
-                yield delta
 
-        if not emitted_any:
-            raise RuntimeError(
-                f"Empty streaming response content from model={resolved.model}, tier={resolved.tier}."
-            )
+        for chunk in stream:
+            token = self._extract_stream_token(chunk)
+            if token:
+                emitted_any = True
+                yield token
+
+        if emitted_any:
+            return
+
+        fallback = self.complete(
+            transcription=transcription,
+            system_prompt=system_prompt,
+            tier=tier,
+            max_tokens=max_tokens,
+        )
+        yield fallback["estimation"]
+
+    @staticmethod
+    def _clean_estimation_content(content: str | None) -> str | None:
+        """
+        Remove process-like preambles before the final estimation.
+
+        WHY IT EXISTS: Some providers may return a visible preamble before the
+        actual answer. The UI should show the final estimation, not the model's
+        self-description of the task.
+        """
+        if content is None:
+            return None
+
+        markers = [
+            "## Estimación",
+            "## Estimacion",
+            "### Desglose",
+            "Desglose de tareas",
+        ]
+
+        positions = [content.find(marker) for marker in markers if content.find(marker) != -1]
+        if not positions:
+            return content
+
+        start = min(positions)
+        return content[start:].lstrip()
+
+    @staticmethod
+    def _extract_stream_token(chunk) -> str | None:
+        """
+        Extract visible token text from LiteLLM/OpenAI-compatible stream chunks.
+
+        WHY IT EXISTS: Providers differ between object-style and dict-style chunks.
+        """
+        try:
+            choice = chunk.choices[0]
+        except (AttributeError, IndexError, TypeError):
+            try:
+                choice = chunk["choices"][0]
+            except (KeyError, IndexError, TypeError):
+                return None
+
+        try:
+            delta = choice.delta
+        except AttributeError:
+            delta = choice.get("delta", {}) if isinstance(choice, dict) else {}
+
+        if isinstance(delta, dict):
+            return delta.get("content")
+
+        return getattr(delta, "content", None)
 
