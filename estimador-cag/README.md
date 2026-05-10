@@ -64,3 +64,23 @@ Start the FastAPI backend:
 ```bash
 cd /workspaces/ai-engineering/estimador-cag
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+## Codespaces port visibility
+
+After Codespaces starts, open the PORTS tab.
+
+Check:
+
+- 8000 FastAPI backend and `/demo`
+- 8501 Streamlit UI
+
+If either port is Private and browser access returns 401, 402, tunnel auth, or 502:
+
+1. Right click the port.
+2. Select Port Visibility.
+3. Choose Public.
+4. Reload the browser page.
+
+You can also set visibility from the terminal:
+
+```bash
+gh codespace ports visibility 8000:public 8501:public -c "$CODESPACE_NAME"
