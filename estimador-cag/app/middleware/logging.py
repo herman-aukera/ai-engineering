@@ -62,12 +62,24 @@ async def logging_middleware(request: Request, call_next):
     WHY async: FastAPI middleware must be async to avoid blocking.
     """
     request_id = str(uuid.uuid4())
+
+    record_request_metrics(
+        request_id=request_id,
+        endpoint=request.url.path,
+        latency_ms=None,
+    )
+
     start = time.time()
     response = await call_next(request)
     duration = time.time() - start
     latency_ms = int(duration * 1000)
 
     record_request_metrics(
+        request_id=request_id,
+        endpoint=request.url.path,
+        latency_ms=latency_ms,
+    )
+    update_last_call_request_latency(
         request_id=request_id,
         endpoint=request.url.path,
         latency_ms=latency_ms,
@@ -110,6 +122,24 @@ def record_request_metrics(*, request_id: str, endpoint: str, latency_ms: int):
         "endpoint": endpoint,
         "latency_ms": latency_ms,
     }
+
+
+
+def update_last_call_request_latency(*, request_id: str, endpoint: str, latency_ms: int):
+    """
+    Update the last LLM metrics payload once request latency is known.
+
+    LAYER: middleware
+    RESPONSIBILITY: Complete request lifecycle fields after the route returns.
+    WHY IT EXISTS: LLM metrics are recorded inside the route, but latency is only
+                   known after call_next finishes.
+    DEPENDS ON: _last_call.
+    """
+    if (
+        _last_call.get("request_id") == request_id
+        and _last_call.get("endpoint") == endpoint
+    ):
+        _last_call["latency_ms"] = latency_ms
 
 
 def record_call_metrics(result: dict):
