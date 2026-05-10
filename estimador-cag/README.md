@@ -84,3 +84,15 @@ You can also set visibility from the terminal:
 
 ```bash
 gh codespace ports visibility 8000:public 8501:public -c "$CODESPACE_NAME"
+
+## Redis exact cache proof
+
+This project uses Redis as an exact response cache for synchronous estimations.
+
+Redis is a response cache. It is not retrieval, not RAG, not semantic search, and not the source of project knowledge. The CAG knowledge still comes from static examples injected into the prompt.
+
+Start Redis:
+
+```bash
+docker compose up -d redis
+docker compose ps redis
