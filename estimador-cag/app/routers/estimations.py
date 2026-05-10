@@ -15,7 +15,13 @@ from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from app.middleware.logging import record_call_metrics
 from app.schemas.estimation import EstimateRequest, EstimateResponse
-from app.services.llm_service import estimate, estimate_stream
+from app.services.litellm_provider import LiteLLMProvider
+from app.services.llm_service import (
+    build_redis_cache,
+    build_system_prompt,
+    estimate,
+    estimate_stream,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["estimations"])
 
@@ -55,18 +61,101 @@ def stream_estimation(request: EstimateRequest):
     def event_generator():
         started_at = datetime.now(UTC)
         output_chars = 0
+        full_response_parts: list[str] = []
+        effective_tier = request.tier or "flash"
 
         try:
-            for token in estimate_stream(request.transcription, tier=request.tier):
+            system_prompt = build_system_prompt()
+            provider = LiteLLMProvider()
+            resolved = provider.resolve_model(effective_tier)
+            cache = build_redis_cache()
+            cache_key = cache.make_key(
+                tier=effective_tier,
+                model=resolved.model,
+                system_prompt=system_prompt,
+                transcription=request.transcription,
+            )
+
+            cached_result = cache.get(cache_key)
+            if cached_result:
+                cached_text = cached_result["estimation"]
+                output_chars = len(cached_text)
+                yield ServerSentEvent(event="token", data=cached_text)
+
+                finished_at = datetime.now(UTC)
+                record_call_metrics(
+                    {
+                        "endpoint": "/api/v1/estimate/stream",
+                        "model": cached_result.get("model", resolved.model),
+                        "tier": cached_result.get("tier", effective_tier),
+                        "provider": cached_result.get("provider", resolved.provider),
+                        "input_tokens": cached_result.get("input_tokens"),
+                        "output_tokens": cached_result.get("output_tokens"),
+                        "timestamp": cached_result.get("timestamp", finished_at.isoformat()),
+                        "cached": True,
+                        "cache_backend": cache.backend_name,
+                        "fallback_used": cached_result.get("fallback_used", False),
+                        "finish_reason": cached_result.get("finish_reason", "stream_cached"),
+                        "error_type": None,
+                    }
+                )
+                metadata = {
+                    "tier": effective_tier,
+                    "output_chars": output_chars,
+                    "started_at": started_at.isoformat(),
+                    "finished_at": finished_at.isoformat(),
+                    "cached": True,
+                    "cache_backend": cache.backend_name,
+                }
+                yield ServerSentEvent(event="done", data=json.dumps(metadata))
+                return
+
+            for token in estimate_stream(request.transcription, tier=effective_tier):
                 output_chars += len(token)
+                full_response_parts.append(token)
                 yield ServerSentEvent(event="token", data=token)
 
+            finished_at = datetime.now(UTC)
+            full_response = "".join(full_response_parts)
+            cache_value = {
+                "estimation": full_response,
+                "model": resolved.model,
+                "tier": effective_tier,
+                "provider": resolved.provider,
+                "input_tokens": None,
+                "output_tokens": None,
+                "timestamp": finished_at.isoformat(),
+                "fallback_used": False,
+                "finish_reason": "stream_done",
+            }
+            cache.set(cache_key, cache_value)
+
             metadata = {
-                "tier": request.tier or "flash",
+                "tier": effective_tier,
                 "output_chars": output_chars,
                 "started_at": started_at.isoformat(),
-                "finished_at": datetime.now(UTC).isoformat(),
+                "finished_at": finished_at.isoformat(),
+                "cached": False,
+                "cache_backend": cache.backend_name,
             }
+
+            record_call_metrics(
+                {
+                    "endpoint": "/api/v1/estimate/stream",
+                    "model": resolved.model,
+                    "tier": effective_tier,
+                    "provider": resolved.provider,
+                    "input_tokens": None,
+                    "output_tokens": None,
+                    "timestamp": finished_at.isoformat(),
+                    "cached": False,
+                    "cache_backend": cache.backend_name,
+                    "fallback_used": False,
+                    "finish_reason": "stream_done",
+                    "error_type": None,
+                }
+            )
+
             yield ServerSentEvent(event="done", data=json.dumps(metadata))
 
         except Exception as exc:
