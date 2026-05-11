@@ -412,3 +412,39 @@ def test_litellm_provider_uses_litellm_provider_prefix_for_kimi_models():
 
     assert backup_pro.model.startswith("moonshot/")
     assert backup_pro.model == "moonshot/kimi-k2.6"
+
+
+def test_litellm_provider_complete_includes_cost_metadata(monkeypatch):
+    provider = LiteLLMProvider()
+
+    class FakeMessage:
+        content = "## Estimate with cost"
+
+    class FakeChoice:
+        message = FakeMessage()
+        finish_reason = "stop"
+
+    class FakeUsage:
+        prompt_tokens = 1000
+        completion_tokens = 2000
+
+    class FakeResponse:
+        choices = [FakeChoice()]
+        usage = FakeUsage()
+
+    def fake_completion(**kwargs):
+        return FakeResponse()
+
+    monkeypatch.setattr("app.services.litellm_provider.litellm.completion", fake_completion)
+
+    result = provider.complete(
+        transcription="Build a landing page",
+        system_prompt="You are an estimator",
+        tier="flash",
+        max_tokens=2000,
+    )
+
+    assert result["cost_usd"] is not None
+    assert result["cost_usd"] > 0
+    assert result["cost_source"] == "static_estimate"
+    assert result["pricing_model"] == "deepseek-v4-flash"

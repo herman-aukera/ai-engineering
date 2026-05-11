@@ -15,6 +15,7 @@ from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from app.middleware.logging import record_call_metrics
 from app.schemas.estimation import EstimateRequest, EstimateResponse
+from app.services.costs import estimate_cost_usd
 from app.services.litellm_provider import LiteLLMProvider
 from app.services.llm_service import (
     build_redis_cache,
@@ -83,6 +84,11 @@ def stream_estimation(request: EstimateRequest):
                 yield ServerSentEvent(event="token", data=cached_text)
 
                 finished_at = datetime.now(UTC)
+                cached_cost = estimate_cost_usd(
+                    model=cached_result.get("model", resolved.model),
+                    input_tokens=cached_result.get("input_tokens"),
+                    output_tokens=cached_result.get("output_tokens"),
+                )
                 record_call_metrics(
                     {
                         "endpoint": "/api/v1/estimate/stream",
@@ -91,6 +97,9 @@ def stream_estimation(request: EstimateRequest):
                         "provider": cached_result.get("provider", resolved.provider),
                         "input_tokens": cached_result.get("input_tokens"),
                         "output_tokens": cached_result.get("output_tokens"),
+                        "cost_usd": cached_result.get("cost_usd", cached_cost["cost_usd"]),
+                        "cost_source": cached_result.get("cost_source", cached_cost["cost_source"]),
+                        "pricing_model": cached_result.get("pricing_model", cached_cost["pricing_model"]),
                         "timestamp": cached_result.get("timestamp", finished_at.isoformat()),
                         "cached": True,
                         "cache_backend": cache.backend_name,
@@ -117,6 +126,11 @@ def stream_estimation(request: EstimateRequest):
 
             finished_at = datetime.now(UTC)
             full_response = "".join(full_response_parts)
+            stream_cost = estimate_cost_usd(
+                model=resolved.model,
+                input_tokens=None,
+                output_tokens=None,
+            )
             cache_value = {
                 "estimation": full_response,
                 "model": resolved.model,
@@ -124,6 +138,9 @@ def stream_estimation(request: EstimateRequest):
                 "provider": resolved.provider,
                 "input_tokens": None,
                 "output_tokens": None,
+                "cost_usd": stream_cost["cost_usd"],
+                "cost_source": stream_cost["cost_source"],
+                "pricing_model": stream_cost["pricing_model"],
                 "timestamp": finished_at.isoformat(),
                 "fallback_used": False,
                 "finish_reason": "stream_done",
@@ -147,6 +164,9 @@ def stream_estimation(request: EstimateRequest):
                     "provider": resolved.provider,
                     "input_tokens": None,
                     "output_tokens": None,
+                    "cost_usd": stream_cost["cost_usd"],
+                    "cost_source": stream_cost["cost_source"],
+                    "pricing_model": stream_cost["pricing_model"],
                     "timestamp": finished_at.isoformat(),
                     "cached": False,
                     "cache_backend": cache.backend_name,

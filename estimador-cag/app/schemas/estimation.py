@@ -33,3 +33,9 @@ class EstimateResponse(BaseModel):
     timestamp: str = Field(..., description="Timestamp ISO 8601 UTC de la respuesta")
     cached: bool = Field(default=False, description="True when the response came from exact cache")
     cache_backend: str = Field(default="unknown", description="Cache backend used: redis, memory_fallback, or unknown")
+    cost_usd: float | None = Field(default=None, description="Estimated LLM call cost in USD")
+    cost_source: str | None = Field(
+        default=None,
+        description="How cost was derived: static_estimate, missing_token_usage, unknown_pricing, etc.",
+    )
+    pricing_model: str | None = Field(default=None, description="Model id used for cost lookup")

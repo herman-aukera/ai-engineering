@@ -159,6 +159,8 @@ def record_call_metrics(result: dict):
         "output_tokens": result.get("output_tokens"),
         "latency_ms": result.get("latency_ms") or _last_request.get("latency_ms"),
         "cost_usd": result.get("cost_usd"),
+        "cost_source": result.get("cost_source"),
+        "pricing_model": result.get("pricing_model"),
         "timestamp": result.get("timestamp"),
         "cached": result.get("cached", False),
         "cache_backend": result.get("cache_backend", "unknown"),

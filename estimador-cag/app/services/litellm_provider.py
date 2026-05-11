@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 import litellm
 
 from app.config import TierName, settings
+from app.services.costs import estimate_cost_usd
 
 
 @dataclass(frozen=True)
@@ -138,15 +139,25 @@ class LiteLLMProvider:
             )
 
         usage = response.usage
+        input_tokens = usage.prompt_tokens
+        output_tokens = usage.completion_tokens
         finish_reason = getattr(response.choices[0], "finish_reason", None)
+        cost = estimate_cost_usd(
+            model=resolved.model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
 
         return {
             "estimation": content,
             "model": resolved.model,
             "tier": resolved.tier,
             "provider": resolved.provider,
-            "input_tokens": usage.prompt_tokens,
-            "output_tokens": usage.completion_tokens,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": cost["cost_usd"],
+            "cost_source": cost["cost_source"],
+            "pricing_model": cost["pricing_model"],
             "finish_reason": finish_reason,
             "timestamp": datetime.now(UTC).isoformat(),
         }
