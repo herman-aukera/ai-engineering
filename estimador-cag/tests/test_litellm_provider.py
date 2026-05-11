@@ -32,14 +32,14 @@ def test_litellm_provider_resolves_kimi_with_safe_temperature():
 
     assert backup.tier == "backup"
     assert backup.provider == "kimi"
-    assert backup.model == "kimi-k2.5"
+    assert backup.model == "moonshot/kimi-k2.5"
     assert backup.temperature == 1.0
     assert backup.base_url == "https://api.moonshot.ai/v1"
     assert backup.api_key
 
     assert backup_pro.tier == "backup_pro"
     assert backup_pro.provider == "kimi"
-    assert backup_pro.model == "kimi-k2.6"
+    assert backup_pro.model == "moonshot/kimi-k2.6"
     assert backup_pro.temperature == 1.0
     assert backup_pro.base_url == "https://api.moonshot.ai/v1"
     assert backup_pro.api_key
@@ -399,3 +399,16 @@ def test_litellm_provider_complete_strips_process_preamble_before_estimate_headi
 
     assert result["estimation"].startswith("## Estimación:")
     assert "El usuario solicita" not in result["estimation"]
+
+
+def test_litellm_provider_uses_litellm_provider_prefix_for_kimi_models():
+    provider = LiteLLMProvider()
+
+    backup = provider.resolve_model("backup")
+    backup_pro = provider.resolve_model("backup_pro")
+
+    assert backup.model.startswith("moonshot/")
+    assert backup.model == "moonshot/kimi-k2.5"
+
+    assert backup_pro.model.startswith("moonshot/")
+    assert backup_pro.model == "moonshot/kimi-k2.6"
