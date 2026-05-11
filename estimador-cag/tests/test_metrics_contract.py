@@ -39,3 +39,33 @@ def test_record_call_metrics_exposes_phase_3_observability_contract():
     assert metrics["finish_reason"] == "stop"
     assert metrics["error_type"] is None
     assert metrics["timestamp"] == "2026-05-10T00:00:00+00:00"
+
+
+def test_record_call_metrics_preserves_cost_metadata():
+    record_call_metrics(
+        {
+            "request_id": "req-cost-123",
+            "endpoint": "/api/v1/estimate",
+            "model": "deepseek-v4-flash",
+            "tier": "flash",
+            "provider": "deepseek",
+            "input_tokens": 1000,
+            "output_tokens": 2000,
+            "latency_ms": 321,
+            "cost_usd": 0.00247,
+            "cost_source": "static_estimate",
+            "pricing_model": "deepseek-v4-flash",
+            "cached": False,
+            "cache_backend": "redis",
+            "fallback_used": False,
+            "finish_reason": "stop",
+            "error_type": None,
+            "timestamp": "2026-05-10T00:00:00+00:00",
+        }
+    )
+
+    metrics = get_last_metrics()
+
+    assert metrics["cost_usd"] == 0.00247
+    assert metrics["cost_source"] == "static_estimate"
+    assert metrics["pricing_model"] == "deepseek-v4-flash"
