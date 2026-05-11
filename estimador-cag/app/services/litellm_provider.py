@@ -30,6 +30,20 @@ class ResolvedModel:
     temperature: float
 
 
+
+def _litellm_model_name(*, provider: str, model: str) -> str:
+    """
+    Convert configured model names into LiteLLM provider routed model names.
+
+    LAYER: services
+    RESPONSIBILITY: Keep env config human readable while giving LiteLLM the provider prefix it needs.
+    WHY IT EXISTS: LiteLLM routes Moonshot/Kimi models through the moonshot/ provider prefix.
+    DEPENDS_ON: LiteLLM provider naming conventions.
+    """
+    if provider == "kimi" and not model.startswith("moonshot/"):
+        return f"moonshot/{model}"
+    return model
+
 class LiteLLMProvider:
     """
     Resolve application tiers into provider specific LiteLLM settings.
@@ -66,7 +80,7 @@ class LiteLLMProvider:
             return ResolvedModel(
                 tier="backup",
                 provider="kimi",
-                model=settings.kimi_model,
+                model=_litellm_model_name(provider="kimi", model=settings.kimi_model),
                 api_key=settings.kimi_api_key,
                 base_url=settings.kimi_base_url,
                 temperature=1.0,
@@ -76,7 +90,7 @@ class LiteLLMProvider:
             return ResolvedModel(
                 tier="backup_pro",
                 provider="kimi",
-                model=settings.kimi_model_pro,
+                model=_litellm_model_name(provider="kimi", model=settings.kimi_model_pro),
                 api_key=settings.kimi_api_key,
                 base_url=settings.kimi_base_url,
                 temperature=1.0,
@@ -229,6 +243,64 @@ class LiteLLMProvider:
             max_tokens=max_tokens,
         )
         yield fallback["estimation"]
+
+    def verify_visible_output(
+        self,
+        *,
+        tier: TierName,
+        transcription: str,
+        system_prompt: str,
+        max_tokens: int = 800,
+    ) -> dict:
+        """
+        Verify whether a tier returns non empty visible output.
+
+        LAYER: services
+        RESPONSIBILITY: Provide an explicit reliability check for suspicious tiers.
+        WHY IT EXISTS: Kimi K2.6 can appear successful while returning no visible
+                       content. This helper turns that behavior into measurable
+                       reliability metadata instead of guesswork.
+        DEPENDS_ON: complete.
+        """
+        resolved = self.resolve_model(tier)
+
+        try:
+            result = self.complete(
+                transcription=transcription,
+                system_prompt=system_prompt,
+                tier=tier,
+                max_tokens=max_tokens,
+            )
+            visible_output = bool(result.get("estimation", "").strip())
+
+            return {
+                "tier": tier,
+                "provider": resolved.provider,
+                "model": resolved.model,
+                "visible_output": visible_output,
+                "reliable": visible_output,
+                "error_type": None,
+                "error_message": None,
+                "input_tokens": result.get("input_tokens"),
+                "output_tokens": result.get("output_tokens"),
+                "finish_reason": result.get("finish_reason"),
+                "timestamp": result.get("timestamp"),
+            }
+
+        except Exception as exc:
+            return {
+                "tier": tier,
+                "provider": resolved.provider,
+                "model": resolved.model,
+                "visible_output": False,
+                "reliable": False,
+                "error_type": type(exc).__name__,
+                "error_message": str(exc),
+                "input_tokens": None,
+                "output_tokens": None,
+                "finish_reason": None,
+                "timestamp": None,
+            }
 
     @staticmethod
     def _clean_estimation_content(content: str | None) -> str | None:
