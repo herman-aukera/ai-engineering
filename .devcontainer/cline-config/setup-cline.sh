@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 echo "=== Cline setup ==="
@@ -6,21 +6,21 @@ echo "=== Cline setup ==="
 mkdir -p ~/.cline/data
 
 if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
-  echo "ERROR: DEEPSEEK_API_KEY is missing from Codespaces secrets."
-  exit 1
+  echo "WARNING: DEEPSEEK_API_KEY is missing from Codespaces secrets."
+  echo "Cline DeepSeek defaults will be written, but API calls may fail until the secret is configured."
 fi
 
 if [ -z "${KIMI_API_KEY:-}" ]; then
-  echo "WARNING: KIMI_API_KEY is missing. Kimi fallback will not work."
+  echo "WARNING: KIMI_API_KEY is missing. Kimi fallback will not work until the secret is configured."
 fi
 
 cp /workspaces/ai-engineering/.devcontainer/cline-config/globalState.template.json \
   ~/.cline/data/globalState.json
 
-cat > ~/.cline/data/secrets.json << EOF
+cat > ~/.cline/data/secrets.json <<EOF
 {
   "moonshotApiKey": "${KIMI_API_KEY:-}",
-  "deepSeekApiKey": "${DEEPSEEK_API_KEY}"
+  "deepSeekApiKey": "${DEEPSEEK_API_KEY:-}"
 }
 EOF
 
