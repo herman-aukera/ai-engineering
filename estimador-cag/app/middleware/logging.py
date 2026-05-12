@@ -167,6 +167,11 @@ def record_call_metrics(result: dict):
         "fallback_used": result.get("fallback_used", False),
         "finish_reason": result.get("finish_reason"),
         "error_type": result.get("error_type"),
+        "stream_output_chars": result.get("stream_output_chars"),
+        "stream_chunks": result.get("stream_chunks"),
+        "stream_cached": result.get("stream_cached"),
+        "stream_started_at": result.get("stream_started_at"),
+        "stream_finished_at": result.get("stream_finished_at"),
     }
     _metrics_history.append(_last_call)
     logger.info(f"Metrics recorded: {_last_call['tier']} tokens={_last_call['input_tokens']}/{_last_call['output_tokens']}")
