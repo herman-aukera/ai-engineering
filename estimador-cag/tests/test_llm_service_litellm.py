@@ -35,6 +35,8 @@ class FakeLiteLLMProvider:
         starting_tier,
         tier_ladder,
         max_tokens=2000,
+        history=None,
+        max_history_turns=6,
     ):
         self.calls.append(
             {
@@ -43,6 +45,8 @@ class FakeLiteLLMProvider:
                 "starting_tier": starting_tier,
                 "tier_ladder": tier_ladder,
                 "max_tokens": max_tokens,
+                "history": history,
+                "max_history_turns": max_history_turns,
             }
         )
         return {

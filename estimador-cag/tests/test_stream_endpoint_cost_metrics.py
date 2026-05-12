@@ -33,7 +33,7 @@ class FakeProvider:
 def test_stream_endpoint_records_cost_metadata_on_cache_miss(monkeypatch):
     fake_cache = FakeCache()
 
-    def fake_estimate_stream(transcription, tier=None):
+    def fake_estimate_stream(transcription, tier=None, history=None, max_history_turns=6):
         yield "Hello "
         yield "stream"
 
@@ -67,7 +67,7 @@ def test_stream_endpoint_records_cost_metadata_on_cache_miss(monkeypatch):
 def test_stream_endpoint_records_cost_metadata_on_cache_hit(monkeypatch):
     fake_cache = FakeCache()
 
-    def fake_estimate_stream(transcription, tier=None):
+    def fake_estimate_stream(transcription, tier=None, history=None, max_history_turns=6):
         yield "Hello "
         yield "stream"
 

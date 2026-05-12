@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 import litellm
 
 from app.config import TierName, settings
+from app.services.conversation import ConversationTurn, build_conversation_messages
 from app.services.costs import estimate_cost_usd
 
 
@@ -106,6 +107,8 @@ class LiteLLMProvider:
         system_prompt: str,
         tier: TierName,
         max_tokens: int = 2000,
+        history: list[ConversationTurn] | None = None,
+        max_history_turns: int = 6,
     ) -> dict:
         """
         Execute a synchronous LiteLLM completion for one logical tier.
@@ -116,10 +119,12 @@ class LiteLLMProvider:
         DEPENDS_ON: litellm.completion, resolve_model.
         """
         resolved = self.resolve_model(tier)
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"TRANSCRIPCION DE REUNION:\n{transcription}"},
-        ]
+        messages = build_conversation_messages(
+            system_prompt=system_prompt,
+            transcription=transcription,
+            history=history,
+            max_history_turns=max_history_turns,
+        )
 
         response = litellm.completion(
             model=resolved.model,
@@ -170,6 +175,8 @@ class LiteLLMProvider:
         starting_tier: TierName,
         tier_ladder: list[TierName],
         max_tokens: int = 2000,
+        history: list[ConversationTurn] | None = None,
+        max_history_turns: int = 6,
     ) -> dict:
         """
         Execute a synchronous LiteLLM completion with tier fallback.
@@ -206,6 +213,8 @@ class LiteLLMProvider:
         system_prompt: str,
         tier: TierName,
         max_tokens: int = 2000,
+        history: list[ConversationTurn] | None = None,
+        max_history_turns: int = 6,
     ):
         """
         Stream a LiteLLM completion for one logical tier.
@@ -221,10 +230,12 @@ class LiteLLMProvider:
         synchronous completion and yield the complete visible answer once.
         """
         resolved = self.resolve_model(tier)
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"TRANSCRIPCION DE REUNION:\n{transcription}"},
-        ]
+        messages = build_conversation_messages(
+            system_prompt=system_prompt,
+            transcription=transcription,
+            history=history,
+            max_history_turns=max_history_turns,
+        )
 
         stream = litellm.completion(
             model=resolved.model,
@@ -252,6 +263,8 @@ class LiteLLMProvider:
             system_prompt=system_prompt,
             tier=tier,
             max_tokens=max_tokens,
+            history=history,
+            max_history_turns=max_history_turns,
         )
         yield fallback["estimation"]
 

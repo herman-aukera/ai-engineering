@@ -46,7 +46,8 @@ def test_streamlit_does_not_use_local_streaming_cache_as_backend_cache():
 def test_streamlit_streaming_mode_calls_backend_stream_function_directly():
     source = Path("streamlit_app.py").read_text(encoding="utf-8")
 
-    assert "st.write_stream(stream_estimate(prompt, tier=tier))" in source
+    assert "st.write_stream(" in source
+    assert "stream_estimate(prompt, tier=tier, history=backend_history)" in source
     assert "st.write_stream(estimate_stream" not in source
 
 
@@ -55,3 +56,19 @@ def test_streamlit_sse_parser_preserves_token_leading_spaces():
 
     assert "def parse_sse_data_line(" in source
     assert ".lstrip()" not in source
+
+
+def test_streamlit_builds_backend_history_payload_from_chat_messages():
+    source = Path("streamlit_app.py").read_text(encoding="utf-8")
+
+    assert "def build_backend_history(" in source
+    assert "backend_history = build_backend_history(messages_before_current_prompt)" in source
+    assert '"history": history or []' in source
+    assert '"max_history_turns": max_history_turns' in source
+
+
+def test_streamlit_backend_history_excludes_current_prompt_before_send():
+    source = Path("streamlit_app.py").read_text(encoding="utf-8")
+
+    assert "messages_before_current_prompt" in source
+    assert "build_backend_history(messages_before_current_prompt)" in source
