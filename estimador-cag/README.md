@@ -125,8 +125,10 @@ Jinja2 is configured with:
 
 Redis is still used by the existing exact cache infrastructure.
 
+    cd /workspaces/ai-engineering
     docker compose up -d redis
     docker compose ps redis
+    cd estimador-cag
 
 ## Start FastAPI
 
