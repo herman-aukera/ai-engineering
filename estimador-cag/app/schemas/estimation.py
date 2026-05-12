@@ -8,6 +8,8 @@ DEPENDS ON: pydantic (BaseModel, Field)
 
 from pydantic import BaseModel, Field
 
+from app.services.conversation import ConversationTurn
+
 
 class EstimateRequest(BaseModel):
     """Inbound payload for POST /api/v1/estimate."""
@@ -16,6 +18,16 @@ class EstimateRequest(BaseModel):
         description="Texto de la transcripcion de reunion"
     )
     tier: str = Field(default="flash", description="Tier de LLM: flash, pro, backup, backup_pro")
+    history: list[ConversationTurn] | None = Field(
+        default=None,
+        description="Optional previous visible conversation turns",
+    )
+    max_history_turns: int = Field(
+        default=6,
+        ge=0,
+        le=20,
+        description="Maximum previous turns to include in the LLM prompt",
+    )
 
 
 class EstimateResponse(BaseModel):

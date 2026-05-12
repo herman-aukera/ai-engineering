@@ -56,7 +56,31 @@ def get_backend_metrics() -> dict:
     return response.json()
 
 
-def request_estimate(transcription: str, tier: str) -> dict:
+
+def build_backend_history(messages: list[dict[str, str]], max_turns: int = 6) -> list[dict[str, str]]:
+    """
+    LAYER: streamlit backend client
+    RESPONSIBILITY: Convert visible chat messages into API conversation history.
+    WHY IT EXISTS: Phase 6 conversation manager needs prior user and assistant
+                   turns without letting the UI send system messages.
+    DEPENDS_ON: st.session_state.messages shape.
+    """
+    safe_turns = []
+    for message in messages:
+        role = message.get("role")
+        content = message.get("content", "")
+        if role in {"user", "assistant"} and content.strip():
+            safe_turns.append({"role": role, "content": content})
+
+    return safe_turns[-max_turns:]
+
+
+def request_estimate(
+    transcription: str,
+    tier: str,
+    history: list[dict[str, str]] | None = None,
+    max_history_turns: int = 6,
+) -> dict:
     """
     LAYER: streamlit backend client
     RESPONSIBILITY: Call FastAPI synchronous estimation endpoint.
@@ -66,7 +90,12 @@ def request_estimate(transcription: str, tier: str) -> dict:
     """
     response = requests.post(
         f"{BACKEND_URL}{ESTIMATE_PATH}",
-        json={"transcription": transcription, "tier": tier},
+        json={
+            "transcription": transcription,
+            "tier": tier,
+            "history": history or [],
+            "max_history_turns": max_history_turns,
+        },
         timeout=120,
     )
     response.raise_for_status()
@@ -205,6 +234,9 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 if prompt := st.chat_input("Pega aqui la transcripcion de la reunion..."):
+    messages_before_current_prompt = list(st.session_state.messages)
+    backend_history = build_backend_history(messages_before_current_prompt)
+
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("user"):
@@ -215,10 +247,12 @@ if prompt := st.chat_input("Pega aqui la transcripcion de la reunion..."):
         cache_hit = False
 
         if use_streaming:
-            full_response = st.write_stream(stream_estimate(prompt, tier=tier))
+            full_response = st.write_stream(
+                stream_estimate(prompt, tier=tier, history=backend_history)
+            )
             cache_hit = False
         else:
-            result = request_estimate(prompt, tier=tier)
+            result = request_estimate(prompt, tier=tier, history=backend_history)
             full_response = result["estimation"]
             cache_hit = result.get("cached", False)
             st.markdown(full_response)

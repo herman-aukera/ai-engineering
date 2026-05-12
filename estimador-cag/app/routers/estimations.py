@@ -35,7 +35,12 @@ def create_estimation(request: EstimateRequest):
     Receives a meeting transcription and returns a CAG software estimation.
     """
     try:
-        result = estimate(request.transcription, tier=request.tier)
+        result = estimate(
+            request.transcription,
+            tier=request.tier,
+            history=request.history,
+            max_history_turns=request.max_history_turns,
+        )
         record_call_metrics(result)
         return result
     except ValueError as exc:
@@ -126,7 +131,12 @@ def stream_estimation(request: EstimateRequest):
                 yield ServerSentEvent(event="done", data=json.dumps(metadata))
                 return
 
-            for token in estimate_stream(request.transcription, tier=effective_tier):
+            for token in estimate_stream(
+                request.transcription,
+                tier=effective_tier,
+                history=request.history,
+                max_history_turns=request.max_history_turns,
+            ):
                 output_chars += len(token)
                 stream_chunks += 1
                 full_response_parts.append(token)

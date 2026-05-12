@@ -12,6 +12,7 @@ from redis import Redis
 from app.config import TierName, settings
 from app.context.examples import ESTIMATION_EXAMPLES
 from app.services.cache import RedisEstimationCache
+from app.services.conversation import ConversationTurn
 from app.services.litellm_provider import LiteLLMProvider
 
 logger = logging.getLogger(__name__)
@@ -111,7 +112,12 @@ def estimate_with_exact_cache(
     cache.set(cache_key, result.copy())
     return result
 
-def estimate(transcription: str, tier: TierName | None = None) -> dict:
+def estimate(
+    transcription: str,
+    tier: TierName | None = None,
+    history: list[ConversationTurn] | None = None,
+    max_history_turns: int = 6,
+) -> dict:
     """
     Synchronous LLM call with Redis exact cache and LiteLLM provider fallback.
 
@@ -135,6 +141,8 @@ def estimate(transcription: str, tier: TierName | None = None) -> dict:
             starting_tier=effective_tier,
             tier_ladder=settings.tier_ladder,
             max_tokens=2000,
+            history=history,
+            max_history_turns=max_history_turns,
         )
 
     return estimate_with_exact_cache(
@@ -147,7 +155,12 @@ def estimate(transcription: str, tier: TierName | None = None) -> dict:
     )
 
 
-def estimate_stream(transcription: str, tier: TierName | None = None):
+def estimate_stream(
+    transcription: str,
+    tier: TierName | None = None,
+    history: list[ConversationTurn] | None = None,
+    max_history_turns: int = 6,
+):
     """
     Stream estimation tokens through the LiteLLM provider abstraction.
 
@@ -167,5 +180,7 @@ def estimate_stream(transcription: str, tier: TierName | None = None):
         system_prompt=system_prompt,
         tier=effective_tier,
         max_tokens=2000,
+        history=history,
+        max_history_turns=max_history_turns,
     )
 

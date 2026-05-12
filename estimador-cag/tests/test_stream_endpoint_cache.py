@@ -32,7 +32,7 @@ def test_stream_endpoint_uses_redis_cache_for_repeated_streams(monkeypatch):
         def resolve_model(self, tier):
             return FakeResolved()
 
-    def fake_estimate_stream(transcription, tier=None):
+    def fake_estimate_stream(transcription, tier=None, history=None, max_history_turns=6):
         provider_calls["count"] += 1
         yield "Hello "
         yield "stream"

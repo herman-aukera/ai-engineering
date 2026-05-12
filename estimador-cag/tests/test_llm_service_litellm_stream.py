@@ -12,6 +12,8 @@ class FakeLiteLLMProvider:
         system_prompt,
         tier,
         max_tokens=2000,
+        history=None,
+        max_history_turns=6,
     ):
         self.calls.append(
             {
@@ -19,6 +21,8 @@ class FakeLiteLLMProvider:
                 "system_prompt": system_prompt,
                 "tier": tier,
                 "max_tokens": max_tokens,
+                "history": history,
+                "max_history_turns": max_history_turns,
             }
         )
         yield "Hello "
