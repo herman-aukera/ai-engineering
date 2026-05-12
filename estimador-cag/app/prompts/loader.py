@@ -5,13 +5,16 @@ WHY IT EXISTS: Keeps product prompt text out of routers and provider code while
                making prompt versions testable and reviewable.
 """
 
+import hashlib
 from pathlib import Path
 
+import structlog
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
 from app.schemas.estimation import EstimationRequest
 
 PROMPT_ROOT = Path(__file__).resolve().parent
+logger = structlog.get_logger(__name__)
 
 
 def _build_environment() -> Environment:
@@ -50,7 +53,16 @@ def render_estimation_prompt(
     system_template = environment.get_template(f"{template_prefix}/system.j2")
     user_template = environment.get_template(f"{template_prefix}/user.j2")
 
-    return (
-        system_template.render(**context).strip(),
-        user_template.render(**context).strip(),
+    system = system_template.render(**context).strip()
+    user = user_template.render(**context).strip()
+    prompt_hash = hashlib.sha256(f"{system}\n\n{user}".encode()).hexdigest()
+
+    logger.info(
+        "prompt_rendered",
+        prompt_version=version,
+        prompt_hash=prompt_hash,
+        system_chars=len(system),
+        user_chars=len(user),
     )
+
+    return system, user

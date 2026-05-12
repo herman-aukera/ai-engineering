@@ -10,7 +10,8 @@ DEPENDS ON: fastapi, sse_starlette, app.schemas.estimation,
 import json
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Request
+from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from app.middleware.logging import record_call_metrics
@@ -34,7 +35,10 @@ router = APIRouter(prefix="/api/v1", tags=["estimations"])
 
 
 @router.post("/estimate", response_model=EstimateResponse | EstimationResponse)
-def create_estimation(request: EstimateRequest | EstimationRequest):
+async def create_estimation(
+    request: Request,
+    prompt_version: str = Query(default="v1", pattern=r"^v[0-9]+$"),
+):
     """
     POST /api/v1/estimate
 
@@ -42,17 +46,23 @@ def create_estimation(request: EstimateRequest | EstimationRequest):
     product request and returns the matching estimation response.
     """
     try:
-        if isinstance(request, EstimationRequest):
-            return estimate_product(request)
+        payload = await request.json()
 
+        if {"description", "project_type", "detail_level", "output_format"}.issubset(payload):
+            typed_request = EstimationRequest.model_validate(payload)
+            return estimate_product(typed_request, prompt_version=prompt_version)
+
+        legacy_request = EstimateRequest.model_validate(payload)
         result = estimate(
-            request.transcription,
-            tier=request.tier,
-            history=request.history,
-            max_history_turns=request.max_history_turns,
+            legacy_request.transcription,
+            tier=legacy_request.tier,
+            history=legacy_request.history,
+            max_history_turns=legacy_request.max_history_turns,
         )
         record_call_metrics(result)
         return result
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:

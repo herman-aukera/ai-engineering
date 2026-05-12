@@ -7,6 +7,7 @@ from app.schemas.estimation import (
     EstimationResponse,
     OutputFormat,
     ProjectType,
+    ReferenceProject,
 )
 
 VALID_DESCRIPTION = (
@@ -23,7 +24,7 @@ def test_session04_request_serializes_enum_values_for_json_payloads():
         output_format=OutputFormat.PHASES_TABLE,
     )
 
-    assert request.model_dump(mode="json") == {
+    assert request.model_dump(mode="json", exclude_none=True) == {
         "description": VALID_DESCRIPTION,
         "project_type": "web_saas",
         "detail_level": "medium",
@@ -65,3 +66,25 @@ def test_session04_response_contains_text_and_prompt_version_only():
         "text": "## Estimate\n\nThe implementation can be delivered in three phases.",
         "prompt_version": "v1",
     }
+
+
+def test_session04_request_accepts_optional_reference_projects():
+    request = EstimationRequest(
+        description=VALID_DESCRIPTION,
+        project_type="web_saas",
+        detail_level="medium",
+        output_format="phases_table",
+        reference_projects=[
+            ReferenceProject(
+                name="CRM migration",
+                summary="Moved spreadsheet based workflows into a SaaS tool.",
+                estimated_hours=260,
+                notes="Permissions were the main risk.",
+            )
+        ],
+    )
+
+    dumped = request.model_dump(mode="json", exclude_none=True)
+
+    assert dumped["reference_projects"][0]["name"] == "CRM migration"
+    assert dumped["reference_projects"][0]["estimated_hours"] == 260

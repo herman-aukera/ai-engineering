@@ -14,7 +14,7 @@ def test_session04_estimate_endpoint_accepts_typed_product_request(monkeypatch):
 
     calls = {}
 
-    def fake_estimate_product(request: EstimationRequest):
+    def fake_estimate_product(request: EstimationRequest, prompt_version="v1"):
         calls["request"] = request
         return {
             "text": "## Product estimate\n\nTyped estimate from fake product service.",
@@ -39,6 +39,7 @@ def test_session04_estimate_endpoint_accepts_typed_product_request(monkeypatch):
         "text": "## Product estimate\n\nTyped estimate from fake product service.",
         "prompt_version": "v1",
     }
+    assert response.json()["prompt_version"] == "v1"
     assert calls["request"].description == VALID_DESCRIPTION
     assert calls["request"].project_type == "web_saas"
     assert calls["request"].detail_level == "medium"

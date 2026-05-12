@@ -38,6 +38,8 @@ OUTPUT_FORMAT_OPTIONS = {
     "Narrative": "narrative",
 }
 
+PROMPT_VERSION_OPTIONS = ["v1", "v2"]
+
 
 def get_backend_url() -> str:
     """Return the configured backend base URL without a trailing slash."""
@@ -51,7 +53,7 @@ def build_estimate_url() -> str:
     return f"{get_backend_url()}{ESTIMATE_PATH}"
 
 
-def post_estimation_request(payload: dict[str, Any]) -> dict[str, Any]:
+def post_estimation_request(payload: dict[str, Any], prompt_version: str = "v1") -> dict[str, Any]:
     """
     Send the typed estimation payload to the backend.
 
@@ -62,11 +64,60 @@ def post_estimation_request(payload: dict[str, Any]) -> dict[str, Any]:
 
     response = requests.post(
         build_estimate_url(),
+        params={"prompt_version": prompt_version},
         json=payload,
         timeout=90,
     )
     response.raise_for_status()
     return response.json()
+
+
+
+def parse_reference_projects(raw_text: str) -> list[dict[str, Any]] | None:
+    """Parse optional reference project notes into typed request payload items."""
+
+    projects: list[dict[str, Any]] = []
+
+    for line in raw_text.splitlines():
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+
+        parts = [part.strip() for part in cleaned.split("|")]
+        name = parts[0][:120]
+        estimated_hours = None
+        notes = None
+
+        if len(parts) >= 2:
+            hours_candidate = (
+                parts[1]
+                .lower()
+                .replace("hours", "")
+                .replace("hour", "")
+                .replace("hrs", "")
+                .replace("h", "")
+                .strip()
+            )
+            if hours_candidate.isdigit():
+                estimated_hours = int(hours_candidate)
+            else:
+                notes = parts[1]
+
+        if len(parts) >= 3:
+            notes = parts[2]
+
+        summary = notes or cleaned
+
+        projects.append(
+            {
+                "name": name,
+                "summary": summary[:800],
+                "estimated_hours": estimated_hours,
+                "notes": notes[:800] if notes else None,
+            }
+        )
+
+    return projects or None
 
 
 def main() -> None:
@@ -121,6 +172,21 @@ def main() -> None:
                 index=0,
             )
 
+        prompt_version_label = st.selectbox(
+            "Prompt version",
+            options=PROMPT_VERSION_OPTIONS,
+            index=0,
+        )
+
+        reference_projects_raw = st.text_area(
+            "Reference projects, optional",
+            height=120,
+            placeholder=(
+                "Optional calibration notes, one project per line. Example: "
+                "CRM migration | 260h | permissions and reporting were risky"
+            ),
+        )
+
         submitted = st.form_submit_button("Generate estimate", type="primary")
 
     if not submitted:
@@ -132,6 +198,7 @@ def main() -> None:
         "project_type": PROJECT_TYPE_OPTIONS[project_type_label],
         "detail_level": DETAIL_LEVEL_OPTIONS[detail_level_label],
         "output_format": OUTPUT_FORMAT_OPTIONS[output_format_label],
+        "reference_projects": parse_reference_projects(reference_projects_raw),
     }
 
     if len(description.strip()) < 20:
@@ -140,7 +207,7 @@ def main() -> None:
 
     with st.spinner("Generating typed product estimate..."):
         try:
-            result = post_estimation_request(payload)
+            result = post_estimation_request(payload, prompt_version=prompt_version_label)
         except requests.HTTPError as exc:
             response_text = exc.response.text if exc.response is not None else str(exc)
             st.error(f"Backend returned an error: {response_text}")

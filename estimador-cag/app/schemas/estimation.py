@@ -79,6 +79,15 @@ class OutputFormat(StrEnum):
     NARRATIVE = "narrative"
 
 
+class ReferenceProject(BaseModel):
+    """Optional similar project supplied by the user for prompt calibration."""
+
+    name: str = Field(min_length=2, max_length=120)
+    summary: str = Field(min_length=10, max_length=800)
+    estimated_hours: int | None = Field(default=None, ge=1, le=10000)
+    notes: str | None = Field(default=None, max_length=800)
+
+
 class EstimationRequest(BaseModel):
     """Typed estimation request used by the Session 04 product form."""
 
@@ -86,6 +95,7 @@ class EstimationRequest(BaseModel):
     project_type: ProjectType
     detail_level: DetailLevel
     output_format: OutputFormat
+    reference_projects: list[ReferenceProject] | None = None
 
 
 class EstimationResponse(BaseModel):
