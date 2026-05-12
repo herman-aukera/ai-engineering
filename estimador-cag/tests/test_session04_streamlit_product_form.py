@@ -34,3 +34,9 @@ def test_streamlit_exposes_prompt_version_and_optional_reference_projects():
     assert "PROMPT_VERSION_OPTIONS" in STREAMLIT_SOURCE
     assert "Reference projects, optional" in STREAMLIT_SOURCE
     assert "parse_reference_projects" in STREAMLIT_SOURCE
+
+
+def test_streamlit_text_area_uses_supported_streamlit_arguments():
+    assert "min_chars=" not in STREAMLIT_SOURCE
+    assert "max_chars=2000" in STREAMLIT_SOURCE
+    assert "Project description must contain at least 20 characters." in STREAMLIT_SOURCE
