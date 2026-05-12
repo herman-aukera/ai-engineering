@@ -16,9 +16,10 @@ Current branch:
 gg-pre-session-04-product-interface
 ```
 
-Latest known commit after optional cleanup:
+Key implementation commits:
 
 ```text
+fc5e56a feat: add typed pre session 04 estimation interface
 a424daf feat: add optional prompt versioning and reference projects
 ```
 
@@ -140,10 +141,11 @@ estimador-cag/app/prompts/
 ## Run the active project
 
 ```bash
-cd /workspaces/ai-engineering/estimador-cag
+cd /workspaces/ai-engineering
 
 docker compose up -d redis
 
+cd estimador-cag
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
