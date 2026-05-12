@@ -140,7 +140,6 @@ def main() -> None:
     with st.form("product_estimation_form"):
         description = st.text_area(
             "Project description",
-            min_chars=20,
             max_chars=2000,
             height=220,
             placeholder=(
