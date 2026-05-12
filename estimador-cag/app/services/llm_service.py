@@ -11,6 +11,8 @@ from redis import Redis
 
 from app.config import TierName, settings
 from app.context.examples import ESTIMATION_EXAMPLES
+from app.prompts.loader import render_estimation_prompt
+from app.schemas.estimation import EstimationRequest
 from app.services.cache import RedisEstimationCache
 from app.services.conversation import ConversationTurn
 from app.services.litellm_provider import LiteLLMProvider
@@ -154,6 +156,64 @@ def estimate(
         model_call=model_call,
     )
 
+
+
+def estimate_product(
+    request: EstimationRequest,
+    tier: TierName | None = None,
+    prompt_version: str = "v1",
+) -> dict:
+    """
+    Estimate a typed product request using versioned prompt templates.
+
+    LAYER: services
+    RESPONSIBILITY: Render Session 04 product prompts, call the provider with
+                    separate system and user messages, and return the mandatory
+                    EstimationResponse shape.
+    WHY IT EXISTS: Converts the estimator from free chat input into a typed
+                   product interface without deleting the legacy Session 03 flow.
+    DEPENDS ON: render_estimation_prompt, Redis exact cache, LiteLLMProvider.
+    """
+    system_prompt, user_prompt = render_estimation_prompt(request, version=prompt_version)
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    effective_tier = tier or settings.llm_tier
+    provider = LiteLLMProvider()
+    resolved = provider.resolve_model(effective_tier)
+    cache = build_redis_cache()
+
+    cache_identity = request.model_dump_json()
+    combined_prompt_identity = f"{system_prompt}\n\n--- user prompt ---\n{user_prompt}"
+
+    def model_call() -> dict:
+        logger.info(
+            "Calling LiteLLM product estimator "
+            f"starting_tier={effective_tier}, model={resolved.model}, "
+            f"prompt_version={prompt_version}"
+        )
+        return provider.complete_with_fallback_messages(
+            messages=messages,
+            starting_tier=effective_tier,
+            tier_ladder=settings.tier_ladder,
+            max_tokens=2000,
+        )
+
+    result = estimate_with_exact_cache(
+        transcription=cache_identity,
+        tier=effective_tier,
+        model=resolved.model,
+        system_prompt=combined_prompt_identity,
+        cache=cache,
+        model_call=model_call,
+    )
+
+    return {
+        "text": result["estimation"],
+        "prompt_version": prompt_version,
+    }
 
 def estimate_stream(
     transcription: str,
