@@ -21,14 +21,20 @@ Mandatory Session 04 scope:
 * Template tests are included.
 * README run and test instructions are updated.
 
-Intentionally not included yet:
+Intentionally not included because the exercise reserves them for live session:
 
 * Structured JSON output from the LLM.
 * Guardrails.
 * Semantic cache.
+
+Allowed optional extras included after the mandatory branch was green:
+
 * Prompt version `v2`.
+* Query parameter `?prompt_version=v2`.
 * Optional `reference_projects`.
-* Removal of stable Session 03 backend infrastructure.
+* Prompt render hash logging.
+* Cleaner typed validation errors.
+* Stable Session 03 backend infrastructure preserved where harmless.
 
 ## Project layout
 
@@ -241,11 +247,10 @@ The Session 04 mandatory product path is complete when:
 * The response includes `text` and `prompt_version`.
 * README and tests are green.
 
-After the live session, optional cleanup can happen in a separate branch:
+After the live session, cleanup can happen in a separate branch:
 
-* Remove or deprecate legacy transcription endpoints.
-* Remove unused conversation UI assumptions.
+* Remove or deprecate legacy transcription endpoints if the teacher confirms they are no longer useful.
+* Remove unused conversation UI assumptions if they stop serving backend compatibility tests.
 * Add structured JSON output.
 * Add guardrails.
 * Add semantic cache.
-* Add prompt version `v2`.
