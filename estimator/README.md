@@ -1,3 +1,13 @@
+# Not the current Session 04 submission
+
+For the pre Session 04 exercise, review:
+
+    ../estimador-cag/
+
+The `estimator/` folder is an older or separate project folder and is kept for repository history.
+
+---
+
 # Estimator CAG - Servicio de Estimacion de Software con IA
 
 Servicio de estimacion de proyectos de software impulsado por IA, utilizando una arquitectura **Cache Augmented Generation (CAG)**.
