@@ -14,27 +14,37 @@ from fastapi import APIRouter, HTTPException
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from app.middleware.logging import record_call_metrics
-from app.schemas.estimation import EstimateRequest, EstimateResponse
+from app.schemas.estimation import (
+    EstimateRequest,
+    EstimateResponse,
+    EstimationRequest,
+    EstimationResponse,
+)
 from app.services.costs import estimate_cost_usd
 from app.services.litellm_provider import LiteLLMProvider
 from app.services.llm_service import (
     build_redis_cache,
     build_system_prompt,
     estimate,
+    estimate_product,
     estimate_stream,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["estimations"])
 
 
-@router.post("/estimate", response_model=EstimateResponse)
-def create_estimation(request: EstimateRequest):
+@router.post("/estimate", response_model=EstimateResponse | EstimationResponse)
+def create_estimation(request: EstimateRequest | EstimationRequest):
     """
     POST /api/v1/estimate
 
-    Receives a meeting transcription and returns a CAG software estimation.
+    Receives either the legacy transcription request or the Session 04 typed
+    product request and returns the matching estimation response.
     """
     try:
+        if isinstance(request, EstimationRequest):
+            return estimate_product(request)
+
         result = estimate(
             request.transcription,
             tier=request.tier,

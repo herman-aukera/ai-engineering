@@ -6,6 +6,8 @@ WHY IT EXISTS: Validates HTTP payloads at the edge and auto-generates OpenAPI do
 DEPENDS ON: pydantic (BaseModel, Field)
 """
 
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
 
 from app.services.conversation import ConversationTurn
@@ -51,3 +53,43 @@ class EstimateResponse(BaseModel):
         description="How cost was derived: static_estimate, missing_token_usage, unknown_pricing, etc.",
     )
     pricing_model: str | None = Field(default=None, description="Model id used for cost lookup")
+
+class ProjectType(StrEnum):
+    """Typed project categories accepted by the Session 04 product interface."""
+
+    MOBILE_APP = "mobile_app"
+    WEB_SAAS = "web_saas"
+    INTERNAL_TOOL = "internal_tool"
+    DATA_PIPELINE = "data_pipeline"
+
+
+class DetailLevel(StrEnum):
+    """Supported estimation detail levels for the typed product flow."""
+
+    SUMMARY = "summary"
+    MEDIUM = "medium"
+    DETAILED = "detailed"
+
+
+class OutputFormat(StrEnum):
+    """Supported free-text output formats before structured JSON is introduced."""
+
+    PHASES_TABLE = "phases_table"
+    LINE_ITEMS = "line_items"
+    NARRATIVE = "narrative"
+
+
+class EstimationRequest(BaseModel):
+    """Typed estimation request used by the Session 04 product form."""
+
+    description: str = Field(min_length=20, max_length=2000)
+    project_type: ProjectType
+    detail_level: DetailLevel
+    output_format: OutputFormat
+
+
+class EstimationResponse(BaseModel):
+    """Typed estimation response returned by the Session 04 endpoint contract."""
+
+    text: str
+    prompt_version: str

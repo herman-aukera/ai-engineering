@@ -167,6 +167,104 @@ class LiteLLMProvider:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
+
+    def complete_messages(
+        self,
+        *,
+        messages: list[dict[str, str]],
+        tier: TierName,
+        max_tokens: int = 2000,
+    ) -> dict:
+        """
+        Execute a synchronous LiteLLM completion from explicit chat messages.
+
+        LAYER: services
+        RESPONSIBILITY: Send already-rendered system and user messages without
+                        rebuilding or concatenating prompts.
+        WHY IT EXISTS: Session 04 moves prompting into templates, so the provider
+                       needs a message-native API.
+        DEPENDS_ON: litellm.completion, resolve_model.
+        """
+        resolved = self.resolve_model(tier)
+
+        response = litellm.completion(
+            model=resolved.model,
+            messages=messages,
+            api_key=resolved.api_key,
+            api_base=resolved.base_url,
+            temperature=resolved.temperature,
+            max_tokens=max_tokens,
+        )
+
+        raw_content = response.choices[0].message.content
+        content = self._clean_estimation_content(raw_content)
+        if not content or not content.strip():
+            raise RuntimeError(
+                f"Empty response content from model={resolved.model}, tier={resolved.tier}. "
+                "Provider returned tokens but no visible estimation."
+            )
+
+        usage = response.usage
+        input_tokens = usage.prompt_tokens
+        output_tokens = usage.completion_tokens
+        finish_reason = getattr(response.choices[0], "finish_reason", None)
+        cost = estimate_cost_usd(
+            model=resolved.model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+
+        return {
+            "estimation": content,
+            "model": resolved.model,
+            "tier": resolved.tier,
+            "provider": resolved.provider,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": cost["cost_usd"],
+            "cost_source": cost["cost_source"],
+            "pricing_model": cost["pricing_model"],
+            "finish_reason": finish_reason,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+    def complete_with_fallback_messages(
+        self,
+        *,
+        messages: list[dict[str, str]],
+        starting_tier: TierName,
+        tier_ladder: list[TierName],
+        max_tokens: int = 2000,
+    ) -> dict:
+        """
+        Execute a message-native LiteLLM completion with tier fallback.
+
+        LAYER: services
+        RESPONSIBILITY: Try the requested tier and escalate while preserving the
+                        exact rendered system and user messages.
+        WHY IT EXISTS: Keeps Session 04 typed product prompting compatible with
+                       the existing fallback ladder.
+        DEPENDS_ON: complete_messages.
+        """
+        start_idx = tier_ladder.index(starting_tier)
+        tiers_to_try = tier_ladder[start_idx:]
+        errors: list[str] = []
+
+        for index, tier in enumerate(tiers_to_try):
+            try:
+                result = self.complete_messages(
+                    messages=messages,
+                    tier=tier,
+                    max_tokens=max_tokens,
+                )
+                result["fallback_used"] = index > 0
+                return result
+            except Exception as exc:
+                errors.append(f"{tier}: {exc}")
+                continue
+
+        raise RuntimeError(f"All LLM tiers failed: {'; '.join(errors)}")
+
     def complete_with_fallback(
         self,
         *,

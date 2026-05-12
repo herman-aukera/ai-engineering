@@ -1,289 +1,163 @@
 """
-LAYER: streamlit (frontend)
-RESPONSIBILITY: Conversational UI for the CAG estimator.
-WHY IT EXISTS: Session 3 Nivel 1+2+3. Non-technical users can paste meeting
-               transcriptions and see estimations in real time through the
-               FastAPI backend, not by bypassing backend business logic.
-DEPENDS_ON: os, hashlib, datetime, requests, streamlit,
-            app.context.examples, app.services.llm_service.build_system_prompt
+Streamlit product interface for the Session 04 typed estimation flow.
 
-ARCHITECTURE NOTE:
-Streamlit is a presentation layer. The production path calls FastAPI:
-- POST /api/v1/estimate
-- POST /api/v1/estimate/stream
-- GET /metrics
-
-This preserves one source of truth for Redis cache, LiteLLM routing, fallback,
-metrics, and structured logging.
+LAYER: frontend
+RESPONSIBILITY: Collect typed estimation parameters and call the FastAPI backend.
+WHY IT EXISTS: Session 04 turns the estimator from a free chat into a product
+               interface with explicit request fields.
+DEPENDS ON: streamlit, requests, FastAPI /api/v1/estimate.
 """
 
-import json
+from __future__ import annotations
+
 import os
-from collections.abc import Iterator
-from datetime import UTC, datetime
+from typing import Any
 
 import requests
 import streamlit as st
-from dotenv import load_dotenv
 
-from app.context.examples import ESTIMATION_EXAMPLES
-from app.services.llm_service import build_system_prompt
-
-load_dotenv()
-
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+DEFAULT_BACKEND_URL = "http://localhost:8000"
 ESTIMATE_PATH = "/api/v1/estimate"
-STREAM_PATH = "/api/v1/estimate/stream"
-METRICS_PATH = "/metrics"
 
-st.set_page_config(
-    page_title="LIDR Estimador CAG",
-    page_icon="💬",
-    layout="wide",
-)
+PROJECT_TYPE_OPTIONS = {
+    "Mobile app": "mobile_app",
+    "Web SaaS": "web_saas",
+    "Internal tool": "internal_tool",
+    "Data pipeline": "data_pipeline",
+}
+
+DETAIL_LEVEL_OPTIONS = {
+    "Summary": "summary",
+    "Medium": "medium",
+    "Detailed": "detailed",
+}
+
+OUTPUT_FORMAT_OPTIONS = {
+    "Phases table": "phases_table",
+    "Line items": "line_items",
+    "Narrative": "narrative",
+}
 
 
+def get_backend_url() -> str:
+    """Return the configured backend base URL without a trailing slash."""
 
-def get_backend_metrics() -> dict:
+    return os.getenv("ESTIMADOR_BACKEND_URL", DEFAULT_BACKEND_URL).rstrip("/")
+
+
+def build_estimate_url() -> str:
+    """Build the FastAPI estimate endpoint URL used by the product form."""
+
+    return f"{get_backend_url()}{ESTIMATE_PATH}"
+
+
+def post_estimation_request(payload: dict[str, Any]) -> dict[str, Any]:
     """
-    LAYER: streamlit backend client
-    RESPONSIBILITY: Fetch current backend metrics from FastAPI.
-    WHY IT EXISTS: Keeps Streamlit metrics aligned with the backend source of truth.
-    DEPENDS_ON: requests, BACKEND_URL, METRICS_PATH
+    Send the typed estimation payload to the backend.
+
+    Raises:
+        requests.HTTPError: When the backend returns a non-success response.
+        requests.RequestException: For connection and timeout failures.
     """
-    response = requests.get(f"{BACKEND_URL}{METRICS_PATH}", timeout=10)
-    response.raise_for_status()
-    return response.json()
 
-
-
-def build_backend_history(messages: list[dict[str, str]], max_turns: int = 6) -> list[dict[str, str]]:
-    """
-    LAYER: streamlit backend client
-    RESPONSIBILITY: Convert visible chat messages into API conversation history.
-    WHY IT EXISTS: Phase 6 conversation manager needs prior user and assistant
-                   turns without letting the UI send system messages.
-    DEPENDS_ON: st.session_state.messages shape.
-    """
-    safe_turns = []
-    for message in messages:
-        role = message.get("role")
-        content = message.get("content", "")
-        if role in {"user", "assistant"} and content.strip():
-            safe_turns.append({"role": role, "content": content})
-
-    return safe_turns[-max_turns:]
-
-
-def request_estimate(
-    transcription: str,
-    tier: str,
-    history: list[dict[str, str]] | None = None,
-    max_history_turns: int = 6,
-) -> dict:
-    """
-    LAYER: streamlit backend client
-    RESPONSIBILITY: Call FastAPI synchronous estimation endpoint.
-    WHY IT EXISTS: Ensures Streamlit uses Redis, LiteLLM, fallback, metrics,
-                   and logging through the same backend path as every client.
-    DEPENDS_ON: requests, BACKEND_URL, ESTIMATE_PATH
-    """
     response = requests.post(
-        f"{BACKEND_URL}{ESTIMATE_PATH}",
-        json={
-            "transcription": transcription,
-            "tier": tier,
-            "history": history or [],
-            "max_history_turns": max_history_turns,
-        },
-        timeout=120,
+        build_estimate_url(),
+        json=payload,
+        timeout=90,
     )
     response.raise_for_status()
     return response.json()
 
 
+def main() -> None:
+    """Render the Session 04 typed product estimation form."""
 
-def parse_sse_data_line(line: str) -> str:
-    """
-    LAYER: streamlit backend client
-    RESPONSIBILITY: Parse one Server Sent Events data line without destroying tokens.
-    WHY IT EXISTS: SSE uses "data:" plus an optional separator space, but LLM tokens
-                   may intentionally start with a space. Removing all leading spaces
-                   glues streamed words together.
-    DEPENDS_ON: str
-    """
-    value = line.removeprefix("data:")
-    if value.startswith(" "):
-        return value[1:]
-    return value
-
-
-def stream_estimate(transcription: str, tier: str) -> Iterator[str]:
-    """
-    LAYER: streamlit backend client
-    RESPONSIBILITY: Consume FastAPI Server Sent Events and yield visible tokens.
-    WHY IT EXISTS: Preserves streaming UX while keeping provider details in FastAPI.
-    DEPENDS_ON: requests, BACKEND_URL, STREAM_PATH
-    """
-    with requests.post(
-        f"{BACKEND_URL}{STREAM_PATH}",
-        json={"transcription": transcription, "tier": tier},
-        stream=True,
-        timeout=120,
-    ) as response:
-        response.raise_for_status()
-
-        event = None
-        data_lines: list[str] = []
-
-        for raw_line in response.iter_lines(decode_unicode=True):
-            line = raw_line or ""
-
-            if line.startswith("event:"):
-                event = line.removeprefix("event:").strip()
-                continue
-
-            if line.startswith("data:"):
-                data_lines.append(parse_sse_data_line(line))
-                continue
-
-            if line == "":
-                if event == "token" and data_lines:
-                    yield "\n".join(data_lines)
-                elif event == "error" and data_lines:
-                    payload = "\n".join(data_lines)
-                    try:
-                        detail = json.loads(payload).get("detail", payload)
-                    except json.JSONDecodeError:
-                        detail = payload
-                    raise RuntimeError(f"Backend stream error: {detail}")
-
-                event = None
-                data_lines = []
-
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-if "metrics_history" not in st.session_state:
-    st.session_state.metrics_history = []
-st.title("💬 LIDR Estimador CAG")
-st.caption("Context-Augmented Generation para estimacion de software")
-
-with st.sidebar:
-    st.header("Contexto CAG")
-    st.caption(f"Backend: `{BACKEND_URL}`")
-
-    with st.expander("Ver System Prompt"):
-        st.code(build_system_prompt(), language="markdown")
-
-    st.subheader("Ejemplos inyectados")
-    for i, ex in enumerate(ESTIMATION_EXAMPLES, 1):
-        summary = ex.get("meeting_summary", "")[:50]
-        with st.expander(f"Ejemplo {i}: {summary}..."):
-            st.markdown(f"**Transcripcion:**\n{ex.get('meeting_summary', '')}")
-            st.markdown(f"**Estimacion:**\n{ex.get('estimation', '')}")
-
-    st.divider()
-
-    use_streaming = st.checkbox("Usar streaming (Nivel 2)", value=True)
-
-    tier = st.selectbox(
-        "Modelo",
-        options=["flash", "pro", "backup", "backup_pro"],
-        index=0,
-        key="selected_tier",
-        help=(
-            "flash/pro usan DeepSeek. backup/backup_pro usan Kimi. "
-            "backup_pro debe considerarse no confiable hasta verificar salida visible."
-        ),
+    st.set_page_config(
+        page_title="AI Software Estimator",
+        page_icon="🧠",
+        layout="wide",
     )
 
-    st.subheader("Metricas backend")
+    st.title("AI Software Estimator")
+    st.caption("Typed product interface powered by the FastAPI estimator backend.")
 
-    try:
-        backend_metrics = get_backend_metrics()
-    except Exception as exc:
-        st.warning(f"No se pudieron leer metricas del backend: {exc}")
-        backend_metrics = {}
+    with st.sidebar:
+        st.subheader("Backend")
+        st.code(build_estimate_url())
+        st.caption("Set ESTIMADOR_BACKEND_URL when running outside localhost.")
 
-    if backend_metrics:
-        st.json(backend_metrics)
-    else:
-        st.info("Aun no hay llamadas backend")
+    with st.form("product_estimation_form"):
+        description = st.text_area(
+            "Project description",
+            min_chars=20,
+            max_chars=2000,
+            height=220,
+            placeholder=(
+                "Describe the product, users, integrations, constraints, timeline, "
+                "and any known technical requirements."
+            ),
+        )
 
-    if st.session_state.metrics_history:
-        with st.expander("Historial UI local", expanded=False):
-            for idx, item in enumerate(
-                reversed(st.session_state.metrics_history[-10:]),
-                start=1,
-            ):
-                label = (
-                    f"#{idx} | {item['tier']} | {item['mode']} | "
-                    f"{item['output_chars']} chars"
-                )
-                with st.expander(label):
-                    st.json(item)
+        col_project, col_detail, col_format = st.columns(3)
 
-        if st.button("Limpiar historial UI"):
-            st.session_state.metrics_history = []
-            st.rerun()
-
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-if prompt := st.chat_input("Pega aqui la transcripcion de la reunion..."):
-    messages_before_current_prompt = list(st.session_state.messages)
-    backend_history = build_backend_history(messages_before_current_prompt)
-
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.chat_message("assistant"):
-        result = None
-        cache_hit = False
-
-        if use_streaming:
-            full_response = st.write_stream(
-                stream_estimate(prompt, tier=tier, history=backend_history)
+        with col_project:
+            project_type_label = st.selectbox(
+                "Project type",
+                options=list(PROJECT_TYPE_OPTIONS.keys()),
+                index=1,
             )
-            cache_hit = False
-        else:
-            result = request_estimate(prompt, tier=tier, history=backend_history)
-            full_response = result["estimation"]
-            cache_hit = result.get("cached", False)
-            st.markdown(full_response)
 
-    call_metrics = {
-        "timestamp": datetime.now(UTC).isoformat(),
-        "mode": "backend_streaming" if use_streaming else "backend_sync",
-        "tier": tier,
-        "output_chars": len(full_response),
-        "cached": cache_hit,
-        "backend_url": BACKEND_URL,
-        "note": (
-            "Streamlit calls FastAPI. Backend /metrics is the source of truth "
-            "for Redis, LiteLLM, fallback, and request observability."
-        ),
+        with col_detail:
+            detail_level_label = st.selectbox(
+                "Detail level",
+                options=list(DETAIL_LEVEL_OPTIONS.keys()),
+                index=1,
+            )
+
+        with col_format:
+            output_format_label = st.selectbox(
+                "Output format",
+                options=list(OUTPUT_FORMAT_OPTIONS.keys()),
+                index=0,
+            )
+
+        submitted = st.form_submit_button("Generate estimate", type="primary")
+
+    if not submitted:
+        st.info("Fill the form and generate an estimate when the project shape is clear.")
+        return
+
+    payload = {
+        "description": description,
+        "project_type": PROJECT_TYPE_OPTIONS[project_type_label],
+        "detail_level": DETAIL_LEVEL_OPTIONS[detail_level_label],
+        "output_format": OUTPUT_FORMAT_OPTIONS[output_format_label],
     }
 
-    if result:
-        call_metrics["backend_result"] = {
-            "model": result.get("model"),
-            "provider": result.get("provider"),
-            "cache_backend": result.get("cache_backend"),
-            "input_tokens": result.get("input_tokens"),
-            "output_tokens": result.get("output_tokens"),
-        }
+    if len(description.strip()) < 20:
+        st.error("Project description must contain at least 20 characters.")
+        return
 
-    st.session_state.metrics_history.append(call_metrics)
-    st.session_state.metrics_history = st.session_state.metrics_history[-20:]
+    with st.spinner("Generating typed product estimate..."):
+        try:
+            result = post_estimation_request(payload)
+        except requests.HTTPError as exc:
+            response_text = exc.response.text if exc.response is not None else str(exc)
+            st.error(f"Backend returned an error: {response_text}")
+            return
+        except requests.RequestException as exc:
+            st.error(f"Could not reach backend: {exc}")
+            return
 
-    st.session_state.messages.append(
-        {"role": "assistant", "content": full_response}
-    )
+    st.subheader("Estimate")
+    st.markdown(result.get("text", ""))
 
-    st.rerun()
+    prompt_version = result.get("prompt_version", "unknown")
+    st.caption(f"Prompt version: {prompt_version}")
+
+    with st.expander("Request payload"):
+        st.json(payload)
+
+
+if __name__ == "__main__":
+    main()
