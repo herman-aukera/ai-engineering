@@ -62,6 +62,7 @@ def stream_estimation(request: EstimateRequest):
     def event_generator():
         started_at = datetime.now(UTC)
         output_chars = 0
+        stream_chunks = 0
         full_response_parts: list[str] = []
         effective_tier = request.tier or "flash"
 
@@ -81,6 +82,7 @@ def stream_estimation(request: EstimateRequest):
             if cached_result:
                 cached_text = cached_result["estimation"]
                 output_chars = len(cached_text)
+                stream_chunks = 1
                 yield ServerSentEvent(event="token", data=cached_text)
 
                 finished_at = datetime.now(UTC)
@@ -103,6 +105,11 @@ def stream_estimation(request: EstimateRequest):
                         "timestamp": cached_result.get("timestamp", finished_at.isoformat()),
                         "cached": True,
                         "cache_backend": cache.backend_name,
+                        "stream_output_chars": output_chars,
+                        "stream_chunks": stream_chunks,
+                        "stream_cached": True,
+                        "stream_started_at": started_at.isoformat(),
+                        "stream_finished_at": finished_at.isoformat(),
                         "fallback_used": cached_result.get("fallback_used", False),
                         "finish_reason": cached_result.get("finish_reason", "stream_cached"),
                         "error_type": None,
@@ -121,6 +128,7 @@ def stream_estimation(request: EstimateRequest):
 
             for token in estimate_stream(request.transcription, tier=effective_tier):
                 output_chars += len(token)
+                stream_chunks += 1
                 full_response_parts.append(token)
                 yield ServerSentEvent(event="token", data=token)
 
@@ -170,6 +178,11 @@ def stream_estimation(request: EstimateRequest):
                     "timestamp": finished_at.isoformat(),
                     "cached": False,
                     "cache_backend": cache.backend_name,
+                    "stream_output_chars": output_chars,
+                    "stream_chunks": stream_chunks,
+                    "stream_cached": False,
+                    "stream_started_at": started_at.isoformat(),
+                    "stream_finished_at": finished_at.isoformat(),
                     "fallback_used": False,
                     "finish_reason": "stream_done",
                     "error_type": None,
