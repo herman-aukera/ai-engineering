@@ -12,7 +12,7 @@ from redis import Redis
 from app.config import TierName, settings
 from app.context.examples import ESTIMATION_EXAMPLES
 from app.prompts.loader import render_estimation_prompt
-from app.schemas.estimation import EstimationRequest
+from app.schemas.estimation import EstimationRequest, EstimationResult
 from app.services.cache import RedisEstimationCache
 from app.services.conversation import ConversationTurn
 from app.services.litellm_provider import LiteLLMProvider
@@ -158,20 +158,55 @@ def estimate(
 
 
 
+def _estimation_result_to_text(result: EstimationResult) -> str:
+    """
+    Render structured estimation data into a small markdown compatibility text.
+
+    LAYER: services
+    RESPONSIBILITY: Preserve old text consumers while the product UI moves to fields.
+    WHY IT EXISTS: Session 04 should be additive. Structured result is primary,
+                   text is compatibility.
+    """
+
+    phase_lines = [
+        f"- {phase.name}: {phase.duration_weeks} weeks, {phase.cost_eur} EUR"
+        for phase in result.phases
+    ]
+    assumptions = "\n".join(f"- {item}" for item in result.assumptions) or "- None"
+    risks = "\n".join(f"- {item}" for item in result.risks) or "- None"
+    recommendations = "\n".join(f"- {item}" for item in result.recommendations) or "- None"
+
+    return (
+        f"## Product estimate\n\n"
+        f"{result.summary}\n\n"
+        f"Total duration: {result.total_duration_weeks} weeks\n\n"
+        f"Total cost: {result.total_cost_eur} EUR\n\n"
+        f"Confidence: {result.confidence_pct}%\n\n"
+        f"### Phases\n"
+        f"{chr(10).join(phase_lines)}\n\n"
+        f"### Assumptions\n"
+        f"{assumptions}\n\n"
+        f"### Risks\n"
+        f"{risks}\n\n"
+        f"### Recommendations\n"
+        f"{recommendations}"
+    )
+
+
 def estimate_product(
     request: EstimationRequest,
     tier: TierName | None = None,
     prompt_version: str = "v1",
 ) -> dict:
     """
-    Estimate a typed product request using versioned prompt templates.
+    Estimate a typed product request using structured output.
 
     LAYER: services
-    RESPONSIBILITY: Render Session 04 product prompts, call the provider with
-                    separate system and user messages, and return the mandatory
-                    EstimationResponse shape.
-    WHY IT EXISTS: Converts the estimator from free chat input into a typed
-                   product interface without deleting the legacy Session 03 flow.
+    RESPONSIBILITY: Render Session 04 prompts, call the structured provider path,
+                    validate EstimationResult, exact-cache only valid responses,
+                    and return a field based EstimationResponse shape.
+    WHY IT EXISTS: The product frontend should render data fields instead of
+                   parsing markdown.
     DEPENDS ON: render_estimation_prompt, Redis exact cache, LiteLLMProvider.
     """
     system_prompt, user_prompt = render_estimation_prompt(request, version=prompt_version)
@@ -186,22 +221,46 @@ def estimate_product(
     cache = build_redis_cache()
 
     cache_identity = request.model_dump_json()
-    combined_prompt_identity = f"{system_prompt}\n\n--- user prompt ---\n{user_prompt}"
+    combined_prompt_identity = (
+        f"prompt_version={prompt_version}\n"
+        f"system_prompt={system_prompt}\n\n"
+        f"--- user prompt ---\n"
+        f"{user_prompt}"
+    )
 
     def model_call() -> dict:
         logger.info(
-            "Calling LiteLLM product estimator "
+            "Calling LiteLLM structured product estimator "
             f"starting_tier={effective_tier}, model={resolved.model}, "
             f"prompt_version={prompt_version}"
         )
-        return provider.complete_with_fallback_messages(
+        provider_result = provider.complete_structured_messages_with_fallback(
             messages=messages,
             starting_tier=effective_tier,
             tier_ladder=settings.tier_ladder,
+            response_model=EstimationResult,
             max_tokens=2000,
         )
 
-    result = estimate_with_exact_cache(
+        structured_result = EstimationResult.model_validate(provider_result["result"])
+
+        return {
+            "result": structured_result.model_dump(mode="json"),
+            "text": _estimation_result_to_text(structured_result),
+            "model": provider_result.get("model"),
+            "tier": provider_result.get("tier"),
+            "provider": provider_result.get("provider"),
+            "input_tokens": provider_result.get("input_tokens"),
+            "output_tokens": provider_result.get("output_tokens"),
+            "cost_usd": provider_result.get("cost_usd"),
+            "cost_source": provider_result.get("cost_source"),
+            "pricing_model": provider_result.get("pricing_model"),
+            "finish_reason": provider_result.get("finish_reason"),
+            "fallback_used": provider_result.get("fallback_used", False),
+            "timestamp": provider_result.get("timestamp"),
+        }
+
+    cached_or_fresh = estimate_with_exact_cache(
         transcription=cache_identity,
         tier=effective_tier,
         model=resolved.model,
@@ -210,10 +269,20 @@ def estimate_product(
         model_call=model_call,
     )
 
+    structured_result = EstimationResult.model_validate(cached_or_fresh["result"])
+    text = cached_or_fresh.get("text") or _estimation_result_to_text(structured_result)
+
     return {
-        "text": result["estimation"],
         "prompt_version": prompt_version,
+        "result": structured_result,
+        "text": text,
+        "cached": cached_or_fresh.get("cached"),
+        "cache_backend": cached_or_fresh.get("cache_backend"),
+        "model": cached_or_fresh.get("model"),
+        "provider": cached_or_fresh.get("provider"),
+        "tier": cached_or_fresh.get("tier"),
     }
+
 
 def estimate_stream(
     transcription: str,
