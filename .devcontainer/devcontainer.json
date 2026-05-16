@@ -31,7 +31,7 @@
         "saoudrizwan.claude-dev"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.defaultInterpreterPath": "${workspaceFolder}/estimador-cag/.venv/bin/python",
         "github.copilot.enable": {
           "*": true,
           "plaintext": true,
@@ -40,9 +40,14 @@
       }
     }
   },
-  "postCreateCommand": "echo 'export UV_LINK_MODE=copy' >> ~/.bashrc && curl -LsSf https://astral.sh/uv/install.sh | sh && echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.bashrc && export PATH=\"$HOME/.local/bin:$PATH\" && cd estimador-cag && uv sync && uv run ipython kernel install --user --name=lidr && bash /workspaces/ai-engineering/.devcontainer/cline-config/setup-cline.sh && echo '>>> Entorno listo'",
-  "postStartCommand": "docker --version && docker compose version && uv --version && cd estimador-cag && uv run fastapi --version && uv run streamlit --version && echo '>>> Todo listo'",
-  "forwardPorts": [8000, 8501, 8888, 5432],
+  "postCreateCommand": "bash .devcontainer/setup-estimador.sh",
+  "postStartCommand": "bash .devcontainer/verify-estimador.sh",
+  "forwardPorts": [
+    8000,
+    8501,
+    8888,
+    5432
+  ],
   "portsAttributes": {
     "8000": {
       "label": "FastAPI backend and /demo",

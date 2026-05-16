@@ -2,7 +2,7 @@ name: CI - Estimador CAG
 
 on:
   push:
-    branches: [main, sesion-02-estimador-cag, sesion-03-streamlit]
+    branches: [main, sesion-02-estimador-cag, sesion-03-streamlit, gg-session-04-live-plus]
   pull_request:
     branches: [main]
 
@@ -44,7 +44,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./estimador-cag
-        run: uv sync
+        run: uv sync --extra dev
 
       - name: Lint with ruff
         working-directory: ./estimador-cag
