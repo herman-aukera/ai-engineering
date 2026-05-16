@@ -254,14 +254,18 @@ class LiteLLMProvider:
 
         resolved = self.resolve_model(tier)
 
+        structured_messages = self._messages_with_json_schema_contract(
+            messages=messages,
+            response_model=response_model,
+        )
+
         response = litellm.completion(
             model=resolved.model,
-            messages=messages,
+            messages=structured_messages,
             api_key=resolved.api_key,
             api_base=resolved.base_url,
             temperature=resolved.temperature,
             max_tokens=max_tokens,
-            response_model=response_model,
         )
 
         raw_payload = self._extract_structured_payload(response)
@@ -531,6 +535,44 @@ class LiteLLMProvider:
             }
 
     @staticmethod
+    def _messages_with_json_schema_contract(
+        *,
+        messages: list[dict[str, str]],
+        response_model: type[BaseModel],
+    ) -> list[dict[str, str]]:
+        """
+        Add a local JSON schema contract without sending Python classes to LiteLLM.
+
+        WHY IT EXISTS:
+        DeepSeek and Kimi through LiteLLM failed at runtime when receiving
+        response_model=EstimationResult because the provider payload tried to
+        JSON serialize a Pydantic ModelMetaclass.
+
+        This keeps the provider call portable:
+        normal chat messages go to LiteLLM, and Pydantic validation happens
+        locally after the response is received.
+        """
+
+        schema = response_model.model_json_schema()
+        schema_text = json.dumps(schema, ensure_ascii=False, sort_keys=True)
+
+        contract = (
+            "\n\nStructured output contract:\n"
+            "Return only valid JSON. Do not use markdown fences. "
+            "Do not add prose before or after the JSON.\n"
+            f"JSON schema:\n{schema_text}"
+        )
+
+        copied = [message.copy() for message in messages]
+
+        for message in copied:
+            if message.get("role") == "system":
+                message["content"] = f"{message.get('content', '')}{contract}"
+                return copied
+
+        return [{"role": "system", "content": contract.strip()}, *copied]
+
+    @staticmethod
     def _extract_structured_payload(response):
         """
         Extract structured payload from common LiteLLM and Instructor shapes.
@@ -561,12 +603,37 @@ class LiteLLMProvider:
             return content
 
         if isinstance(content, str):
-            try:
-                return json.loads(content)
-            except Exception as exc:
-                raise ValueError("structured response content is not valid JSON") from exc
+            return LiteLLMProvider._parse_structured_json_content(content)
 
         raise ValueError("could not extract structured payload from provider response")
+
+    @staticmethod
+    def _parse_structured_json_content(content: str):
+        """
+        Parse structured JSON from model text.
+
+        The prompt asks for JSON only, but this accepts common model slips such
+        as fenced JSON blocks or surrounding whitespace.
+        """
+
+        cleaned = content.strip()
+
+        if cleaned.startswith("```"):
+            cleaned = cleaned.removeprefix("```json").removeprefix("```").strip()
+            cleaned = cleaned.removesuffix("```").strip()
+
+        try:
+            return json.loads(cleaned)
+        except Exception:
+            start = cleaned.find("{")
+            end = cleaned.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                try:
+                    return json.loads(cleaned[start : end + 1])
+                except Exception as exc:
+                    raise ValueError("structured response content is not valid JSON") from exc
+
+            raise ValueError("structured response content is not valid JSON")
 
     @staticmethod
     def _extract_first_message(response):

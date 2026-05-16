@@ -102,12 +102,15 @@ def test_complete_structured_messages_sends_exact_messages_and_response_model(mo
         max_tokens=1500,
     )
 
-    assert calls["messages"] == messages
+    assert calls["messages"][0]["role"] == "system"
+    assert calls["messages"][1] == messages[1]
+    assert "Return only valid JSON" in calls["messages"][0]["content"]
+    assert "JSON schema" in calls["messages"][0]["content"]
     assert calls["model"] == "deepseek-v4-flash"
     assert calls["api_base"] == "https://api.deepseek.com/v1"
     assert calls["temperature"] == 0.3
     assert calls["max_tokens"] == 1500
-    assert calls["response_model"] is EstimationResult
+    assert "response_model" not in calls
 
     assert isinstance(result["result"], EstimationResult)
     assert result["result"].project_type is ProjectType.WEB_SAAS
@@ -251,4 +254,42 @@ def test_complete_structured_messages_with_fallback_escalates_through_tier_ladde
     assert calls == ["flash", "pro"]
     assert result["tier"] == "pro"
     assert result["fallback_used"] is True
+    assert isinstance(result["result"], EstimationResult)
+
+
+def test_complete_structured_messages_does_not_send_pydantic_model_class_to_litellm(monkeypatch):
+    """
+    Regression test for the real DeepSeek and Kimi runtime failure.
+
+    Why this matters:
+    Passing response_model=EstimationResult directly into litellm.completion made
+    LiteLLM try to JSON serialize a Python ModelMetaclass. The real provider call
+    then failed with "Object of type ModelMetaclass is not JSON serializable".
+
+    The provider should enforce structured output locally:
+    add JSON schema instructions to messages, receive text, parse JSON, and
+    validate with Pydantic after the LiteLLM call.
+    """
+
+    provider = LiteLLMProvider()
+    calls = {}
+
+    def fake_completion(**kwargs):
+        calls.update(kwargs)
+        return FakeResponse(json.dumps(structured_payload()))
+
+    monkeypatch.setattr("app.services.litellm_provider.litellm.completion", fake_completion)
+
+    result = provider.complete_structured_messages(
+        messages=[
+            {"role": "system", "content": "You are an estimator."},
+            {"role": "user", "content": "Build onboarding SaaS."},
+        ],
+        tier="flash",
+        response_model=EstimationResult,
+    )
+
+    assert "response_model" not in calls
+    assert "Return only valid JSON" in calls["messages"][0]["content"]
+    assert "JSON schema" in calls["messages"][0]["content"]
     assert isinstance(result["result"], EstimationResult)
