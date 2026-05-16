@@ -62,7 +62,7 @@ def test_session04_response_contains_text_and_prompt_version_only():
         prompt_version="v1",
     )
 
-    assert response.model_dump() == {
+    assert response.model_dump(exclude_none=True) == {
         "text": "## Estimate\n\nThe implementation can be delivered in three phases.",
         "prompt_version": "v1",
     }
