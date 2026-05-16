@@ -266,6 +266,7 @@ class LiteLLMProvider:
             api_base=resolved.base_url,
             temperature=resolved.temperature,
             max_tokens=max_tokens,
+            response_format={"type": "json_object"},
         )
 
         if isinstance(response, response_model):

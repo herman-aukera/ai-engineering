@@ -111,6 +111,7 @@ def test_complete_structured_messages_sends_exact_messages_and_response_model(mo
     assert calls["temperature"] == 0.3
     assert calls["max_tokens"] == 1500
     assert "response_model" not in calls
+    assert calls["response_format"] == {"type": "json_object"}
 
     assert isinstance(result["result"], EstimationResult)
     assert result["result"].project_type is ProjectType.WEB_SAAS
