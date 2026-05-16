@@ -57,9 +57,11 @@ def test_streamlit_payload_matches_session04_estimation_request():
 
 
 def test_streamlit_displays_session04_response_contract():
+    assert 'result.get("result")' in SOURCE
     assert 'result.get("text", "")' in SOURCE
     assert 'result.get("prompt_version", "unknown")' in SOURCE
     assert "Prompt version:" in SOURCE
+    assert "Cache:" in SOURCE
     assert "PROMPT_VERSION_OPTIONS" in SOURCE
     assert "Reference projects, optional" in SOURCE
 
