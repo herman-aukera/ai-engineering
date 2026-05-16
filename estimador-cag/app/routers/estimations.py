@@ -8,12 +8,14 @@ DEPENDS ON: fastapi, sse_starlette, app.schemas.estimation,
 """
 
 import json
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
+from app.guardrails.input import evaluate_input_guardrails
 from app.middleware.logging import record_call_metrics
 from app.schemas.estimation import (
     EstimateRequest,
@@ -30,6 +32,8 @@ from app.services.llm_service import (
     estimate_product,
     estimate_stream,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["estimations"])
 
@@ -53,6 +57,16 @@ async def create_estimation(
         payload = await request.json()
 
         if {"description", "project_type", "detail_level", "output_format"}.issubset(payload):
+            raw_description = payload.get("description")
+            if isinstance(raw_description, str):
+                guardrail_decision = evaluate_input_guardrails(raw_description)
+                if not guardrail_decision.allowed:
+                    logger.warning(
+                        "blocked_typed_estimation_input reason_code=%s",
+                        guardrail_decision.reason_code,
+                    )
+                    raise HTTPException(status_code=400, detail=guardrail_decision.to_detail())
+
             typed_request = EstimationRequest.model_validate(payload)
             return estimate_product(typed_request, prompt_version=prompt_version)
 
@@ -65,6 +79,8 @@ async def create_estimation(
         )
         record_call_metrics(result)
         return result
+    except HTTPException as exc:
+        raise exc
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors()) from exc
     except ValueError as exc:
