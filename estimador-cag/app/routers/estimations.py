@@ -34,7 +34,11 @@ from app.services.llm_service import (
 router = APIRouter(prefix="/api/v1", tags=["estimations"])
 
 
-@router.post("/estimate", response_model=EstimateResponse | EstimationResponse)
+@router.post(
+    "/estimate",
+    response_model=EstimateResponse | EstimationResponse,
+    response_model_exclude_none=True,
+)
 async def create_estimation(
     request: Request,
     prompt_version: str = Query(default="v1", pattern=r"^v[0-9]+$"),
