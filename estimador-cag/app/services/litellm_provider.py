@@ -10,10 +10,12 @@ This module does not call the LLM yet. It only defines the provider routing cont
 The actual LiteLLM call is introduced in a later TDD slice.
 """
 
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import litellm
+from pydantic import BaseModel, ValidationError
 
 from app.config import TierName, settings
 from app.services.conversation import ConversationTurn, build_conversation_messages
@@ -228,6 +230,110 @@ class LiteLLMProvider:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
+    def complete_structured_messages(
+        self,
+        *,
+        messages: list[dict[str, str]],
+        tier: TierName,
+        response_model: type[BaseModel],
+        max_tokens: int = 2000,
+    ) -> dict:
+        """
+        Execute a synchronous LiteLLM structured completion from explicit messages.
+
+        LAYER: services
+        RESPONSIBILITY: Validate provider output into a Pydantic response model.
+        WHY IT EXISTS: Session 04 product UI needs fields, not markdown parsing.
+        DEPENDS_ON: litellm.completion, resolve_model, Pydantic validation.
+
+        Design note:
+        Routers and UI should not care whether the provider returned a JSON
+        string, a dictionary, or an already parsed object. This method normalizes
+        those shapes and returns a trusted model under result.
+        """
+
+        resolved = self.resolve_model(tier)
+
+        response = litellm.completion(
+            model=resolved.model,
+            messages=messages,
+            api_key=resolved.api_key,
+            api_base=resolved.base_url,
+            temperature=resolved.temperature,
+            max_tokens=max_tokens,
+            response_model=response_model,
+        )
+
+        raw_payload = self._extract_structured_payload(response)
+
+        try:
+            result = response_model.model_validate(raw_payload)
+        except (ValidationError, TypeError, ValueError) as exc:
+            raise RuntimeError(f"Invalid structured payload from {resolved.model}: {exc}") from exc
+
+        usage = self._extract_usage(response)
+        input_tokens = usage["input_tokens"]
+        output_tokens = usage["output_tokens"]
+        finish_reason = self._extract_finish_reason(response)
+        cost = estimate_cost_usd(
+            model=resolved.model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+
+        return {
+            "result": result,
+            "model": resolved.model,
+            "tier": resolved.tier,
+            "provider": resolved.provider,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": cost["cost_usd"],
+            "cost_source": cost["cost_source"],
+            "pricing_model": cost["pricing_model"],
+            "finish_reason": finish_reason,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+    def complete_structured_messages_with_fallback(
+        self,
+        *,
+        messages: list[dict[str, str]],
+        starting_tier: TierName,
+        tier_ladder: list[TierName],
+        response_model: type[BaseModel],
+        max_tokens: int = 2000,
+    ) -> dict:
+        """
+        Execute a structured LiteLLM completion with tier fallback.
+
+        LAYER: services
+        RESPONSIBILITY: Try the requested structured tier and escalate safely.
+        WHY IT EXISTS: Structured output should preserve the existing provider
+                       abstraction and fallback discipline.
+        DEPENDS_ON: complete_structured_messages.
+        """
+
+        start_idx = tier_ladder.index(starting_tier)
+        tiers_to_try = tier_ladder[start_idx:]
+        errors: list[str] = []
+
+        for index, tier in enumerate(tiers_to_try):
+            try:
+                result = self.complete_structured_messages(
+                    messages=messages,
+                    tier=tier,
+                    response_model=response_model,
+                    max_tokens=max_tokens,
+                )
+                result["fallback_used"] = index > 0
+                return result
+            except Exception as exc:
+                errors.append(f"{tier}: {exc}")
+                continue
+
+        raise RuntimeError(f"All structured LLM tiers failed: {'; '.join(errors)}")
+
     def complete_with_fallback_messages(
         self,
         *,
@@ -423,6 +529,92 @@ class LiteLLMProvider:
                 "finish_reason": None,
                 "timestamp": None,
             }
+
+    @staticmethod
+    def _extract_structured_payload(response):
+        """
+        Extract structured payload from common LiteLLM and Instructor shapes.
+
+        WHY IT EXISTS:
+        Provider libraries differ. Tests cover JSON strings, dictionaries, and
+        already parsed Pydantic objects so the service layer gets one contract.
+        """
+
+        if isinstance(response, BaseModel):
+            return response
+
+        if isinstance(response, dict) and "choices" not in response:
+            return response
+
+        message = LiteLLMProvider._extract_first_message(response)
+
+        parsed = LiteLLMProvider._get_value(message, "parsed")
+        if parsed is not None:
+            return parsed
+
+        content = LiteLLMProvider._get_value(message, "content")
+
+        if isinstance(content, BaseModel):
+            return content
+
+        if isinstance(content, dict):
+            return content
+
+        if isinstance(content, str):
+            try:
+                return json.loads(content)
+            except Exception as exc:
+                raise ValueError("structured response content is not valid JSON") from exc
+
+        raise ValueError("could not extract structured payload from provider response")
+
+    @staticmethod
+    def _extract_first_message(response):
+        """Return the first message from object style or dict style responses."""
+
+        choices = LiteLLMProvider._get_value(response, "choices")
+        if not choices:
+            raise ValueError("provider response does not contain choices")
+
+        first_choice = choices[0]
+        message = LiteLLMProvider._get_value(first_choice, "message")
+        if message is None:
+            raise ValueError("provider response choice does not contain message")
+
+        return message
+
+    @staticmethod
+    def _extract_usage(response) -> dict[str, int | None]:
+        """Normalize token usage from object style or dict style responses."""
+
+        usage = LiteLLMProvider._get_value(response, "usage")
+        if usage is None:
+            return {"input_tokens": None, "output_tokens": None}
+
+        return {
+            "input_tokens": LiteLLMProvider._get_value(usage, "prompt_tokens"),
+            "output_tokens": LiteLLMProvider._get_value(usage, "completion_tokens"),
+        }
+
+    @staticmethod
+    def _extract_finish_reason(response) -> str | None:
+        """Normalize finish_reason from object style or dict style responses."""
+
+        choices = LiteLLMProvider._get_value(response, "choices")
+        if not choices:
+            return None
+
+        first_choice = choices[0]
+        return LiteLLMProvider._get_value(first_choice, "finish_reason")
+
+    @staticmethod
+    def _get_value(container, key: str):
+        """Read a value from either an object attribute or a dictionary key."""
+
+        if isinstance(container, dict):
+            return container.get(key)
+
+        return getattr(container, key, None)
 
     @staticmethod
     def _clean_estimation_content(content: str | None) -> str | None:
