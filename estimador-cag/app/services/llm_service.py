@@ -11,6 +11,7 @@ from redis import Redis
 
 from app.config import TierName, settings
 from app.context.examples import ESTIMATION_EXAMPLES
+from app.guardrails.output import evaluate_output_guardrails
 from app.prompts.loader import render_estimation_prompt
 from app.schemas.estimation import EstimationRequest, EstimationResult
 from app.services.cache import RedisEstimationCache
@@ -243,6 +244,13 @@ def estimate_product(
         )
 
         structured_result = EstimationResult.model_validate(provider_result["result"])
+        output_guardrail_decision = evaluate_output_guardrails(structured_result)
+        if not output_guardrail_decision.allowed:
+            logger.warning(
+                "blocked_structured_estimation_output reason_code=%s",
+                output_guardrail_decision.reason_code,
+            )
+            raise RuntimeError(output_guardrail_decision.message)
 
         return {
             "result": structured_result.model_dump(mode="json"),
