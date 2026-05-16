@@ -268,7 +268,10 @@ class LiteLLMProvider:
             max_tokens=max_tokens,
         )
 
-        raw_payload = self._extract_structured_payload(response)
+        if isinstance(response, response_model):
+            raw_payload = response
+        else:
+            raw_payload = self._extract_structured_payload(response)
 
         try:
             result = response_model.model_validate(raw_payload)
@@ -581,9 +584,6 @@ class LiteLLMProvider:
         Provider libraries differ. Tests cover JSON strings, dictionaries, and
         already parsed Pydantic objects so the service layer gets one contract.
         """
-
-        if isinstance(response, BaseModel):
-            return response
 
         if isinstance(response, dict) and "choices" not in response:
             return response

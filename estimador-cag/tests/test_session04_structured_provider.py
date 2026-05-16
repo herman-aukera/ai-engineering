@@ -293,3 +293,43 @@ def test_complete_structured_messages_does_not_send_pydantic_model_class_to_lite
     assert "Return only valid JSON" in calls["messages"][0]["content"]
     assert "JSON schema" in calls["messages"][0]["content"]
     assert isinstance(result["result"], EstimationResult)
+
+
+def test_complete_structured_messages_extracts_content_from_litellm_modelresponse_base_model(monkeypatch):
+    """
+    Regression test for real LiteLLM runtime behavior.
+
+    Why this matters:
+    LiteLLM ModelResponse is itself a Pydantic BaseModel. The provider must not
+    treat every BaseModel response as the final structured payload. It should only
+    accept an already parsed object when it is actually the requested response_model.
+    Otherwise it must extract choices[0].message.content and validate that JSON.
+    """
+
+    from pydantic import BaseModel
+
+    class ModelResponseLike(BaseModel):
+        choices: list
+        usage: object
+
+    provider = LiteLLMProvider()
+
+    def fake_completion(**kwargs):
+        return ModelResponseLike(
+            choices=[FakeChoice(json.dumps(structured_payload()))],
+            usage=FakeUsage(),
+        )
+
+    monkeypatch.setattr("app.services.litellm_provider.litellm.completion", fake_completion)
+
+    result = provider.complete_structured_messages(
+        messages=[
+            {"role": "system", "content": "You are an estimator."},
+            {"role": "user", "content": "Build onboarding SaaS."},
+        ],
+        tier="flash",
+        response_model=EstimationResult,
+    )
+
+    assert isinstance(result["result"], EstimationResult)
+    assert result["result"].summary == "A structured estimate for a SaaS onboarding product."
