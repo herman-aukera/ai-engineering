@@ -202,3 +202,6 @@ class EstimationResponse(BaseModel):
     model: str | None = None
     provider: str | None = None
     tier: str | None = None
+    requested_tier: str | None = None
+    served_tier: str | None = None
+    fallback_used: bool | None = None

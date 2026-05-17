@@ -369,3 +369,189 @@ def test_estimate_product_keeps_deepseek_and_kimi_structured_fallback_ladder(mon
     assert calls["response_model"] is EstimationResult
     assert response["tier"] == "backup_pro"
     assert response["provider"] == "fake"
+
+
+def test_estimate_product_response_exposes_fallback_observability_metadata(monkeypatch):
+    """
+    Product responses should expose requested and served tier metadata.
+
+    Why this matters:
+    DeepSeek can fail under provider load. When the request is eventually served
+    by Kimi backup or backup_pro, the UI and logs need to reveal that fallback
+    happened instead of hiding it behind a normal-looking estimate.
+    """
+
+    from app.schemas.estimation import EstimationResult
+    from app.services import llm_service
+
+    calls = {}
+
+    class FakeProvider:
+        def resolve_model(self, tier):
+            class Resolved:
+                model = "deepseek-v4-flash"
+            return Resolved()
+
+        def complete_structured_messages_with_fallback(
+            self,
+            *,
+            messages,
+            starting_tier,
+            tier_ladder,
+            response_model,
+            max_tokens,
+        ):
+            calls["starting_tier"] = starting_tier
+            calls["tier_ladder"] = tier_ladder
+
+            return {
+                "result": EstimationResult(
+                    summary="A structured estimate served after fallback.",
+                    project_type="web_saas",
+                    detail_level="medium",
+                    output_format="phases_table",
+                    total_duration_weeks=2,
+                    total_cost_eur=3000,
+                    confidence_pct=80,
+                    phases=[
+                        {
+                            "name": "Implementation",
+                            "summary": "Build the first version.",
+                            "duration_weeks": 2,
+                            "cost_eur": 3000,
+                            "confidence_pct": 80,
+                            "tasks": ["Build backend", "Build frontend"],
+                            "risks": [],
+                        }
+                    ],
+                    assumptions=[],
+                    risks=[],
+                    recommendations=[],
+                ),
+                "model": "moonshot/kimi-k2.6",
+                "provider": "kimi",
+                "tier": "backup_pro",
+                "fallback_used": True,
+            }
+
+    class NoopCache:
+        backend_name = "noop"
+
+        def make_key(self, **kwargs):
+            return "key"
+
+        def get(self, key):
+            return None
+
+        def set(self, key, value):
+            calls["cached_value"] = value
+
+    monkeypatch.setattr(llm_service, "LiteLLMProvider", FakeProvider)
+    monkeypatch.setattr(llm_service, "build_redis_cache", lambda: NoopCache())
+
+    request = EstimationRequest(
+        description="Build a B2B onboarding SaaS with approval workflow and reports.",
+        project_type="web_saas",
+        detail_level="medium",
+        output_format="phases_table",
+    )
+
+    response = llm_service.estimate_product(request, tier="flash", prompt_version="v2")
+
+    assert response["requested_tier"] == "flash"
+    assert response["served_tier"] == "backup_pro"
+    assert response["fallback_used"] is True
+    assert response["provider"] == "kimi"
+    assert response["model"] == "moonshot/kimi-k2.6"
+    assert response["tier"] == "backup_pro"
+
+    cached = calls["cached_value"]
+    assert cached["requested_tier"] == "flash"
+    assert cached["served_tier"] == "backup_pro"
+    assert cached["fallback_used"] is True
+
+
+def test_estimate_product_cache_hit_preserves_fallback_observability_metadata(monkeypatch):
+    """
+    Cache hits must preserve fallback metadata from the original valid response.
+
+    Why this matters:
+    If a Kimi fallback result was cached, later users should still see that the
+    estimate was served by fallback instead of assuming it came from the primary
+    DeepSeek tier.
+    """
+
+    from app.schemas.estimation import EstimationResult
+    from app.services import llm_service
+
+    class FakeProvider:
+        def resolve_model(self, tier):
+            class Resolved:
+                model = "deepseek-v4-flash"
+            return Resolved()
+
+        def complete_structured_messages_with_fallback(self, **kwargs):
+            raise AssertionError("provider should not be called on cache hit")
+
+    class HitCache:
+        backend_name = "noop"
+
+        def make_key(self, **kwargs):
+            return "key"
+
+        def get(self, key):
+            return {
+                "result": EstimationResult(
+                    summary="Cached fallback estimate.",
+                    project_type="web_saas",
+                    detail_level="medium",
+                    output_format="phases_table",
+                    total_duration_weeks=2,
+                    total_cost_eur=3000,
+                    confidence_pct=80,
+                    phases=[
+                        {
+                            "name": "Implementation",
+                            "summary": "Build the first version.",
+                            "duration_weeks": 2,
+                            "cost_eur": 3000,
+                            "confidence_pct": 80,
+                            "tasks": ["Build backend"],
+                            "risks": [],
+                        }
+                    ],
+                    assumptions=[],
+                    risks=[],
+                    recommendations=[],
+                ).model_dump(mode="json"),
+                "text": "cached text",
+                "prompt_version": "v2",
+                "model": "moonshot/kimi-k2.6",
+                "provider": "kimi",
+                "tier": "backup_pro",
+                "requested_tier": "flash",
+                "served_tier": "backup_pro",
+                "fallback_used": True,
+            }
+
+        def set(self, key, value):
+            raise AssertionError("cache set should not run on hit")
+
+    monkeypatch.setattr(llm_service, "LiteLLMProvider", FakeProvider)
+    monkeypatch.setattr(llm_service, "build_redis_cache", lambda: HitCache())
+
+    request = EstimationRequest(
+        description="Build a B2B onboarding SaaS with approval workflow and reports.",
+        project_type="web_saas",
+        detail_level="medium",
+        output_format="phases_table",
+    )
+
+    response = llm_service.estimate_product(request, tier="flash", prompt_version="v2")
+
+    assert response["cached"] is True
+    assert response["cache_backend"] == "noop"
+    assert response["requested_tier"] == "flash"
+    assert response["served_tier"] == "backup_pro"
+    assert response["fallback_used"] is True
+    assert response["provider"] == "kimi"
