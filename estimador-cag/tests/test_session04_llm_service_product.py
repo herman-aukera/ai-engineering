@@ -274,3 +274,98 @@ def test_estimate_product_structured_path_does_not_send_markdown_output_contract
     assert "markdown" not in system_message
     assert "return a markdown table" not in system_message
     assert "markdown table" not in system_message
+
+
+def test_estimate_product_keeps_deepseek_and_kimi_structured_fallback_ladder(monkeypatch):
+    """
+    Structured product estimates must keep all configured production fallbacks.
+
+    Why this matters:
+    DeepSeek can fail under provider load. Even if Kimi is less reliable for
+    structured JSON, backup and backup_pro must remain wired so the app has a
+    second provider family available instead of failing immediately.
+    """
+
+    from app.schemas.estimation import EstimationResult
+    from app.services import llm_service
+
+    calls = {}
+
+    class FakeProvider:
+        def resolve_model(self, tier):
+            class Resolved:
+                model = "fake-model"
+            return Resolved()
+
+        def complete_structured_messages_with_fallback(
+            self,
+            *,
+            messages,
+            starting_tier,
+            tier_ladder,
+            response_model,
+            max_tokens,
+        ):
+            calls["starting_tier"] = starting_tier
+            calls["tier_ladder"] = tier_ladder
+            calls["response_model"] = response_model
+
+            return {
+                "result": EstimationResult(
+                    summary="A structured estimate.",
+                    project_type="web_saas",
+                    detail_level="medium",
+                    output_format="phases_table",
+                    total_duration_weeks=2,
+                    total_cost_eur=3000,
+                    confidence_pct=80,
+                    phases=[
+                        {
+                            "name": "Implementation",
+                            "summary": "Build the first version.",
+                            "duration_weeks": 2,
+                            "cost_eur": 3000,
+                            "confidence_pct": 80,
+                            "tasks": ["Build backend", "Build frontend"],
+                            "risks": [],
+                        }
+                    ],
+                    assumptions=[],
+                    risks=[],
+                    recommendations=[],
+                ),
+                "model": "fake-model",
+                "provider": "fake",
+                "tier": "backup_pro",
+                "fallback_used": True,
+            }
+
+    class NoopCache:
+        backend_name = "noop"
+
+        def make_key(self, **kwargs):
+            return "key"
+
+        def get(self, key):
+            return None
+
+        def set(self, key, value):
+            calls["cached_value"] = value
+
+    monkeypatch.setattr(llm_service, "LiteLLMProvider", FakeProvider)
+    monkeypatch.setattr(llm_service, "build_redis_cache", lambda: NoopCache())
+
+    request = EstimationRequest(
+        description="Build a B2B onboarding SaaS with approval workflow and reports.",
+        project_type="web_saas",
+        detail_level="medium",
+        output_format="phases_table",
+    )
+
+    response = llm_service.estimate_product(request, tier="flash", prompt_version="v2")
+
+    assert calls["starting_tier"] == "flash"
+    assert calls["tier_ladder"] == ["flash", "pro", "backup", "backup_pro"]
+    assert calls["response_model"] is EstimationResult
+    assert response["tier"] == "backup_pro"
+    assert response["provider"] == "fake"
