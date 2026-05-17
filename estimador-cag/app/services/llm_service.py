@@ -159,6 +159,35 @@ def estimate(
 
 
 
+def _build_structured_product_system_prompt(prompt_version: str) -> str:
+    """
+    Build the system prompt for structured Session 04 product estimates.
+
+    WHY IT EXISTS:
+    The human-readable v1/v2 prompt templates can mention markdown, tables, or
+    narrative output. Structured output must not receive those conflicting
+    instructions. This prompt is intentionally JSON-only.
+    """
+
+    return (
+        "You are a senior software estimation engine. "
+        f"Prompt version: {prompt_version}. "
+        "Return only valid JSON. Do not use code fences or human-readable formatting. "
+        "Do not add prose before or after the JSON. "
+        "Return a single JSON object compatible with EstimationResult. "
+        "Use these enum values exactly: "
+        "project_type must be one of web_saas, internal_tool, automation, data_ai, mobile_app; "
+        "detail_level must be one of summary, medium, detailed; "
+        "output_format must be one of narrative, phases_table. "
+        "Each phase must include name, summary, duration_weeks, cost_eur, "
+        "confidence_pct, tasks, and risks. "
+        "Make total_cost_eur equal the sum of all phase cost_eur values. "
+        "Make total_duration_weeks no smaller than the longest phase and no larger "
+        "than the sum of phase duration_weeks values. "
+        "If confidence_pct is below 50, summary must start with 'Out of scope:'."
+    )
+
+
 def _estimation_result_to_text(result: EstimationResult) -> str:
     """
     Render structured estimation data into a small markdown compatibility text.
@@ -210,7 +239,8 @@ def estimate_product(
                    parsing markdown.
     DEPENDS ON: render_estimation_prompt, Redis exact cache, LiteLLMProvider.
     """
-    system_prompt, user_prompt = render_estimation_prompt(request, version=prompt_version)
+    template_system_prompt, user_prompt = render_estimation_prompt(request, version=prompt_version)
+    system_prompt = _build_structured_product_system_prompt(prompt_version)
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
@@ -224,7 +254,8 @@ def estimate_product(
     cache_identity = request.model_dump_json()
     combined_prompt_identity = (
         f"prompt_version={prompt_version}\n"
-        f"system_prompt={system_prompt}\n\n"
+        f"structured_system_prompt={system_prompt}\n\n"
+        f"template_system_prompt={template_system_prompt}\n\n"
         f"--- user prompt ---\n"
         f"{user_prompt}"
     )
