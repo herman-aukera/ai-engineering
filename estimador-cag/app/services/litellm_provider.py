@@ -274,8 +274,13 @@ class LiteLLMProvider:
         else:
             raw_payload = self._extract_structured_payload(response)
 
+        normalized_payload = self._normalize_structured_payload(
+            raw_payload=raw_payload,
+            response_model=response_model,
+        )
+
         try:
-            result = response_model.model_validate(raw_payload)
+            result = response_model.model_validate(normalized_payload)
         except (ValidationError, TypeError, ValueError) as exc:
             raise RuntimeError(f"Invalid structured payload from {resolved.model}: {exc}") from exc
 
@@ -607,6 +612,51 @@ class LiteLLMProvider:
             return LiteLLMProvider._parse_structured_json_content(content)
 
         raise ValueError("could not extract structured payload from provider response")
+
+    @staticmethod
+    def _normalize_structured_payload(*, raw_payload, response_model: type[BaseModel]):
+        """
+        Normalize deterministic aggregate fields before final schema validation.
+
+        WHY IT EXISTS:
+        LLMs are useful for estimating phase-level work but unreliable for exact
+        arithmetic. The backend owns deterministic totals so valid phase plans do
+        not fail only because a provider mis-added numbers.
+        """
+
+        if response_model.__name__ != "EstimationResult":
+            return raw_payload
+
+        if isinstance(raw_payload, BaseModel):
+            raw_payload = raw_payload.model_dump(mode="json")
+
+        if not isinstance(raw_payload, dict):
+            return raw_payload
+
+        phases = raw_payload.get("phases")
+        if not isinstance(phases, list) or not phases:
+            return raw_payload
+
+        phase_costs: list[int] = []
+        phase_durations: list[int] = []
+
+        for phase in phases:
+            if not isinstance(phase, dict):
+                return raw_payload
+
+            cost = phase.get("cost_eur")
+            duration = phase.get("duration_weeks")
+
+            if not isinstance(cost, int) or not isinstance(duration, int):
+                return raw_payload
+
+            phase_costs.append(cost)
+            phase_durations.append(duration)
+
+        normalized = raw_payload.copy()
+        normalized["total_cost_eur"] = sum(phase_costs)
+        normalized["total_duration_weeks"] = sum(phase_durations)
+        return normalized
 
     @staticmethod
     def _parse_structured_json_content(content: str):
