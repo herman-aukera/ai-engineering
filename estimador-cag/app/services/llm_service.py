@@ -274,6 +274,15 @@ def estimate_product(
             max_tokens=2000,
         )
 
+        served_tier = provider_result.get("tier")
+        fallback_used = bool(provider_result.get("fallback_used", served_tier != effective_tier))
+        logger.info(
+            "Structured product estimator completed "
+            f"requested_tier={effective_tier}, served_tier={served_tier}, "
+            f"fallback_used={fallback_used}, provider={provider_result.get('provider')}, "
+            f"model={provider_result.get('model')}"
+        )
+
         structured_result = EstimationResult.model_validate(provider_result["result"])
         output_guardrail_decision = evaluate_output_guardrails(structured_result)
         if not output_guardrail_decision.allowed:
@@ -287,7 +296,7 @@ def estimate_product(
             "result": structured_result.model_dump(mode="json"),
             "text": _estimation_result_to_text(structured_result),
             "model": provider_result.get("model"),
-            "tier": provider_result.get("tier"),
+            "tier": served_tier,
             "provider": provider_result.get("provider"),
             "input_tokens": provider_result.get("input_tokens"),
             "output_tokens": provider_result.get("output_tokens"),
@@ -295,7 +304,9 @@ def estimate_product(
             "cost_source": provider_result.get("cost_source"),
             "pricing_model": provider_result.get("pricing_model"),
             "finish_reason": provider_result.get("finish_reason"),
-            "fallback_used": provider_result.get("fallback_used", False),
+            "requested_tier": effective_tier,
+            "served_tier": served_tier,
+            "fallback_used": fallback_used,
             "timestamp": provider_result.get("timestamp"),
         }
 
@@ -311,6 +322,8 @@ def estimate_product(
     structured_result = EstimationResult.model_validate(cached_or_fresh["result"])
     text = cached_or_fresh.get("text") or _estimation_result_to_text(structured_result)
 
+    served_tier = cached_or_fresh.get("served_tier", cached_or_fresh.get("tier"))
+
     return {
         "prompt_version": prompt_version,
         "result": structured_result,
@@ -319,7 +332,10 @@ def estimate_product(
         "cache_backend": cached_or_fresh.get("cache_backend"),
         "model": cached_or_fresh.get("model"),
         "provider": cached_or_fresh.get("provider"),
-        "tier": cached_or_fresh.get("tier"),
+        "tier": served_tier,
+        "requested_tier": cached_or_fresh.get("requested_tier", effective_tier),
+        "served_tier": served_tier,
+        "fallback_used": cached_or_fresh.get("fallback_used", served_tier != effective_tier),
     }
 
 

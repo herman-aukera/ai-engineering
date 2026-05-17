@@ -388,3 +388,72 @@ def test_metadata_includes_prompt_cache_model_provider_and_tier(monkeypatch):
     assert response["model"] == "deepseek-v4-flash"
     assert response["provider"] == "deepseek"
     assert response["tier"] == "flash"
+
+
+def test_structured_endpoint_exposes_fallback_observability_metadata(monkeypatch):
+    """
+    The HTTP API must not strip fallback metadata from structured responses.
+
+    Why this matters:
+    FastAPI response_model filtering can silently remove newly-added service
+    fields unless the response schema exposes them. The product UI and auditors
+    need to know whether the request was served by DeepSeek or a Kimi fallback.
+    """
+
+    from app.routers import estimations as estimations_router
+
+    def fake_estimate_product(request, prompt_version="v1"):
+        return {
+            "text": "fallback estimate",
+            "prompt_version": prompt_version,
+            "model": "moonshot/kimi-k2.6",
+            "provider": "kimi",
+            "tier": "backup_pro",
+            "requested_tier": "flash",
+            "served_tier": "backup_pro",
+            "fallback_used": True,
+            "result": {
+                "summary": "A fallback estimate.",
+                "project_type": "web_saas",
+                "detail_level": "medium",
+                "output_format": "phases_table",
+                "total_duration_weeks": 2,
+                "total_cost_eur": 3000,
+                "confidence_pct": 80,
+                "phases": [
+                    {
+                        "name": "Implementation",
+                        "summary": "Build the first version.",
+                        "duration_weeks": 2,
+                        "cost_eur": 3000,
+                        "confidence_pct": 80,
+                        "tasks": ["Build backend"],
+                        "risks": [],
+                    }
+                ],
+                "assumptions": [],
+                "risks": [],
+                "recommendations": [],
+            },
+        }
+
+    monkeypatch.setattr(estimations_router, "estimate_product", fake_estimate_product)
+
+    response = TestClient(app).post(
+        "/api/v1/estimate?prompt_version=v2",
+        json={
+            "description": "Build a B2B onboarding SaaS with approval workflow and reports.",
+            "project_type": "web_saas",
+            "detail_level": "medium",
+            "output_format": "phases_table",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["requested_tier"] == "flash"
+    assert body["served_tier"] == "backup_pro"
+    assert body["fallback_used"] is True
+    assert body["provider"] == "kimi"
+    assert body["tier"] == "backup_pro"
