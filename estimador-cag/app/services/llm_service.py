@@ -270,7 +270,7 @@ def estimate_product(
         {"role": "user", "content": user_prompt},
     ]
 
-    effective_tier = tier or settings.llm_tier
+    effective_tier = tier or request.tier or settings.llm_tier
     provider = LiteLLMProvider()
     resolved = provider.resolve_model(effective_tier)
     cache = build_redis_cache()

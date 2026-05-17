@@ -12,6 +12,7 @@ model output.
 """
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -107,6 +108,10 @@ class EstimationRequest(BaseModel):
     detail_level: DetailLevel
     output_format: OutputFormat
     reference_projects: list[ReferenceProject] | None = None
+    tier: Literal["flash", "pro", "backup", "backup_pro"] | None = Field(
+        default=None,
+        description="Optional starting LLM tier selected by the product UI.",
+    )
 
 
 class Phase(BaseModel):

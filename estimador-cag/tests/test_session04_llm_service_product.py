@@ -555,3 +555,114 @@ def test_estimate_product_cache_hit_preserves_fallback_observability_metadata(mo
     assert response["served_tier"] == "backup_pro"
     assert response["fallback_used"] is True
     assert response["provider"] == "kimi"
+
+
+def test_estimate_product_uses_typed_request_tier_when_present(monkeypatch):
+    """
+    The typed product request can explicitly choose the starting model tier.
+
+    Why this matters:
+    Streamlit exposes a model selector. The backend should honor that selector
+    while still keeping the full fallback ladder available.
+    """
+
+    from app.schemas.estimation import EstimationResult
+    from app.services import llm_service
+
+    calls = {}
+
+    class FakeProvider:
+        def resolve_model(self, tier):
+            calls["resolved_tier"] = tier
+
+            class Resolved:
+                model = "moonshot/kimi-k2.6"
+
+            return Resolved()
+
+        def complete_structured_messages_with_fallback(
+            self,
+            *,
+            messages,
+            starting_tier,
+            tier_ladder,
+            response_model,
+            max_tokens,
+        ):
+            calls["starting_tier"] = starting_tier
+            calls["tier_ladder"] = tier_ladder
+
+            return {
+                "result": EstimationResult(
+                    summary="A structured estimate.",
+                    project_type="web_saas",
+                    detail_level="medium",
+                    output_format="phases_table",
+                    total_duration_weeks=2,
+                    total_cost_eur=3000,
+                    confidence_pct=80,
+                    phases=[
+                        {
+                            "name": "Implementation",
+                            "summary": "Build the first version.",
+                            "duration_weeks": 2,
+                            "cost_eur": 3000,
+                            "confidence_pct": 80,
+                            "tasks": ["Build backend"],
+                            "risks": [],
+                        }
+                    ],
+                    assumptions=[],
+                    risks=[],
+                    recommendations=[],
+                ),
+                "model": "moonshot/kimi-k2.6",
+                "provider": "kimi",
+                "tier": "backup_pro",
+                "fallback_used": False,
+            }
+
+    class NoopCache:
+        backend_name = "noop"
+
+        def make_key(self, **kwargs):
+            return "key"
+
+        def get(self, key):
+            return None
+
+        def set(self, key, value):
+            calls["cached_value"] = value
+
+    class NoopSemanticCache:
+        def lookup(self, *, bucket, text):
+            return {
+                "candidate_found": False,
+                "candidate_key": None,
+                "similarity": None,
+                "bucket": bucket,
+                "mode": "shadow",
+            }
+
+        def store(self, *, bucket, text, payload):
+            return "semantic-key"
+
+    monkeypatch.setattr(llm_service, "LiteLLMProvider", FakeProvider)
+    monkeypatch.setattr(llm_service, "build_redis_cache", lambda: NoopCache())
+    monkeypatch.setattr(llm_service, "build_semantic_shadow_cache", lambda: NoopSemanticCache())
+
+    request = EstimationRequest(
+        description="Build a B2B onboarding SaaS with approval workflow and reports.",
+        project_type="web_saas",
+        detail_level="medium",
+        output_format="phases_table",
+        tier="backup_pro",
+    )
+
+    response = llm_service.estimate_product(request, prompt_version="v2")
+
+    assert calls["resolved_tier"] == "backup_pro"
+    assert calls["starting_tier"] == "backup_pro"
+    assert calls["tier_ladder"] == ["flash", "pro", "backup", "backup_pro"]
+    assert response["requested_tier"] == "backup_pro"
+    assert response["served_tier"] == "backup_pro"
