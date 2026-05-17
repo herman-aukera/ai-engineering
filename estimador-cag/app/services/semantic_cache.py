@@ -137,3 +137,68 @@ def find_best_semantic_candidate(
             )
 
     return best
+
+
+class InMemorySemanticShadowCache:
+    """
+    Small in-memory semantic cache for shadow-mode plumbing.
+
+    This is intentionally process-local. It is enough to prove control flow and
+    response metadata before introducing Redis Stack or external embeddings.
+    """
+
+    def __init__(self, *, threshold: float = 0.85) -> None:
+        self.threshold = threshold
+        self._candidates: list[SemanticCacheCandidate] = []
+
+    def lookup(self, *, bucket: str, text: str) -> dict[str, Any]:
+        """Return shadow candidate metadata without serving payload."""
+
+        query_embedding = deterministic_text_embedding(text)
+        bucket_candidates = [
+            candidate for candidate in self._candidates if candidate.bucket == bucket
+        ]
+        match = find_best_semantic_candidate(
+            query_embedding=query_embedding,
+            candidates=bucket_candidates,
+            threshold=self.threshold,
+        )
+
+        if match is None:
+            return {
+                "candidate_found": False,
+                "candidate_key": None,
+                "similarity": None,
+                "bucket": bucket,
+                "mode": "shadow",
+            }
+
+        return {
+            "candidate_found": True,
+            "candidate_key": match.key,
+            "similarity": match.similarity,
+            "bucket": bucket,
+            "mode": "shadow",
+        }
+
+    def store(self, *, bucket: str, text: str, payload: dict[str, Any]) -> str:
+        """Store a valid payload as a future semantic shadow candidate."""
+
+        key = hashlib.sha256(f"{bucket}:{text}".encode()).hexdigest()
+        candidate = SemanticCacheCandidate(
+            key=key,
+            bucket=bucket,
+            embedding=deterministic_text_embedding(text),
+            payload=payload,
+        )
+        self._candidates.append(candidate)
+        return key
+
+
+_global_shadow_cache = InMemorySemanticShadowCache()
+
+
+def get_global_semantic_shadow_cache() -> InMemorySemanticShadowCache:
+    """Return the process-local semantic shadow cache."""
+
+    return _global_shadow_cache

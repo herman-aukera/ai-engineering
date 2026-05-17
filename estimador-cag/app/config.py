@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     cache_ttl_seconds: int = 86400
 
+    semantic_cache_mode: Literal["off", "shadow", "serve"] = "shadow"
+    semantic_cache_threshold: float = 0.85
+
     @model_validator(mode="after")
     def validate_api_keys(self):
         """Fail-fast automatico: si ambas keys son dummy, la app no arranca."""

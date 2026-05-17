@@ -205,3 +205,8 @@ class EstimationResponse(BaseModel):
     requested_tier: str | None = None
     served_tier: str | None = None
     fallback_used: bool | None = None
+    semantic_cache_mode: str | None = None
+    semantic_candidate_found: bool | None = None
+    semantic_candidate_key: str | None = None
+    semantic_similarity: float | None = None
+    semantic_bucket: str | None = None

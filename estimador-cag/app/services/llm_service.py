@@ -17,6 +17,7 @@ from app.schemas.estimation import EstimationRequest, EstimationResult
 from app.services.cache import RedisEstimationCache
 from app.services.conversation import ConversationTurn
 from app.services.litellm_provider import LiteLLMProvider
+from app.services.semantic_cache import build_semantic_bucket, get_global_semantic_shadow_cache
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +224,29 @@ def _estimation_result_to_text(result: EstimationResult) -> str:
     )
 
 
+def build_semantic_shadow_cache():
+    """
+    Return the semantic shadow cache implementation.
+
+    Kept as a small factory so tests can monkeypatch semantic cache behavior
+    without touching global process state.
+    """
+
+    return get_global_semantic_shadow_cache()
+
+
+def _semantic_shadow_disabled_metadata(mode: str) -> dict:
+    """Return explicit metadata when semantic cache is off or skipped."""
+
+    return {
+        "semantic_cache_mode": mode,
+        "semantic_candidate_found": False,
+        "semantic_candidate_key": None,
+        "semantic_similarity": None,
+        "semantic_bucket": None,
+    }
+
+
 def estimate_product(
     request: EstimationRequest,
     tier: TierName | None = None,
@@ -252,6 +276,16 @@ def estimate_product(
     cache = build_redis_cache()
 
     cache_identity = request.model_dump_json()
+    semantic_mode = settings.semantic_cache_mode
+    semantic_bucket = build_semantic_bucket(
+        prompt_version=prompt_version,
+        project_type=request.project_type.value,
+        detail_level=request.detail_level.value,
+        output_format=request.output_format.value,
+        model_identity=effective_tier,
+    )
+    semantic_metadata = _semantic_shadow_disabled_metadata(semantic_mode)
+
     combined_prompt_identity = (
         f"prompt_version={prompt_version}\n"
         f"structured_system_prompt={system_prompt}\n\n"
@@ -261,6 +295,20 @@ def estimate_product(
     )
 
     def model_call() -> dict:
+        nonlocal semantic_metadata
+
+        if semantic_mode == "shadow":
+            semantic_metadata = build_semantic_shadow_cache().lookup(
+                bucket=semantic_bucket,
+                text=request.description,
+            )
+            logger.info(
+                "Semantic cache shadow lookup "
+                f"candidate_found={semantic_metadata.get('candidate_found')}, "
+                f"similarity={semantic_metadata.get('similarity')}, "
+                f"bucket={semantic_metadata.get('bucket')}"
+            )
+
         logger.info(
             "Calling LiteLLM structured product estimator "
             f"starting_tier={effective_tier}, model={resolved.model}, "
@@ -292,7 +340,7 @@ def estimate_product(
             )
             raise RuntimeError(output_guardrail_decision.message)
 
-        return {
+        response_payload = {
             "result": structured_result.model_dump(mode="json"),
             "text": _estimation_result_to_text(structured_result),
             "model": provider_result.get("model"),
@@ -307,8 +355,22 @@ def estimate_product(
             "requested_tier": effective_tier,
             "served_tier": served_tier,
             "fallback_used": fallback_used,
+            "semantic_cache_mode": semantic_metadata.get("mode", semantic_mode),
+            "semantic_candidate_found": semantic_metadata.get("candidate_found", False),
+            "semantic_candidate_key": semantic_metadata.get("candidate_key"),
+            "semantic_similarity": semantic_metadata.get("similarity"),
+            "semantic_bucket": semantic_metadata.get("bucket", semantic_bucket),
             "timestamp": provider_result.get("timestamp"),
         }
+
+        if semantic_mode == "shadow":
+            build_semantic_shadow_cache().store(
+                bucket=semantic_bucket,
+                text=request.description,
+                payload=response_payload,
+            )
+
+        return response_payload
 
     cached_or_fresh = estimate_with_exact_cache(
         transcription=cache_identity,
@@ -336,6 +398,11 @@ def estimate_product(
         "requested_tier": cached_or_fresh.get("requested_tier", effective_tier),
         "served_tier": served_tier,
         "fallback_used": cached_or_fresh.get("fallback_used", served_tier != effective_tier),
+        "semantic_cache_mode": cached_or_fresh.get("semantic_cache_mode", semantic_mode),
+        "semantic_candidate_found": cached_or_fresh.get("semantic_candidate_found", False),
+        "semantic_candidate_key": cached_or_fresh.get("semantic_candidate_key"),
+        "semantic_similarity": cached_or_fresh.get("semantic_similarity"),
+        "semantic_bucket": cached_or_fresh.get("semantic_bucket"),
     }
 
 
