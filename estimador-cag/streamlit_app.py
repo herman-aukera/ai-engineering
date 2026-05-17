@@ -41,6 +41,13 @@ OUTPUT_FORMAT_OPTIONS = {
 
 PROMPT_VERSION_OPTIONS = ["v1", "v2"]
 
+MODEL_TIER_OPTIONS = {
+    "DeepSeek flash": "flash",
+    "DeepSeek pro": "pro",
+    "Kimi 2.5 backup": "backup",
+    "Kimi 2.6 backup_pro": "backup_pro",
+}
+
 
 def get_backend_url() -> str:
     """Return the configured backend base URL without a trailing slash."""
@@ -171,6 +178,11 @@ def render_cache_and_prompt_metadata(result: dict[str, Any]) -> None:
     model = result.get("model")
     provider = result.get("provider")
     tier = result.get("tier")
+    requested_tier = result.get("requested_tier")
+    served_tier = result.get("served_tier")
+    fallback_used = result.get("fallback_used")
+    semantic_cache_mode = result.get("semantic_cache_mode")
+    semantic_candidate_found = result.get("semantic_candidate_found")
 
     cache_label = "hit" if cached else "miss" if cached is False else "unknown"
     metadata_parts = [
@@ -179,6 +191,11 @@ def render_cache_and_prompt_metadata(result: dict[str, Any]) -> None:
         f"model={model or 'unknown'}",
         f"provider={provider or 'unknown'}",
         f"tier={tier or 'unknown'}",
+        f"requested_tier={requested_tier or 'unknown'}",
+        f"served_tier={served_tier or 'unknown'}",
+        f"fallback_used={fallback_used}",
+        f"semantic_cache_mode={semantic_cache_mode or 'unknown'}",
+        f"semantic_candidate_found={semantic_candidate_found}",
     ]
 
     st.caption(" | ".join(metadata_parts))
@@ -309,11 +326,22 @@ def main() -> None:
                 index=0,
             )
 
-        prompt_version_label = st.selectbox(
-            "Prompt version",
-            options=PROMPT_VERSION_OPTIONS,
-            index=0,
-        )
+        col_prompt, col_model = st.columns(2)
+
+        with col_prompt:
+            prompt_version_label = st.selectbox(
+                "Prompt version",
+                options=PROMPT_VERSION_OPTIONS,
+                index=0,
+            )
+
+        with col_model:
+            model_tier_label = st.selectbox(
+                "Model",
+                options=list(MODEL_TIER_OPTIONS.keys()),
+                index=0,
+                help="Starting provider tier. Fallback ladder remains active.",
+            )
 
         reference_projects_raw = st.text_area(
             "Reference projects, optional",
@@ -335,6 +363,7 @@ def main() -> None:
         "project_type": PROJECT_TYPE_OPTIONS[project_type_label],
         "detail_level": DETAIL_LEVEL_OPTIONS[detail_level_label],
         "output_format": OUTPUT_FORMAT_OPTIONS[output_format_label],
+        "tier": MODEL_TIER_OPTIONS[model_tier_label],
         "reference_projects": parse_reference_projects(reference_projects_raw),
     }
 

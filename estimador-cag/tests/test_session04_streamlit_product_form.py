@@ -40,3 +40,18 @@ def test_streamlit_text_area_uses_supported_streamlit_arguments():
     assert "min_chars=" not in STREAMLIT_SOURCE
     assert "max_chars=2000" in STREAMLIT_SOURCE
     assert "Project description must contain at least 20 characters." in STREAMLIT_SOURCE
+
+
+def test_streamlit_exposes_model_selector_with_deepseek_flash_default():
+    assert "MODEL_TIER_OPTIONS" in STREAMLIT_SOURCE
+    assert "DeepSeek flash" in STREAMLIT_SOURCE
+    assert "DeepSeek pro" in STREAMLIT_SOURCE
+    assert "Kimi 2.5 backup" in STREAMLIT_SOURCE
+    assert "Kimi 2.6 backup_pro" in STREAMLIT_SOURCE
+    assert '"tier"' in STREAMLIT_SOURCE or "'tier'" in STREAMLIT_SOURCE
+
+
+def test_streamlit_renders_requested_served_and_fallback_metadata():
+    assert "requested_tier" in STREAMLIT_SOURCE
+    assert "served_tier" in STREAMLIT_SOURCE
+    assert "fallback_used" in STREAMLIT_SOURCE

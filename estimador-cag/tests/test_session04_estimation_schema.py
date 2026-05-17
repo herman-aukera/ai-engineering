@@ -88,3 +88,28 @@ def test_session04_request_accepts_optional_reference_projects():
 
     assert dumped["reference_projects"][0]["name"] == "CRM migration"
     assert dumped["reference_projects"][0]["estimated_hours"] == 260
+
+
+def test_session04_request_accepts_optional_model_tier():
+    request = EstimationRequest(
+        description=VALID_DESCRIPTION,
+        project_type="web_saas",
+        detail_level="medium",
+        output_format="phases_table",
+        tier="backup_pro",
+    )
+
+    assert request.model_dump(mode="json", exclude_none=True)["tier"] == "backup_pro"
+
+
+def test_session04_request_rejects_invalid_model_tier():
+    with pytest.raises(ValidationError) as exc_info:
+        EstimationRequest(
+            description=VALID_DESCRIPTION,
+            project_type="web_saas",
+            detail_level="medium",
+            output_format="phases_table",
+            tier="ultra_mega",
+        )
+
+    assert "ultra_mega" in str(exc_info.value)
