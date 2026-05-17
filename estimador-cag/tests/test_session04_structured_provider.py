@@ -191,7 +191,7 @@ def test_complete_structured_messages_raises_clear_runtime_error_on_invalid_payl
 
     provider = LiteLLMProvider()
     invalid_payload = structured_payload()
-    invalid_payload["total_cost_eur"] = 12345
+    invalid_payload["phases"] = []
 
     def fake_completion(**kwargs):
         return FakeResponse(json.dumps(invalid_payload))
@@ -334,3 +334,44 @@ def test_complete_structured_messages_extracts_content_from_litellm_modelrespons
 
     assert isinstance(result["result"], EstimationResult)
     assert result["result"].summary == "A structured estimate for a SaaS onboarding product."
+
+
+def test_complete_structured_messages_normalizes_estimation_result_aggregate_totals(monkeypatch):
+    """
+    Provider JSON can be structurally useful but arithmetically inconsistent.
+
+    Why this matters:
+    Kimi has returned valid JSON where total_cost_eur did not equal the sum of
+    phase cost_eur values. The model should estimate phases; deterministic
+    aggregate totals should be computed by the backend before final Pydantic
+    validation.
+    """
+
+    calls = {}
+
+    payload = structured_payload()
+    payload["total_cost_eur"] = 999999
+    payload["total_duration_weeks"] = 999
+
+    def fake_completion(**kwargs):
+        calls.update(kwargs)
+        return FakeResponse(json.dumps(payload))
+
+    monkeypatch.setattr("app.services.litellm_provider.litellm.completion", fake_completion)
+
+    provider = LiteLLMProvider()
+    result = provider.complete_structured_messages(
+        messages=[
+            {"role": "system", "content": "Return only valid JSON."},
+            {"role": "user", "content": "Build onboarding SaaS."},
+        ],
+        tier="backup",
+        response_model=EstimationResult,
+    )
+
+    estimation = result["result"]
+
+    assert estimation.total_cost_eur == sum(phase.cost_eur for phase in estimation.phases)
+    assert estimation.total_duration_weeks == sum(phase.duration_weeks for phase in estimation.phases)
+    assert result["provider"] == "kimi"
+    assert calls["response_format"] == {"type": "json_object"}
