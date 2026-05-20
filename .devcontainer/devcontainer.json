@@ -41,12 +41,13 @@
     }
   },
   "postCreateCommand": "bash .devcontainer/setup-estimador.sh",
-  "postStartCommand": "bash .devcontainer/verify-estimador.sh",
+  "postStartCommand": "bash .devcontainer/verify-estimador.sh && bash .devcontainer/start-estimador-services.sh",
   "forwardPorts": [
     8000,
     8501,
     8888,
-    5432
+    5432,
+    6379
   ],
   "portsAttributes": {
     "8000": {
@@ -65,6 +66,10 @@
     },
     "5432": {
       "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    },
+    "6379": {
+      "label": "Redis",
       "onAutoForward": "silent"
     }
   },

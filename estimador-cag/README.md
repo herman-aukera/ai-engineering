@@ -338,3 +338,98 @@ Final runtime smoke confirmed:
 * Semantic cache is process local in this branch, not Redis Stack or vector database backed.
 * Kimi fallback remains configured but is less reliable for strict structured JSON than DeepSeek.
 * The legacy transcription and streaming endpoints remain for compatibility.
+
+## Session 05 conversational memory and attachments
+
+Session 05 upgrades the estimator from a one request one estimate workflow into a session aware product interface.
+
+### Backend endpoints
+
+The backend now exposes:
+
+POST /sessions
+
+POST /sessions/{session_id}/estimate
+
+POST /sessions creates a volatile in process conversation and returns a UUID v4 session_id.
+
+POST /sessions/{session_id}/estimate accepts multipart/form-data with:
+
+transcript: latest client conversation turn
+attachments: optional repeated PDF or DOCX files
+project_type: typed project category
+detail_level: typed detail level
+output_format: typed output format
+prompt_version: v1 or v2
+tier: starting model tier
+
+### Memory model
+
+The implementation separates raw history from durable project facts:
+
+ConversationHistory
+ProjectMetadata
+SessionStore
+
+ConversationHistory keeps a sliding window of recent user and assistant turns. The default is six retained turns. This is intentionally process local for the pre session exercise. It disappears on restart, deploy, or multi worker reshuffle.
+
+project_metadata is stored separately from raw messages and injected into the system prompt on each turn. It currently captures facts such as:
+
+project_name
+assumed_team_size
+mentioned_technologies
+agreed_scope
+open_questions
+attachments_seen
+
+The extractor uses deterministic heuristics because this phase prioritizes speed, cost control, and testability over a second LLM extraction call.
+
+### Attachment path chosen
+
+This project uses local text extraction instead of provider specific multimodal file APIs.
+
+Chosen path:
+
+PDF extraction: pypdf
+DOCX extraction: python-docx
+
+Why this path:
+
+Provider independent
+Works with the existing LiteLLM structured path
+Easy to test without external APIs
+Prepares the project for later chunking or RAG work
+
+Extracted attachment text is added to the prompt with clear delimiters:
+
+--- attachment: filename.pdf ---
+...
+--- end attachment: filename.pdf ---
+
+### Streamlit usage
+
+Start the backend and Streamlit app:
+
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+uv run streamlit run streamlit_app.py --server.port 8501
+
+When running outside localhost, set:
+
+export ESTIMADOR_BACKEND_URL="https://your-forwarded-backend-url"
+
+The Streamlit UI now creates a backend session automatically, stores the session_id in st.session_state, and sends estimates through the session endpoint.
+
+Use New conversation to reset the session.
+
+The sidebar shows Project metadata so the memory state can be inspected during demos and class review.
+
+The form supports:
+
+Transcript text area
+PDF uploads
+DOCX uploads
+typed project controls
+prompt version selector
+model tier selector
+structured estimate rendering

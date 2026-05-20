@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
+from app.routers.sessions import router as sessions_router
 
 app = FastAPI(
     title="LIDR Estimador CAG",
@@ -34,6 +35,7 @@ setup_logging(app)
 
 # Transport layer
 app.include_router(estimations_router)
+app.include_router(sessions_router)
 
 
 @app.get("/health", tags=["health"])
