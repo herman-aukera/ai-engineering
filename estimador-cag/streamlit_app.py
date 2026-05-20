@@ -19,6 +19,10 @@ import streamlit as st
 
 DEFAULT_BACKEND_URL = "http://localhost:8000"
 ESTIMATE_PATH = "/api/v1/estimate"
+SESSION_CREATE_PATH = "/sessions"
+SESSION_ESTIMATE_PATH_TEMPLATE = "/sessions/{session_id}/estimate"
+BACKEND_CONNECT_TIMEOUT_SECONDS = 10
+BACKEND_READ_TIMEOUT_SECONDS = 240
 
 PROJECT_TYPE_OPTIONS = {
     "Mobile app": "mobile_app",
@@ -79,6 +83,100 @@ def post_estimation_request(payload: dict[str, Any], prompt_version: str = "v1")
     response.raise_for_status()
     return response.json()
 
+
+
+
+def post_session04_estimate_request_for_compatibility(
+    payload: dict[str, Any],
+    prompt_version_label: str,
+) -> dict[str, Any]:
+    """Keep the Session 04 typed JSON endpoint available as a real fallback path."""
+
+    return post_estimation_request(payload, prompt_version=prompt_version_label)
+
+
+def build_session_create_url() -> str:
+    """Build the Session 05 session creation URL."""
+
+    return f"{get_backend_url()}{SESSION_CREATE_PATH}"
+
+
+def build_session_estimate_url(session_id: str) -> str:
+    """Build the Session 05 multipart estimate URL for one conversation."""
+
+    return f"{get_backend_url()}{SESSION_ESTIMATE_PATH_TEMPLATE.format(session_id=session_id)}"
+
+
+def create_backend_session() -> str:
+    """Create a backend conversation session and return its UUID."""
+
+    response = requests.post(build_session_create_url(), timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS))
+    response.raise_for_status()
+    payload = response.json()
+    return str(payload["session_id"])
+
+
+def ensure_session_id() -> str:
+    """Ensure Streamlit has a backend session id in session_state."""
+
+    if "session_id" not in st.session_state:
+        st.session_state["session_id"] = create_backend_session()
+    return str(st.session_state["session_id"])
+
+
+def start_new_conversation() -> None:
+    """Reset the Streamlit conversation state and create a fresh backend session."""
+
+    st.session_state["session_id"] = create_backend_session()
+    st.session_state["last_project_metadata"] = {}
+    st.session_state["last_session_response"] = None
+
+
+def _build_file_payload(uploaded_files: list[Any] | None) -> list[tuple[str, tuple[str, bytes, str]]]:
+    """Convert Streamlit UploadedFile objects to requests multipart tuples."""
+
+    files_payload: list[tuple[str, tuple[str, bytes, str]]] = []
+    for uploaded_file in uploaded_files or []:
+        media_type = getattr(uploaded_file, "type", None) or "application/octet-stream"
+        files_payload.append(
+            (
+                "attachments",
+                (
+                    uploaded_file.name,
+                    uploaded_file.getvalue(),
+                    media_type,
+                ),
+            )
+        )
+    return files_payload
+
+
+def post_session_estimate_request(
+    session_id: str,
+    data: dict[str, Any],
+    uploaded_files: list[Any] | None = None,
+) -> dict[str, Any]:
+    """Send a Session 05 multipart estimation request to the backend."""
+
+    files_payload = _build_file_payload(uploaded_files)
+    response = requests.post(
+        build_session_estimate_url(session_id),
+        data=data,
+        files=files_payload,
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def render_project_metadata_panel(metadata: dict[str, Any] | None) -> None:
+    """Render Session 05 project memory for debugging and class review."""
+
+    st.subheader("Project metadata")
+    if metadata:
+        st.json(metadata)
+    else:
+        st.caption("No project metadata captured yet.")
 
 def parse_reference_projects(raw_text: str) -> list[dict[str, Any]] | None:
     """Parse optional reference project notes into typed request payload items."""
@@ -276,7 +374,7 @@ def render_structured_estimate(result: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    """Render the Session 04 typed product estimation form."""
+    """Render the Session 05 conversational memory plus attachments product UI."""
 
     st.set_page_config(
         page_title="AI Software Estimator",
@@ -285,22 +383,59 @@ def main() -> None:
     )
 
     st.title("AI Software Estimator")
-    st.caption("Typed product interface powered by the FastAPI estimator backend.")
+    st.caption(
+        "Session 05 product interface with conversational memory, local attachment extraction, "
+        "typed controls, and structured estimates."
+    )
+
+    session_error: str | None = None
+    try:
+        session_id = ensure_session_id()
+    except requests.RequestException as exc:
+        session_id = ""
+        session_error = str(exc)
 
     with st.sidebar:
         st.subheader("Backend")
-        st.code(build_estimate_url())
+        st.code(get_backend_url())
         st.caption("Set ESTIMADOR_BACKEND_URL when running outside localhost.")
 
+        st.subheader("Conversation")
+        if session_id:
+            st.code(session_id)
+        else:
+            st.warning("No backend session yet.")
+
+        if st.button("New conversation", type="secondary"):
+            try:
+                start_new_conversation()
+                st.rerun()
+            except requests.RequestException as exc:
+                st.error(f"Could not create a new backend session: {exc}")
+
+        render_project_metadata_panel(st.session_state.get("last_project_metadata"))
+
+    if session_error:
+        st.error(f"Could not create a backend session: {session_error}")
+        st.info("Start the FastAPI backend, then reload this page.")
+        return
+
     with st.form("product_estimation_form"):
-        description = st.text_area(
-            "Project description",
+        transcript = st.text_area(
+            "Transcript",
             max_chars=2000,
             height=220,
             placeholder=(
-                "Describe the product, users, integrations, constraints, timeline, "
-                "and any known technical requirements."
+                "Paste the latest client conversation turn. The backend keeps project metadata "
+                "and recent history inside the current session."
             ),
+        )
+
+        uploaded_files = st.file_uploader(
+            "Attachments",
+            type=["pdf", "docx"],
+            accept_multiple_files=True,
+            help="Upload PDFs or Word documents with technical specs, proposals, or scope notes.",
         )
 
         col_project, col_detail, col_format = st.columns(3)
@@ -355,7 +490,12 @@ def main() -> None:
         submitted = st.form_submit_button("Generate estimate", type="primary")
 
     if not submitted:
-        st.info("Fill the form and generate an estimate when the project shape is clear.")
+        st.info("Create or continue a conversation, then generate an estimate when the project shape is clear.")
+        return
+
+    description = transcript.strip()
+    if len(description) < 20:
+        st.error("Project description must contain at least 20 characters.")
         return
 
     payload = {
@@ -367,13 +507,25 @@ def main() -> None:
         "reference_projects": parse_reference_projects(reference_projects_raw),
     }
 
-    if len(description.strip()) < 20:
-        st.error("Project description must contain at least 20 characters.")
-        return
+    data = {
+        "transcript": description,
+        "project_type": payload["project_type"],
+        "detail_level": payload["detail_level"],
+        "output_format": payload["output_format"],
+        "prompt_version": prompt_version_label,
+        "tier": payload["tier"],
+    }
 
-    with st.spinner("Generating typed product estimate..."):
+    if payload["reference_projects"]:
+        data["reference_projects"] = str(payload["reference_projects"])
+
+    with st.spinner("Generating session-aware product estimate..."):
         try:
-            result = post_estimation_request(payload, prompt_version=prompt_version_label)
+            result = post_session_estimate_request(
+                st.session_state["session_id"],
+                data=data,
+                uploaded_files=uploaded_files,
+            )
         except requests.HTTPError as exc:
             response_text = exc.response.text if exc.response is not None else str(exc)
             st.error(f"Backend returned an error: {response_text}")
@@ -382,10 +534,17 @@ def main() -> None:
             st.error(f"Could not reach backend: {exc}")
             return
 
+    st.session_state["last_session_response"] = result
+    st.session_state["last_project_metadata"] = result.get("project_metadata") or {}
+
     render_structured_estimate(result)
 
-    with st.expander("Request payload"):
-        st.json(payload)
+    with st.expander("Session response"):
+        st.json(result)
+
+    with st.expander("Multipart form payload"):
+        st.json(data)
+
 
 
 if __name__ == "__main__":

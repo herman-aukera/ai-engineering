@@ -125,7 +125,7 @@ class Phase(BaseModel):
 
     name: str = Field(min_length=2, max_length=120)
     summary: str = Field(min_length=10, max_length=1000)
-    duration_weeks: int = Field(ge=0, le=260)
+    duration_weeks: float = Field(ge=0, le=260)
     cost_eur: int = Field(ge=0, le=10_000_000)
     confidence_pct: int = Field(ge=0, le=100)
     tasks: list[str] = Field(min_length=1)
@@ -145,7 +145,7 @@ class EstimationResult(BaseModel):
     project_type: ProjectType
     detail_level: DetailLevel
     output_format: OutputFormat
-    total_duration_weeks: int = Field(ge=0, le=260)
+    total_duration_weeks: float = Field(ge=0, le=260)
     total_cost_eur: int = Field(ge=0, le=10_000_000)
     confidence_pct: int = Field(ge=0, le=100)
     phases: list[Phase] = Field(min_length=1)

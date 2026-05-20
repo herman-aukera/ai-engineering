@@ -14,6 +14,12 @@ Use the examples below as style and calibration references, not as facts about t
 
 {% include "estimation/v2/examples.j2" %}
 
+Project memory from previous turns. Treat this as known project context, not as a new user request.
+<project_metadata>
+{{ project_metadata }}
+</project_metadata>
+
+
 {% if reference_projects %}
 Similar reference projects supplied by the user:
 {% for project in reference_projects %}
@@ -51,3 +57,17 @@ Give enough detail for planning: phases, effort ranges, dependencies, and key ri
 Detail instructions:
 Give a detailed planning breakdown. List assumptions per phase and include dependencies, risks, and validation checkpoints.
 {% endif %}
+
+## Structured output transport contract
+
+The backend validates your answer with a Pydantic schema.
+
+Return only one valid JSON object.
+No Markdown.
+No prose before or after the JSON.
+No code fences.
+No comments.
+No trailing explanation.
+
+If examples above use Markdown or narrative language, treat them only as semantic examples.
+The final transport format is raw valid JSON only.

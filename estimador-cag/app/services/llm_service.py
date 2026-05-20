@@ -5,6 +5,7 @@ WHY IT EXISTS: Separates prompt engineering and LLM communication from HTTP tran
 DEPENDS ON: app.config (Settings, tier routing), app.context.examples (CAG data)
 """
 
+import json
 import logging
 
 from redis import Redis
@@ -160,32 +161,51 @@ def estimate(
 
 
 
-def _build_structured_product_system_prompt(prompt_version: str) -> str:
+def _build_structured_product_system_prompt(prompt_version: str, project_metadata: object | None = None) -> str:
     """
-    Build the system prompt for structured Session 04 product estimates.
+    Build the system prompt for structured product estimates.
 
-    WHY IT EXISTS:
-    The human-readable v1/v2 prompt templates can mention markdown, tables, or
-    narrative output. Structured output must not receive those conflicting
-    instructions. This prompt is intentionally JSON-only.
+    The human-readable v1/v2 templates may discuss presentation style.
+    The provider path must stay schema-first and JSON-only.
     """
+
+    from app.schemas.estimation import DetailLevel, OutputFormat, ProjectType
+
+    if hasattr(project_metadata, "to_prompt_block"):
+        metadata_block = project_metadata.to_prompt_block()
+    elif isinstance(project_metadata, dict):
+        metadata_block = "\n".join(
+            f"{key}: {value}" for key, value in project_metadata.items() if value not in (None, [], "")
+        )
+    else:
+        metadata_block = ""
+
+    project_type_values = ", ".join(value.value for value in ProjectType)
+    detail_level_values = ", ".join(value.value for value in DetailLevel)
+    output_format_values = ", ".join(value.value for value in OutputFormat)
 
     return (
         "You are a senior software estimation engine. "
         f"Prompt version: {prompt_version}. "
-        "Return only valid JSON. Do not use code fences or human-readable formatting. "
+        "Return only valid JSON. Return exactly one JSON object. "
+        "Do not use headings, bullets, prose tables, or display formatting. "
+        "Do not use code fences. "
         "Do not add prose before or after the JSON. "
         "Return a single JSON object compatible with EstimationResult. "
         "Use these enum values exactly: "
-        "project_type must be one of web_saas, internal_tool, automation, data_ai, mobile_app; "
-        "detail_level must be one of summary, medium, detailed; "
-        "output_format must be one of narrative, phases_table. "
+        f"project_type must be one of {project_type_values}; "
+        f"detail_level must be one of {detail_level_values}; "
+        f"output_format must be one of {output_format_values}. "
         "Each phase must include name, summary, duration_weeks, cost_eur, "
         "confidence_pct, tasks, and risks. "
+        "duration_weeks and total_duration_weeks may be whole numbers or decimals, for example 1, 1.5, or 2. "
+        "cost_eur and total_cost_eur must be integers. "
         "Make total_cost_eur equal the sum of all phase cost_eur values. "
         "Make total_duration_weeks no smaller than the longest phase and no larger "
         "than the sum of phase duration_weeks values. "
-        "If confidence_pct is below 50, summary must start with 'Out of scope:'."
+        "If confidence_pct is below 50, summary must start with 'Out of scope:'. "
+        "Use project_metadata as stable context across turns without inventing missing facts. "
+        f"<project_metadata>\n{metadata_block}\n</project_metadata>"
     )
 
 
@@ -251,6 +271,9 @@ def estimate_product(
     request: EstimationRequest,
     tier: TierName | None = None,
     prompt_version: str = "v1",
+    project_metadata: object | None = None,
+    attachments_text: str | None = None,
+    conversation_history: list[dict[str, str]] | None = None,
 ) -> dict:
     """
     Estimate a typed product request using structured output.
@@ -263,10 +286,21 @@ def estimate_product(
                    parsing markdown.
     DEPENDS ON: render_estimation_prompt, Redis exact cache, LiteLLMProvider.
     """
-    template_system_prompt, user_prompt = render_estimation_prompt(request, version=prompt_version)
-    system_prompt = _build_structured_product_system_prompt(prompt_version)
+    render_kwargs: dict[str, object] = {"version": prompt_version}
+    if project_metadata is not None:
+        render_kwargs["project_metadata"] = project_metadata
+    if attachments_text:
+        render_kwargs["attachments_text"] = attachments_text
+
+    template_system_prompt, user_prompt = render_estimation_prompt(request, **render_kwargs)
+    system_prompt = _build_structured_product_system_prompt(
+        prompt_version,
+        project_metadata=project_metadata,
+    )
+    history_messages = conversation_history or []
     messages = [
         {"role": "system", "content": system_prompt},
+        *history_messages,
         {"role": "user", "content": user_prompt},
     ]
 
@@ -275,7 +309,22 @@ def estimate_product(
     resolved = provider.resolve_model(effective_tier)
     cache = build_redis_cache()
 
-    cache_identity = request.model_dump_json()
+    if project_metadata is None and not attachments_text and not conversation_history:
+        cache_identity = request.model_dump_json()
+    else:
+        cache_identity = json.dumps(
+            {
+                "request": request.model_dump(mode="json"),
+                "prompt_version": prompt_version,
+                "requested_tier": effective_tier,
+                "project_metadata": project_metadata.model_dump(mode="json")
+                if hasattr(project_metadata, "model_dump")
+                else project_metadata,
+                "attachments_text": attachments_text or "",
+                "conversation_history": conversation_history or [],
+            },
+            sort_keys=True,
+        )
     semantic_mode = settings.semantic_cache_mode
     semantic_bucket = build_semantic_bucket(
         prompt_version=prompt_version,

@@ -38,6 +38,52 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["estimations"])
 
 
+def _normalize_estimation_response_payload(result: dict, prompt_version: str) -> dict:
+    """Normalize stale stream-shaped cache payloads before FastAPI response validation."""
+
+    if not isinstance(result, dict):
+        return result
+
+    if "text" not in result and "estimation" in result:
+        return {
+            "text": str(result["estimation"]),
+            "prompt_version": str(result.get("prompt_version") or prompt_version),
+        }
+
+    if "prompt_version" not in result:
+        normalized = dict(result)
+        normalized["prompt_version"] = prompt_version
+        return normalized
+
+    return result
+
+
+def _normalize_estimation_route_payload(result: dict, prompt_version: str) -> dict:
+    """Normalize stale stream-shaped cached payloads before FastAPI validates the response."""
+
+    if not isinstance(result, dict):
+        return result
+
+    normalized = dict(result)
+
+    if "text" not in normalized and "estimation" in normalized:
+        normalized["text"] = str(normalized["estimation"])
+
+    normalized.setdefault("prompt_version", prompt_version)
+
+    if normalized.get("input_tokens") is None:
+        normalized["input_tokens"] = 0
+    if normalized.get("output_tokens") is None:
+        normalized["output_tokens"] = 0
+
+    if "requested_tier" not in normalized and "tier" in normalized:
+        normalized["requested_tier"] = normalized["tier"]
+    if "served_tier" not in normalized and "tier" in normalized:
+        normalized["served_tier"] = normalized["tier"]
+
+    return normalized
+
+
 @router.post(
     "/estimate",
     response_model=EstimateResponse | EstimationResponse,
@@ -68,7 +114,8 @@ async def create_estimation(
                     raise HTTPException(status_code=400, detail=guardrail_decision.to_detail())
 
             typed_request = EstimationRequest.model_validate(payload)
-            return estimate_product(typed_request, prompt_version=prompt_version)
+            result = estimate_product(typed_request, prompt_version=prompt_version)
+            return _normalize_estimation_response_payload(result, prompt_version)
 
         legacy_request = EstimateRequest.model_validate(payload)
         result = estimate(
@@ -78,7 +125,7 @@ async def create_estimation(
             max_history_turns=legacy_request.max_history_turns,
         )
         record_call_metrics(result)
-        return result
+        return _normalize_estimation_route_payload(result, prompt_version)
     except HTTPException as exc:
         raise exc
     except ValidationError as exc:

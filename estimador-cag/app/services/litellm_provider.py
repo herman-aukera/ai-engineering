@@ -269,22 +269,36 @@ class LiteLLMProvider:
             response_format={"type": "json_object"},
         )
 
-        if isinstance(response, response_model):
-            raw_payload = response
-        else:
-            raw_payload = self._extract_structured_payload(response)
-
-        normalized_payload = self._normalize_structured_payload(
-            raw_payload=raw_payload,
-            response_model=response_model,
-        )
-
         try:
-            result = response_model.model_validate(normalized_payload)
+            result = self._validated_structured_result(
+                response=response,
+                response_model=response_model,
+            )
+            final_response = response
         except (ValidationError, TypeError, ValueError) as exc:
-            raise RuntimeError(f"Invalid structured payload from {resolved.model}: {exc}") from exc
+            raw_content = self._extract_raw_message_content(response)
+            if not raw_content:
+                raise RuntimeError(f"Invalid structured payload from {resolved.model}: {exc}") from exc
 
-        usage = self._extract_usage(response)
+            repair_response = self._repair_structured_response(
+                raw_content=raw_content,
+                response_model=response_model,
+                resolved=resolved,
+                max_tokens=max_tokens,
+            )
+
+            try:
+                result = self._validated_structured_result(
+                    response=repair_response,
+                    response_model=response_model,
+                )
+                final_response = repair_response
+            except (ValidationError, TypeError, ValueError) as repair_exc:
+                raise RuntimeError(
+                    f"Invalid structured payload from {resolved.model} after repair: {repair_exc}"
+                ) from repair_exc
+
+        usage = self._extract_usage(final_response)
         input_tokens = usage["input_tokens"]
         output_tokens = usage["output_tokens"]
         finish_reason = self._extract_finish_reason(response)
@@ -307,6 +321,93 @@ class LiteLLMProvider:
             "finish_reason": finish_reason,
             "timestamp": datetime.now(UTC).isoformat(),
         }
+
+    def _validated_structured_result(
+        self,
+        *,
+        response,
+        response_model: type[BaseModel],
+    ) -> BaseModel:
+        """Extract, normalize, and validate one structured provider response."""
+
+        if isinstance(response, response_model):
+            raw_payload = response
+        else:
+            raw_payload = self._extract_structured_payload(response)
+
+        normalized_payload = self._normalize_structured_payload(
+            raw_payload=raw_payload,
+            response_model=response_model,
+        )
+
+        return response_model.model_validate(normalized_payload)
+
+    def _repair_structured_response(
+        self,
+        *,
+        raw_content: str,
+        response_model: type[BaseModel],
+        resolved: ResolvedModel,
+        max_tokens: int,
+    ):
+        """Ask the same model to convert non JSON visible output into the schema."""
+
+        schema_text = json.dumps(
+            response_model.model_json_schema(),
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+
+        repair_messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a strict JSON repair adapter. "
+                    "Return only valid JSON. Return exactly one JSON object. "
+                    "No headings, no bullets, no prose, no code fences."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Convert the model output below into a JSON object that validates "
+                    "against this JSON schema. Preserve the estimate content as much as possible.\n\n"
+                    f"JSON schema:\n{schema_text}\n\n"
+                    f"<model_output>\n{raw_content[:8000]}\n</model_output>"
+                ),
+            },
+        ]
+
+        return litellm.completion(
+            model=resolved.model,
+            messages=repair_messages,
+            api_key=resolved.api_key,
+            api_base=resolved.base_url,
+            temperature=resolved.temperature,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+        )
+
+    @staticmethod
+    def _extract_raw_message_content(response) -> str | None:
+        """Return visible model text for repair attempts."""
+
+        try:
+            message = LiteLLMProvider._extract_first_message(response)
+        except Exception:
+            return None
+
+        content = LiteLLMProvider._get_value(message, "content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+
+        if isinstance(content, dict):
+            return json.dumps(content, ensure_ascii=False)
+
+        if isinstance(content, BaseModel):
+            return content.model_dump_json()
+
+        return None
 
     def complete_structured_messages_with_fallback(
         self,
@@ -638,7 +739,7 @@ class LiteLLMProvider:
             return raw_payload
 
         phase_costs: list[int] = []
-        phase_durations: list[int] = []
+        phase_durations: list[float] = []
 
         for phase in phases:
             if not isinstance(phase, dict):
@@ -647,7 +748,7 @@ class LiteLLMProvider:
             cost = phase.get("cost_eur")
             duration = phase.get("duration_weeks")
 
-            if not isinstance(cost, int) or not isinstance(duration, int):
+            if not isinstance(cost, int) or not isinstance(duration, (int, float)):
                 return raw_payload
 
             phase_costs.append(cost)

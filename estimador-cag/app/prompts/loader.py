@@ -32,6 +32,8 @@ def _build_environment() -> Environment:
 def render_estimation_prompt(
     request: EstimationRequest,
     version: str = "v1",
+    project_metadata: object | None = None,
+    attachments_text: str | None = None,
 ) -> tuple[str, str]:
     """
     Render the system and user prompts for a typed estimation request.
@@ -49,6 +51,15 @@ def render_estimation_prompt(
 
     context = request.model_dump(mode="json")
     context["prompt_version"] = version
+    if hasattr(project_metadata, "to_prompt_block"):
+        context["project_metadata"] = project_metadata.to_prompt_block()
+    elif isinstance(project_metadata, dict):
+        context["project_metadata"] = "\n".join(
+            f"{key}: {value}" for key, value in project_metadata.items() if value not in (None, [], "")
+        )
+    else:
+        context["project_metadata"] = ""
+    context["attachments_text"] = attachments_text or ""
 
     system_template = environment.get_template(f"{template_prefix}/system.j2")
     user_template = environment.get_template(f"{template_prefix}/user.j2")
