@@ -24,3 +24,9 @@ Thumbs.db
 
 # Session 06 generated stress fixtures
 evals/stress/fixtures/generated/
+
+# Local stress evidence, not committed
+evals/stress/live_smoke/
+evals/stress/fixtures/generated/
+__pycache__/
+*.pyc
