@@ -6,16 +6,16 @@ This report is generated from `evals/stress/results.csv`. It measures the existi
 
 | scenario | rows | p50 latency ms | p95 latency ms | accumulated cost usd | exact hit rate | semantic hit rate | fact recall |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| contradiction | 300 | 0.0 | 1.0 | 0.056284 | 0.00% | 0.00% | 15.00% |
+| contradiction | 300 | 0.0 | 0.0 | 0.056284 | 0.00% | 0.00% | 15.00% |
 | growing | 300 | 0.0 | 2.0 | 0.057209 | 0.00% | 0.00% | 0.00% |
-| pivot | 300 | 0.0 | 1.0 | 0.056351 | 0.00% | 0.00% | 0.00% |
+| pivot | 300 | 0.0 | 0.0 | 0.056351 | 0.00% | 0.00% | 0.00% |
 
 ## Curve 1: latency vs tokens
 
 | tokens_in bucket | rows | p50 latency ms | p95 latency ms |
 | --- | --- | --- | --- |
 | 0-999 | 99 | 0.0 | 0.0 |
-| 1000-1999 | 144 | 0.0 | 13.0 |
+| 1000-1999 | 144 | 0.0 | 12.0 |
 | 2000-2999 | 657 | 0.0 | 1.0 |
 
 ## Curve 2: cumulative cost vs turn

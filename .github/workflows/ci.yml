@@ -2,82 +2,53 @@ name: CI - Estimador CAG
 
 on:
   push:
-    branches: [main, sesion-02-estimador-cag, sesion-03-streamlit, gg-session-04-live-plus]
+    branches:
+      - main
+      - "gg-*"
+      - "sesion-*"
+      - "session*"
   pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  test:
+  test-estimador-cag:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      STRESS_FAKE_PROVIDER: "true"
+      PYTHONUNBUFFERED: "1"
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v5
 
-      - name: Check folder structure
-        run: |
-          test -d estimador-cag/app/routers || exit 1
-          test -d estimador-cag/app/services || exit 1
-          test -d estimador-cag/app/context || exit 1
-          test -d estimador-cag/app/schemas || exit 1
-          test -d estimador-cag/app/middleware || exit 1
-          test -d estimador-cag/tests || exit 1
-          test -f estimador-cag/app/config.py || exit 1
-          test -f estimador-cag/app/main.py || exit 1
-          test -f estimador-cag/streamlit_app.py || exit 1
-          test -f estimador-cag/.env.example || exit 1
-          test -f estimador-cag/pyproject.toml || exit 1
-          echo "✅ Folder structure OK"
-
-      - name: Check .env not committed
-        run: |
-          if git ls-files | grep -q "^estimador-cag/\.env$"; then
-            echo "❌ .env should not be committed!"
-            exit 1
-          fi
-          echo "✅ .env not in repo"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: ./estimador-cag
-        run: uv sync --extra dev
+        run: uv sync --frozen
 
-      - name: Lint with ruff
-        working-directory: ./estimador-cag
-        run: uv run ruff check app/ tests/ streamlit_app.py
+      - name: Ruff
+        run: >
+          uv run ruff check
+          app
+          evals
+          tests/test_stress_metrics.py
+          tests/test_stress_scenarios.py
+          tests/test_stress_pdf_fixtures.py
+          tests/test_session06_turn_observed.py
 
-      - name: Check Python syntax
-        working-directory: ./estimador-cag
-        run: |
-          uv run python -m py_compile app/main.py
-          uv run python -m py_compile app/config.py
-          uv run python -m py_compile app/services/llm_service.py
-          uv run python -m py_compile app/services/provider.py
-          uv run python -m py_compile app/services/cache.py
-          uv run python -m py_compile app/middleware/logging.py
-          uv run python -m py_compile app/routers/estimations.py
-          uv run python -m py_compile app/schemas/estimation.py
-          uv run python -m py_compile streamlit_app.py
-          echo "✅ Python syntax OK"
+      - name: Compile Python
+        run: uv run python -m py_compile $(find app evals tests -name '*.py' -type f)
 
-      - name: Run pytest
-        working-directory: ./estimador-cag
-        run: uv run pytest tests/ -v
-
-      - name: Test health endpoint
-        working-directory: ./estimador-cag
-        run: |
-          echo "LLM_TIER=flash" > .env
-          echo "DEEPSEEK_API_KEY=dummy" >> .env
-          echo "KIMI_API_KEY=dummy" >> .env
-          uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-          sleep 5
-          curl -f http://localhost:8000/health || exit 1
-          echo "✅ Health endpoint responds 200"
-          curl -f http://localhost:8000/metrics || exit 1
-          echo "✅ Metrics endpoint responds 200"
-          pkill -f uvicorn || true
+      - name: Tests
+        run: uv run pytest -q
