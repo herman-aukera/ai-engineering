@@ -35,20 +35,17 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --extra dev
 
       - name: Ruff
-        run: >
-          uv run ruff check
-          app
-          evals
-          tests/test_stress_metrics.py
-          tests/test_stress_scenarios.py
-          tests/test_stress_pdf_fixtures.py
-          tests/test_session06_turn_observed.py
+        run: |
+          TARGETS="app tests"
+          test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
+          test -d evals && TARGETS="$TARGETS evals"
+          uv run ruff check $TARGETS
 
       - name: Compile Python
-        run: uv run python -m py_compile $(find app evals tests -name '*.py' -type f)
+        run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
 
       - name: Tests
         run: uv run pytest -q
