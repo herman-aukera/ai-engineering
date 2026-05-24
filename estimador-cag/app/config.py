@@ -41,11 +41,16 @@ class Settings(BaseSettings):
 
     semantic_cache_mode: Literal["off", "shadow", "serve"] = "shadow"
     semantic_cache_threshold: float = 0.85
+    stress_fake_provider: bool = False
 
     @model_validator(mode="after")
     def validate_api_keys(self):
         """Fail-fast automatico: si ambas keys son dummy, la app no arranca."""
-        if self.deepseek_api_key == "dummy" and self.kimi_api_key == "dummy":
+        if (
+            not self.stress_fake_provider
+            and self.deepseek_api_key == "dummy"
+            and self.kimi_api_key == "dummy"
+        ):
             raise ValueError(
                 "Al menos una API key debe configurarse: DEEPSEEK_API_KEY o KIMI_API_KEY"
             )
