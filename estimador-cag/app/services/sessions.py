@@ -223,10 +223,13 @@ class Session:
     session_id: str
     history: ConversationHistory = field(default_factory=ConversationHistory)
     project_metadata: ProjectMetadata = field(default_factory=ProjectMetadata)
+    last_turn_observed: dict | None = None
+    total_turn_count: int = 0
 
     def add_turn(self, user_content: str, assistant_content: str) -> None:
         """Add a completed model turn to the retained sliding history."""
 
+        self.total_turn_count += 1
         self.history.add_turn(user_content=user_content, assistant_content=assistant_content)
 
     def update_metadata(

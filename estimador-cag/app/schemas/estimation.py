@@ -66,6 +66,32 @@ class EstimateResponse(BaseModel):
     pricing_model: str | None = Field(default=None, description="Model id used for cost lookup.")
 
 
+
+
+class TurnObservation(BaseModel):
+    """Aggregate Session 06 CAG stress observation emitted once per turn.
+
+    WHY IT EXISTS:
+    The stress runner needs one stable, parseable shape instead of reconciling
+    separate cache, provider, history, and request logs after the fact.
+    This is measurement instrumentation only, not a CAG optimization.
+    """
+
+    turn_index: int = Field(ge=1)
+    session_id: str
+    enriched_transcript_chars: int = Field(ge=0)
+    attachments_total_chars: int = Field(ge=0)
+    messages_in_window: int = Field(ge=0)
+    anchors_count: int = Field(default=0, ge=0)
+    summary_chars: int = Field(default=0, ge=0)
+    tokens_in: int = Field(default=0, ge=0)
+    tokens_out: int = Field(default=0, ge=0)
+    cost_usd: float = Field(default=0.0, ge=0)
+    latency_ms: int = Field(default=0, ge=0)
+    cache_hit_kind: Literal["none", "exact", "semantic"] = "none"
+    last_resolved_tier: str = "default"
+
+
 class ProjectType(StrEnum):
     """Typed project categories accepted by the Session 04 product interface."""
 

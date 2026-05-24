@@ -21,3 +21,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Session 06 generated stress fixtures
+evals/stress/fixtures/generated/
