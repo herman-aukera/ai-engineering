@@ -19,7 +19,6 @@ jobs:
     env:
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
-      STRESS_FAKE_PROVIDER: "true"
       PYTHONUNBUFFERED: "1"
 
     steps:
