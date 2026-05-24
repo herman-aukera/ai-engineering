@@ -1,10 +1,63 @@
 # LIDR AI Engineering: Estimador CAG
 
-Architecture: FastAPI, Streamlit, typed product estimation, structured JSON output, Redis exact cache, semantic cache shadow mode, LiteLLM provider routing, DeepSeek and Kimi fallback, input/output guardrails.
+## Current branch: Session 06 CAG stress test baseline
 
 Current branch:
 
-    gg-session-04-live-plus
+```text
+gg-pre-session-06-cag-stress-test
+```
+
+This branch adds the Session 06 stress test baseline for the existing CAG system.
+
+Required deliverables:
+
+```text
+evals/stress/REPORT.md
+evals/stress/results.csv
+```
+
+The committed stress output contains 900 deterministic rows:
+
+```text
+3 scenarios × 5 attachment sizes × 3 repeats × 20 turns = 900 rows
+```
+
+A bounded live provider smoke was also validated locally with DeepSeek:
+
+```text
+3 scenarios × 5 attachment sizes × 3 repeats × 2 turns = 90 rows
+```
+
+The goal of this session is measurement, not RAG implementation. The stress runner measures latency, token use, cost, cache behavior, attachment impact, and memory drift so the CAG baseline can be compared against RAG in the next step.
+
+Session 06 additions:
+
+```text
+evals/stress/scenarios.py
+evals/stress/metrics.py
+evals/stress/run.py
+evals/stress/fixtures/build_pdfs.py
+evals/stress/results.csv
+evals/stress/REPORT.md
+```
+
+Validation:
+
+```text
+GitHub Actions CI green
+232 local pytest tests passed
+ruff clean
+py_compile clean
+```
+
+Historical notes for Sessions 04 and 05 remain below. Some branch names and runtime proof sections in the historical notes refer to the older branch where that work was originally introduced.
+
+---
+
+## Historical architecture notes from Sessions 04 and 05
+
+Architecture: FastAPI, Streamlit, typed product estimation, structured JSON output, Redis exact cache, semantic cache shadow mode, LiteLLM provider routing, DeepSeek and Kimi fallback, input/output guardrails.
 
 ## Session 04 Live Plus
 

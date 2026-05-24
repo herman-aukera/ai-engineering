@@ -1,6 +1,6 @@
 # Session 06 CAG stress report
 
-This report is generated from `evals/stress/results.csv`. It measures the existing CAG baseline; it does not optimize prompts, memory limits, provider strategy, or attachment limits.
+This report is generated from `evals/stress/results.csv`. The committed CSV is a deterministic full stress baseline with 900 data rows. It measures the instrumentation, runner, metric wiring, memory drift behavior, token growth, cost shape, and reporting contract of the existing CAG system. It does not optimize prompts, memory limits, provider strategy, attachment limits, or implement RAG.
 
 ## Summary table
 
@@ -55,10 +55,29 @@ This report is generated from `evals/stress/results.csv`. It measures the existi
 
 ## Reading
 
-The most important quantitative claim in this run is: from turn N=3, fact recall falls below 60%. Another cost claim is: turn 20 average cost is 1.25 times turn 1 average cost. These claims are intentionally mechanical and reproducible from the CSV, so they can be challenged directly during the live review.
+The most important quantitative claim in this deterministic run is: from turn N=3, fact recall falls below 60%. Another cost claim is: turn 20 average cost is 1.25 times turn 1 average cost. These claims are intentionally mechanical and reproducible from the CSV, so they can be challenged directly during the live review.
 
-Latency should be read together with `tokens_in` and `attachments_total_chars`, not in isolation. When the 100 KB synthetic attachments are used, extraction and prompt inflation can dominate the turn even if the model path is deterministic. For a live provider run, this same curve is the early warning line for the moment where CAG stops being cheap enough and RAG becomes architecturally attractive.
+Latency should be read together with `tokens_in` and `attachments_total_chars`, not in isolation. In this committed deterministic run, many latency values are near zero because the provider path is intentionally local and fake. The useful signal is therefore the shape of the observation contract, token growth, cost accounting, and recall drift. For a live provider run, this same curve becomes the early warning line for the moment where CAG stops being cheap enough and RAG becomes architecturally attractive.
+
+
+## Live provider smoke cross-check
+
+A bounded live provider smoke was also run locally with DeepSeek to confirm that the same HTTP runner works against the real provider path without launching 900 live LLM calls.
+
+| scope | rows | scenarios | attachment sizes | repeats | turns | provider signal |
+| --- | ---: | --- | --- | ---: | ---: | --- |
+| live smoke | 90 | growing, pivot, contradiction | 0, 5, 20, 50, 100 KB | 3 | 2 | DeepSeek flash |
+
+Observed live-smoke summary:
+
+| scenario | rows | p50 latency ms | p95 latency ms | accumulated cost usd | exact hit rate | semantic hit rate | fact recall |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| contradiction | 30 | 32.5 | 12047.0 | 0.053943 | 66.67% | 0.00% | 0.00% |
+| growing | 30 | 14.5 | 12010.0 | 0.055914 | 86.67% | 0.00% | 0.00% |
+| pivot | 30 | 47.0 | 13570.0 | 0.067692 | 66.67% | 0.00% | 0.00% |
+
+This live smoke is not the committed full matrix. It is a sanity check proving that the same runner and observation contract work with real provider latency, token, and cost metadata.
 
 ## Limitations
 
-If `STRESS_FAKE_PROVIDER=true` was used on the backend, token, cost, and latency numbers are deterministic local smoke values, not live provider economics. The runner and observation contract are still valid; rerun against live keys before using the report as a production benchmark.
+The committed 900 row report was produced with deterministic stress mode, so token, cost, and latency numbers should be read as reproducible stress smoke values, not live provider economics. A bounded live provider smoke was also validated locally with DeepSeek using 90 rows: 3 scenarios, 5 attachment sizes, 3 repeats, and 2 turns. That live smoke confirmed the real provider path without running 900 live LLM calls. This report should be used as a coursework CAG baseline, not as a production benchmark.
