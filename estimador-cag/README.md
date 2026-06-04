@@ -149,6 +149,37 @@ The sanity file is committed in a later slice because it must contain real live 
 ---
 
 
+
+## Codespaces startup modes
+
+The default Codespaces startup mode is now API only:
+
+    ESTIMADOR_START_MODE=api
+
+That starts Redis and FastAPI, which is enough for Session 07 work:
+
+    /docs
+    POST /embeddings/ingest
+    scripts/compare.py
+
+Manual startup commands from the repository root:
+
+    bash .devcontainer/start-estimador-services.sh none
+    bash .devcontainer/start-estimador-services.sh redis
+    bash .devcontainer/start-estimador-services.sh api
+    bash .devcontainer/start-estimador-services.sh ui
+
+Modes:
+
+    none   Starts nothing and prints help.
+    redis  Starts Redis only.
+    api    Starts Redis and FastAPI.
+    ui     Starts Redis, FastAPI, and Streamlit.
+    all    Alias for ui.
+
+Use `ui` when revisiting older sessions that require the Streamlit human interface. Streamlit is no longer auto previewed on every Codespaces start.
+
+
 ## Current branch: Session 06 CAG stress test baseline
 
 Current branch:
