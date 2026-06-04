@@ -9,6 +9,7 @@ from app.embedding_pipeline.embedder import (
     EMBEDDING_MODEL,
     EMBEDDING_PRICE_USD_PER_1M_TOKENS,
     OpenAIEmbedder,
+    count_embedding_tokens,
     estimate_embedding_cost_usd,
 )
 from app.embedding_pipeline.schemas import Budget
@@ -181,3 +182,15 @@ def test_estimate_embedding_cost_uses_exercise_price_constant() -> None:
     assert EMBEDDING_PRICE_USD_PER_1M_TOKENS == 0.02
     assert estimate_embedding_cost_usd(1_000_000) == 0.02
     assert estimate_embedding_cost_usd(500_000) == 0.01
+
+
+def test_count_embedding_tokens_uses_embedding_tokenizer_not_character_count() -> None:
+    texts = [
+        "OAuth 2.0 authentication backend with JWT tokens",
+        "Authorization service using JSON Web Tokens",
+    ]
+
+    token_count = count_embedding_tokens(texts)
+
+    assert token_count > 0
+    assert token_count < sum(len(text) for text in texts)

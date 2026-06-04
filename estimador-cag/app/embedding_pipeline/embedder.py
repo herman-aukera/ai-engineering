@@ -12,6 +12,7 @@ import time
 from typing import Protocol
 
 import structlog
+import tiktoken
 from openai import OpenAI, OpenAIError, RateLimitError
 
 from app.embedding_pipeline.schemas import Chunk, EmbeddedChunk
@@ -38,6 +39,20 @@ class EmbeddingClient(Protocol):
 def estimate_embedding_cost_usd(total_tokens: int) -> float:
     """Estimate input embedding cost using the exercise statement price."""
     return (total_tokens / 1_000_000) * EMBEDDING_PRICE_USD_PER_1M_TOKENS
+
+
+def _encoding_for_embedding_model(model: str):
+    """Return the tokenizer used for embedding token accounting."""
+    try:
+        return tiktoken.encoding_for_model(model)
+    except KeyError:
+        return tiktoken.get_encoding("cl100k_base")
+
+
+def count_embedding_tokens(texts: list[str], model: str = EMBEDDING_MODEL) -> int:
+    """Count input tokens with the embedding tokenizer, not character length."""
+    encoding = _encoding_for_embedding_model(model)
+    return sum(len(encoding.encode(text)) for text in texts)
 
 
 class OpenAIEmbedder:
@@ -101,7 +116,7 @@ class OpenAIEmbedder:
         return [texts[index : index + self.batch_size] for index in range(0, len(texts), self.batch_size)]
 
     def _create_embeddings_with_retry(self, texts: list[str]):
-        batch_token_count = sum(len(text) for text in texts)
+        batch_token_count = count_embedding_tokens(texts, model=self.model)
         last_rate_limit_error: RateLimitError | None = None
 
         for attempt_index in range(len(RATE_LIMIT_BACKOFF_SECONDS) + 1):
