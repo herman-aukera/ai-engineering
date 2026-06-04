@@ -6,14 +6,13 @@ from pathlib import Path
 
 import requests
 
-
 BASE_URL = "http://localhost:8000"
 TIMEOUT_SECONDS = 260
 
 
 def tiny_pdf_bytes(text: str) -> bytes:
     escaped = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-    stream = f"BT /F1 12 Tf 72 720 Td ({escaped}) Tj ET".encode("utf-8")
+    stream = f"BT /F1 12 Tf 72 720 Td ({escaped}) Tj ET".encode()
     objects = [
         b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n",
         b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n",
