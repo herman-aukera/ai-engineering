@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from app.embedding_pipeline.router import router as embedding_router
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.sessions import router as sessions_router
@@ -36,6 +37,7 @@ setup_logging(app)
 # Transport layer
 app.include_router(estimations_router)
 app.include_router(sessions_router)
+app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
 
 
 @app.get("/health", tags=["health"])
