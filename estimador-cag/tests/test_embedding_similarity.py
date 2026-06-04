@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from scripts import compare
@@ -46,3 +50,18 @@ def test_cli_main_embeds_texts_and_prints_similarity(monkeypatch, capsys) -> Non
     assert "Text A: OAuth backend" in captured.out
     assert "Text B: JWT authorization" in captured.out
     assert "Cosine similarity: 1.0000" in captured.out
+
+
+def test_compare_script_help_runs_from_file_path() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+
+    result = subprocess.run(
+        [sys.executable, "scripts/compare.py", "--help"],
+        cwd=project_root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "Compare two texts with OpenAI embeddings" in result.stdout

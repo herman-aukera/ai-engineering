@@ -9,9 +9,15 @@ from __future__ import annotations
 
 import argparse
 import math
+import sys
 from collections.abc import Sequence
+from pathlib import Path
 
-from app.embedding_pipeline.embedder import OpenAIEmbedder
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.embedding_pipeline.embedder import OpenAIEmbedder  # noqa: E402
 
 
 def cosine_similarity(vector_a: Sequence[float], vector_b: Sequence[float]) -> float:
@@ -25,7 +31,9 @@ def cosine_similarity(vector_a: Sequence[float], vector_b: Sequence[float]) -> f
     if norm_a == 0 or norm_b == 0:
         return 0.0
 
-    dot_product = sum(value_a * value_b for value_a, value_b in zip(vector_a, vector_b, strict=True))
+    dot_product = sum(
+        value_a * value_b for value_a, value_b in zip(vector_a, vector_b, strict=True)
+    )
     return dot_product / (norm_a * norm_b)
 
 
