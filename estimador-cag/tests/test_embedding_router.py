@@ -112,3 +112,62 @@ def test_embeddings_ingest_returns_generic_500_for_embedder_errors(monkeypatch) 
 
     assert response.status_code == 500
     assert response.json() == {"detail": "Embedding ingestion failed"}
+
+
+
+def test_embeddings_compare_returns_strategy_rankings() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/embeddings/compare",
+        json={
+            "budgets": [sample_budget_payload()],
+            "query": "OAuth JWT authentication banking authorization",
+            "top_k": 1,
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["query"] == "OAuth JWT authentication banking authorization"
+    assert body["top_k"] == 1
+
+    by_name = {strategy["strategy_name"]: strategy for strategy in body["strategies"]}
+
+    assert set(by_name) == {"structural_component", "whole_budget"}
+
+    structural_top = by_name["structural_component"]["top_chunks"][0]
+    whole_budget_top = by_name["whole_budget"]["top_chunks"][0]
+
+    assert structural_top["rank"] == 1
+    assert structural_top["chunk_id"] == "BUD-2024-014::AUTH-001"
+    assert structural_top["score"] > 0
+
+    assert whole_budget_top["rank"] == 1
+    assert whole_budget_top["chunk_id"] == "BUD-2024-014::whole_budget"
+    assert whole_budget_top["score"] > 0
+
+
+def test_embeddings_compare_rejects_invalid_top_k() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/embeddings/compare",
+        json={
+            "budgets": [sample_budget_payload()],
+            "query": "OAuth",
+            "top_k": 0,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_embeddings_compare_is_registered_in_openapi() -> None:
+    client = TestClient(app)
+
+    schema = client.get("/openapi.json").json()
+
+    assert "/embeddings/compare" in schema["paths"]
