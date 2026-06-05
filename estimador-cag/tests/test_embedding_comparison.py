@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 
 from app.embedding_pipeline.chunker import JSONStructuralChunker
-from app.embedding_pipeline.comparison import ChunkingComparisonService, WholeBudgetChunker
+from app.embedding_pipeline.comparison import (
+    ChunkingComparisonService,
+    ChunkingQueryComparisonService,
+    WholeBudgetChunker,
+    cosine_similarity,
+)
 from app.embedding_pipeline.schemas import Budget
 
 
@@ -76,3 +81,81 @@ def test_default_comparison_service_includes_structural_and_whole_budget_strateg
     strategy_names = [summary.strategy_name for summary in comparison.strategies]
 
     assert strategy_names == ["structural_component", "whole_budget"]
+
+
+class KeywordTextEmbedder:
+    """Deterministic fake embedder for query ranking tests."""
+
+    keywords = [
+        "oauth",
+        "jwt",
+        "authorization",
+        "token",
+        "authentication",
+        "banking",
+        "inventory",
+        "checkout",
+        "telemetry",
+        "dashboard",
+        "patient",
+        "document",
+    ]
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        vectors: list[list[float]] = []
+
+        for text in texts:
+            lower_text = text.lower()
+            vectors.append(
+                [float(lower_text.count(keyword)) for keyword in self.keywords]
+            )
+
+        return vectors
+
+
+def test_cosine_similarity_handles_identical_orthogonal_and_zero_vectors() -> None:
+    assert cosine_similarity([1.0, 2.0, 3.0], [1.0, 2.0, 3.0]) == pytest.approx(1.0)
+    assert cosine_similarity([1.0, 0.0], [0.0, 1.0]) == pytest.approx(0.0)
+    assert cosine_similarity([0.0, 0.0], [1.0, 1.0]) == pytest.approx(0.0)
+
+
+def test_query_comparison_ranks_matching_authentication_chunks_per_strategy() -> None:
+    budgets = load_sample_budgets()
+
+    comparison = ChunkingQueryComparisonService(
+        text_embedder=KeywordTextEmbedder()
+    ).compare_query(
+        budgets=budgets,
+        query="OAuth JWT authentication token banking authorization",
+        top_k=2,
+    )
+
+    by_name = {strategy.strategy_name: strategy for strategy in comparison.strategies}
+
+    structural_top = by_name["structural_component"].top_chunks[0]
+    whole_budget_top = by_name["whole_budget"].top_chunks[0]
+
+    assert comparison.query == "OAuth JWT authentication token banking authorization"
+    assert comparison.top_k == 2
+
+    assert structural_top.rank == 1
+    assert structural_top.chunk_id == "BUD-2024-014::AUTH-001"
+    assert structural_top.metadata["component_id"] == "AUTH-001"
+    assert structural_top.score > 0
+
+    assert whole_budget_top.rank == 1
+    assert whole_budget_top.chunk_id == "BUD-2024-014::whole_budget"
+    assert whole_budget_top.metadata["budget_id"] == "BUD-2024-014"
+    assert whole_budget_top.score > 0
+
+    assert len(by_name["structural_component"].top_chunks) == 2
+    assert len(by_name["whole_budget"].top_chunks) == 2
+
+
+def test_query_comparison_rejects_non_positive_top_k() -> None:
+    budgets = load_sample_budgets()
+
+    service = ChunkingQueryComparisonService(text_embedder=KeywordTextEmbedder())
+
+    with pytest.raises(ValueError, match="top_k"):
+        service.compare_query(budgets=budgets, query="OAuth", top_k=0)

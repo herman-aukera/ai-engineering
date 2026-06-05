@@ -7,13 +7,14 @@ WHY IT EXISTS: Session 07 live focuses on learning how chunking strategy changes
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Protocol
 
 from pydantic import BaseModel, Field
 
 from app.embedding_pipeline.chunker import JSONStructuralChunker, _encoding_for_embedding_model
-from app.embedding_pipeline.schemas import Budget, Chunk
+from app.embedding_pipeline.schemas import Budget, Chunk, MetadataValue
 
 
 class BudgetChunker(Protocol):
@@ -21,6 +22,13 @@ class BudgetChunker(Protocol):
 
     def chunk(self, budgets: list[Budget]) -> list[Chunk]:
         """Return chunks for the supplied budgets."""
+
+
+class TextEmbedder(Protocol):
+    """Small protocol for deterministic or live text embedding providers."""
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Return one vector per input text."""
 
 
 class WholeBudgetChunker:
@@ -121,11 +129,36 @@ class ChunkingComparison(BaseModel):
     strategies: list[ChunkingStrategySummary] = Field(min_length=1)
 
 
+class RankedChunk(BaseModel):
+    """One ranked chunk for a query within one strategy result."""
+
+    rank: int = Field(ge=1)
+    chunk_id: str = Field(min_length=1)
+    score: float
+    text_preview: str = Field(min_length=1)
+    metadata: dict[str, MetadataValue]
+
+
+class QueryStrategyRanking(BaseModel):
+    """Top-k ranking for one chunking strategy."""
+
+    strategy_name: str = Field(min_length=1)
+    top_chunks: list[RankedChunk]
+
+
+class QueryRankingComparison(BaseModel):
+    """Top-k query ranking across chunking strategies."""
+
+    query: str = Field(min_length=1)
+    top_k: int = Field(ge=1)
+    strategies: list[QueryStrategyRanking] = Field(min_length=1)
+
+
 class ChunkingComparisonService:
     """Run chunking strategies over the same budget corpus and summarize them."""
 
     def __init__(self, strategies: Mapping[str, BudgetChunker] | None = None) -> None:
-        self._strategies = strategies or {
+        self._strategies = dict(strategies) if strategies is not None else {
             "structural_component": JSONStructuralChunker(),
             "whole_budget": WholeBudgetChunker(),
         }
@@ -156,3 +189,102 @@ class ChunkingComparisonService:
             average_tokens=total_tokens / len(chunks) if chunks else 0,
             chunk_ids=[chunk.chunk_id for chunk in chunks],
         )
+
+
+class ChunkingQueryComparisonService:
+    """Rank chunks for a query across multiple chunking strategies."""
+
+    def __init__(
+        self,
+        text_embedder: TextEmbedder,
+        strategies: Mapping[str, BudgetChunker] | None = None,
+    ) -> None:
+        self._text_embedder = text_embedder
+        self._strategies = dict(strategies) if strategies is not None else {
+            "structural_component": JSONStructuralChunker(),
+            "whole_budget": WholeBudgetChunker(),
+        }
+
+    def compare_query(
+        self,
+        budgets: list[Budget],
+        query: str,
+        top_k: int = 3,
+    ) -> QueryRankingComparison:
+        """Embed a query and rank each strategy's chunks by cosine similarity."""
+        if top_k < 1:
+            raise ValueError("top_k must be greater than or equal to 1")
+
+        return QueryRankingComparison(
+            query=query,
+            top_k=top_k,
+            strategies=[
+                self._rank_strategy(
+                    strategy_name=strategy_name,
+                    chunks=chunker.chunk(budgets),
+                    query=query,
+                    top_k=top_k,
+                )
+                for strategy_name, chunker in self._strategies.items()
+            ],
+        )
+
+    def _rank_strategy(
+        self,
+        strategy_name: str,
+        chunks: list[Chunk],
+        query: str,
+        top_k: int,
+    ) -> QueryStrategyRanking:
+        texts = [query, *[chunk.text for chunk in chunks]]
+        vectors = self._text_embedder.embed_texts(texts)
+
+        if len(vectors) != len(texts):
+            raise ValueError("text_embedder must return one vector per text")
+
+        query_embedding = vectors[0]
+        chunk_embeddings = vectors[1:]
+
+        scored_chunks = sorted(
+            (
+                (chunk, cosine_similarity(query_embedding, chunk_embedding))
+                for chunk, chunk_embedding in zip(chunks, chunk_embeddings, strict=True)
+            ),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+
+        return QueryStrategyRanking(
+            strategy_name=strategy_name,
+            top_chunks=[
+                RankedChunk(
+                    rank=rank,
+                    chunk_id=chunk.chunk_id,
+                    score=score,
+                    text_preview=_preview_text(chunk.text),
+                    metadata=chunk.metadata,
+                )
+                for rank, (chunk, score) in enumerate(scored_chunks[:top_k], start=1)
+            ],
+        )
+
+
+def cosine_similarity(first: list[float], second: list[float]) -> float:
+    """Return cosine similarity for two equal-length vectors."""
+    if len(first) != len(second):
+        raise ValueError("Vectors must have the same length")
+
+    dot_product = sum(a * b for a, b in zip(first, second, strict=True))
+    first_norm = math.sqrt(sum(value * value for value in first))
+    second_norm = math.sqrt(sum(value * value for value in second))
+
+    if first_norm == 0 or second_norm == 0:
+        return 0.0
+
+    return dot_product / (first_norm * second_norm)
+
+
+def _preview_text(text: str, limit: int = 240) -> str:
+    """Collapse whitespace and return a short preview for reports."""
+    collapsed = " ".join(text.split())
+    return collapsed[:limit]
