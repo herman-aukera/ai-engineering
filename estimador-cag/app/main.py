@@ -16,6 +16,9 @@ from app.embedding_pipeline.router import router as embedding_router
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.sessions import router as sessions_router
+from app.services.litellm_timeout import install_litellm_request_timeout
+
+install_litellm_request_timeout()
 
 app = FastAPI(
     title="LIDR Estimador CAG",
