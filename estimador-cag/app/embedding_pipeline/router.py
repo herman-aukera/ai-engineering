@@ -8,7 +8,7 @@ WHY IT EXISTS: Session 07 needs a minimal HTTP surface that vectorizes budget ch
 from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import Field
 
 from app.embedding_pipeline.chunker import JSONStructuralChunker
@@ -18,10 +18,28 @@ from app.embedding_pipeline.embedder import (
     OpenAIEmbedder,
     estimate_embedding_cost_usd,
 )
+from app.embedding_pipeline.keyword_embedder import KeywordTextEmbedder
 from app.embedding_pipeline.schemas import IngestRequest, IngestResponse, IngestStats
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
+
+
+def get_openai_embedder() -> OpenAIEmbedder:
+    """Build the live OpenAI embedder for the ingestion endpoint."""
+    return OpenAIEmbedder()
+
+
+def get_query_comparison_service() -> ChunkingQueryComparisonService:
+    """Build the deterministic comparison service for the lab endpoint."""
+    return ChunkingQueryComparisonService(text_embedder=KeywordTextEmbedder())
+
+
+OpenAIEmbedderDependency = Annotated[OpenAIEmbedder, Depends(get_openai_embedder)]
+QueryComparisonServiceDependency = Annotated[
+    ChunkingQueryComparisonService,
+    Depends(get_query_comparison_service),
+]
 
 
 class CompareRequest(IngestRequest):
@@ -31,52 +49,11 @@ class CompareRequest(IngestRequest):
     top_k: Annotated[int, Field(ge=1)] = 3
 
 
-class KeywordTextEmbedder:
-    """
-    Deterministic fake embedder for chunking comparison demos.
-
-    This intentionally does not call OpenAI. It keeps /embeddings/compare usable
-    in tests, /docs, and teaching demos without credentials.
-    """
-
-    keywords = [
-        "oauth",
-        "jwt",
-        "authorization",
-        "token",
-        "authentication",
-        "banking",
-        "audit",
-        "consent",
-        "checkout",
-        "payment",
-        "inventory",
-        "stock",
-        "document",
-        "clinical",
-        "upload",
-        "telemetry",
-        "machine",
-        "alert",
-        "maintenance",
-        "dashboard",
-    ]
-
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """Return simple keyword-count vectors, one vector per text."""
-        vectors: list[list[float]] = []
-
-        for text in texts:
-            lower_text = text.lower()
-            vectors.append(
-                [float(lower_text.count(keyword)) for keyword in self.keywords]
-            )
-
-        return vectors
-
-
 @router.post("/ingest", response_model=IngestResponse)
-def ingest_embeddings(request: IngestRequest) -> IngestResponse:
+def ingest_embeddings(
+    request: IngestRequest,
+    embedder: OpenAIEmbedderDependency,
+) -> IngestResponse:
     """
     Vectorize normalized historical budgets.
 
@@ -88,7 +65,7 @@ def ingest_embeddings(request: IngestRequest) -> IngestResponse:
     chunks = chunker.chunk(request.budgets)
 
     try:
-        embedded_chunks = OpenAIEmbedder().embed_many(chunks)
+        embedded_chunks = embedder.embed_many(chunks)
     except Exception:
         logger.exception(
             "embedding_ingest_failed",
@@ -113,16 +90,17 @@ def ingest_embeddings(request: IngestRequest) -> IngestResponse:
 
 
 @router.post("/compare", response_model=QueryRankingComparison)
-def compare_embeddings(request: CompareRequest) -> QueryRankingComparison:
+def compare_embeddings(
+    request: CompareRequest,
+    comparison_service: QueryComparisonServiceDependency,
+) -> QueryRankingComparison:
     """
     Compare chunking strategies for one query.
 
     This endpoint is a deterministic learning lab. It ranks chunks with a small
     keyword-count fake embedder, not with live OpenAI embeddings.
     """
-    return ChunkingQueryComparisonService(
-        text_embedder=KeywordTextEmbedder()
-    ).compare_query(
+    return comparison_service.compare_query(
         budgets=request.budgets,
         query=request.query,
         top_k=request.top_k,

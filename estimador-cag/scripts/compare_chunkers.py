@@ -23,46 +23,8 @@ from app.embedding_pipeline.comparison import (  # noqa: E402
     ChunkingComparisonService,
     ChunkingQueryComparisonService,
 )
+from app.embedding_pipeline.keyword_embedder import KeywordTextEmbedder  # noqa: E402
 from app.embedding_pipeline.schemas import Budget  # noqa: E402
-
-
-class KeywordTextEmbedder:
-    """Deterministic fake embedder for local chunking comparison reports."""
-
-    keywords = [
-        "oauth",
-        "jwt",
-        "authorization",
-        "token",
-        "authentication",
-        "banking",
-        "audit",
-        "consent",
-        "checkout",
-        "payment",
-        "inventory",
-        "stock",
-        "document",
-        "clinical",
-        "upload",
-        "telemetry",
-        "machine",
-        "alert",
-        "maintenance",
-        "dashboard",
-    ]
-
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """Return simple keyword-count vectors, one vector per text."""
-        vectors: list[list[float]] = []
-
-        for text in texts:
-            lower_text = text.lower()
-            vectors.append(
-                [float(lower_text.count(keyword)) for keyword in self.keywords]
-            )
-
-        return vectors
 
 
 def load_budgets(path: Path) -> list[Budget]:

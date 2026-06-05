@@ -3,6 +3,11 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 import app.embedding_pipeline.router as embedding_router_module
+from app.embedding_pipeline.comparison import (
+    QueryRankingComparison,
+    QueryStrategyRanking,
+    RankedChunk,
+)
 from app.embedding_pipeline.embedder import EMBEDDING_MODEL
 from app.embedding_pipeline.schemas import EmbeddedChunk
 from app.main import app
@@ -171,3 +176,53 @@ def test_embeddings_compare_is_registered_in_openapi() -> None:
     schema = client.get("/openapi.json").json()
 
     assert "/embeddings/compare" in schema["paths"]
+
+
+
+class FakeQueryComparisonService:
+    def compare_query(self, budgets, query: str, top_k: int) -> QueryRankingComparison:
+        return QueryRankingComparison(
+            query=query,
+            top_k=top_k,
+            strategies=[
+                QueryStrategyRanking(
+                    strategy_name="fake_strategy",
+                    top_chunks=[
+                        RankedChunk(
+                            rank=1,
+                            chunk_id="fake::chunk",
+                            score=0.99,
+                            text_preview="fake preview",
+                            metadata={"budget_id": "fake-budget"},
+                        )
+                    ],
+                )
+            ],
+        )
+
+
+def test_embeddings_compare_can_override_comparison_service_dependency() -> None:
+    app.dependency_overrides[
+        embedding_router_module.get_query_comparison_service
+    ] = lambda: FakeQueryComparisonService()
+
+    try:
+        client = TestClient(app)
+
+        response = client.post(
+            "/embeddings/compare",
+            json={
+                "budgets": [sample_budget_payload()],
+                "query": "OAuth",
+                "top_k": 1,
+            },
+        )
+
+        assert response.status_code == 200
+
+        body = response.json()
+
+        assert body["strategies"][0]["strategy_name"] == "fake_strategy"
+        assert body["strategies"][0]["top_chunks"][0]["chunk_id"] == "fake::chunk"
+    finally:
+        app.dependency_overrides.clear()
