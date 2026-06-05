@@ -5,6 +5,7 @@ WHY IT EXISTS: Session 07 needs a minimal HTTP surface that vectorizes budget ch
                in memory before retrieval, pgvector, or RAG are introduced.
 """
 
+from collections.abc import Callable
 from typing import Annotated
 
 import structlog
@@ -25,9 +26,12 @@ router = APIRouter()
 logger = structlog.get_logger(__name__)
 
 
-def get_openai_embedder() -> OpenAIEmbedder:
-    """Build the live OpenAI embedder for the ingestion endpoint."""
-    return OpenAIEmbedder()
+OpenAIEmbedderFactory = Callable[[], OpenAIEmbedder]
+
+
+def get_openai_embedder_factory() -> OpenAIEmbedderFactory:
+    """Return a lazy OpenAI embedder factory for the ingestion endpoint."""
+    return OpenAIEmbedder
 
 
 def get_query_comparison_service() -> ChunkingQueryComparisonService:
@@ -35,7 +39,10 @@ def get_query_comparison_service() -> ChunkingQueryComparisonService:
     return ChunkingQueryComparisonService(text_embedder=KeywordTextEmbedder())
 
 
-OpenAIEmbedderDependency = Annotated[OpenAIEmbedder, Depends(get_openai_embedder)]
+OpenAIEmbedderFactoryDependency = Annotated[
+    OpenAIEmbedderFactory,
+    Depends(get_openai_embedder_factory),
+]
 QueryComparisonServiceDependency = Annotated[
     ChunkingQueryComparisonService,
     Depends(get_query_comparison_service),
@@ -52,7 +59,7 @@ class CompareRequest(IngestRequest):
 @router.post("/ingest", response_model=IngestResponse)
 def ingest_embeddings(
     request: IngestRequest,
-    embedder: OpenAIEmbedderDependency,
+    embedder_factory: OpenAIEmbedderFactoryDependency,
 ) -> IngestResponse:
     """
     Vectorize normalized historical budgets.
@@ -65,7 +72,7 @@ def ingest_embeddings(
     chunks = chunker.chunk(request.budgets)
 
     try:
-        embedded_chunks = embedder.embed_many(chunks)
+        embedded_chunks = embedder_factory().embed_many(chunks)
     except Exception:
         logger.exception(
             "embedding_ingest_failed",

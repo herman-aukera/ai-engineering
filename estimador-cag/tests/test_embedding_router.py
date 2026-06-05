@@ -98,7 +98,9 @@ def test_embeddings_ingest_returns_vectorized_chunks_and_stats(monkeypatch) -> N
     assert stats["model"] == EMBEDDING_MODEL
 
 
-def test_embeddings_ingest_uses_pydantic_validation() -> None:
+def test_embeddings_ingest_uses_pydantic_validation(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
     client = TestClient(app)
 
     response = client.post("/embeddings/ingest", json={"budgets": []})
