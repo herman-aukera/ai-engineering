@@ -171,4 +171,3 @@ Expected components: ALERT-001
 This is a learning report, not a production retrieval evaluation.
 The fake embedder is deterministic and useful for mechanics, but it is not semantic.
 Live embedding and persisted retrieval should be evaluated separately.
-
