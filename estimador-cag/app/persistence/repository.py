@@ -32,6 +32,18 @@ class ChunkInsert:
             raise ValueError(f"Embedding dimension must be {EMBEDDING_DIMENSION}")
 
 
+@dataclass(frozen=True)
+class ChunkSearchResult:
+    """A persisted chunk returned by semantic search."""
+
+    chunk_id: int
+    document_id: int
+    chunk_type: str
+    content: str
+    distance: float
+    metadata: dict[str, Any]
+
+
 class DocumentRepository:
     """Repository for document and chunk persistence.
 
@@ -83,3 +95,43 @@ class DocumentRepository:
 
         await self.session.flush()
         return document_id
+
+    async def search_chunks_by_embedding(
+        self,
+        *,
+        query_embedding: list[float],
+        k: int,
+    ) -> list[ChunkSearchResult]:
+        """Return top-k persisted chunks ordered by cosine distance."""
+        if k <= 0:
+            raise ValueError("k must be positive")
+        if len(query_embedding) != EMBEDDING_DIMENSION:
+            raise ValueError(f"Embedding dimension must be {EMBEDDING_DIMENSION}")
+
+        distance = Chunk.embedding.cosine_distance(query_embedding)
+        statement = (
+            select(
+                Chunk.id.label("chunk_id"),
+                Chunk.document_id.label("document_id"),
+                Chunk.chunk_type.label("chunk_type"),
+                Chunk.content.label("content"),
+                distance.label("distance"),
+                Chunk.chunk_metadata.label("metadata"),
+            )
+            .where(Chunk.embedding.is_not(None))
+            .order_by(distance)
+            .limit(k)
+        )
+
+        rows = (await self.session.execute(statement)).all()
+        return [
+            ChunkSearchResult(
+                chunk_id=int(row._mapping["chunk_id"]),
+                document_id=int(row._mapping["document_id"]),
+                chunk_type=str(row._mapping["chunk_type"]),
+                content=str(row._mapping["content"]),
+                distance=float(row._mapping["distance"]),
+                metadata=dict(row._mapping["metadata"] or {}),
+            )
+            for row in rows
+        ]
