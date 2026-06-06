@@ -1,37 +1,40 @@
 """
 LAYER: embedding_pipeline router
-RESPONSIBILITY: Expose structural chunking plus embedding through FastAPI.
-WHY IT EXISTS: Session 07 needs a minimal HTTP surface that vectorizes budget chunks
-               in memory before retrieval, pgvector, or RAG are introduced.
+RESPONSIBILITY: Expose structural chunking comparison and persistent embedding ingestion.
+WHY IT EXISTS: Session 08 persists embedded chunks in PostgreSQL plus pgvector while
+               keeping comparison endpoints deterministic for learning.
 """
 
-from collections.abc import Callable
+from __future__ import annotations
+
+import time
 from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import Field
+from fastapi.responses import JSONResponse
+from pydantic import Field, TypeAdapter, ValidationError
 
 from app.embedding_pipeline.chunker import JSONStructuralChunker
 from app.embedding_pipeline.comparison import ChunkingQueryComparisonService, QueryRankingComparison
-from app.embedding_pipeline.embedder import (
-    EMBEDDING_MODEL,
-    OpenAIEmbedder,
-    estimate_embedding_cost_usd,
+from app.embedding_pipeline.embedder import EMBEDDING_MODEL, OpenAIEmbedder
+from app.embedding_pipeline.ingestion_service import (
+    DocumentAlreadyIngestedError,
+    IngestDocumentCommand,
+    PersistentEmbeddingIngestionService,
 )
 from app.embedding_pipeline.keyword_embedder import KeywordTextEmbedder
-from app.embedding_pipeline.schemas import IngestRequest, IngestResponse, IngestStats
+from app.embedding_pipeline.schemas import (
+    Budget,
+    IngestRequest,
+    PersistentIngestRequest,
+    PersistentIngestResponse,
+)
+from app.persistence.database import AsyncSessionLocal
+from app.persistence.repository import DocumentRepository
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
-
-
-OpenAIEmbedderFactory = Callable[[], OpenAIEmbedder]
-
-
-def get_openai_embedder_factory() -> OpenAIEmbedderFactory:
-    """Return a lazy OpenAI embedder factory for the ingestion endpoint."""
-    return OpenAIEmbedder
 
 
 def get_query_comparison_service() -> ChunkingQueryComparisonService:
@@ -39,10 +42,19 @@ def get_query_comparison_service() -> ChunkingQueryComparisonService:
     return ChunkingQueryComparisonService(text_embedder=KeywordTextEmbedder())
 
 
-OpenAIEmbedderFactoryDependency = Annotated[
-    OpenAIEmbedderFactory,
-    Depends(get_openai_embedder_factory),
-]
+def get_persistent_ingestion_service(session) -> PersistentEmbeddingIngestionService:
+    """Build the Session 08 persistent ingestion service lazily.
+
+    The caller owns the session and transaction boundary so a successful ingest
+    commits atomically and provider/database failures roll back.
+    """
+    return PersistentEmbeddingIngestionService(
+        chunker=JSONStructuralChunker(),
+        embedder=OpenAIEmbedder(),
+        repository=DocumentRepository(session),
+    )
+
+
 QueryComparisonServiceDependency = Annotated[
     ChunkingQueryComparisonService,
     Depends(get_query_comparison_service),
@@ -56,43 +68,55 @@ class CompareRequest(IngestRequest):
     top_k: Annotated[int, Field(ge=1)] = 3
 
 
-@router.post("/ingest", response_model=IngestResponse)
-def ingest_embeddings(
-    request: IngestRequest,
-    embedder_factory: OpenAIEmbedderFactoryDependency,
-) -> IngestResponse:
-    """
-    Vectorize normalized historical budgets.
+@router.post("/ingest", response_model=PersistentIngestResponse)
+async def ingest_embeddings(
+    request: PersistentIngestRequest,
+) -> PersistentIngestResponse | JSONResponse:
+    """Persist a normalized historical budget document and its embedded chunks."""
+    started = time.perf_counter()
 
-    Pydantic owns 422 validation. Provider or embedding failures are logged with
-    internal details but returned to callers as a generic 500 to avoid leaking
-    implementation details or credentials.
-    """
-    chunker = JSONStructuralChunker()
-    chunks = chunker.chunk(request.budgets)
+    budgets_payload = request.content.get("budgets")
+    if not isinstance(budgets_payload, list) or not budgets_payload:
+        raise HTTPException(status_code=422, detail="content.budgets must be a non-empty list")
 
     try:
-        embedded_chunks = embedder_factory().embed_many(chunks)
+        budgets = TypeAdapter(list[Budget]).validate_python(budgets_payload)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from None
+
+    try:
+        async with AsyncSessionLocal.begin() as session:
+            service = get_persistent_ingestion_service(session)
+            result = await service.ingest_document(
+                IngestDocumentCommand(
+                    source_path=request.source_path,
+                    document_type=request.document_type,
+                    budgets=budgets,
+                    metadata={"content_keys": sorted(request.content.keys())},
+                )
+            )
+    except DocumentAlreadyIngestedError as exc:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "detail": "Document already ingested",
+                "document_id": exc.document_id,
+            },
+        )
     except Exception:
         logger.exception(
-            "embedding_ingest_failed",
-            total_budgets=len(request.budgets),
-            total_chunks=len(chunks),
+            "persistent_embedding_ingest_failed",
+            source_path=request.source_path,
+            document_type=request.document_type,
             model=EMBEDDING_MODEL,
         )
         raise HTTPException(status_code=500, detail="Embedding ingestion failed") from None
 
-    total_tokens = sum(chunk.token_count for chunk in chunks)
-
-    return IngestResponse(
-        chunks=embedded_chunks,
-        stats=IngestStats(
-            total_budgets=len(request.budgets),
-            total_chunks=len(chunks),
-            total_tokens=total_tokens,
-            estimated_cost_usd=estimate_embedding_cost_usd(total_tokens),
-            model=EMBEDDING_MODEL,
-        ),
+    return PersistentIngestResponse(
+        document_id=result.document_id,
+        chunks_created=result.chunks_created,
+        embedding_dimension=result.embedding_dimension,
+        ingestion_time_ms=int((time.perf_counter() - started) * 1000),
     )
 
 

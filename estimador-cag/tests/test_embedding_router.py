@@ -8,8 +8,10 @@ from app.embedding_pipeline.comparison import (
     QueryStrategyRanking,
     RankedChunk,
 )
-from app.embedding_pipeline.embedder import EMBEDDING_MODEL
-from app.embedding_pipeline.schemas import EmbeddedChunk
+from app.embedding_pipeline.ingestion_service import (
+    DocumentAlreadyIngestedError,
+    IngestDocumentResult,
+)
 from app.main import app
 
 
@@ -51,75 +53,141 @@ def sample_budget_payload() -> dict:
     }
 
 
-class FakeEmbedder:
-    def embed_many(self, chunks):
-        return [
-            EmbeddedChunk(
-                chunk_id=chunk.chunk_id,
-                text=chunk.text,
-                metadata=chunk.metadata,
-                token_count=chunk.token_count,
-                embedding=[float(index), float(index + 1)],
-            )
-            for index, chunk in enumerate(chunks)
-        ]
+class FakePersistentIngestionService:
+    def __init__(self) -> None:
+        self.commands = []
+
+    async def ingest_document(self, command):
+        self.commands.append(command)
+        return IngestDocumentResult(
+            document_id=42,
+            chunks_created=2,
+            embedding_dimension=1536,
+        )
 
 
-class FailingEmbedder:
-    def embed_many(self, chunks):
+class FailingPersistentIngestionService:
+    async def ingest_document(self, command):
         raise RuntimeError("provider exploded with internal details")
 
 
-def test_embeddings_ingest_returns_vectorized_chunks_and_stats(monkeypatch) -> None:
-    monkeypatch.setattr(embedding_router_module, "OpenAIEmbedder", FakeEmbedder)
+class DuplicatePersistentIngestionService:
+    async def ingest_document(self, command):
+        raise DocumentAlreadyIngestedError(document_id=99)
+
+
+def test_embeddings_ingest_returns_persistent_document_response(monkeypatch) -> None:
+    fake_service = FakePersistentIngestionService()
+
+    monkeypatch.setattr(
+        embedding_router_module,
+        "get_persistent_ingestion_service",
+        lambda session: fake_service,
+    )
 
     client = TestClient(app)
     response = client.post(
         "/embeddings/ingest",
-        json={"budgets": [sample_budget_payload()]},
+        json={
+            "source_path": "data/budgets/budget-1.json",
+            "document_type": "historical_budget",
+            "content": {"budgets": [sample_budget_payload()]},
+        },
     )
 
     assert response.status_code == 200
-    body = response.json()
+    payload = response.json()
+    assert payload["document_id"] == 42
+    assert payload["chunks_created"] == 2
+    assert payload["embedding_dimension"] == 1536
+    assert isinstance(payload["ingestion_time_ms"], int)
+    assert payload["ingestion_time_ms"] >= 0
 
-    assert [chunk["chunk_id"] for chunk in body["chunks"]] == [
-        "BUD-2024-014::AUTH-001",
-        "BUD-2024-014::AUDIT-001",
+    assert len(fake_service.commands) == 1
+    command = fake_service.commands[0]
+    assert command.source_path == "data/budgets/budget-1.json"
+    assert command.document_type == "historical_budget"
+    assert [budget.model_dump(mode="json") for budget in command.budgets] == [
+        sample_budget_payload()
     ]
-    assert body["chunks"][0]["embedding"] == [0.0, 1.0]
-    assert body["chunks"][1]["embedding"] == [1.0, 2.0]
-    assert body["chunks"][0]["metadata"]["client_sector"] == "finance"
-
-    stats = body["stats"]
-    assert stats["total_budgets"] == 1
-    assert stats["total_chunks"] == 2
-    assert stats["total_tokens"] > 0
-    assert stats["estimated_cost_usd"] > 0
-    assert stats["model"] == EMBEDDING_MODEL
+    assert command.metadata == {"content_keys": ["budgets"]}
 
 
-def test_embeddings_ingest_uses_pydantic_validation(monkeypatch) -> None:
+def test_embeddings_ingest_duplicate_returns_409(monkeypatch) -> None:
+    monkeypatch.setattr(
+        embedding_router_module,
+        "get_persistent_ingestion_service",
+        lambda session: DuplicatePersistentIngestionService(),
+    )
+
+    client = TestClient(app)
+    response = client.post(
+        "/embeddings/ingest",
+        json={
+            "source_path": "data/budgets/duplicate.json",
+            "document_type": "historical_budget",
+            "content": {"budgets": [sample_budget_payload()]},
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "Document already ingested",
+        "document_id": 99,
+    }
+
+
+def test_embeddings_ingest_uses_pydantic_validation_without_openai_key(monkeypatch) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     client = TestClient(app)
-
-    response = client.post("/embeddings/ingest", json={"budgets": []})
+    response = client.post(
+        "/embeddings/ingest",
+        json={
+            "source_path": "",
+            "document_type": "historical_budget",
+            "content": {"budgets": []},
+        },
+    )
 
     assert response.status_code == 422
 
 
-def test_embeddings_ingest_returns_generic_500_for_embedder_errors(monkeypatch) -> None:
-    monkeypatch.setattr(embedding_router_module, "OpenAIEmbedder", FailingEmbedder)
+def test_embeddings_ingest_rejects_missing_content_budgets_without_openai_key(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     client = TestClient(app)
     response = client.post(
         "/embeddings/ingest",
-        json={"budgets": [sample_budget_payload()]},
+        json={
+            "source_path": "data/budgets/missing.json",
+            "document_type": "historical_budget",
+            "content": {},
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_embeddings_ingest_returns_generic_500_for_service_errors(monkeypatch) -> None:
+    monkeypatch.setattr(
+        embedding_router_module,
+        "get_persistent_ingestion_service",
+        lambda session: FailingPersistentIngestionService(),
+    )
+
+    client = TestClient(app)
+    response = client.post(
+        "/embeddings/ingest",
+        json={
+            "source_path": "data/budgets/failure.json",
+            "document_type": "historical_budget",
+            "content": {"budgets": [sample_budget_payload()]},
+        },
     )
 
     assert response.status_code == 500
     assert response.json() == {"detail": "Embedding ingestion failed"}
-
 
 
 def test_embeddings_compare_returns_strategy_rankings() -> None:
@@ -172,13 +240,13 @@ def test_embeddings_compare_rejects_invalid_top_k() -> None:
     assert response.status_code == 422
 
 
-def test_embeddings_compare_is_registered_in_openapi() -> None:
+def test_embeddings_routes_are_registered_in_openapi() -> None:
     client = TestClient(app)
 
     schema = client.get("/openapi.json").json()
 
+    assert "/embeddings/ingest" in schema["paths"]
     assert "/embeddings/compare" in schema["paths"]
-
 
 
 class FakeQueryComparisonService:
@@ -223,7 +291,6 @@ def test_embeddings_compare_can_override_comparison_service_dependency() -> None
         assert response.status_code == 200
 
         body = response.json()
-
         assert body["strategies"][0]["strategy_name"] == "fake_strategy"
         assert body["strategies"][0]["top_chunks"][0]["chunk_id"] == "fake::chunk"
     finally:
