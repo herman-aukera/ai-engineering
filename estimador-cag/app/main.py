@@ -59,27 +59,41 @@ def metrics():
     """
     return get_last_metrics()
 
-DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "sse_demo.html"
+SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
+SSE_SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
+SSE_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "sse_demo.html"
 
 
 @app.get("/demo", include_in_schema=False)
 def browser_demo() -> FileResponse:
     """
     LAYER: presentation helper
-    RESPONSIBILITY: Serve the browser SSE demo from the FastAPI app.
-    WHY IT EXISTS: Keeps the browser demo on the same origin as the API, which avoids
-    Codespaces CORS and mixed-content issues while giving nontechnical users one clean URL.
+    RESPONSIBILITY: Serve the Session 08 pgvector search demo from FastAPI.
+    WHY IT EXISTS: Gives reviewers one safe browser path that exercises
+                   /embeddings/ingest and /search instead of the older LLM estimate demo.
+    DEPENDS_ON: docs/session08_search_demo.html
+    """
+    return FileResponse(SESSION08_DEMO_HTML_PATH)
+
+
+@app.get("/sse-demo", include_in_schema=False)
+def sse_demo() -> FileResponse:
+    """
+    LAYER: presentation helper
+    RESPONSIBILITY: Keep the older synchronous-vs-SSE demo available explicitly.
+    WHY IT EXISTS: Preserves Session 03 demonstration material without making it
+                   the default Session 08 browser path.
     DEPENDS_ON: docs/sse_demo.html
     """
-    return FileResponse(DEMO_HTML_PATH)
+    return FileResponse(SSE_DEMO_HTML_PATH)
+
 
 @app.get("/", include_in_schema=False)
 def root_demo() -> FileResponse:
     """
     LAYER: presentation helper
-    RESPONSIBILITY: Serve the browser demo from the root URL.
-    WHY IT EXISTS: Gives nontechnical testers one obvious URL when they open
-    the forwarded FastAPI port in Codespaces.
-    DEPENDS_ON: docs/sse_demo.html
+    RESPONSIBILITY: Serve the Session 08 search demo from the root URL.
+    WHY IT EXISTS: Gives nontechnical testers one obvious URL for the current deliverable.
+    DEPENDS_ON: docs/session08_search_demo.html
     """
-    return FileResponse(DEMO_HTML_PATH)
+    return FileResponse(SESSION08_DEMO_HTML_PATH)
