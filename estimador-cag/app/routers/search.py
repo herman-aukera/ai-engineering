@@ -15,6 +15,11 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.embedding_pipeline.embedder import OpenAIEmbedder
+from app.embedding_pipeline.search_metrics import (
+    get_search_metrics_dashboard,
+    record_search_failure,
+    record_search_success,
+)
 from app.embedding_pipeline.search_service import (
     SearchMetadataFilters,
     SearchQueryCommand,
@@ -86,11 +91,20 @@ def get_search_service(session) -> SemanticSearchService:
     )
 
 
+@router.get("/search/metrics")
+async def search_metrics() -> dict[str, Any]:
+    """Return a small in-memory dashboard for semantic search calls."""
+    return get_search_metrics_dashboard()
+
+
 @router.post("/search", response_model=SearchResponse)
 async def search_chunks(request: SearchRequest) -> SearchResponse:
     """Return top-k persisted chunks ordered by cosine distance."""
     started = time.perf_counter()
     query = request.query.strip()
+    filters = request.to_metadata_filters()
+    filters_applied = filters.as_response_dict()
+
     if not query:
         raise HTTPException(status_code=422, detail="query must not be empty")
 
@@ -101,19 +115,44 @@ async def search_chunks(request: SearchRequest) -> SearchResponse:
                 SearchQueryCommand(
                     query=query,
                     k=request.k,
-                    metadata_filters=request.to_metadata_filters(),
+                    metadata_filters=filters,
                 )
             )
     except ValueError as exc:
+        search_time_ms = int((time.perf_counter() - started) * 1000)
+        record_search_failure(
+            query=query,
+            k=request.k,
+            filters_applied=filters_applied,
+            search_time_ms=search_time_ms,
+            error_type=type(exc).__name__,
+        )
         raise HTTPException(status_code=422, detail=str(exc)) from None
-    except Exception:
+    except Exception as exc:
+        search_time_ms = int((time.perf_counter() - started) * 1000)
+        record_search_failure(
+            query=query,
+            k=request.k,
+            filters_applied=filters_applied,
+            search_time_ms=search_time_ms,
+            error_type=type(exc).__name__,
+        )
         logger.exception("semantic_search_failed", query=query, k=request.k)
         raise HTTPException(status_code=500, detail="Semantic search failed") from None
+
+    search_time_ms = int((time.perf_counter() - started) * 1000)
+    record_search_success(
+        query=result.query,
+        k=result.k,
+        filters_applied=result.filters_applied,
+        result_count=len(result.results),
+        search_time_ms=search_time_ms,
+    )
 
     return SearchResponse(
         query=result.query,
         k=result.k,
-        search_time_ms=int((time.perf_counter() - started) * 1000),
+        search_time_ms=search_time_ms,
         filters_applied=result.filters_applied,
         results=[
             SearchResultResponse(

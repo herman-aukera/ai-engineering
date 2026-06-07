@@ -88,6 +88,7 @@
     <button class="primary" onclick="checkHealth()">Health</button>
     <button class="primary" onclick="ingestExample()">Ingest example corpus</button>
     <button class="primary" onclick="runSearchExamples()">Run search examples</button>
+    <button onclick="loadSearchMetrics()">Search metrics dashboard</button>
     <button onclick="resetOutput()">Reset</button>
   </div>
 
@@ -234,6 +235,14 @@
         setText("status", "ingest error");
         setText("status-output", String(error));
       }
+    }
+
+    async function loadSearchMetrics() {
+      setText("status", "loading search metrics dashboard");
+      const response = await fetch(API_BASE + "/search/metrics");
+      const payload = await response.json();
+      setText("status", "search metrics dashboard loaded");
+      setText("status-output", JSON.stringify(payload, null, 2));
     }
 
     async function runSearchExamples() {
