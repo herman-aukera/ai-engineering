@@ -120,4 +120,3 @@ Results returned: 4
 4. chunk_id=10 distance=0.6593 chunk_type=budget_component
    content=[Project: Fintech modernization project with REST APIs, JWT authentication, external integrations, Kubernetes migration,
    metadata={"year": 2024, "chunk_id": "BUD-SESSION08-EXAMPLE::INT-001", "budget_id": "BUD-SESSION08-EXAMPLE", "complexity": "medium", "tech_stack": ["python", "fastapi", "postgresql"], "client_name": "FintechCorp", "token_count": 112, "component_id": "INT-001", "client_sector": "finance", "client_country": "ES", "estimated_hours": 120, "main_technology": "python"}
-

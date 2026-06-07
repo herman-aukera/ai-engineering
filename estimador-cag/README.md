@@ -1,5 +1,162 @@
 # LIDR AI Engineering: Estimador CAG
 
+## Session 08: pgvector semantic search
+
+Current working branch:
+
+    gg-session-08-pgvector-search
+
+This branch upgrades the historical-budget embedding pipeline into a persisted semantic search baseline using PostgreSQL plus pgvector. It stores ingested budget documents and their structural chunks, embeds the chunks with OpenAI, and exposes retrieval through a public `POST /search` endpoint.
+
+### What this session adds
+
+    docker-compose.yml
+    estimador-cag/alembic.ini
+    estimador-cag/alembic/
+    estimador-cag/app/persistence/
+    estimador-cag/app/embedding_pipeline/ingestion_service.py
+    estimador-cag/app/embedding_pipeline/search_service.py
+    estimador-cag/app/routers/search.py
+    estimador-cag/query_examples.py
+    estimador-cag/output_examples.txt
+
+### Run Session 08 with Docker Compose
+
+From the repository root:
+
+    cd /workspaces/ai-engineering
+    docker compose up -d postgres redis ai_service
+    docker compose exec -T ai_service uv run alembic upgrade head
+
+Health check:
+
+    docker compose exec -T ai_service python -c "import json, urllib.request; print(json.dumps(json.loads(urllib.request.urlopen('http://localhost:8000/health', timeout=10).read().decode('utf-8')), indent=2))"
+
+Dry-run the required queries without calling the API:
+
+    docker compose run --rm ai_service uv run python query_examples.py --dry-run
+
+Run the real workflow with a configured `OPENAI_API_KEY`:
+
+    docker compose run --rm ai_service uv run python query_examples.py --ingest-example-corpus
+
+The committed `output_examples.txt` was generated from that real Compose workflow. It shows one successful example corpus ingest and five real `/search` calls with chunk ids, cosine distances, chunk metadata, server timings, and client timings.
+
+### API contract
+
+Persist a historical budget document and its chunks:
+
+    POST /embeddings/ingest
+
+Request shape:
+
+    {
+      "source_path": "examples/session08/query_examples_budget.json",
+      "document_type": "historical_budget",
+      "content": {
+        "budgets": []
+      }
+    }
+
+Successful response shape:
+
+    {
+      "document_id": 5,
+      "chunks_created": 4,
+      "embedding_dimension": 1536,
+      "ingestion_time_ms": 2879
+    }
+
+Duplicate source paths return `409` with the existing `document_id`.
+
+Search persisted chunks:
+
+    POST /search
+
+Request shape:
+
+    {
+      "query": "REST API development with JWT authentication for financial sector",
+      "k": 5
+    }
+
+Successful response shape:
+
+    {
+      "query": "REST API development with JWT authentication for financial sector",
+      "k": 5,
+      "search_time_ms": 199,
+      "results": [
+        {
+          "chunk_id": 9,
+          "document_id": 5,
+          "chunk_type": "budget_component",
+          "content": "...",
+          "distance": 0.3081,
+          "metadata": {}
+        }
+      ]
+    }
+
+### Why two tables
+
+Session 08 uses a `documents` table and a `chunks` table instead of one flat table.
+
+The `documents` table owns source-level identity, document type, ingest timestamp, and document-level metadata. The `chunks` table owns the searchable units: chunk type, content, embedding vector, chunk metadata, and the foreign key back to the source document.
+
+That split keeps one-to-many document integrity explicit. It avoids duplicating document-level fields on every chunk while still allowing each chunk to carry retrieval-specific metadata.
+
+### Why JSONB metadata
+
+Budget chunks carry flexible metadata such as `budget_id`, `component_id`, `client_sector`, `tech_stack`, `complexity`, token count, year, country, and estimated hours.
+
+JSONB is the right baseline because chunk metadata will evolve as chunking strategies evolve. Adding a new metadata key should not require a new migration every time. The migration still adds a GIN index on chunk metadata so later metadata filters can be introduced without redesigning the schema.
+
+### Why cosine distance
+
+The retrieval endpoint ranks chunks by pgvector cosine distance. Cosine distance is a good baseline for text embeddings because it compares vector direction rather than raw magnitude. That makes it suitable for semantic similarity: queries about authentication should land closer to authentication chunks than unrelated chunks.
+
+The repository deliberately returns distance rather than hiding it. That makes the baseline auditable and helps compare future changes such as thresholds, filters, or alternative embedding models.
+
+### Why no vector index yet
+
+The migration intentionally does not create a vector index. Sequential scan is the correct learning baseline before tuning.
+
+A vector index such as HNSW or IVFFlat should be added only after measuring corpus size, latency, recall quality, write frequency, and the chosen operator class. Adding an index too early can hide baseline behavior and make it harder to explain why retrieval improved or regressed.
+
+The current schema is ready for a later vector index, but Session 08 keeps the first version simple and measurable.
+
+### Known limitation
+
+Out-of-domain queries still return nearest neighbors because `/search` currently has no similarity threshold. The restaurant-reservation query in `output_examples.txt` is intentionally useful as a negative-control example: it proves the system always returns the nearest chunks, even when the corpus is not a good semantic match.
+
+A future slice can add a maximum distance threshold or a confidence label so clearly weak matches are surfaced as low-confidence results.
+
+### Validation commands
+
+Normal validation, no real provider calls:
+
+    cd /workspaces/ai-engineering/estimador-cag
+    uv run ruff check --fix app evals tests scripts query_examples.py
+    uv run ruff check app evals tests scripts query_examples.py
+    uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null) streamlit_app.py query_examples.py
+    OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
+    env -u OPENAI_API_KEY DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
+
+Opt-in DB integration tests:
+
+    cd /workspaces/ai-engineering
+    docker compose up -d postgres redis
+    cd /workspaces/ai-engineering/estimador-cag
+    DATABASE_URL=postgresql+asyncpg://estimator:estimator@localhost:5432/estimator uv run alembic upgrade head
+    SESSION08_DB_INTEGRATION=1 DATABASE_URL=postgresql+asyncpg://estimator:estimator@localhost:5432/estimator uv run pytest tests/test_session08_db_ingest_integration.py tests/test_session08_db_search_integration.py -q
+
+### Security notes
+
+Never commit `.env`, real API keys, screenshots containing secrets, or copied terminal output containing secrets. `query_examples.py` reads the API through the running service environment; it does not print secrets.
+
+---
+
 ## Session 07: Embedding pipeline pre-exercise
 
 Current working branch:
