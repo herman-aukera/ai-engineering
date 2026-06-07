@@ -210,7 +210,7 @@ async def test_session08_db_ingest_failure_leaves_no_orphan_document(
 
 
 @pytest.mark.anyio
-async def test_session08_db_schema_has_no_vector_index(
+async def test_session08_db_schema_has_expected_hnsw_cosine_vector_index(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     async with session_factory() as session:
@@ -220,9 +220,16 @@ async def test_session08_db_schema_has_no_vector_index(
                 SELECT indexname, indexdef
                 FROM pg_indexes
                 WHERE schemaname = 'public'
-                  AND indexdef ~* 'hnsw|ivfflat|vector_cosine_ops|vector_l2_ops|vector_ip_ops'
+                  AND tablename = 'chunks'
+                  AND indexname = 'ix_chunks_embedding_hnsw_cosine'
                 """
             )
         )
 
-    assert result.all() == []
+    rows = result.mappings().all()
+
+    assert len(rows) == 1
+    indexdef = rows[0]["indexdef"].lower()
+    assert "using hnsw" in indexdef
+    assert "vector_cosine_ops" in indexdef
+    assert "embedding is not null" in indexdef
