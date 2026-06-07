@@ -3,7 +3,10 @@
   "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
   "remoteEnv": {
     "UV_LINK_MODE": "copy",
-    "ESTIMADOR_START_MODE": "none"
+    "ESTIMADOR_START_MODE": "none",
+    "GIT_PAGER": "cat",
+    "PAGER": "cat",
+    "LESS": "FRX"
   },
   "waitFor": "postCreateCommand",
   "features": {
