@@ -7,12 +7,9 @@ VERSIONS_DIR = PROJECT_ROOT / "alembic" / "versions"
 
 
 def _migration_text() -> str:
-    migration_files = sorted(
-        path for path in VERSIONS_DIR.glob("*.py") if path.name != "__init__.py"
-    )
-    assert migration_files, "Expected a Session 08 Alembic migration file"
-    assert len(migration_files) == 1, migration_files
-    return migration_files[0].read_text(encoding="utf-8")
+    migration = VERSIONS_DIR / "0001_session08_pgvector_documents_chunks.py"
+    assert migration.is_file(), "Expected the baseline Session 08 Alembic migration file"
+    return migration.read_text(encoding="utf-8")
 
 
 def _compact(text: str) -> str:
@@ -66,7 +63,7 @@ def test_session08_migration_creates_required_non_vector_indexes() -> None:
     assert 'postgresql_using="gin"' in migration
 
 
-def test_session08_migration_deliberately_has_no_vector_index() -> None:
+def test_session08_baseline_migration_deliberately_has_no_vector_index() -> None:
     migration = _migration_text().lower()
 
     forbidden = [
