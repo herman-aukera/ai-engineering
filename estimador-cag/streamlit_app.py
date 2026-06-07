@@ -19,6 +19,8 @@ import streamlit as st
 
 DEFAULT_BACKEND_URL = "http://localhost:8000"
 ESTIMATE_PATH = "/api/v1/estimate"
+SEARCH_PATH = "/search"
+SEARCH_METRICS_PATH = "/search/metrics"
 SESSION_CREATE_PATH = "/sessions"
 SESSION_ESTIMATE_PATH_TEMPLATE = "/sessions/{session_id}/estimate"
 BACKEND_CONNECT_TIMEOUT_SECONDS = 10
@@ -63,6 +65,61 @@ def build_estimate_url() -> str:
     """Build the FastAPI estimate endpoint URL used by the product form."""
 
     return f"{get_backend_url()}{ESTIMATE_PATH}"
+
+
+
+def build_search_url() -> str:
+    """Build the FastAPI Session 08 semantic search endpoint URL."""
+
+    return f"{get_backend_url()}{SEARCH_PATH}"
+
+
+def build_search_metrics_url() -> str:
+    """Build the FastAPI Session 08 search metrics endpoint URL."""
+
+    return f"{get_backend_url()}{SEARCH_METRICS_PATH}"
+
+
+def _compact_optional_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Drop empty optional values before sending a backend request."""
+
+    compacted: dict[str, Any] = {}
+    for key, value in payload.items():
+        if value is None:
+            continue
+
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped:
+                compacted[key] = stripped
+            continue
+
+        compacted[key] = value
+
+    return compacted
+
+
+def post_search_request(payload: dict[str, Any]) -> dict[str, Any]:
+    """Send a Session 08 semantic search request to the backend."""
+
+    response = requests.post(
+        build_search_url(),
+        json=_compact_optional_payload(payload),
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def get_search_metrics() -> dict[str, Any]:
+    """Fetch the Session 08 in-memory semantic search metrics dashboard."""
+
+    response = requests.get(
+        build_search_metrics_url(),
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 def post_estimation_request(payload: dict[str, Any], prompt_version: str = "v1") -> dict[str, Any]:
@@ -373,6 +430,107 @@ def render_structured_estimate(result: dict[str, Any]) -> None:
     render_cache_and_prompt_metadata(result)
 
 
+
+def render_search_result_card(result: dict[str, Any], rank: int) -> None:
+    """Render one Session 08 semantic search result."""
+
+    distance = result.get("distance")
+    distance_label = f"{distance:.4f}" if isinstance(distance, (int, float)) else "unknown"
+    chunk_type = result.get("chunk_type", "unknown")
+    content = result.get("content", "")
+
+    st.markdown(f"#### {rank}. {chunk_type}")
+
+    metric_distance, metric_chunk, metric_document = st.columns(3)
+
+    with metric_distance:
+        st.metric("distance", distance_label)
+
+    with metric_chunk:
+        st.metric("chunk_type", chunk_type)
+
+    with metric_document:
+        st.metric("document_id", result.get("document_id", "unknown"))
+
+    st.write(content)
+
+    with st.expander("metadata"):
+        st.json(result.get("metadata") or {})
+
+
+def render_session08_search_panel() -> None:
+    """Render a thin Session 08 semantic search UI backed by /search."""
+
+    st.markdown("## Session 08 semantic search")
+    st.caption(
+        "Search historical budgets persisted in PostgreSQL plus pgvector. "
+        "Use filters to narrow JSONB metadata before vector distance ranking."
+    )
+
+    with st.form("session08_semantic_search_form"):
+        query = st.text_input(
+            "Search historical budgets",
+            value="REST API development with JWT authentication for financial sector",
+        )
+
+        col_k, col_sector, col_country, col_stack, col_scope = st.columns(5)
+
+        with col_k:
+            k = st.number_input("k", min_value=1, max_value=20, value=5, step=1)
+
+        with col_sector:
+            client_sector = st.text_input("client_sector", placeholder="finance")
+
+        with col_country:
+            client_country = st.text_input("client_country", placeholder="ES")
+
+        with col_stack:
+            tech_stack = st.text_input("tech_stack", placeholder="python")
+
+        with col_scope:
+            scope = st.text_input("scope", placeholder="backend")
+
+        submitted = st.form_submit_button("Run semantic search", type="primary")
+
+    if submitted:
+        payload = {
+            "query": query,
+            "k": int(k),
+            "client_sector": client_sector,
+            "client_country": client_country,
+            "tech_stack": tech_stack,
+            "scope": scope,
+        }
+
+        with st.spinner("Searching pgvector chunks..."):
+            try:
+                search_result = post_search_request(payload)
+            except requests.HTTPError as exc:
+                response_text = exc.response.text if exc.response is not None else str(exc)
+                st.error(f"Search backend returned an error: {response_text}")
+                return
+            except requests.RequestException as exc:
+                st.error(f"Could not reach search backend: {exc}")
+                return
+
+        result_count = len(search_result.get("results") or [])
+        search_time_ms = search_result.get("search_time_ms", "unknown")
+        st.success(f"Returned {result_count} results in {search_time_ms} ms.")
+
+        with st.expander("filters_applied", expanded=True):
+            st.json(search_result.get("filters_applied") or {})
+
+        for index, result in enumerate(search_result.get("results") or [], start=1):
+            render_search_result_card(result, index)
+
+    with st.expander("Search metrics dashboard"):
+        if st.button("Refresh search metrics"):
+            try:
+                st.json(get_search_metrics())
+            except requests.RequestException as exc:
+                st.error(f"Could not load search metrics dashboard: {exc}")
+
+
 def main() -> None:
     """Render the Session 05 conversational memory plus attachments product UI."""
 
@@ -385,8 +543,11 @@ def main() -> None:
     st.title("AI Software Estimator")
     st.caption(
         "Session 05 product interface with conversational memory, local attachment extraction, "
-        "typed controls, and structured estimates."
+        "typed controls, structured estimates, and Session 08 semantic search."
     )
+
+    render_session08_search_panel()
+    st.divider()
 
     session_error: str | None = None
     try:
