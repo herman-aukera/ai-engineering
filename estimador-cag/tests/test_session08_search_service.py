@@ -28,8 +28,8 @@ class FakeRepository:
     def __init__(self) -> None:
         self.calls = []
 
-    async def search_chunks_by_embedding(self, *, query_embedding, k):
-        self.calls.append({"query_embedding": query_embedding, "k": k})
+    async def search_chunks_by_embedding(self, *, query_embedding, k, metadata_filters=None):
+        self.calls.append({"query_embedding": query_embedding, "k": k, "metadata_filters": metadata_filters})
         return [
             ChunkSearchResult(
                 chunk_id=10,
@@ -69,6 +69,7 @@ def test_semantic_search_service_embeds_query_once_and_returns_results() -> None
         {
             "query_embedding": [0.5] * EMBEDDING_DIMENSION,
             "k": 5,
+            "metadata_filters": {},
         }
     ]
 

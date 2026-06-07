@@ -17,11 +17,59 @@ class QueryEmbedder(Protocol):
 
 
 @dataclass(frozen=True)
+class SearchMetadataFilters:
+    """Exact metadata filters accepted by semantic search."""
+
+    client_sector: str | None = None
+    client_country: str | None = None
+    main_technology: str | None = None
+    complexity: str | None = None
+    year: int | None = None
+    budget_id: str | None = None
+    component_id: str | None = None
+    tech_stack: str | None = None
+    scope: str | None = None
+
+    def as_response_dict(self) -> dict[str, Any]:
+        """Return non-empty filter values as the public response representation."""
+        filters: dict[str, Any] = {}
+        for key in [
+            "client_sector",
+            "client_country",
+            "main_technology",
+            "complexity",
+            "year",
+            "budget_id",
+            "component_id",
+            "tech_stack",
+            "scope",
+        ]:
+            value = getattr(self, key)
+            if value is None:
+                continue
+            if isinstance(value, str):
+                stripped = value.strip()
+                if stripped:
+                    filters[key] = stripped
+                continue
+            filters[key] = value
+        return filters
+
+    def as_repository_filter(self) -> dict[str, Any]:
+        """Return JSONB containment filters for repository search."""
+        filters = self.as_response_dict()
+        if "tech_stack" in filters:
+            filters["tech_stack"] = [filters["tech_stack"]]
+        return filters
+
+
+@dataclass(frozen=True)
 class SearchQueryCommand:
     """Input command for semantic chunk search."""
 
     query: str
     k: int = 5
+    metadata_filters: SearchMetadataFilters = field(default_factory=SearchMetadataFilters)
 
 
 @dataclass(frozen=True)
@@ -43,6 +91,7 @@ class SearchQueryResult:
     query: str
     k: int
     results: list[SearchResultItem]
+    filters_applied: dict[str, Any] = field(default_factory=dict)
 
 
 class SemanticSearchService:
@@ -72,12 +121,14 @@ class SemanticSearchService:
         rows = await self.repository.search_chunks_by_embedding(
             query_embedding=embeddings[0],
             k=command.k,
+            metadata_filters=command.metadata_filters.as_repository_filter(),
         )
 
         return SearchQueryResult(
             query=query,
             k=command.k,
             results=[_to_search_result_item(row) for row in rows],
+            filters_applied=command.metadata_filters.as_response_dict(),
         )
 
 

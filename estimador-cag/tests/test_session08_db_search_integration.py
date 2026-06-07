@@ -160,3 +160,43 @@ def test_session08_search_endpoint_returns_empty_results_for_empty_corpus(
 
     assert response.status_code == 200
     assert response.json()["results"] == []
+
+
+def test_session08_search_endpoint_filters_real_pgvector_chunks_by_metadata(
+    monkeypatch,
+    db_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    asyncio.run(_seed_search_corpus(db_session_factory))
+    fake_embedder = FakeQueryEmbedder()
+
+    monkeypatch.setattr(search_router_module, "AsyncSessionLocal", db_session_factory)
+    monkeypatch.setattr(
+        search_router_module,
+        "get_search_service",
+        lambda session: SemanticSearchService(
+            embedder=fake_embedder,
+            repository=DocumentRepository(session),
+        ),
+    )
+
+    client = TestClient(app)
+    response = client.post(
+        "/search",
+        json={
+            "query": "OAuth authentication backend",
+            "k": 5,
+            "scope": "backend",
+            "client_sector": "finance",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["filters_applied"] == {
+        "client_sector": "finance",
+        "scope": "backend",
+    }
+    assert len(payload["results"]) == 1
+    assert payload["results"][0]["content"].startswith("OAuth backend API")
+    assert payload["results"][0]["metadata"]["scope"] == "backend"

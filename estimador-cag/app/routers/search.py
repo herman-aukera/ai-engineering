@@ -15,7 +15,11 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.embedding_pipeline.embedder import OpenAIEmbedder
-from app.embedding_pipeline.search_service import SearchQueryCommand, SemanticSearchService
+from app.embedding_pipeline.search_service import (
+    SearchMetadataFilters,
+    SearchQueryCommand,
+    SemanticSearchService,
+)
 from app.persistence.database import AsyncSessionLocal
 from app.persistence.repository import DocumentRepository
 
@@ -28,6 +32,29 @@ class SearchRequest(BaseModel):
 
     query: str = Field(min_length=1)
     k: int = Field(default=5, ge=1)
+    client_sector: str | None = None
+    client_country: str | None = None
+    main_technology: str | None = None
+    complexity: str | None = None
+    year: int | None = Field(default=None, ge=1900, le=2100)
+    budget_id: str | None = None
+    component_id: str | None = None
+    tech_stack: str | None = None
+    scope: str | None = None
+
+    def to_metadata_filters(self) -> SearchMetadataFilters:
+        """Convert optional request fields into service metadata filters."""
+        return SearchMetadataFilters(
+            client_sector=self.client_sector,
+            client_country=self.client_country,
+            main_technology=self.main_technology,
+            complexity=self.complexity,
+            year=self.year,
+            budget_id=self.budget_id,
+            component_id=self.component_id,
+            tech_stack=self.tech_stack,
+            scope=self.scope,
+        )
 
 
 class SearchResultResponse(BaseModel):
@@ -47,6 +74,7 @@ class SearchResponse(BaseModel):
     query: str
     k: int
     search_time_ms: int = Field(ge=0)
+    filters_applied: dict[str, Any] = Field(default_factory=dict)
     results: list[SearchResultResponse]
 
 
@@ -69,7 +97,13 @@ async def search_chunks(request: SearchRequest) -> SearchResponse:
     try:
         async with AsyncSessionLocal.begin() as session:
             service = get_search_service(session)
-            result = await service.search(SearchQueryCommand(query=query, k=request.k))
+            result = await service.search(
+                SearchQueryCommand(
+                    query=query,
+                    k=request.k,
+                    metadata_filters=request.to_metadata_filters(),
+                )
+            )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
     except Exception:
@@ -80,6 +114,7 @@ async def search_chunks(request: SearchRequest) -> SearchResponse:
         query=result.query,
         k=result.k,
         search_time_ms=int((time.perf_counter() - started) * 1000),
+        filters_applied=result.filters_applied,
         results=[
             SearchResultResponse(
                 chunk_id=item.chunk_id,

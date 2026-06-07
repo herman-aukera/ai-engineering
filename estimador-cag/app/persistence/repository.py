@@ -7,6 +7,7 @@ WHY IT EXISTS: Keeps SQLAlchemy details out of FastAPI routers and ingestion
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -42,6 +43,39 @@ class ChunkSearchResult:
     content: str
     distance: float
     metadata: dict[str, Any]
+
+
+def _normalize_metadata_filters(
+    metadata_filters: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Return non-empty JSONB containment filters."""
+    if not metadata_filters:
+        return {}
+
+    normalized: dict[str, Any] = {}
+    for key, value in metadata_filters.items():
+        if value is None:
+            continue
+
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped:
+                normalized[key] = stripped
+            continue
+
+        if isinstance(value, list):
+            cleaned = [
+                item.strip() if isinstance(item, str) else item
+                for item in value
+                if item is not None and (not isinstance(item, str) or item.strip())
+            ]
+            if cleaned:
+                normalized[key] = cleaned
+            continue
+
+        normalized[key] = value
+
+    return normalized
 
 
 class DocumentRepository:
@@ -101,12 +135,15 @@ class DocumentRepository:
         *,
         query_embedding: list[float],
         k: int,
+        metadata_filters: Mapping[str, Any] | None = None,
     ) -> list[ChunkSearchResult]:
         """Return top-k persisted chunks ordered by cosine distance."""
         if k <= 0:
             raise ValueError("k must be positive")
         if len(query_embedding) != EMBEDDING_DIMENSION:
             raise ValueError(f"Embedding dimension must be {EMBEDDING_DIMENSION}")
+
+        normalized_filters = _normalize_metadata_filters(metadata_filters)
 
         distance = Chunk.embedding.cosine_distance(query_embedding)
         statement = (
@@ -122,6 +159,9 @@ class DocumentRepository:
             .order_by(distance)
             .limit(k)
         )
+
+        if normalized_filters:
+            statement = statement.where(Chunk.chunk_metadata.contains(normalized_filters))
 
         rows = (await self.session.execute(statement)).all()
         return [
