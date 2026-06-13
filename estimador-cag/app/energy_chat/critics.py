@@ -6,7 +6,6 @@ import re
 
 from app.energy_chat.contracts import CriticFinding, EnergyChatRequest, EnergyPolicy
 
-
 ACTION_MARKERS = (
     "next action",
     "next step",
