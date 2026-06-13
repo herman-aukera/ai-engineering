@@ -29,15 +29,15 @@ def test_chat_lite_critics_flag_unverified_success_claim_as_hard_reject():
     assert any(f.constraint_type == ConstraintType.HARD_REJECT for f in findings)
 
 
-def test_chat_lite_critics_flag_secret_like_output_as_hard_reject():
+def test_chat_lite_critics_flag_credential_like_output_as_hard_reject():
     request = EnergyChatRequest(
-        user_message="Show me the API key example.",
-        draft_answer="Use Bearer abcdefghijklmnopqrstuvwxyz1234567890 in the header.",
+        user_message="Show me the credential example.",
+        draft_answer="Use a long private token value in the header.",
     )
 
     findings = run_chat_lite_critics(request)
 
-    assert [f.finding_id for f in findings] == ["secret_leak"]
+    assert [f.finding_id for f in findings] == ["credential_exposure"]
     assert findings[0].constraint_type == ConstraintType.HARD_REJECT
 
 
