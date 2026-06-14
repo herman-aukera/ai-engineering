@@ -1,0 +1,21 @@
+{
+  "candidate_id": "slice-001-accept",
+  "spec_id": "0001-energy-policy-ledger",
+  "energy_before": 500,
+  "changed_files": [
+    "energy_core/models.py",
+    "energy_core/decider.py",
+    "tests/test_energy_core_decider_accept.py"
+  ],
+  "required_artifacts": [
+    "energy_core/models.py",
+    "energy_core/decider.py"
+  ],
+  "present_artifacts": [
+    "energy_core/models.py",
+    "energy_core/decider.py"
+  ],
+  "validation_claims": [],
+  "scope_claims": [],
+  "soft_flags": []
+}
