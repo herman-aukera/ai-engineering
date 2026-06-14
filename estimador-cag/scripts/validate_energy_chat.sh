@@ -3,6 +3,23 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+cleanup_pycaches() {
+  find app tests -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+  rm -rf .pytest_cache 2>/dev/null || true
+}
+
+fail_on_dirty_tree() {
+  cleanup_pycaches
+  local status
+  status=$(git status --short)
+  if [[ -n "$status" ]]; then
+    echo "=== ENERGY CHAT VALIDATION: DIRTY TREE DETECTED ==="
+    echo "$status"
+    echo "Validation failed because the working tree is dirty after the gate."
+    exit 1
+  fi
+}
+
 echo "=== ENERGY CHAT VALIDATION: RUFF FIX ==="
 uv run ruff check --fix app tests energy_chat_streamlit_app.py
 
@@ -37,3 +54,4 @@ git diff --check origin/main...HEAD
 
 echo "=== ENERGY CHAT VALIDATION: STATUS ==="
 git status --short
+fail_on_dirty_tree
