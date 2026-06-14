@@ -4,7 +4,7 @@ These constants define the narrow proof target for this product branch.
 They intentionally do not describe every GitHub Actions run in the repository.
 """
 
-ENERGY_CHAT_BRANCH = "gg-finalproject-energy-aware-chat"
+ENERGY_CHAT_BRANCH = "EACHAT"
 ENERGY_CHAT_WORKFLOW = "Energy Aware Chat CI"
 ENERGY_CHAT_PROOF_SCRIPT = "scripts/check_energy_chat_ci.sh"
 ENERGY_CHAT_VALIDATION_SCRIPT = "scripts/validate_energy_chat.sh"
