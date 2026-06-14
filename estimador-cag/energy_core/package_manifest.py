@@ -52,6 +52,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_usage.md",
     "docs/energy_aware_code_extraction_plan.md",
     "docs/energy_aware_code_roadmap.md",
+    "docs/energy_aware_code_package_manifest.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
