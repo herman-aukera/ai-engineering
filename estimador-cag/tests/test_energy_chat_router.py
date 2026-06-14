@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from app.energy_chat import baseline
+from app.energy_chat.contracts import DeepSeekBaselineRequest, DeepSeekBaselineResult
 from app.main import app
 
 client = TestClient(app)
@@ -15,6 +17,12 @@ def test_energy_chat_repair_once_route_is_registered() -> None:
     schema = client.get("/openapi.json").json()
 
     assert "/energy-chat/evaluate/repair-once" in schema["paths"]
+
+
+def test_energy_chat_deepseek_baseline_route_is_registered() -> None:
+    schema = client.get("/openapi.json").json()
+
+    assert "/energy-chat/draft/deepseek-baseline" in schema["paths"]
 
 
 def test_energy_chat_evaluate_accepts_clean_candidate() -> None:
@@ -56,6 +64,40 @@ def test_energy_chat_repair_once_repairs_candidate() -> None:
     assert body["final_result"]["decision"]["decision"] == "accept"
     assert "added_next_action" in body["repairs_applied"]
     assert "DeepSeek remains deferred" in body["repaired_request"]["draft_answer"]
+
+
+def test_energy_chat_deepseek_baseline_route_uses_injected_provider(monkeypatch) -> None:
+    def fake_generate(request: DeepSeekBaselineRequest) -> DeepSeekBaselineResult:
+        return DeepSeekBaselineResult(
+            request=request,
+            draft_answer="Fake DeepSeek draft for deterministic router test.",
+            provider="deepseek",
+            model="deepseek-v4-flash",
+            tier=request.tier,
+            input_tokens=10,
+            output_tokens=8,
+            cost_usd=0.0,
+            finish_reason="stop",
+            evidence_refs=["provider:deepseek_baseline", f"tier:{request.tier}"],
+            metadata={"energy_evaluated": False},
+        )
+
+    monkeypatch.setattr(baseline, "generate_deepseek_baseline_draft", fake_generate)
+
+    response = client.post(
+        "/energy-chat/draft/deepseek-baseline",
+        json={
+            "user_message": "Draft a release readiness answer.",
+            "tier": "flash",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["draft_answer"] == "Fake DeepSeek draft for deterministic router test."
+    assert body["provider"] == "deepseek"
+    assert body["tier"] == "flash"
+    assert body["metadata"]["energy_evaluated"] is False
 
 
 def test_energy_chat_evaluate_rejects_hidden_chain_of_thought() -> None:
