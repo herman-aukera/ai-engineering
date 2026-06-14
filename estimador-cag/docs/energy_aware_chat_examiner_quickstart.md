@@ -7,7 +7,7 @@ Status: one-page review path for the final-project branch.
 Use this guide only for the Energy Aware Chat branch:
 
 ```text
-gg-finalproject-energy-aware-chat
+EACHAT
 ```
 
 Do not use the unfiltered GitHub Actions page as the proof source. It mixes unrelated branches.
@@ -48,7 +48,7 @@ The proof target must be:
 
 ```text
 workflow = Energy Aware Chat CI
-branch = gg-finalproject-energy-aware-chat
+branch = EACHAT
 sha = current HEAD
 ```
 
