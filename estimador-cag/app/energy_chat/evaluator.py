@@ -14,6 +14,7 @@ from app.energy_chat.energy_card import build_energy_card
 from app.energy_chat.policies import default_chat_lite_policy
 from app.energy_chat.repairs import build_repaired_request
 from app.energy_chat.scorer import score_findings
+from app.energy_chat.source_guard import source_need_findings
 
 
 def run_evaluation(
@@ -21,7 +22,10 @@ def run_evaluation(
     policy: EnergyPolicy | None = None,
 ) -> EvaluationResult:
     active_policy = policy or default_chat_lite_policy()
-    findings = run_chat_lite_critics(request, active_policy)
+    findings = [
+        *run_chat_lite_critics(request, active_policy),
+        *source_need_findings(request, active_policy),
+    ]
     energy_score = score_findings(findings)
     decision = decide(energy_score, active_policy, request.evidence_refs)
     card = build_energy_card(decision, energy_score)
