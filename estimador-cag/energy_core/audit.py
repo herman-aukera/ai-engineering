@@ -3,12 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from energy_core.bundle import build_bundle_manifest
 from energy_core.decider import evaluate_candidate
 from energy_core.evidence import read_evidence_records, summarize_evidence
 from energy_core.ledger import read_decisions, summarize_decisions
 from energy_core.policy import load_policy
 from energy_core.specs import summarize_spec_package
 from energy_core.state import read_candidate_state
+from energy_core.trends import summarize_decision_trends
 from energy_core.validation import validate_candidate_state, validate_policy
 
 
@@ -33,11 +35,20 @@ def build_audit_pack(
     candidate_validation = validate_candidate_state(policy, candidate)
     evidence_summary = summarize_evidence(evidence)
     ledger_summary = summarize_decisions(decisions)
+    decision_trends = summarize_decision_trends(decisions)
+    bundle_manifest = build_bundle_manifest(
+        spec_dir=spec_dir,
+        policy_path=policy_path,
+        candidate_path=candidate_path,
+        evidence_path=evidence_path,
+        decisions_path=decisions_path,
+    )
 
     ready_to_accept = bool(
         spec_coverage["complete"]
         and policy_validation["complete"]
         and candidate_validation["complete"]
+        and bundle_manifest["complete"]
         and decision.decision == "accept"
     )
 
@@ -55,6 +66,8 @@ def build_audit_pack(
         "evidence_summary": evidence_summary,
         "decision": decision.model_dump(mode="json"),
         "ledger_summary": ledger_summary,
+        "decision_trends": decision_trends,
+        "bundle_manifest": bundle_manifest,
     }
 
 
@@ -67,6 +80,8 @@ def format_audit_pack_markdown(pack: dict[str, Any]) -> str:
     candidate = pack["candidate_validation"]
     evidence = pack["evidence_summary"]
     ledger = pack["ledger_summary"]
+    trends = pack["decision_trends"]
+    bundle = pack["bundle_manifest"]
 
     return "\n".join(
         [
@@ -76,9 +91,11 @@ def format_audit_pack_markdown(pack: dict[str, Any]) -> str:
             f"- Spec complete: {spec['complete']}",
             f"- Policy complete: {policy['complete']}",
             f"- Candidate complete: {candidate['complete']}",
+            f"- Bundle complete: {bundle['complete']}",
             f"- Decision preview: {decision['decision']}",
             f"- Energy after: {decision['energy_after']}",
             f"- Existing ledger decisions: {ledger['total']}",
+            f"- Decision trend: {trends['trend']}",
             "",
             "## Paths",
             "",
@@ -134,6 +151,20 @@ def format_audit_pack_markdown(pack: dict[str, Any]) -> str:
             f"- Repair: {ledger['repair']}",
             f"- Reject: {ledger['reject']}",
             f"- Escalate: {ledger['escalate']}",
+            "",
+            "## Decision trends",
+            "",
+            f"- Trend: {trends['trend']}",
+            f"- Non accept: {trends['non_accept']}",
+            f"- Regressing steps: {trends['regressing']}",
+            f"- Average energy after: {trends['average_energy_after']}",
+            f"- Average energy delta: {trends['average_energy_delta']}",
+            "",
+            "## Bundle manifest",
+            "",
+            f"- Complete: {bundle['complete']}",
+            f"- Present files: {bundle['present_files']}/{bundle['total_files']}",
+            f"- Missing required: {_inline_list(bundle['missing_required'])}",
             "",
         ]
     )
