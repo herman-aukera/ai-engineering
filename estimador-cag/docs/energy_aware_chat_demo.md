@@ -20,6 +20,18 @@ Implemented layers:
 9. Deterministic evidence bundle builder for project and research evidence refs
 10. Dynamic Energy Chat validation gate and CI conformance tests
 
+## Repository status
+
+This branch is a final-project staging branch inside the LIDR coursework repository. It is not a normal coursework merge branch and should not be merged into `main` just because GitHub reports it as mechanically mergeable.
+
+Repository readiness and future standalone extraction strategy are documented in:
+
+    docs/energy_aware_chat_repository_readiness.md
+
+The expected future standalone repository is:
+
+    herman-aukera/energy-aware-chat
+
 ## What is deliberately not claimed yet
 
 1. No RAG grounding yet.
@@ -53,6 +65,12 @@ The validation script discovers focused tests with:
     tests/test_energy_chat_*.py
 
 This prevents new Energy Chat tests from being accidentally left out of the focused gate.
+
+For exact GitHub Actions proof, use the non-interactive helper from repository root:
+
+    bash estimador-cag/scripts/check_energy_chat_ci.sh
+
+This helper scopes the check to the current commit and `gg-finalproject-energy-aware-chat`, avoiding failed workflow runs from unrelated branches.
 
 ## Run FastAPI
 
