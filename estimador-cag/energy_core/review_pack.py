@@ -13,6 +13,10 @@ from energy_core.ledger_integrity import (
     build_ledger_integrity,
     format_ledger_integrity_markdown,
 )
+from energy_core.nightly_status import (
+    build_nightly_status,
+    format_nightly_status_markdown,
+)
 from energy_core.package_manifest import (
     build_package_manifest,
     format_package_manifest_markdown,
@@ -116,6 +120,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     package = build_package_manifest(project_root)
     command_catalog = build_command_catalog()
     export_plan = build_export_plan(project_root)
+    nightly_status = build_nightly_status(project_root)
     critic_coverage = build_critic_coverage(project_root / DEFAULT_POLICY)
     ledger_integrity = build_ledger_integrity(project_root / DEFAULT_LEDGER)
     release = build_release_readiness(
@@ -134,6 +139,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
             "Generated deterministic review artifacts:",
             "",
             "- reviewer_snapshot.md",
+            "- nightly_status.md",
             "- release_readiness.md",
             "- package_manifest.md",
             "- export_plan.md",
@@ -150,6 +156,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     return {
         "README.md": index,
         "reviewer_snapshot.md": format_reviewer_snapshot_markdown(reviewer),
+        "nightly_status.md": format_nightly_status_markdown(nightly_status),
         "release_readiness.md": format_release_readiness_markdown(release),
         "package_manifest.md": format_package_manifest_markdown(package),
         "export_plan.md": format_export_plan_markdown(export_plan),
