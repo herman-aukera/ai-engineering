@@ -8,6 +8,7 @@ REVIEWER_INDEX = (DOCS / "energy_aware_chat_reviewer_index.md").read_text(encodi
 API_SMOKE_GUIDE = (DOCS / "energy_aware_chat_api_smoke_guide.md").read_text(encoding="utf-8")
 RESULTS_TEMPLATE = (DOCS / "energy_aware_chat_demo_results_template.md").read_text(encoding="utf-8")
 LIVE_READINESS = (DOCS / "energy_aware_chat_live_demo_readiness.md").read_text(encoding="utf-8")
+BATCH13_CHECKPOINT = (DOCS / "energy_aware_chat_batch13_checkpoint.md").read_text(encoding="utf-8")
 
 
 def test_reviewer_index_points_to_core_demo_artifacts() -> None:
@@ -78,3 +79,14 @@ def test_live_demo_readiness_mentions_streamlit_and_no_fake_claims() -> None:
     assert "Streamlit" in LIVE_READINESS
     assert "measurement_only_no_quality_claim" in LIVE_READINESS
     assert "No production readiness claim" in LIVE_READINESS
+
+
+def test_batch13_checkpoint_records_demo_contract_scope_and_validation() -> None:
+    assert "demo contract and reviewer proof package" in BATCH13_CHECKPOINT
+    assert "tests/test_energy_chat_demo_payloads.py" in BATCH13_CHECKPOINT
+    assert "tests/test_energy_chat_export_manifest.py" in BATCH13_CHECKPOINT
+    assert "Runtime behavior changed" in BATCH13_CHECKPOINT
+    assert "No evaluator, critic, scorer, router, provider, benchmark, or source-guard semantics changed" in BATCH13_CHECKPOINT
+    assert "bash scripts/validate_energy_chat.sh" in BATCH13_CHECKPOINT
+    assert "bash estimador-cag/scripts/check_energy_chat_ci.sh" in BATCH13_CHECKPOINT
+    assert "measurement_only_no_quality_claim" in BATCH13_CHECKPOINT
