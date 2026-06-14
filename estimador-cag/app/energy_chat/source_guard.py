@@ -96,10 +96,17 @@ TRUSTED_EVIDENCE_PREFIXES = (
 def classify_source_need(request: SourceNeedRequest) -> SourceNeedResult:
     """Classify whether a user/draft pair needs external or project evidence."""
 
-    text = _combined_text(request.user_message, request.draft_answer)
-    source_requested = _source_requested(text, request.metadata)
-    current_markers = _matched_current_markers(text)
-    project_markers = _matched_project_markers(text, request.mode, source_requested)
+    user_text = request.user_message.casefold()
+    draft_text = (request.draft_answer or "").casefold()
+    combined_text = _combined_text(request.user_message, request.draft_answer)
+
+    source_requested = _source_requested(user_text, request.metadata)
+    current_markers = _matched_current_markers(combined_text)
+    project_markers = _matched_project_markers(
+        combined_text,
+        request.mode,
+        source_requested,
+    )
 
     requires_current_sources = request.mode == "research" or bool(current_markers)
     requires_project_sources = request.mode == "project" or bool(project_markers)
@@ -184,15 +191,18 @@ def _combined_text(user_message: str, draft_answer: str | None) -> str:
     return f"{user_message}\n{draft_answer or ''}".casefold()
 
 
-def _source_requested(text: str, metadata: dict[str, object]) -> bool:
+def _source_requested(user_text: str, metadata: dict[str, object]) -> bool:
     return bool(metadata.get("require_sources")) or any(
-        marker in text for marker in SOURCE_REQUEST_MARKERS
+        marker in user_text for marker in SOURCE_REQUEST_MARKERS
     )
 
 
 def _matched_current_markers(text: str) -> list[str]:
     markers = [marker for marker in CURRENT_FACT_MARKERS if marker in text]
-    markers.extend(marker for marker in CURRENT_FACT_CONTEXT_MARKERS if marker in text)
+    context_markers = [marker for marker in CURRENT_FACT_CONTEXT_MARKERS if marker in text]
+    if context_markers:
+        markers.append("current")
+    markers.extend(context_markers)
     return _deduplicate(markers)
 
 
