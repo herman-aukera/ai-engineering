@@ -1,6 +1,6 @@
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 SCRIPT_PATH = Path("scripts/render_energy_chat_release_snapshot.py")
 SCRIPT = SCRIPT_PATH.read_text(encoding="utf-8")
