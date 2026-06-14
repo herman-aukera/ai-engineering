@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from app.energy_chat.contracts import EnergyChatRequest, EvaluationResult
 
-
 REPAIR_NOTE = "deterministic_one_pass_repair"
 
 
