@@ -56,6 +56,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "ledger",
     },
     {
+        "id": "ledger_integrity",
+        "entrypoint": "python -m energy_core.ledger_integrity_cli",
+        "purpose": "Inspect JSONL decision ledger integrity without mutation.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "scripts/energy_core_ledger_integrity_smoke.py",
+        "category": "ledger",
+    },
+    {
         "id": "spec_coverage",
         "entrypoint": "python -m energy_core.cli spec-coverage",
         "purpose": "Check that the spec package has required files and bundled examples.",
