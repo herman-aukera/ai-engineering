@@ -29,6 +29,7 @@ Required paths:
   scripts/validate_energy_chat.sh
   scripts/check_energy_chat_ci.sh
   scripts/export_energy_chat_manifest.sh
+  scripts/render_energy_chat_release_snapshot.py
   tests/test_energy_chat_*.py
   ../.github/workflows/energy-chat-ci.yml
 
