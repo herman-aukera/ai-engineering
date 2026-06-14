@@ -36,6 +36,43 @@ This live-inspired hardening branch keeps that baseline intact and adds extra-mi
 These additions are intentionally kept on a learning branch so the official homework baseline remains explainable and scope-clean.
 
 
+### Session 08 search-quality evaluation workflow
+
+The live-inspired hardening branch includes an offline search-quality evaluator for the committed Session 08 example corpus.
+
+Files:
+
+    evals/session08_search_quality/cases.jsonl
+    evals/session08_search_quality/evaluator.py
+    evals/session08_search_quality/capture.py
+    evals/session08_search_quality/REPORT.md
+
+Safety boundaries:
+
+    No LLM judge.
+    No live provider call in tests.
+    No benchmark superiority claim.
+    This is not a Task 09 implementation claim.
+    captured responses should be reviewed before committing.
+
+Dry-run the capture payloads before calling a live API:
+
+    cd /workspaces/ai-engineering/estimador-cag
+    uv run python -m evals.session08_search_quality.capture --output /tmp/session08_search_responses.json --dry-run
+
+Capture responses from a running local FastAPI service:
+
+    cd /workspaces/ai-engineering/estimador-cag
+    uv run python -m evals.session08_search_quality.capture --base-url http://localhost:8000 --output /tmp/session08_search_responses.json --report /tmp/session08_search_quality_report.md
+
+Evaluate an already captured response map offline:
+
+    cd /workspaces/ai-engineering/estimador-cag
+    uv run python -m evals.session08_search_quality.evaluator --responses /tmp/session08_search_responses.json --report /tmp/session08_search_quality_report.md
+
+The evaluator reports answerable top-k hit rate, mean best expected rank, and whether negative-control queries still return nearest neighbors.
+
+
 ## Session 08: pgvector semantic search
 
 Current working branch:
