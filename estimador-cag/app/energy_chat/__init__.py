@@ -1,5 +1,6 @@
 """Energy Aware Chat deterministic evaluator package."""
 
+from app.energy_chat.agent import run_energy_aware_chat_agent
 from app.energy_chat.artifact_registry import (
     CORE_ARTIFACTS,
     DOC_ARTIFACTS,
@@ -15,17 +16,23 @@ from app.energy_chat.contracts import (
     DeepSeekBenchmarkCaseResult,
     DeepSeekBenchmarkRequest,
     DeepSeekBenchmarkRunResult,
+    EnergyAwareChatAgentRequest,
+    EnergyAwareChatAgentResult,
     EnergyCard,
     EnergyChatRequest,
     EnergyDecision,
     EnergyPolicy,
     EnergyScore,
     EvaluationResult,
+    ProjectRagChunk,
+    ProjectRagRequest,
+    ProjectRagResult,
     RepairEvaluationResult,
     SourceNeedRequest,
     SourceNeedResult,
 )
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
+from app.energy_chat.rag import retrieve_project_context
 from app.energy_chat.release_snapshot import (
     GateSnapshot,
     ReleaseSnapshot,
@@ -61,6 +68,8 @@ __all__ = [
     "ENERGY_CHAT_PROOF_SCRIPT",
     "ENERGY_CHAT_VALIDATION_SCRIPT",
     "ENERGY_CHAT_WORKFLOW",
+    "EnergyAwareChatAgentRequest",
+    "EnergyAwareChatAgentResult",
     "EnergyCard",
     "EnergyChatArtifact",
     "EnergyChatRequest",
@@ -69,6 +78,9 @@ __all__ = [
     "EnergyScore",
     "EvaluationResult",
     "GateSnapshot",
+    "ProjectRagChunk",
+    "ProjectRagRequest",
+    "ProjectRagResult",
     "ReleaseSnapshot",
     "RepairEvaluationResult",
     "ReviewPacket",
@@ -85,5 +97,7 @@ __all__ = [
     "evaluate_answer",
     "evaluate_with_one_pass_repair",
     "list_energy_chat_artifacts",
+    "retrieve_project_context",
+    "run_energy_aware_chat_agent",
     "write_deepseek_benchmark_report",
 ]
