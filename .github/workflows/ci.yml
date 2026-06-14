@@ -77,3 +77,13 @@ jobs:
           else
             echo "Energy Core root smoke skipped because root shim or script is absent."
           fi
+
+      - name: Git status check
+        working-directory: .
+        run: |
+          if test -n "$(git status --short)"; then
+            git status --short
+            echo "Repository is dirty after CI smoke checks."
+            exit 1
+          fi
+          echo "Repository stayed clean after CI smoke checks."
