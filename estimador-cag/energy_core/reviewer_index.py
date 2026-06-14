@@ -26,6 +26,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Lists future standalone extraction copy items and excluded incubator-only files.",
     },
     {
+        "id": "nightly_status",
+        "title": "Nightly status",
+        "command": "python -m energy_core.nightly_status_cli --format markdown --fail-on-incomplete",
+        "purpose": "Summarizes five overnight maintainer checkpoints in one status surface.",
+    },
+    {
         "id": "audit_pack",
         "title": "Audit pack",
         "command": "python -m energy_core.cli audit-pack --format markdown --fail-on-not-ready",
@@ -105,6 +111,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
         "package_manifest_required_files": package_manifest["required_total"],
         "reviewer_use": [
             "Show this snapshot before asking a human to inspect individual command outputs.",
+            "Use nightly-status as the first morning checkpoint after overnight work.",
             "Use package-manifest for copy/extraction inventory.",
             "Use export-plan for future standalone extraction planning.",
             "Use release-readiness for final extraction gate status.",
