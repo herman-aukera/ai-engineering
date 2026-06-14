@@ -20,6 +20,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Lists copy roots, required artifacts, hashes, and non-goals.",
     },
     {
+        "id": "export_plan",
+        "title": "Export plan",
+        "command": "python -m energy_core.export_plan_cli --format markdown --fail-on-not-ready",
+        "purpose": "Lists future standalone extraction copy items and excluded incubator-only files.",
+    },
+    {
         "id": "audit_pack",
         "title": "Audit pack",
         "command": "python -m energy_core.cli audit-pack --format markdown --fail-on-not-ready",
@@ -38,6 +44,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Lists supported commands, mutation behavior, root support, and smoke coverage.",
     },
     {
+        "id": "critic_coverage",
+        "title": "Critic coverage",
+        "command": "python -m energy_core.critic_coverage_cli --format markdown --fail-on-unclassified",
+        "purpose": "Shows which policy constraints are enforced by deterministic critics versus policy-only.",
+    },
+    {
         "id": "example_matrix",
         "title": "Example matrix",
         "command": "python -m energy_core.examples_cli --format markdown --fail-on-mismatch",
@@ -50,9 +62,21 @@ REVIEWER_SECTIONS = [
         "purpose": "Exposes hard reject, hard repair, soft constraints, evidence types, and decision rules.",
     },
     {
+        "id": "review_pack",
+        "title": "Review pack",
+        "command": "python -m energy_core.review_pack_cli --format markdown --fail-on-incomplete",
+        "purpose": "Exports a generated Markdown review folder for humans.",
+    },
+    {
+        "id": "scaffold",
+        "title": "Standalone scaffold",
+        "command": "python -m energy_core.scaffold_cli --format markdown --fail-on-incomplete",
+        "purpose": "Generates a non-copying standalone repository scaffold.",
+    },
+    {
         "id": "smoke_suite",
         "title": "Smoke suite",
-        "command": "python scripts/energy_core_smoke.py && python scripts/energy_core_package_smoke.py",
+        "command": "python scripts/energy_core_full_gate.py",
         "purpose": "Runs the human-facing CLI paths that reviewers are expected to trust.",
     },
 ]
@@ -76,9 +100,11 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
         "reviewer_use": [
             "Show this snapshot before asking a human to inspect individual command outputs.",
             "Use package-manifest for copy/extraction inventory.",
+            "Use export-plan for future standalone extraction planning.",
             "Use release-readiness for final extraction gate status.",
             "Use audit-pack when reviewing one candidate state against policy and evidence.",
             "Use command-catalog to understand which commands mutate the ledger.",
+            "Use critic-coverage to see which constraints are enforced versus policy-only.",
         ],
         "non_goals": [
             "This snapshot does not execute shell actions.",
