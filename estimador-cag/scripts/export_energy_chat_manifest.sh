@@ -22,6 +22,7 @@ Required paths:
   docs/energy_aware_chat_demo.md
   docs/energy_aware_chat_live_demo_readiness.md
   docs/energy_aware_chat_demo_script.md
+  docs/energy_aware_chat_demo_command_checklist.md
   docs/energy_aware_chat_api_smoke_guide.md
   docs/energy_aware_chat_demo_results_template.md
   docs/energy_aware_chat_reviewer_index.md
