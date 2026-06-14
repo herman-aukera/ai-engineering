@@ -8,8 +8,9 @@ from app.energy_chat.contracts import (
     EnergyPolicy,
     EnergyScore,
     EvaluationResult,
+    RepairEvaluationResult,
 )
-from app.energy_chat.evaluator import evaluate_answer
+from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
 
 __all__ = [
     "CriticFinding",
@@ -19,5 +20,7 @@ __all__ = [
     "EnergyPolicy",
     "EnergyScore",
     "EvaluationResult",
+    "RepairEvaluationResult",
     "evaluate_answer",
+    "evaluate_with_one_pass_repair",
 ]
