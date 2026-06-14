@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-BRANCH="${1:-gg-finalproject-energy-aware-chat}"
+BRANCH="${1:-EACHAT}"
 SHA="${2:-$(git rev-parse HEAD)}"
 WORKFLOW="${3:-Energy Aware Chat CI}"
 MAX_ATTEMPTS="${ENERGY_CHAT_CI_ATTEMPTS:-36}"
