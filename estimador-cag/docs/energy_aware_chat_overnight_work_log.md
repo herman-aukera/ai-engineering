@@ -1,8 +1,8 @@
 # Energy Aware Chat overnight work log
 
-Status: overnight safety and morning-validation handoff  
-Branch: `EACHAT`  
-Pre-overnight safepoint: `3e797790501e7920ffd245cca718a4eed1cc3803`  
+Status: overnight safety and morning-validation handoff
+Branch: `EACHAT`
+Pre-overnight safepoint: `3e797790501e7920ffd245cca718a4eed1cc3803`
 Rollback branch: `backup/EACHAT-pre-overnight-extra-20260614`
 
 ## Why this file exists
