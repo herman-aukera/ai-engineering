@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.embedding_pipeline.router import router as embedding_router
+from app.energy_chat.router import router as energy_chat_router
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.sessions import router as sessions_router
@@ -28,7 +29,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 # Wire observability middleware
@@ -38,6 +39,7 @@ setup_logging(app)
 app.include_router(estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
+app.include_router(energy_chat_router, prefix="/energy-chat", tags=["energy-chat"])
 
 
 @app.get("/health", tags=["health"])
@@ -54,6 +56,7 @@ def metrics():
     """
     return get_last_metrics()
 
+
 DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "sse_demo.html"
 
 
@@ -67,6 +70,7 @@ def browser_demo() -> FileResponse:
     DEPENDS_ON: docs/sse_demo.html
     """
     return FileResponse(DEMO_HTML_PATH)
+
 
 @app.get("/", include_in_schema=False)
 def root_demo() -> FileResponse:
