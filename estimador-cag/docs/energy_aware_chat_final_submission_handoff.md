@@ -11,8 +11,10 @@ EACHAT
 ## Latest accepted checkpoint before this handoff
 
 ```text
-b7c9244
+ef2a865
 ```
+
+The branch has since moved into a production-oriented MVP candidate with deterministic RAG grounding, deterministic agent orchestration, a DeepSeek-to-Kimi fallback seam, and deployment skeleton. Re-certify the current SHA before final submission.
 
 ## Required proof commands
 
@@ -52,14 +54,21 @@ The accepted proof must include:
 ## What to open first
 
 1. `docs/energy_aware_chat_reviewer_index.md`
-2. `docs/energy_aware_chat_final_project_proof_packet.md`
-3. `docs/energy_aware_chat_actions_filtering.md`
-4. `docs/energy_aware_chat_live_demo_readiness.md`
-5. `docs/energy_aware_chat_api_smoke_guide.md`
+2. `docs/energy_aware_chat_mvp_upgrade.md`
+3. `docs/energy_aware_chat_final_project_proof_packet.md`
+4. `docs/energy_aware_chat_actions_filtering.md`
+5. `docs/energy_aware_chat_live_demo_readiness.md`
+6. `docs/energy_aware_chat_api_smoke_guide.md`
 
 ## Claim boundaries
 
-Do not claim production readiness, deployment readiness, RAG grounding, autonomous agent orchestration, or model quality improvement. The benchmark claim remains measurement only.
+Do not claim production readiness, live public deployment, live fallback proof without the manual live smoke workflow, vector database RAG grounding, or model quality improvement. The benchmark claim remains measurement only.
+
+Allowed after current local and CI proof:
+
+```text
+production-oriented MVP candidate with deterministic RAG grounding baseline, deterministic agent orchestration, fallback seam, and deployment skeleton
+```
 
 Required token:
 
