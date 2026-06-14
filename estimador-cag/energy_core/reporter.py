@@ -116,6 +116,18 @@ def format_evidence_markdown_report(summary: dict[str, object]) -> str:
     )
 
 
+def format_evidence_summary_text(summary: dict[str, object]) -> str:
+    """Backward-compatible alias for older smoke probes."""
+
+    return format_evidence_summary(summary)
+
+
+def format_evidence_summary_markdown(summary: dict[str, object]) -> str:
+    """Backward-compatible alias for older smoke probes."""
+
+    return format_evidence_markdown_report(summary)
+
+
 def _inline_list(items: list[str]) -> str:
     return ", ".join(items) if items else "none"
 
