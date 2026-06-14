@@ -1,8 +1,7 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
-REVIEWER_INDEX = (ROOT / "docs/energy_aware_chat_reviewer_index.md").read_text(
+REVIEWER_INDEX = (ROOT / "docs" / "energy_aware_chat_reviewer_index.md").read_text(
     encoding="utf-8"
 )
 
