@@ -18,7 +18,7 @@ CORE_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
     EnergyChatArtifact(
         path="app/energy_chat/",
         kind="code",
-        purpose="deterministic evaluator package",
+        purpose="deterministic evaluator, RAG, and agent package",
     ),
     EnergyChatArtifact(
         path="energy_chat_streamlit_app.py",
@@ -41,9 +41,39 @@ CORE_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         purpose="dedicated workflow proof helper",
     ),
     EnergyChatArtifact(
+        path="scripts/smoke_energy_chat_live_provider.py",
+        kind="script",
+        purpose="manual DeepSeek and Kimi live provider smoke",
+    ),
+    EnergyChatArtifact(
+        path="scripts/start_energy_chat.sh",
+        kind="script",
+        purpose="local API start command",
+    ),
+    EnergyChatArtifact(
         path="scripts/render_energy_chat_release_snapshot.py",
         kind="script",
         purpose="release snapshot renderer",
+    ),
+    EnergyChatArtifact(
+        path="Dockerfile.energy-chat",
+        kind="deployment",
+        purpose="container image for Energy Aware Chat API",
+    ),
+    EnergyChatArtifact(
+        path="docker-compose.energy-chat.yml",
+        kind="deployment",
+        purpose="local compose deployment path",
+    ),
+    EnergyChatArtifact(
+        path="../.github/workflows/energy-chat-ci.yml",
+        kind="workflow",
+        purpose="deterministic Energy Aware Chat CI",
+    ),
+    EnergyChatArtifact(
+        path="../.github/workflows/energy-chat-live-provider-smoke.yml",
+        kind="workflow",
+        purpose="manual live provider smoke with GitHub secrets",
     ),
 )
 
@@ -52,6 +82,11 @@ DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         path="docs/energy_aware_chat_examiner_quickstart.md",
         kind="doc",
         purpose="examiner quickstart",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_mvp_upgrade.md",
+        kind="doc",
+        purpose="MVP upgrade and claim boundary",
     ),
     EnergyChatArtifact(
         path="docs/energy_aware_chat_final_submission_handoff.md",
