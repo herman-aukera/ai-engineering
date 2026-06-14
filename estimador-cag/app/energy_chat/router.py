@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.energy_chat import baseline
+from app.energy_chat import baseline, benchmark
 from app.energy_chat.contracts import (
     DeepSeekBaselineRequest,
     DeepSeekBaselineResult,
+    DeepSeekBenchmarkRequest,
+    DeepSeekBenchmarkRunResult,
     EnergyChatRequest,
     EvaluationResult,
     RepairEvaluationResult,
@@ -51,3 +53,16 @@ def draft_deepseek_baseline(request: DeepSeekBaselineRequest) -> DeepSeekBaselin
     baseline capture, not for benchmark claims yet.
     """
     return baseline.generate_deepseek_baseline_draft(request)
+
+
+@router.post("/benchmark/deepseek-energy-aware", response_model=DeepSeekBenchmarkRunResult)
+def benchmark_deepseek_energy_aware(
+    request: DeepSeekBenchmarkRequest,
+) -> DeepSeekBenchmarkRunResult:
+    """
+    Run measurement-only DeepSeek baseline plus Energy Aware evaluation.
+
+    This Slice 6 endpoint stores no benchmark claim. Normal tests monkeypatch
+    the provider call and must not require live DeepSeek credentials.
+    """
+    return benchmark.run_deepseek_energy_benchmark(request)
