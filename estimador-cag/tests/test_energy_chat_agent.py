@@ -27,8 +27,8 @@ def test_energy_chat_agent_returns_grounded_energy_card() -> None:
 def test_energy_chat_agent_preserves_rag_evidence_in_evaluation() -> None:
     result = run_energy_aware_chat_agent(
         EnergyAwareChatAgentRequest(
-            user_message="How should DeepSeek fallback to Kimi be handled?",
-            k=2,
+            user_message="How should DeepSeek fallback to Kimi backup provider routing be handled?",
+            k=6,
         )
     )
 
