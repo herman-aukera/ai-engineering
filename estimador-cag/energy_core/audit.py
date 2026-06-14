@@ -29,6 +29,7 @@ def build_audit_pack(
     evidence = read_evidence_records(evidence_path)
     decision = evaluate_candidate(policy=policy, candidate=candidate, evidence=evidence)
     decisions = read_decisions(decisions_path) if decisions_path is not None else []
+    existing_decisions_path = decisions_path if decisions_path is not None and decisions_path.exists() else None
 
     spec_coverage = summarize_spec_package(spec_dir)
     policy_validation = validate_policy(policy)
@@ -41,7 +42,7 @@ def build_audit_pack(
         policy_path=policy_path,
         candidate_path=candidate_path,
         evidence_path=evidence_path,
-        decisions_path=decisions_path,
+        decisions_path=existing_decisions_path,
     )
 
     ready_to_accept = bool(
