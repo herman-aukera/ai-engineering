@@ -170,6 +170,50 @@ def format_ledger_markdown_report(summary: dict[str, object]) -> str:
     )
 
 
+def format_spec_coverage_summary(summary: dict[str, object]) -> str:
+    return "\n".join(
+        [
+            "Energy Aware Code Spec Coverage",
+            f"Spec dir: {summary['spec_dir']}",
+            f"Complete: {summary['complete']}",
+            f"Required present: {summary['present_required']}/{summary['total_required']}",
+            f"Missing: {_inline_list(summary['missing'])}",
+            f"Required files: {_inline_mapping_bool(summary['required_files'])}",
+            f"Example files: {_inline_mapping_bool(summary['example_files'])}",
+            f"Optional files: {_inline_mapping_bool(summary['optional_files'])}",
+        ]
+    )
+
+
+def format_spec_coverage_markdown_report(summary: dict[str, object]) -> str:
+    return "\n".join(
+        [
+            "# Energy Aware Code Spec Coverage",
+            "",
+            f"- Spec dir: {summary['spec_dir']}",
+            f"- Complete: {summary['complete']}",
+            f"- Required present: {summary['present_required']}/{summary['total_required']}",
+            "",
+            "## Missing",
+            "",
+            *_bullet_list(summary["missing"]),
+            "",
+            "## Required files",
+            "",
+            *_mapping_bool_bullet_list(summary["required_files"]),
+            "",
+            "## Example files",
+            "",
+            *_mapping_bool_bullet_list(summary["example_files"]),
+            "",
+            "## Optional files",
+            "",
+            *_mapping_bool_bullet_list(summary["optional_files"]),
+            "",
+        ]
+    )
+
+
 def format_evidence_summary_text(summary: dict[str, object]) -> str:
     """Backward-compatible alias for older smoke probes."""
 
@@ -198,7 +242,23 @@ def _inline_mapping(mapping: dict[str, int]) -> str:
     return ", ".join(f"{key}={value}" for key, value in mapping.items())
 
 
+def _inline_mapping_bool(mapping: dict[str, bool]) -> str:
+    if not mapping:
+        return "none"
+    return ", ".join(f"{key}={_bool_status(value)}" for key, value in mapping.items())
+
+
 def _mapping_bullet_list(mapping: dict[str, int]) -> list[str]:
     if not mapping:
         return ["- none"]
     return [f"- {key}: {value}" for key, value in mapping.items()]
+
+
+def _mapping_bool_bullet_list(mapping: dict[str, bool]) -> list[str]:
+    if not mapping:
+        return ["- none"]
+    return [f"- {key}: {_bool_status(value)}" for key, value in mapping.items()]
+
+
+def _bool_status(value: bool) -> str:
+    return "present" if value else "missing"
