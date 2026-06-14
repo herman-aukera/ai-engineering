@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from app.energy_chat.contracts import EnergyChatRequest, EvaluationResult
 
 REPAIR_NOTE = "deterministic_one_pass_repair"
@@ -101,10 +103,11 @@ def _repair_scope_explosion(draft_answer: str) -> str:
         "langgraph": "future orchestration",
         "vector database": "future retrieval storage",
         "production ready": "MVP ready with caveats",
+        "start by skipping the current slice": "Next action: finish the current validated slice",
+        "skip the current slice": "finish the current validated slice",
+        "skip current slice": "finish the current validated slice",
     }
     repaired = draft_answer
     for marker, replacement in replacements.items():
-        repaired = repaired.replace(marker, replacement)
-        repaired = repaired.replace(marker.title(), replacement)
-        repaired = repaired.replace(marker.upper(), replacement.upper())
+        repaired = re.sub(re.escape(marker), replacement, repaired, flags=re.IGNORECASE)
     return repaired
