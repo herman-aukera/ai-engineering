@@ -10,13 +10,14 @@ Target repository:
   herman-aukera/energy-aware-chat
 
 Source branch:
-  gg-finalproject-energy-aware-chat
+  EACHAT
 
 Required paths:
   app/energy_chat/
   energy_chat_streamlit_app.py
   demo_payloads/energy_chat/
   docs/energy_aware_chat_examiner_quickstart.md
+  docs/energy_aware_chat_mvp_upgrade.md
   docs/energy_aware_chat_final_submission_handoff.md
   docs/energy_aware_chat_pr_body_draft.md
   docs/energy_aware_chat_demo.md
@@ -37,23 +38,36 @@ Required paths:
   docs/energy_aware_chat_release_snapshot.md
   scripts/validate_energy_chat.sh
   scripts/check_energy_chat_ci.sh
+  scripts/smoke_energy_chat_live_provider.py
+  scripts/start_energy_chat.sh
   scripts/export_energy_chat_manifest.sh
   scripts/render_energy_chat_release_snapshot.py
+  Dockerfile.energy-chat
+  docker-compose.energy-chat.yml
   tests/test_energy_chat_*.py
   ../.github/workflows/energy-chat-ci.yml
+  ../.github/workflows/energy-chat-live-provider-smoke.yml
 
 Required proof before export:
   bash scripts/validate_energy_chat.sh
   bash scripts/check_energy_chat_ci.sh
   git status --short
 
+Manual live proof, optional but recommended:
+  gh workflow run "Energy Aware Chat Live Provider Smoke" --ref EACHAT
+
 Claim boundary:
   measurement_only_no_quality_claim
 
+Implemented as MVP candidate:
+  deterministic RAG baseline
+  deterministic agent orchestration
+  DeepSeek-to-Kimi fallback seam
+  deployment skeleton
+
 Not exported as product claims yet:
-  RAG grounding
-  agent orchestration
   production readiness
-  DeepSeek quality improvement
-  deployment readiness
+  public deployment is live
+  quality improvement over DeepSeek
+  vector database RAG for Energy Aware Chat
 MANIFEST
