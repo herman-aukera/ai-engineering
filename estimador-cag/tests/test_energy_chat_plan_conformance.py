@@ -39,7 +39,7 @@ def test_shared_ci_keeps_energy_chat_gate_as_backstop() -> None:
 
 def test_dedicated_energy_chat_ci_is_branch_scoped_and_unambiguous() -> None:
     assert "name: Energy Aware Chat CI" in DEDICATED_CI_WORKFLOW
-    assert "gg-finalproject-energy-aware-chat" in DEDICATED_CI_WORKFLOW
+    assert "EACHAT" in DEDICATED_CI_WORKFLOW
     assert "concurrency:" in DEDICATED_CI_WORKFLOW
     assert "cancel-in-progress: true" in DEDICATED_CI_WORKFLOW
     assert "fetch-depth: 0" in DEDICATED_CI_WORKFLOW
