@@ -20,6 +20,7 @@ import streamlit as st
 
 DEFAULT_BACKEND_URL = "http://localhost:8000"
 ENERGY_CHAT_EVALUATE_PATH = "/energy-chat/evaluate"
+ENERGY_CHAT_BENCHMARK_PATH = "/energy-chat/benchmark/deepseek-energy-aware"
 BACKEND_CONNECT_TIMEOUT_SECONDS = 10
 BACKEND_READ_TIMEOUT_SECONDS = 120
 
@@ -42,6 +43,12 @@ def build_energy_chat_evaluate_url() -> str:
     return f"{get_backend_url()}{ENERGY_CHAT_EVALUATE_PATH}"
 
 
+def build_energy_chat_benchmark_url() -> str:
+    """Build the measurement-only benchmark endpoint URL."""
+
+    return f"{get_backend_url()}{ENERGY_CHAT_BENCHMARK_PATH}"
+
+
 def build_energy_chat_payload(
     user_message: str,
     draft_answer: str,
@@ -56,11 +63,44 @@ def build_energy_chat_payload(
     }
 
 
+def build_energy_chat_benchmark_payload(run_id: str | None = None) -> dict[str, Any]:
+    """Build a small fixed benchmark payload for the browser demo."""
+
+    payload: dict[str, Any] = {
+        "tier": "flash",
+        "cases": [
+            {
+                "case_id": "scoped_release_answer",
+                "user_message": "Should this answer stay scoped to the current validated slice?",
+            },
+            {
+                "case_id": "scope_creep_answer",
+                "user_message": "Review a plan that tries to skip gates and add future work.",
+            },
+        ],
+    }
+    if run_id:
+        payload["run_id"] = run_id
+    return payload
+
+
 def post_energy_chat_evaluation_request(payload: dict[str, Any]) -> dict[str, Any]:
     """Send an Energy Aware Chat evaluation request to the backend."""
 
     response = requests.post(
         build_energy_chat_evaluate_url(),
+        json=payload,
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def post_energy_chat_benchmark_request(payload: dict[str, Any]) -> dict[str, Any]:
+    """Send a measurement-only benchmark request to the backend."""
+
+    response = requests.post(
+        build_energy_chat_benchmark_url(),
         json=payload,
         timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
     )
@@ -80,6 +120,21 @@ def extract_energy_card(result: dict[str, Any]) -> dict[str, Any]:
     if isinstance(card, dict):
         return card
     return {}
+
+
+def extract_findings(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return critic findings from the current or legacy response shape."""
+
+    findings = result.get("findings")
+    if isinstance(findings, list):
+        return [item for item in findings if isinstance(item, dict)]
+
+    score = result.get("score")
+    if isinstance(score, dict):
+        score_findings = score.get("findings")
+        if isinstance(score_findings, list):
+            return [item for item in score_findings if isinstance(item, dict)]
+    return []
 
 
 def format_decision_label(decision: str) -> str:
@@ -128,7 +183,6 @@ def render_energy_card(card: dict[str, Any]) -> None:
                 st.markdown(f"- {item}")
         else:
             st.caption("No evidence refs returned.")
-
     with st.expander("Remaining caveats", expanded=bool(caveats)):
         if caveats:
             for item in caveats:
@@ -152,9 +206,82 @@ def render_evaluation_result(result: dict[str, Any]) -> None:
     """Render the deterministic evaluator result for a human demo."""
 
     render_energy_card(extract_energy_card(result))
-    render_findings(result.get("findings") or [])
+    render_findings(extract_findings(result))
 
     with st.expander("Raw evaluation result"):
+        st.json(result)
+
+
+def summarize_benchmark_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Extract compact benchmark summary metrics for Streamlit rendering."""
+
+    return {
+        "run_id": result.get("run_id", "unknown"),
+        "cases_total": result.get("cases_total", 0),
+        "accepted_baseline": result.get("accepted_baseline", 0),
+        "accepted_after_repair": result.get("accepted_after_repair", 0),
+        "repairs_attempted": result.get("repairs_attempted", 0),
+        "hard_rejects": result.get("hard_rejects", 0),
+        "claim_status": (result.get("metadata") or {}).get(
+            "claim_status",
+            "measurement_only_no_quality_claim",
+        ),
+    }
+
+
+def benchmark_case_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten benchmark case results into UI-friendly rows."""
+
+    rows: list[dict[str, Any]] = []
+    for item in result.get("results") or []:
+        if not isinstance(item, dict):
+            continue
+        case = item.get("case") or {}
+        baseline_eval = item.get("baseline_evaluation") or {}
+        baseline_decision = (baseline_eval.get("decision") or {}).get("decision", "unknown")
+        baseline_energy = (baseline_eval.get("score") or {}).get("total_energy", "unknown")
+        rows.append(
+            {
+                "case_id": case.get("case_id", "unknown"),
+                "baseline_decision": baseline_decision,
+                "final_decision": item.get("final_decision", "unknown"),
+                "baseline_energy": baseline_energy,
+                "final_energy": item.get("final_energy", "unknown"),
+                "energy_delta_after_repair": item.get(
+                    "energy_delta_after_repair",
+                    "unknown",
+                ),
+                "accepted_after_repair": item.get("accepted_after_repair", False),
+            }
+        )
+    return rows
+
+
+def render_benchmark_result(result: dict[str, Any]) -> None:
+    """Render measurement-only benchmark output for a human demo."""
+
+    summary = summarize_benchmark_result(result)
+    st.subheader("Measurement-only benchmark summary")
+    st.caption("This panel records measurements only. It does not claim improvement.")
+
+    col_cases, col_baseline, col_after, col_repairs = st.columns(4)
+    with col_cases:
+        st.metric("Cases", summary["cases_total"])
+    with col_baseline:
+        st.metric("Accepted baseline", summary["accepted_baseline"])
+    with col_after:
+        st.metric("Accepted after repair", summary["accepted_after_repair"])
+    with col_repairs:
+        st.metric("Repairs attempted", summary["repairs_attempted"])
+
+    st.caption(f"Claim status: {summary['claim_status']}")
+    rows = benchmark_case_rows(result)
+    if rows:
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+    else:
+        st.warning("No benchmark case rows returned.")
+
+    with st.expander("Raw benchmark result"):
         st.json(result)
 
 
@@ -169,8 +296,8 @@ def main() -> None:
 
     st.title("Energy Aware Chat")
     st.caption(
-        "Deterministic Slice 3 demo: paste a user request and draft answer, "
-        "then inspect the Energy Card before any model integration exists."
+        "Deterministic evaluator, FastAPI endpoint, Streamlit Energy Card, "
+        "one-pass repair seam, and measurement-only benchmark harness."
     )
 
     with st.sidebar:
@@ -178,50 +305,77 @@ def main() -> None:
         st.code(get_backend_url())
         st.caption("Set ESTIMADOR_BACKEND_URL when running outside localhost.")
         st.subheader("Scope")
-        st.markdown("- deterministic evaluator only")
-        st.markdown("- no DeepSeek call")
-        st.markdown("- no RAG")
-        st.markdown("- no repair loop yet")
+        st.markdown("- deterministic evaluator")
+        st.markdown("- FastAPI evaluation endpoint")
+        st.markdown("- one-pass deterministic repair")
+        st.markdown("- measurement-only benchmark harness")
+        st.markdown("- no RAG yet")
+        st.markdown("- no improvement claim yet")
 
-    with st.form("energy_chat_evaluation_form"):
-        user_message = st.text_area(
-            "User message",
-            value=DEMO_USER_MESSAGE,
-            height=160,
-        )
-        draft_answer = st.text_area(
-            "Draft answer candidate",
-            value=DEMO_DRAFT_ANSWER,
-            height=220,
-        )
-        mode = st.selectbox("Mode", options=["chat_lite"], index=0)
-        submitted = st.form_submit_button("Evaluate answer", type="primary")
-
-    if not submitted:
-        st.info("Submit the form to evaluate the draft answer and render an Energy Card.")
-        return
-
-    payload = build_energy_chat_payload(
-        user_message=user_message,
-        draft_answer=draft_answer,
-        mode=mode,
+    evaluate_tab, benchmark_tab = st.tabs(
+        ["Evaluate answer", "Benchmark harness"],
     )
 
-    with st.spinner("Evaluating candidate answer..."):
-        try:
-            result = post_energy_chat_evaluation_request(payload)
-        except requests.HTTPError as exc:
-            response_text = exc.response.text if exc.response is not None else str(exc)
-            st.error(f"Backend returned an error: {response_text}")
-            return
-        except requests.RequestException as exc:
-            st.error(f"Could not reach backend: {exc}")
-            return
+    with evaluate_tab:
+        with st.form("energy_chat_evaluation_form"):
+            user_message = st.text_area(
+                "User message",
+                value=DEMO_USER_MESSAGE,
+                height=160,
+            )
+            draft_answer = st.text_area(
+                "Draft answer candidate",
+                value=DEMO_DRAFT_ANSWER,
+                height=220,
+            )
+            mode = st.selectbox("Mode", options=["chat_lite"], index=0)
+            submitted = st.form_submit_button("Evaluate answer", type="primary")
 
-    render_evaluation_result(result)
+        if not submitted:
+            st.info("Submit the form to evaluate the draft answer and render an Energy Card.")
+        else:
+            payload = build_energy_chat_payload(
+                user_message=user_message,
+                draft_answer=draft_answer,
+                mode=mode,
+            )
+            with st.spinner("Evaluating candidate answer..."):
+                try:
+                    result = post_energy_chat_evaluation_request(payload)
+                except requests.HTTPError as exc:
+                    response_text = exc.response.text if exc.response is not None else str(exc)
+                    st.error(f"Backend returned an error: {response_text}")
+                except requests.RequestException as exc:
+                    st.error(f"Could not reach backend: {exc}")
+                else:
+                    render_evaluation_result(result)
+                    with st.expander("Request payload"):
+                        st.json(payload)
 
-    with st.expander("Request payload"):
-        st.json(payload)
+    with benchmark_tab:
+        st.write(
+            "Run a tiny measurement-only benchmark through the API. Normal tests "
+            "use fake providers; live provider quality is not claimed here."
+        )
+        benchmark_run_id = st.text_input(
+            "Benchmark run ID",
+            value="streamlit-demo-001",
+        )
+        benchmark_submitted = st.button("Run measurement benchmark")
+        if benchmark_submitted:
+            payload = build_energy_chat_benchmark_payload(run_id=benchmark_run_id)
+            with st.spinner("Running measurement-only benchmark..."):
+                try:
+                    benchmark_result = post_energy_chat_benchmark_request(payload)
+                except requests.HTTPError as exc:
+                    response_text = exc.response.text if exc.response is not None else str(exc)
+                    st.error(f"Backend returned an error: {response_text}")
+                except requests.RequestException as exc:
+                    st.error(f"Could not reach backend: {exc}")
+                else:
+                    render_benchmark_result(benchmark_result)
+                    with st.expander("Benchmark request payload"):
+                        st.json(payload)
 
 
 if __name__ == "__main__":
