@@ -1,7 +1,11 @@
 from pathlib import Path
 
 VALIDATION_SCRIPT = Path("scripts/validate_energy_chat.sh").read_text(encoding="utf-8")
-CI_WORKFLOW = Path("../.github/workflows/ci.yml").read_text(encoding="utf-8")
+SHARED_CI_WORKFLOW = Path("../.github/workflows/ci.yml").read_text(encoding="utf-8")
+DEDICATED_CI_WORKFLOW = Path("../.github/workflows/energy-chat-ci.yml").read_text(
+    encoding="utf-8"
+)
+CI_PROOF_SCRIPT = Path("scripts/check_energy_chat_ci.sh").read_text(encoding="utf-8")
 
 
 def test_validation_gate_discovers_energy_chat_tests_dynamically() -> None:
@@ -17,11 +21,31 @@ def test_validation_gate_fails_when_working_tree_is_dirty() -> None:
     assert "exit 1" in VALIDATION_SCRIPT
 
 
-def test_ci_runs_energy_chat_gate_on_gg_branches() -> None:
-    assert '- "gg-*"' in CI_WORKFLOW
-    assert "fetch-depth: 0" in CI_WORKFLOW
-    assert "Energy Chat validation gate" in CI_WORKFLOW
-    assert "bash scripts/validate_energy_chat.sh" in CI_WORKFLOW
+def test_shared_ci_keeps_energy_chat_gate_as_backstop() -> None:
+    assert '- "gg-*"' in SHARED_CI_WORKFLOW
+    assert "fetch-depth: 0" in SHARED_CI_WORKFLOW
+    assert "Energy Chat validation gate" in SHARED_CI_WORKFLOW
+    assert "bash scripts/validate_energy_chat.sh" in SHARED_CI_WORKFLOW
+
+
+def test_dedicated_energy_chat_ci_is_branch_scoped_and_unambiguous() -> None:
+    assert "name: Energy Aware Chat CI" in DEDICATED_CI_WORKFLOW
+    assert "gg-finalproject-energy-aware-chat" in DEDICATED_CI_WORKFLOW
+    assert "concurrency:" in DEDICATED_CI_WORKFLOW
+    assert "cancel-in-progress: true" in DEDICATED_CI_WORKFLOW
+    assert "fetch-depth: 0" in DEDICATED_CI_WORKFLOW
+    assert "bash scripts/validate_energy_chat.sh" in DEDICATED_CI_WORKFLOW
+    assert "gg-energy-aware-code" not in DEDICATED_CI_WORKFLOW
+
+
+def test_ci_proof_helper_uses_dedicated_workflow_and_exact_commit() -> None:
+    assert "Energy Aware Chat CI" in CI_PROOF_SCRIPT
+    assert '--workflow "$WORKFLOW"' in CI_PROOF_SCRIPT
+    assert '--branch "$BRANCH"' in CI_PROOF_SCRIPT
+    assert '--commit "$SHA"' in CI_PROOF_SCRIPT
+    assert "Do not use the interactive gh run selector" in CI_PROOF_SCRIPT
+    assert "gh run view --log-failed" not in CI_PROOF_SCRIPT
+    assert "--log-failed" in CI_PROOF_SCRIPT
 
 
 def test_every_energy_chat_test_is_covered_by_dynamic_gate_pattern() -> None:
