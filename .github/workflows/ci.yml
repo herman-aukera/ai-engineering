@@ -7,6 +7,7 @@ on:
       - "gg-*"
       - "sesion-*"
       - "session*"
+      - EACODE
   pull_request:
   workflow_dispatch:
 
@@ -106,7 +107,7 @@ jobs:
           if test -d energy_core && test -f scripts/energy_core_reviewer_smoke.py; then
             uv run python scripts/energy_core_reviewer_smoke.py
           else
-            echo "Energy Core reviewer smoke skipped because script or package is absent."
+            echo "Energy Core reviewer smoke skipped because script is absent."
           fi
 
       - name: Energy Core Command Catalog Smoke
@@ -115,6 +116,14 @@ jobs:
             uv run python scripts/energy_core_command_catalog_smoke.py
           else
             echo "Energy Core command catalog smoke skipped because script or package is absent."
+          fi
+
+      - name: Energy Core Full Gate
+        run: |
+          if test -d energy_core && test -f scripts/energy_core_full_gate.py; then
+            uv run python scripts/energy_core_full_gate.py
+          else
+            echo "Energy Core full gate skipped because script or package is absent."
           fi
 
       - name: Energy Core Root Smoke
