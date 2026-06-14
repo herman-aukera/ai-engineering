@@ -55,6 +55,13 @@ CURRENT_SOURCE_KINDS: set[EvidenceKind] = {
     "manual",
 }
 
+VALIDATION_COMMAND_MARKERS = (
+    "pytest",
+    "test",
+    "validation",
+    "gate",
+)
+
 
 def build_evidence_bundle(request: EvidenceBundleRequest) -> EvidenceBundleResult:
     """Normalize refs and command outputs into a project/research evidence bundle."""
@@ -154,7 +161,7 @@ def _refs_from_command_outputs(command_outputs: dict[str, str]) -> list[str]:
             refs.append("test:ruff-passed")
             continue
 
-        if ("pytest" in command or "test" in command) and "passed" in text:
+        if _looks_like_validation_command(command) and "passed" in text:
             refs.append("test:pytest-passed")
             continue
 
@@ -165,6 +172,10 @@ def _refs_from_command_outputs(command_outputs: dict[str, str]) -> list[str]:
         if output.strip():
             refs.append(f"cmd:{slug}")
     return refs
+
+
+def _looks_like_validation_command(command: str) -> bool:
+    return any(marker in command for marker in VALIDATION_COMMAND_MARKERS)
 
 
 def _slug(value: str) -> str:
