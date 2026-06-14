@@ -22,7 +22,7 @@ def test_final_submission_handoff_keeps_claim_boundary() -> None:
     assert "RAG grounding" in HANDOFF
 
 
-def test_reviewer_index_opens_with_final_submission_handoff() -> None:
+def test_reviewer_index_opens_with_examiner_quickstart_then_handoff() -> None:
     fast_path = INDEX.split("## Fast path for review", maxsplit=1)[1]
-    first_item = "1. `docs/energy_aware_chat_final_submission_handoff.md`"
-    assert first_item in fast_path
+    assert "1. `docs/energy_aware_chat_examiner_quickstart.md`" in fast_path
+    assert "2. `docs/energy_aware_chat_final_submission_handoff.md`" in fast_path
