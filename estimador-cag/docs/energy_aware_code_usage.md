@@ -16,12 +16,26 @@ Run from `estimador-cag`:
     uv run python scripts/energy_core_boundary_check.py
     uv run python scripts/energy_core_smoke.py
 
-The smoke script exercises the same commands shown below so CLI examples cannot drift silently.
+From the repository root, the incubator branch also supports `python -m energy_core.cli` through a small compatibility shim:
+
+    estimador-cag/.venv/bin/python -m energy_core.cli --help
+    estimador-cag/.venv/bin/python scripts/energy_core_root_smoke.py
+
+The CI pipeline runs both the project smoke and the repository-root smoke so examples cannot drift silently.
 
 ## Validate the policy contract
 
+From `estimador-cag`:
+
     uv run python -m energy_core.cli policy-validate \
       --policy .energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
+      --format markdown \
+      --fail-on-invalid
+
+From the repository root:
+
+    estimador-cag/.venv/bin/python -m energy_core.cli policy-validate \
+      --policy estimador-cag/.energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
       --format markdown \
       --fail-on-invalid
 
@@ -29,9 +43,19 @@ This command checks required hard constraints, required evidence types, acceptan
 
 ## Validate a candidate contract
 
+From `estimador-cag`:
+
     uv run python -m energy_core.cli candidate-validate \
       --policy .energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
       --candidate .energy/specs/0001-energy-policy-ledger/examples/candidate_accept.json \
+      --format markdown \
+      --fail-on-invalid
+
+From the repository root:
+
+    estimador-cag/.venv/bin/python -m energy_core.cli candidate-validate \
+      --policy estimador-cag/.energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
+      --candidate estimador-cag/.energy/specs/0001-energy-policy-ledger/examples/candidate_accept.json \
       --format markdown \
       --fail-on-invalid
 
