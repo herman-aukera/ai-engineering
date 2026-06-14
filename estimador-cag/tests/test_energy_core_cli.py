@@ -98,6 +98,21 @@ def test_cli_writes_markdown_report(tmp_path):
 
 def test_cli_can_fail_automation_on_non_accept_decision(tmp_path):
     decisions_path = tmp_path / "decisions.jsonl"
+    evidence_path = tmp_path / "failed-evidence.jsonl"
+    evidence_path.write_text(
+        json.dumps(
+            {
+                "evidence_id": "ev-pytest-failed",
+                "type": "pytest_output",
+                "status": "fail",
+                "summary": "focused tests failed",
+                "trusted": True,
+                "exit_code": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     result = _run_cli(
         "evaluate",
@@ -106,7 +121,7 @@ def test_cli_can_fail_automation_on_non_accept_decision(tmp_path):
         "--candidate",
         str(SPEC_DIR / "examples/candidate_reject_tests_failed.json"),
         "--evidence",
-        str(SPEC_DIR / "evidence.jsonl"),
+        str(evidence_path),
         "--decisions",
         str(decisions_path),
         "--format",
