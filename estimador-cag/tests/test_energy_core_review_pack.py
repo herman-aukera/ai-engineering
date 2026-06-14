@@ -7,11 +7,12 @@ def test_review_pack_writes_expected_artifacts(tmp_path: Path) -> None:
     summary = build_review_pack(Path("."), tmp_path / "review-pack")
 
     assert summary["complete"] is True
-    assert summary["present_total"] == 8
+    assert summary["present_total"] == 9
     filenames = {item["filename"] for item in summary["files"]}
     assert filenames == {
         "README.md",
         "reviewer_snapshot.md",
+        "nightly_status.md",
         "release_readiness.md",
         "package_manifest.md",
         "export_plan.md",
@@ -31,6 +32,7 @@ def test_review_pack_markdown_lists_outputs(tmp_path: Path) -> None:
     assert "# Energy Aware Code Review Pack" in markdown
     assert "Complete: True" in markdown
     assert "reviewer_snapshot.md" in markdown
+    assert "nightly_status.md" in markdown
     assert "package_manifest.md" in markdown
     assert "critic_coverage.md" in markdown
     assert "ledger_integrity.md" in markdown
