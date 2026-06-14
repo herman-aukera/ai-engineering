@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from energy_core.audit import build_audit_pack, format_audit_pack_markdown
+from energy_core.bundle import build_bundle_manifest, format_bundle_manifest_markdown, format_bundle_manifest_text
 from energy_core.decider import evaluate_candidate
 from energy_core.evidence import EvidenceLoadError, read_evidence_records, summarize_evidence
 from energy_core.ledger import LedgerLoadError, append_decision, read_decisions, summarize_decisions
@@ -21,6 +22,7 @@ from energy_core.reporter import (
 )
 from energy_core.specs import summarize_spec_package
 from energy_core.state import read_candidate_state
+from energy_core.trends import format_decision_trends_markdown, format_decision_trends_text, summarize_decision_trends
 from energy_core.validation import validate_candidate_state, validate_policy
 from energy_core.validation_reporter import (
     format_candidate_validation_markdown_report,
@@ -106,6 +108,19 @@ def build_parser() -> argparse.ArgumentParser:
     ledger_summary.add_argument("--format", choices=["json", "text", "markdown"], default="text")
     ledger_summary.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
 
+    decision_trends = subparsers.add_parser(
+        "decision-trends",
+        help="Summarize energy and decision trends from the append-only ledger.",
+    )
+    decision_trends.add_argument("--decisions", required=True, type=Path)
+    decision_trends.add_argument("--format", choices=["json", "text", "markdown"], default="text")
+    decision_trends.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
+    decision_trends.add_argument(
+        "--fail-on-regression",
+        action="store_true",
+        help="Return exit code 1 when the trend summary contains regressing steps.",
+    )
+
     spec_coverage = subparsers.add_parser(
         "spec-coverage",
         help="Summarize required files and examples in an Energy Aware Code spec package.",
@@ -117,6 +132,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--fail-on-incomplete",
         action="store_true",
         help="Return exit code 1 when required spec artifacts are missing.",
+    )
+
+    bundle_manifest = subparsers.add_parser(
+        "bundle-manifest",
+        help="Build a portable review-bundle manifest with file hashes and no file contents.",
+    )
+    bundle_manifest.add_argument("--spec-dir", required=True, type=Path)
+    bundle_manifest.add_argument("--policy", required=True, type=Path)
+    bundle_manifest.add_argument("--candidate", required=True, type=Path)
+    bundle_manifest.add_argument("--evidence", required=True, type=Path)
+    bundle_manifest.add_argument("--decisions", type=Path, help="Optional existing decision JSONL ledger path.")
+    bundle_manifest.add_argument("--format", choices=["json", "text", "markdown"], default="markdown")
+    bundle_manifest.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
+    bundle_manifest.add_argument(
+        "--fail-on-incomplete",
+        action="store_true",
+        help="Return exit code 1 when required bundle files are missing.",
     )
 
     audit_pack = subparsers.add_parser(
@@ -154,8 +186,12 @@ def main(argv: list[str] | None = None) -> int:
             return _run_evidence_summary(args)
         if args.command == "ledger-summary":
             return _run_ledger_summary(args)
+        if args.command == "decision-trends":
+            return _run_decision_trends(args)
         if args.command == "spec-coverage":
             return _run_spec_coverage(args)
+        if args.command == "bundle-manifest":
+            return _run_bundle_manifest(args)
         if args.command == "audit-pack":
             return _run_audit_pack(args)
     except EvidenceLoadError as exc:
@@ -270,6 +306,26 @@ def _run_ledger_summary(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_decision_trends(args: argparse.Namespace) -> int:
+    decisions = read_decisions(args.decisions)
+    summary = summarize_decision_trends(decisions)
+
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(format_decision_trends_markdown(summary), encoding="utf-8")
+
+    if args.format == "json":
+        print(json.dumps(summary, indent=2, sort_keys=True))
+    elif args.format == "markdown":
+        print(format_decision_trends_markdown(summary))
+    else:
+        print(format_decision_trends_text(summary))
+
+    if args.fail_on_regression and summary["regressing"]:
+        return 1
+    return 0
+
+
 def _run_spec_coverage(args: argparse.Namespace) -> int:
     summary = summarize_spec_package(args.spec_dir)
 
@@ -285,6 +341,31 @@ def _run_spec_coverage(args: argparse.Namespace) -> int:
         print(format_spec_coverage_summary(summary))
 
     if args.fail_on_incomplete and not summary["complete"]:
+        return 1
+    return 0
+
+
+def _run_bundle_manifest(args: argparse.Namespace) -> int:
+    manifest = build_bundle_manifest(
+        spec_dir=args.spec_dir,
+        policy_path=args.policy,
+        candidate_path=args.candidate,
+        evidence_path=args.evidence,
+        decisions_path=args.decisions,
+    )
+
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(format_bundle_manifest_markdown(manifest), encoding="utf-8")
+
+    if args.format == "json":
+        print(json.dumps(manifest, indent=2, sort_keys=True))
+    elif args.format == "markdown":
+        print(format_bundle_manifest_markdown(manifest))
+    else:
+        print(format_bundle_manifest_text(manifest))
+
+    if args.fail_on_incomplete and not manifest["complete"]:
         return 1
     return 0
 
