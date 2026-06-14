@@ -139,6 +139,7 @@
     "secret_scan_output": {"required_format": "text", "trusted": true},
     "git_diff": {"required_format": "text", "trusted": true},
     "validation_log": {"required_format": "text", "trusted": true},
+    "artifact_check": {"required_format": "text", "trusted": true},
     "agent_explanation": {"required_format": "text", "trusted": false}
   },
   "decision_rules": [
