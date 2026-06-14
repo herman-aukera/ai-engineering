@@ -54,6 +54,11 @@ DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         purpose="final submission handoff",
     ),
     EnergyChatArtifact(
+        path="docs/energy_aware_chat_pr_body_draft.md",
+        kind="doc",
+        purpose="pull request body draft",
+    ),
+    EnergyChatArtifact(
         path="docs/energy_aware_chat_reviewer_index.md",
         kind="doc",
         purpose="reviewer entry point",
