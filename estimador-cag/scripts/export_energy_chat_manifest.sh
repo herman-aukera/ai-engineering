@@ -16,6 +16,7 @@ Required paths:
   app/energy_chat/
   energy_chat_streamlit_app.py
   demo_payloads/energy_chat/
+  docs/energy_aware_chat_examiner_quickstart.md
   docs/energy_aware_chat_final_submission_handoff.md
   docs/energy_aware_chat_pr_body_draft.md
   docs/energy_aware_chat_demo.md
