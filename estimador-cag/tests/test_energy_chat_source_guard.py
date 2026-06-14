@@ -22,6 +22,24 @@ def test_chat_lite_stable_request_does_not_require_sources() -> None:
     assert result.missing_evidence is False
 
 
+def test_chat_lite_draft_evidence_word_does_not_request_sources() -> None:
+    result = classify_source_need(
+        SourceNeedRequest(
+            user_message="Recommend the safe first step.",
+            draft_answer=(
+                "Start with deterministic evaluator tests and keep provider calls deferred. "
+                "The tradeoff is a slower start but clearer validation evidence. "
+                "Next action: run the focused gate before extending the slice."
+            ),
+        )
+    )
+
+    assert result.decision == "sources_not_required"
+    assert result.requires_current_sources is False
+    assert result.requires_project_sources is False
+    assert result.missing_evidence is False
+
+
 def test_research_version_claim_requires_sources_without_evidence() -> None:
     result = classify_source_need(
         SourceNeedRequest(
