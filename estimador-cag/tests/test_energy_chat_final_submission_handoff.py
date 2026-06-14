@@ -19,10 +19,12 @@ def test_final_submission_handoff_has_required_commands() -> None:
 def test_final_submission_handoff_keeps_claim_boundary() -> None:
     assert "measurement_only_no_quality_claim" in HANDOFF
     assert "Do not claim production readiness" in HANDOFF
-    assert "RAG grounding" in HANDOFF
+    assert "deterministic RAG grounding baseline" in HANDOFF
+    assert "model quality improvement" in HANDOFF
 
 
-def test_reviewer_index_opens_with_examiner_quickstart_then_handoff() -> None:
+def test_reviewer_index_opens_with_examiner_quickstart_then_mvp_upgrade() -> None:
     fast_path = INDEX.split("## Fast path for review", maxsplit=1)[1]
     assert "1. `docs/energy_aware_chat_examiner_quickstart.md`" in fast_path
-    assert "2. `docs/energy_aware_chat_final_submission_handoff.md`" in fast_path
+    assert "2. `docs/energy_aware_chat_mvp_upgrade.md`" in fast_path
+    assert "3. `docs/energy_aware_chat_final_submission_handoff.md`" in fast_path
