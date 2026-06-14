@@ -3,7 +3,7 @@ name: Energy Aware Chat CI
 on:
   push:
     branches:
-      - gg-finalproject-energy-aware-chat
+      - EACHAT
   workflow_dispatch:
 
 permissions:
