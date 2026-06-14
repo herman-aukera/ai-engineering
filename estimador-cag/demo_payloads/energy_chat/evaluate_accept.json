@@ -1,0 +1,13 @@
+{
+  "user_message": "Review this final-project status answer and tell me whether it satisfies the constraints.",
+  "draft_answer": "The answer stays scoped to the deterministic evaluator layer, names the tradeoff, keeps provider calls deferred, and the next action is to run the Energy Chat validation gate before claiming success.",
+  "mode": "chat_lite",
+  "required_constraints": [
+    "provider calls deferred"
+  ],
+  "required_sections": [],
+  "evidence_refs": [],
+  "metadata": {
+    "demo_case": "evaluate_accept"
+  }
+}
