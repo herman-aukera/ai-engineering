@@ -49,6 +49,11 @@ CORE_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
 
 DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
     EnergyChatArtifact(
+        path="docs/energy_aware_chat_examiner_quickstart.md",
+        kind="doc",
+        purpose="examiner quickstart",
+    ),
+    EnergyChatArtifact(
         path="docs/energy_aware_chat_final_submission_handoff.md",
         kind="doc",
         purpose="final submission handoff",
