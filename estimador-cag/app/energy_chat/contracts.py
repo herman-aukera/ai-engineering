@@ -15,6 +15,17 @@ SourceNeedDecision = Literal[
     "sources_recommended",
     "sources_required",
 ]
+EvidenceKind = Literal[
+    "git",
+    "test",
+    "ci",
+    "file",
+    "source",
+    "web",
+    "manual",
+    "cmd",
+    "unknown",
+]
 
 
 class EnergyChatRequest(BaseModel):
@@ -223,5 +234,37 @@ class SourceNeedResult(BaseModel):
     missing_evidence: bool
     detected_markers: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
+    reasoning_summary: str
+    next_action: str
+
+
+class EvidenceItem(BaseModel):
+    """One normalized evidence reference visible to the evaluator or demo."""
+
+    ref: str
+    source_type: EvidenceKind
+    trusted: bool
+    summary: str = ""
+
+
+class EvidenceBundleRequest(BaseModel):
+    """Input for building a deterministic evidence bundle."""
+
+    mode: Mode = "project"
+    evidence_refs: list[str] = Field(default_factory=list)
+    command_outputs: dict[str, str] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class EvidenceBundleResult(BaseModel):
+    """Normalized evidence refs plus project/research support checks."""
+
+    mode: Mode
+    evidence_refs: list[str] = Field(default_factory=list)
+    trusted_refs: list[str] = Field(default_factory=list)
+    missing_required_kinds: list[str] = Field(default_factory=list)
+    items: list[EvidenceItem] = Field(default_factory=list)
+    can_support_project_claim: bool
+    can_support_current_claim: bool
     reasoning_summary: str
     next_action: str
