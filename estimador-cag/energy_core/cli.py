@@ -45,6 +45,7 @@ _DECISION_EXIT_CODES = {
     "reject": 2,
     "escalate": 3,
 }
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -215,9 +216,9 @@ def _run_evaluate(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
     if not args.dry_run and args.decisions is None:
         parser.error("--decisions is required unless --dry-run is used.")
 
-    policy = load_policy(args.policy)
-    candidate = read_candidate_state(args.candidate)
-    evidence = read_evidence_records(args.evidence)
+    policy = load_policy(_input_path(args.policy))
+    candidate = read_candidate_state(_input_path(args.candidate))
+    evidence = read_evidence_records(_input_path(args.evidence))
     decision = evaluate_candidate(policy=policy, candidate=candidate, evidence=evidence)
 
     if not args.dry_run:
@@ -238,7 +239,7 @@ def _run_evaluate(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
 
 
 def _run_policy_validate(args: argparse.Namespace) -> int:
-    policy = load_policy(args.policy)
+    policy = load_policy(_input_path(args.policy))
     summary = validate_policy(policy)
 
     if args.report:
@@ -258,8 +259,8 @@ def _run_policy_validate(args: argparse.Namespace) -> int:
 
 
 def _run_candidate_validate(args: argparse.Namespace) -> int:
-    policy = load_policy(args.policy)
-    candidate = read_candidate_state(args.candidate)
+    policy = load_policy(_input_path(args.policy))
+    candidate = read_candidate_state(_input_path(args.candidate))
     summary = validate_candidate_state(policy, candidate)
 
     if args.report:
@@ -279,7 +280,7 @@ def _run_candidate_validate(args: argparse.Namespace) -> int:
 
 
 def _run_evidence_summary(args: argparse.Namespace) -> int:
-    evidence = read_evidence_records(args.evidence)
+    evidence = read_evidence_records(_input_path(args.evidence))
     summary = summarize_evidence(evidence)
 
     if args.report:
@@ -297,7 +298,7 @@ def _run_evidence_summary(args: argparse.Namespace) -> int:
 
 
 def _run_ledger_summary(args: argparse.Namespace) -> int:
-    decisions = read_decisions(args.decisions)
+    decisions = read_decisions(_input_path(args.decisions))
     summary = summarize_decisions(decisions)
 
     if args.report:
@@ -315,7 +316,7 @@ def _run_ledger_summary(args: argparse.Namespace) -> int:
 
 
 def _run_decision_trends(args: argparse.Namespace) -> int:
-    decisions = read_decisions(args.decisions)
+    decisions = read_decisions(_input_path(args.decisions))
     summary = summarize_decision_trends(decisions)
 
     if args.report:
@@ -335,7 +336,7 @@ def _run_decision_trends(args: argparse.Namespace) -> int:
 
 
 def _run_spec_coverage(args: argparse.Namespace) -> int:
-    summary = summarize_spec_package(args.spec_dir)
+    summary = summarize_spec_package(_input_path(args.spec_dir))
 
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
@@ -355,11 +356,11 @@ def _run_spec_coverage(args: argparse.Namespace) -> int:
 
 def _run_bundle_manifest(args: argparse.Namespace) -> int:
     manifest = build_bundle_manifest(
-        spec_dir=args.spec_dir,
-        policy_path=args.policy,
-        candidate_path=args.candidate,
-        evidence_path=args.evidence,
-        decisions_path=args.decisions,
+        spec_dir=_input_path(args.spec_dir),
+        policy_path=_input_path(args.policy),
+        candidate_path=_input_path(args.candidate),
+        evidence_path=_input_path(args.evidence),
+        decisions_path=_optional_input_path(args.decisions),
     )
 
     if args.report:
@@ -380,11 +381,11 @@ def _run_bundle_manifest(args: argparse.Namespace) -> int:
 
 def _run_audit_pack(args: argparse.Namespace) -> int:
     pack = build_audit_pack(
-        spec_dir=args.spec_dir,
-        policy_path=args.policy,
-        candidate_path=args.candidate,
-        evidence_path=args.evidence,
-        decisions_path=args.decisions,
+        spec_dir=_input_path(args.spec_dir),
+        policy_path=_input_path(args.policy),
+        candidate_path=_input_path(args.candidate),
+        evidence_path=_input_path(args.evidence),
+        decisions_path=_optional_input_path(args.decisions),
     )
 
     if args.report:
@@ -399,6 +400,25 @@ def _run_audit_pack(args: argparse.Namespace) -> int:
     if args.fail_on_not_ready and not pack["ready_to_accept"]:
         return 1
     return 0
+
+
+def _input_path(path: Path) -> Path:
+    """Resolve package-local inputs from either project root or repository root."""
+
+    if path.is_absolute() or path.exists():
+        return path
+
+    project_relative = _PROJECT_ROOT / path
+    if project_relative.exists():
+        return project_relative
+
+    return path
+
+
+def _optional_input_path(path: Path | None) -> Path | None:
+    if path is None:
+        return None
+    return _input_path(path)
 
 
 if __name__ == "__main__":
