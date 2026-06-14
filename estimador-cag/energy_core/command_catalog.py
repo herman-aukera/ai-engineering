@@ -116,6 +116,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "policy",
     },
     {
+        "id": "nightly_status",
+        "entrypoint": "python -m energy_core.nightly_status_cli",
+        "purpose": "Build a five-section overnight status pack for maintainers.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "scripts/energy_core_nightly_status_smoke.py",
+        "category": "review",
+    },
+    {
         "id": "example_matrix",
         "entrypoint": "python -m energy_core.examples_cli",
         "purpose": "Evaluate bundled examples against their expected decisions.",
