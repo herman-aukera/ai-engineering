@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from energy_core.examples import build_example_matrix, format_example_matrix_markdown, format_example_matrix_text
+from energy_core.examples import (
+    build_example_matrix,
+    format_example_matrix_markdown,
+    format_example_matrix_text,
+)
 
 SPEC_DIR = Path(".energy/specs/0001-energy-policy-ledger")
 POLICY = SPEC_DIR / "energy-policy.yaml"
