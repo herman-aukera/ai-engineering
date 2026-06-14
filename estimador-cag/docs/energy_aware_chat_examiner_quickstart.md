@@ -14,11 +14,12 @@ Do not use the unfiltered GitHub Actions page as the proof source. It mixes unre
 
 ## Review order
 
-1. `docs/energy_aware_chat_final_submission_handoff.md`
-2. `docs/energy_aware_chat_final_project_proof_packet.md`
-3. `docs/energy_aware_chat_actions_filtering.md`
-4. `docs/energy_aware_chat_demo_script.md`
-5. `docs/energy_aware_chat_pr_body_draft.md`
+1. `docs/energy_aware_chat_mvp_upgrade.md`
+2. `docs/energy_aware_chat_final_submission_handoff.md`
+3. `docs/energy_aware_chat_final_project_proof_packet.md`
+4. `docs/energy_aware_chat_actions_filtering.md`
+5. `docs/energy_aware_chat_demo_script.md`
+6. `docs/energy_aware_chat_pr_body_draft.md`
 
 ## Local proof
 
@@ -52,6 +53,16 @@ branch = EACHAT
 sha = current HEAD
 ```
 
+## Manual live provider smoke
+
+Only after real GitHub secrets exist:
+
+```bash
+gh workflow run "Energy Aware Chat Live Provider Smoke" --ref EACHAT
+```
+
+This proves live DeepSeek visibility and live Kimi backup-tier visibility. It is separate from deterministic CI.
+
 ## Claim boundary
 
 Allowed claim:
@@ -60,4 +71,10 @@ Allowed claim:
 measurement_only_no_quality_claim
 ```
 
-Do not claim production readiness, deployment readiness, RAG grounding, autonomous agent orchestration, or quality improvement over the baseline provider.
+Allowed after local and CI proof:
+
+```text
+production-oriented MVP candidate with deterministic RAG grounding baseline, deterministic agent orchestration, fallback seam, and deployment skeleton
+```
+
+Do not claim production readiness, a live public deployment, quality improvement over DeepSeek, live fallback proof without the manual smoke workflow, or vector database RAG grounding for Energy Aware Chat.
