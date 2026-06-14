@@ -60,6 +60,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_roadmap.md",
     "docs/energy_aware_code_package_manifest.md",
     "docs/energy_aware_code_reviewer_snapshot.md",
+    "docs/energy_aware_code_command_catalog.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
