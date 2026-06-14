@@ -11,7 +11,7 @@ Run from `estimador-cag`:
     uv run ruff check --fix energy_core tests scripts
     uv run ruff check energy_core tests scripts
     uv run python -m py_compile $(find energy_core tests scripts -name '*.py' -type f)
-    uv run pytest -q tests/test_energy_core_policy_loading.py tests/test_energy_core_decider_accept.py tests/test_energy_core_decider_hard_reject.py tests/test_energy_core_decider_hard_repair.py tests/test_energy_core_ledger_append_only.py tests/test_energy_core_cli.py tests/test_energy_core_evidence_summary.py tests/test_energy_core_package_boundary.py tests/test_energy_core_spec_coverage.py tests/test_energy_core_validation.py
+    uv run pytest -q tests/test_energy_core_policy_loading.py tests/test_energy_core_decider_accept.py tests/test_energy_core_decider_hard_reject.py tests/test_energy_core_decider_hard_repair.py tests/test_energy_core_ledger_append_only.py tests/test_energy_core_cli.py tests/test_energy_core_evidence_summary.py tests/test_energy_core_package_boundary.py tests/test_energy_core_spec_coverage.py tests/test_energy_core_validation.py tests/test_energy_core_audit_pack.py
     uv run pytest -q
     uv run python scripts/energy_core_boundary_check.py
     uv run python scripts/energy_core_smoke.py
@@ -109,6 +109,33 @@ This command validates that the spec package has the required requirements, desi
     uv run python -m energy_core.cli ledger-summary \
       --decisions /tmp/eac-decisions.jsonl \
       --format markdown
+
+## Build one audit pack before human review
+
+From `estimador-cag`:
+
+    uv run python -m energy_core.cli audit-pack \
+      --spec-dir .energy/specs/0001-energy-policy-ledger \
+      --policy .energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
+      --candidate .energy/specs/0001-energy-policy-ledger/examples/candidate_accept.json \
+      --evidence .energy/specs/0001-energy-policy-ledger/evidence.jsonl \
+      --decisions /tmp/eac-decisions.jsonl \
+      --format markdown \
+      --report /tmp/eac-audit-pack.md \
+      --fail-on-not-ready
+
+From the repository root:
+
+    estimador-cag/.venv/bin/python -m energy_core.cli audit-pack \
+      --spec-dir estimador-cag/.energy/specs/0001-energy-policy-ledger \
+      --policy estimador-cag/.energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
+      --candidate estimador-cag/.energy/specs/0001-energy-policy-ledger/examples/candidate_accept.json \
+      --evidence estimador-cag/.energy/specs/0001-energy-policy-ledger/evidence.jsonl \
+      --decisions /tmp/eac-decisions.jsonl \
+      --format markdown \
+      --fail-on-not-ready
+
+This command combines spec coverage, policy validation, candidate validation, evidence summary, decision preview, and ledger summary into one deterministic review packet. It does not append to the ledger.
 
 ## Fail automation on non-accept decisions
 
