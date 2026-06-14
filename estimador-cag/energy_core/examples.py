@@ -66,10 +66,7 @@ def format_example_matrix_text(matrix: dict[str, Any]) -> str:
         f"Missing examples: {_inline_list(matrix['missing_examples'])}",
         "Cases:",
     ]
-    lines.extend(
-        f"- {case['example']}: expected={case['expected_decision']}, actual={case['actual_decision']}, passed={case['passed']}"
-        for case in matrix["cases"]
-    )
+    lines.extend(_case_text(case) for case in matrix["cases"])
     return "\n".join(lines)
 
 
@@ -89,21 +86,7 @@ def format_example_matrix_markdown(matrix: dict[str, Any]) -> str:
         "",
     ]
     for case in matrix["cases"]:
-        lines.extend(
-            [
-                f"### {case['example']}",
-                "",
-                f"- Candidate: {case['candidate_id']}",
-                f"- Expected decision: {case['expected_decision']}",
-                f"- Actual decision: {case['actual_decision']}",
-                f"- Passed: {case['passed']}",
-                f"- Energy after: {case['energy_after']}",
-                f"- Hard reject: {_inline_list(case['hard_reject_violations'])}",
-                f"- Hard repair: {_inline_list(case['hard_repair_violations'])}",
-                f"- Missing evidence: {_inline_list(case['missing_evidence'])}",
-                "",
-            ]
-        )
+        lines.extend(_case_markdown(case))
     return "\n".join(lines)
 
 
@@ -139,6 +122,31 @@ def _case_summary(filename: str, expected_decision: str, decision: EnergyDecisio
         "missing_evidence": decision.missing_evidence,
         "next_action": decision.next_action,
     }
+
+
+def _case_text(case: dict[str, Any]) -> str:
+    return (
+        f"- {case['example']}: "
+        f"expected={case['expected_decision']}, "
+        f"actual={case['actual_decision']}, "
+        f"passed={case['passed']}"
+    )
+
+
+def _case_markdown(case: dict[str, Any]) -> list[str]:
+    return [
+        f"### {case['example']}",
+        "",
+        f"- Candidate: {case['candidate_id']}",
+        f"- Expected decision: {case['expected_decision']}",
+        f"- Actual decision: {case['actual_decision']}",
+        f"- Passed: {case['passed']}",
+        f"- Energy after: {case['energy_after']}",
+        f"- Hard reject: {_inline_list(case['hard_reject_violations'])}",
+        f"- Hard repair: {_inline_list(case['hard_repair_violations'])}",
+        f"- Missing evidence: {_inline_list(case['missing_evidence'])}",
+        "",
+    ]
 
 
 def _inline_list(items: list[str]) -> str:
