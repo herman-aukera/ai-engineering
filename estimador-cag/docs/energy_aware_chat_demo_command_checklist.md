@@ -6,7 +6,7 @@ Status: command-only checklist for local demo reproduction.
 
 ```bash
 cd /workspaces/ai-engineering
-git switch gg-finalproject-energy-aware-chat
+git switch EACHAT
 git pull --ff-only
 cd estimador-cag
 ```
