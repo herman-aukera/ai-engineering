@@ -18,6 +18,8 @@ def main() -> int:
     help_result = _run("--help")
     _assert("policy-validate" in help_result.stdout, "root help should include policy-validate")
     _assert("candidate-validate" in help_result.stdout, "root help should include candidate-validate")
+    _assert("decision-trends" in help_result.stdout, "root help should include decision-trends")
+    _assert("bundle-manifest" in help_result.stdout, "root help should include bundle-manifest")
     _assert("audit-pack" in help_result.stdout, "root help should include audit-pack")
 
     policy = _run(
@@ -83,6 +85,33 @@ def main() -> int:
             "--format",
             "json",
         )
+        trends = _run(
+            "decision-trends",
+            "--decisions",
+            str(decisions),
+            "--format",
+            "json",
+        )
+        _assert(json.loads(trends.stdout)["total"] == 1, "root decision trends should count ledger rows")
+
+        bundle = _run(
+            "bundle-manifest",
+            "--spec-dir",
+            str(SPEC_DIR),
+            "--policy",
+            str(POLICY),
+            "--candidate",
+            str(ACCEPT_CANDIDATE),
+            "--evidence",
+            str(EVIDENCE),
+            "--decisions",
+            str(decisions),
+            "--format",
+            "json",
+            "--fail-on-incomplete",
+        )
+        _assert(json.loads(bundle.stdout)["complete"] is True, "root bundle manifest should be complete")
+
         audit = _run(
             "audit-pack",
             "--spec-dir",
