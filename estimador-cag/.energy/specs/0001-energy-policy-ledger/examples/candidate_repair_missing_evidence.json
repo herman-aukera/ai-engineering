@@ -1,0 +1,11 @@
+{
+  "candidate_id": "slice-001-missing-evidence",
+  "spec_id": "0001-energy-policy-ledger",
+  "energy_before": 300,
+  "changed_files": ["energy_core/cli.py"],
+  "required_artifacts": [],
+  "present_artifacts": [],
+  "validation_claims": ["implementation complete"],
+  "scope_claims": [],
+  "soft_flags": []
+}
