@@ -24,7 +24,8 @@ OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q \
   tests/test_energy_chat_streamlit_app.py \
   tests/test_energy_chat_baseline.py \
   tests/test_energy_chat_benchmark.py \
-  tests/test_energy_chat_reports.py
+  tests/test_energy_chat_reports.py \
+  tests/test_energy_chat_documentation.py
 
 echo "=== ENERGY CHAT VALIDATION: FULL TEST SUITE ==="
 OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
