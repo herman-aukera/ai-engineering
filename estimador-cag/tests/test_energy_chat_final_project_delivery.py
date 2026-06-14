@@ -47,12 +47,13 @@ def test_session17_backlog_prevents_random_scope_creep() -> None:
 def test_export_manifest_names_future_repo_and_required_paths() -> None:
     required_fragments = [
         "herman-aukera/energy-aware-chat",
-        "gg-finalproject-energy-aware-chat",
+        "EACHAT",
         "app/energy_chat/",
         "energy_chat_streamlit_app.py",
         "docs/energy_aware_chat_final_project_delivery_plan.md",
         "docs/energy_aware_chat_demo_walkthrough.md",
         "docs/energy_aware_chat_session17_backlog.md",
+        "docs/energy_aware_chat_mvp_upgrade.md",
         "scripts/validate_energy_chat.sh",
         "scripts/check_energy_chat_ci.sh",
         "tests/test_energy_chat_*.py",
@@ -64,8 +65,7 @@ def test_export_manifest_names_future_repo_and_required_paths() -> None:
 
 
 def test_export_manifest_keeps_non_claimed_layers_explicit() -> None:
-    assert "RAG grounding" in EXPORT_MANIFEST
-    assert "agent orchestration" in EXPORT_MANIFEST
     assert "production readiness" in EXPORT_MANIFEST
-    assert "DeepSeek quality improvement" in EXPORT_MANIFEST
-    assert "deployment readiness" in EXPORT_MANIFEST
+    assert "public deployment is live" in EXPORT_MANIFEST
+    assert "quality improvement over DeepSeek" in EXPORT_MANIFEST
+    assert "vector database RAG" in EXPORT_MANIFEST
