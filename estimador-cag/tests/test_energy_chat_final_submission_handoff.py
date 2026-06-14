@@ -10,7 +10,7 @@ INDEX = (ROOT / "docs" / "energy_aware_chat_reviewer_index.md").read_text(
 
 
 def test_final_submission_handoff_has_required_commands() -> None:
-    assert "gg-finalproject-energy-aware-chat" in HANDOFF
+    assert "EACHAT" in HANDOFF
     assert "bash scripts/validate_energy_chat.sh" in HANDOFF
     assert "bash estimador-cag/scripts/check_energy_chat_ci.sh" in HANDOFF
     assert "Energy Aware Chat CI" in HANDOFF
