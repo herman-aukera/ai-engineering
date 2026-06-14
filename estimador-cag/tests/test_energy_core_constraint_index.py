@@ -70,7 +70,7 @@ def test_constraint_index_cli_outputs_json() -> None:
 
 def test_constraint_index_cli_works_from_repository_root() -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    python_bin = repo_root / ".venv" / "bin" / "python"
+    python_bin = repo_root / "estimador-cag" / ".venv" / "bin" / "python"
     if not python_bin.exists():
         python_bin = Path(sys.executable)
 
@@ -85,7 +85,7 @@ def test_constraint_index_cli_works_from_repository_root() -> None:
             "text",
             "--fail-on-incomplete",
         ],
-        cwd=repo_root.parent,
+        cwd=repo_root,
         check=True,
         capture_output=True,
         text=True,
