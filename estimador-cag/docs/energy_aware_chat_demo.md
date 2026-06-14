@@ -19,6 +19,7 @@ Implemented layers:
 8. Deterministic source-needed classifier for research and project-mode preparation
 9. Deterministic evidence bundle builder for project and research evidence refs
 10. Dynamic Energy Chat validation gate and CI conformance tests
+11. Final-project repository readiness and delivery proof kit
 
 ## Repository status
 
@@ -27,6 +28,18 @@ This branch is a final-project staging branch inside the LIDR coursework reposit
 Repository readiness and future standalone extraction strategy are documented in:
 
     docs/energy_aware_chat_repository_readiness.md
+
+The final-project delivery plan is documented in:
+
+    docs/energy_aware_chat_final_project_delivery_plan.md
+
+The reviewer demo walkthrough is documented in:
+
+    docs/energy_aware_chat_demo_walkthrough.md
+
+The controlled Session 17 backlog is documented in:
+
+    docs/energy_aware_chat_session17_backlog.md
 
 The expected future standalone repository is:
 
@@ -71,6 +84,10 @@ For exact GitHub Actions proof, use the non-interactive helper from repository r
     bash estimador-cag/scripts/check_energy_chat_ci.sh
 
 This helper scopes the check to the current commit and `gg-finalproject-energy-aware-chat`, avoiding failed workflow runs from unrelated branches.
+
+For a future standalone repository manifest, run from `estimador-cag`:
+
+    bash scripts/export_energy_chat_manifest.sh
 
 ## Run FastAPI
 
