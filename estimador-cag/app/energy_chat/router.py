@@ -13,8 +13,11 @@ from app.energy_chat.contracts import (
     EnergyChatRequest,
     EvaluationResult,
     RepairEvaluationResult,
+    SourceNeedRequest,
+    SourceNeedResult,
 )
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
+from app.energy_chat.source_guard import classify_source_need
 
 router = APIRouter()
 
@@ -41,6 +44,17 @@ def evaluate_energy_chat_with_one_pass_repair(request: EnergyChatRequest) -> Rep
     text patches for known critic findings.
     """
     return evaluate_with_one_pass_repair(request)
+
+
+@router.post("/source-needed", response_model=SourceNeedResult)
+def classify_energy_chat_source_need(request: SourceNeedRequest) -> SourceNeedResult:
+    """
+    Classify whether the request needs current or project evidence.
+
+    This Batch 8 endpoint prepares research and project modes without adding
+    RAG yet. It is deterministic, provider-free, and CI safe.
+    """
+    return classify_source_need(request)
 
 
 @router.post("/draft/deepseek-baseline", response_model=DeepSeekBaselineResult)
