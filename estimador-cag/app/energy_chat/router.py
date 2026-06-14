@@ -5,21 +5,27 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.energy_chat import baseline, benchmark
+from app.energy_chat.agent import run_energy_aware_chat_agent
 from app.energy_chat.contracts import (
     DeepSeekBaselineRequest,
     DeepSeekBaselineResult,
     DeepSeekBenchmarkRequest,
     DeepSeekBenchmarkRunResult,
+    EnergyAwareChatAgentRequest,
+    EnergyAwareChatAgentResult,
     EnergyChatRequest,
     EvaluationResult,
     EvidenceBundleRequest,
     EvidenceBundleResult,
+    ProjectRagRequest,
+    ProjectRagResult,
     RepairEvaluationResult,
     SourceNeedRequest,
     SourceNeedResult,
 )
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
 from app.energy_chat.evidence import build_evidence_bundle
+from app.energy_chat.rag import retrieve_project_context
 from app.energy_chat.source_guard import classify_source_need
 
 router = APIRouter()
@@ -72,6 +78,30 @@ def build_energy_chat_evidence_bundle(
     evidence strings into typed refs that the evaluator can already consume.
     """
     return build_evidence_bundle(request)
+
+
+@router.post("/rag/search", response_model=ProjectRagResult)
+def search_energy_chat_project_sources(request: ProjectRagRequest) -> ProjectRagResult:
+    """
+    Retrieve committed project-source evidence for Energy Aware Chat answers.
+
+    This Slice 21 endpoint is the CI-safe RAG baseline. It uses deterministic
+    lexical cosine retrieval over committed project-source chunks, not live web,
+    provider embeddings, or production vector search.
+    """
+    return retrieve_project_context(request)
+
+
+@router.post("/chat", response_model=EnergyAwareChatAgentResult)
+def chat_energy_aware_mvp(request: EnergyAwareChatAgentRequest) -> EnergyAwareChatAgentResult:
+    """
+    Run the local MVP agent path: retrieve, draft, critique, repair, and return an Energy Card.
+
+    This endpoint provides deterministic agent orchestration for final-project
+    validation while keeping live provider calls and deployment evidence as
+    separate controlled gates.
+    """
+    return run_energy_aware_chat_agent(request)
 
 
 @router.post("/draft/deepseek-baseline", response_model=DeepSeekBaselineResult)
