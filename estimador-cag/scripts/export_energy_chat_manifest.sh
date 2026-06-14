@@ -15,16 +15,22 @@ Source branch:
 Required paths:
   app/energy_chat/
   energy_chat_streamlit_app.py
+  demo_payloads/energy_chat/
   docs/energy_aware_chat_demo.md
+  docs/energy_aware_chat_live_demo_readiness.md
+  docs/energy_aware_chat_api_smoke_guide.md
+  docs/energy_aware_chat_demo_results_template.md
+  docs/energy_aware_chat_reviewer_index.md
   docs/energy_aware_chat_repository_readiness.md
   docs/energy_aware_chat_final_project_delivery_plan.md
   docs/energy_aware_chat_demo_walkthrough.md
   docs/energy_aware_chat_session17_backlog.md
+  docs/energy_aware_chat_standalone_export_readme.md
   scripts/validate_energy_chat.sh
   scripts/check_energy_chat_ci.sh
   scripts/export_energy_chat_manifest.sh
   tests/test_energy_chat_*.py
-  ../.github/workflows/ci.yml
+  ../.github/workflows/energy-chat-ci.yml
 
 Required proof before export:
   bash scripts/validate_energy_chat.sh
