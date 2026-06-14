@@ -105,6 +105,38 @@ def test_cli_decision_trends_and_bundle_manifest(tmp_path: Path) -> None:
     assert any(entry["role"] == "active_decisions" for entry in bundle_payload["files"])
 
 
+def test_cli_bundle_manifest_resolves_dot_energy_paths_from_repo_root(tmp_path: Path, monkeypatch, capsys) -> None:
+    from energy_core import cli
+
+    decisions = tmp_path / "decisions.jsonl"
+    monkeypatch.chdir(PROJECT_ROOT.parent)
+
+    exit_code = cli.main(
+        [
+            "bundle-manifest",
+            "--spec-dir",
+            ".energy/specs/0001-energy-policy-ledger",
+            "--policy",
+            ".energy/specs/0001-energy-policy-ledger/energy-policy.yaml",
+            "--candidate",
+            ".energy/specs/0001-energy-policy-ledger/examples/candidate_accept.json",
+            "--evidence",
+            ".energy/specs/0001-energy-policy-ledger/evidence.jsonl",
+            "--decisions",
+            str(decisions),
+            "--format",
+            "json",
+            "--fail-on-incomplete",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["complete"] is True
+    assert payload["missing_required"] == []
+    assert "/estimador-cag/.energy/" in payload["spec_dir"]
+
+
 def _decision(
     *,
     candidate_id: str,
