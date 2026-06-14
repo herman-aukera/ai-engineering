@@ -188,3 +188,79 @@ def test_cli_evidence_summary_outputs_json_and_markdown_report(tmp_path):
     assert summary["by_status"] == {"pass": 5}
     assert "# Energy Aware Code Evidence Summary" in markdown_result.stdout
     assert "# Energy Aware Code Evidence Summary" in report
+
+
+def test_cli_ledger_summary_outputs_decision_history(tmp_path):
+    decisions_path = tmp_path / "decisions.jsonl"
+    report_path = tmp_path / "ledger-report.md"
+    failed_evidence_path = tmp_path / "failed-evidence.jsonl"
+    failed_evidence_path.write_text(
+        json.dumps(
+            {
+                "evidence_id": "ev-pytest-failed",
+                "type": "pytest_output",
+                "status": "fail",
+                "summary": "focused tests failed",
+                "trusted": True,
+                "exit_code": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    _run_cli(
+        "evaluate",
+        "--policy",
+        str(SPEC_DIR / "energy-policy.yaml"),
+        "--candidate",
+        str(SPEC_DIR / "examples/candidate_accept.json"),
+        "--evidence",
+        str(SPEC_DIR / "evidence.jsonl"),
+        "--decisions",
+        str(decisions_path),
+        "--format",
+        "json",
+    )
+    _run_cli(
+        "evaluate",
+        "--policy",
+        str(SPEC_DIR / "energy-policy.yaml"),
+        "--candidate",
+        str(SPEC_DIR / "examples/candidate_reject_tests_failed.json"),
+        "--evidence",
+        str(failed_evidence_path),
+        "--decisions",
+        str(decisions_path),
+        "--format",
+        "json",
+        "--fail-on-non-accept",
+        check=False,
+    )
+
+    json_result = _run_cli(
+        "ledger-summary",
+        "--decisions",
+        str(decisions_path),
+        "--format",
+        "json",
+    )
+    markdown_result = _run_cli(
+        "ledger-summary",
+        "--decisions",
+        str(decisions_path),
+        "--format",
+        "markdown",
+        "--report",
+        str(report_path),
+    )
+
+    summary = json.loads(json_result.stdout)
+    report = report_path.read_text(encoding="utf-8")
+
+    assert summary["total"] == 2
+    assert summary["by_decision"] == {"accept": 1, "reject": 1}
+    assert summary["latest_decision"]["decision"] == "reject"
+    assert "# Energy Aware Code Decision Ledger Summary" in markdown_result.stdout
+    assert "slice-001-accept" in markdown_result.stdout
+    assert "# Energy Aware Code Decision Ledger Summary" in report
