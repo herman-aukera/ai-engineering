@@ -19,10 +19,72 @@ def main() -> int:
         tmp_path = Path(tmp)
         decisions = tmp_path / "decisions.jsonl"
         report = tmp_path / "decision-report.md"
+        policy_report = tmp_path / "policy-report.md"
+        candidate_report = tmp_path / "candidate-report.md"
         evidence_report = tmp_path / "evidence-report.md"
         ledger_report = tmp_path / "ledger-report.md"
         spec_report = tmp_path / "spec-report.md"
         failed_evidence = tmp_path / "failed-evidence.jsonl"
+
+        policy_validation = _run(
+            "policy-validate",
+            "--policy",
+            str(POLICY),
+            "--format",
+            "json",
+            "--fail-on-invalid",
+        )
+        policy_payload = json.loads(policy_validation.stdout)
+        _assert(policy_payload["complete"] is True, "policy validation should pass")
+        policy_markdown = _run(
+            "policy-validate",
+            "--policy",
+            str(POLICY),
+            "--format",
+            "markdown",
+            "--report",
+            str(policy_report),
+        )
+        _assert(
+            "# Energy Aware Code Policy Validation" in policy_markdown.stdout,
+            "policy validation Markdown should print",
+        )
+        _assert(
+            "# Energy Aware Code Policy Validation" in policy_report.read_text(encoding="utf-8"),
+            "policy validation Markdown report should be written",
+        )
+
+        candidate_validation = _run(
+            "candidate-validate",
+            "--policy",
+            str(POLICY),
+            "--candidate",
+            str(ACCEPT_CANDIDATE),
+            "--format",
+            "json",
+            "--fail-on-invalid",
+        )
+        candidate_payload = json.loads(candidate_validation.stdout)
+        _assert(candidate_payload["complete"] is True, "candidate validation should pass")
+        candidate_markdown = _run(
+            "candidate-validate",
+            "--policy",
+            str(POLICY),
+            "--candidate",
+            str(ACCEPT_CANDIDATE),
+            "--format",
+            "markdown",
+            "--report",
+            str(candidate_report),
+        )
+        _assert(
+            "# Energy Aware Code Candidate Validation" in candidate_markdown.stdout,
+            "candidate validation Markdown should print",
+        )
+        _assert(
+            "# Energy Aware Code Candidate Validation" in candidate_report.read_text(encoding="utf-8"),
+            "candidate validation Markdown report should be written",
+        )
 
         accept_json = _run(
             "evaluate",
