@@ -12,12 +12,10 @@ from app.energy_chat.contracts import (
 
 CURRENT_FACT_MARKERS = (
     "latest",
-    "current",
-    "currently",
+    "currently available",
     "today",
     "nowadays",
     "as of",
-    "2026",
     "price",
     "pricing",
     "law",
@@ -27,27 +25,59 @@ CURRENT_FACT_MARKERS = (
     "model availability",
     "api documentation",
     "api docs",
-    "version",
     "release notes",
 )
 
-PROJECT_SOURCE_MARKERS = (
+CURRENT_FACT_CONTEXT_MARKERS = (
+    "current api",
+    "current version",
+    "current model",
+    "current provider",
+    "current price",
+    "current pricing",
+    "current law",
+    "current regulation",
+    "current deadline",
+    "current release",
+)
+
+PROJECT_STRONG_MARKERS = (
     "branch",
     "repo",
     "repository",
     "codespaces",
-    "validation gate",
-    "tests",
-    "pytest",
-    "ruff",
     "ci",
     "readme",
     "task",
     "session",
     "lidr",
     "final project",
-    "energy aware",
     "source pack",
+)
+
+PROJECT_WEAK_MARKERS = (
+    "validation gate",
+    "tests",
+    "pytest",
+    "ruff",
+    "energy aware",
+)
+
+SOURCE_REQUEST_MARKERS = (
+    "cite",
+    "citation",
+    "source",
+    "sources",
+    "evidence",
+    "reference",
+    "references",
+    "grounded",
+    "verify",
+    "official docs",
+    "according to",
+    "based on the repository",
+    "based on repo",
+    "based on the source pack",
 )
 
 TRUSTED_EVIDENCE_PREFIXES = (
@@ -67,8 +97,9 @@ def classify_source_need(request: SourceNeedRequest) -> SourceNeedResult:
     """Classify whether a user/draft pair needs external or project evidence."""
 
     text = _combined_text(request.user_message, request.draft_answer)
-    current_markers = _matched_markers(text, CURRENT_FACT_MARKERS)
-    project_markers = _matched_markers(text, PROJECT_SOURCE_MARKERS)
+    source_requested = _source_requested(text, request.metadata)
+    current_markers = _matched_current_markers(text)
+    project_markers = _matched_project_markers(text, request.mode, source_requested)
 
     requires_current_sources = request.mode == "research" or bool(current_markers)
     requires_project_sources = request.mode == "project" or bool(project_markers)
@@ -153,8 +184,27 @@ def _combined_text(user_message: str, draft_answer: str | None) -> str:
     return f"{user_message}\n{draft_answer or ''}".casefold()
 
 
-def _matched_markers(text: str, markers: tuple[str, ...]) -> list[str]:
-    return [marker for marker in markers if marker in text]
+def _source_requested(text: str, metadata: dict[str, object]) -> bool:
+    return bool(metadata.get("require_sources")) or any(
+        marker in text for marker in SOURCE_REQUEST_MARKERS
+    )
+
+
+def _matched_current_markers(text: str) -> list[str]:
+    markers = [marker for marker in CURRENT_FACT_MARKERS if marker in text]
+    markers.extend(marker for marker in CURRENT_FACT_CONTEXT_MARKERS if marker in text)
+    return _deduplicate(markers)
+
+
+def _matched_project_markers(text: str, mode: str, source_requested: bool) -> list[str]:
+    markers = [marker for marker in PROJECT_STRONG_MARKERS if marker in text]
+    if mode == "project" or source_requested:
+        markers.extend(marker for marker in PROJECT_WEAK_MARKERS if marker in text)
+    return _deduplicate(markers)
+
+
+def _deduplicate(markers: list[str]) -> list[str]:
+    return list(dict.fromkeys(markers))
 
 
 def _has_trusted_evidence(evidence_refs: list[str]) -> bool:
