@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 Decision = Literal["accept", "repair", "reject", "clarify"]
 ConstraintType = Literal["hard_reject", "hard_repair", "soft"]
 Mode = Literal["chat_lite", "research", "project", "tutor"]
+DeepSeekTier = Literal["flash", "pro"]
 
 
 class EnergyChatRequest(BaseModel):
@@ -117,3 +118,32 @@ class RepairEvaluationResult(BaseModel):
     repairs_applied: list[str] = Field(default_factory=list)
     repaired_request: EnergyChatRequest | None = None
     repaired_result: EvaluationResult | None = None
+
+
+class DeepSeekBaselineRequest(BaseModel):
+    """Input for generating one plain DeepSeek draft before energy evaluation."""
+
+    user_message: str
+    mode: Mode = "chat_lite"
+    tier: DeepSeekTier = "flash"
+    max_tokens: int = Field(default=700, ge=64, le=4000)
+    required_constraints: list[str] = Field(default_factory=list)
+    required_sections: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DeepSeekBaselineResult(BaseModel):
+    """Provider-normalized plain DeepSeek draft result for benchmark capture."""
+
+    request: DeepSeekBaselineRequest
+    draft_answer: str
+    provider: str
+    model: str
+    tier: DeepSeekTier
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    cost_usd: float | None = None
+    finish_reason: str | None = None
+    fallback_used: bool = False
+    evidence_refs: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
