@@ -27,6 +27,7 @@ def test_review_pack_cli_writes_pack(tmp_path: Path) -> None:
     assert "Complete: True" in result.stdout
     assert (output_dir / "README.md").is_file()
     assert (output_dir / "reviewer_snapshot.md").is_file()
+    assert (output_dir / "critic_coverage.md").is_file()
 
 
 def test_review_pack_cli_works_from_repo_root(tmp_path: Path) -> None:
@@ -55,3 +56,4 @@ def test_review_pack_cli_works_from_repo_root(tmp_path: Path) -> None:
     assert "Energy Aware Code Review Pack" in result.stdout
     assert "Complete: True" in result.stdout
     assert (output_dir / "command_catalog.md").is_file()
+    assert (output_dir / "export_plan.md").is_file()
