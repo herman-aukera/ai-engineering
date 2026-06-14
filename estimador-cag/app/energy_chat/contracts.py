@@ -10,6 +10,11 @@ Decision = Literal["accept", "repair", "reject", "clarify"]
 ConstraintType = Literal["hard_reject", "hard_repair", "soft"]
 Mode = Literal["chat_lite", "research", "project", "tutor"]
 DeepSeekTier = Literal["flash", "pro"]
+SourceNeedDecision = Literal[
+    "sources_not_required",
+    "sources_recommended",
+    "sources_required",
+]
 
 
 class EnergyChatRequest(BaseModel):
@@ -41,6 +46,7 @@ class EnergyPolicy(BaseModel):
             "executor_self_approved": 900,
             "leaked_or_private_source_recommended": 1000,
             "unsupported_current_claim": 900,
+            "missing_project_evidence": 800,
             "missing_user_constraint": 800,
             "scope_explosion": 700,
             "missing_mode_requirement": 600,
@@ -196,3 +202,26 @@ class DeepSeekBenchmarkRunResult(BaseModel):
     hard_rejects: int
     results: list[DeepSeekBenchmarkCaseResult] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SourceNeedRequest(BaseModel):
+    """Input for deterministic source requirement classification."""
+
+    user_message: str
+    draft_answer: str | None = None
+    mode: Mode = "chat_lite"
+    evidence_refs: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SourceNeedResult(BaseModel):
+    """Deterministic source requirement classification result."""
+
+    decision: SourceNeedDecision
+    requires_current_sources: bool
+    requires_project_sources: bool
+    missing_evidence: bool
+    detected_markers: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    reasoning_summary: str
+    next_action: str
