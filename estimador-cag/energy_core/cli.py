@@ -5,7 +5,11 @@ import json
 from pathlib import Path
 
 from energy_core.audit import build_audit_pack, format_audit_pack_markdown
-from energy_core.bundle import build_bundle_manifest, format_bundle_manifest_markdown, format_bundle_manifest_text
+from energy_core.bundle import (
+    build_bundle_manifest,
+    format_bundle_manifest_markdown,
+    format_bundle_manifest_text,
+)
 from energy_core.decider import evaluate_candidate
 from energy_core.evidence import EvidenceLoadError, read_evidence_records, summarize_evidence
 from energy_core.ledger import LedgerLoadError, append_decision, read_decisions, summarize_decisions
@@ -22,7 +26,11 @@ from energy_core.reporter import (
 )
 from energy_core.specs import summarize_spec_package
 from energy_core.state import read_candidate_state
-from energy_core.trends import format_decision_trends_markdown, format_decision_trends_text, summarize_decision_trends
+from energy_core.trends import (
+    format_decision_trends_markdown,
+    format_decision_trends_text,
+    summarize_decision_trends,
+)
 from energy_core.validation import validate_candidate_state, validate_policy
 from energy_core.validation_reporter import (
     format_candidate_validation_markdown_report,
