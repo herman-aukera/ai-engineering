@@ -6,13 +6,15 @@ from pathlib import Path
 
 from energy_core.decider import evaluate_candidate
 from energy_core.evidence import EvidenceLoadError, read_evidence_records, summarize_evidence
-from energy_core.ledger import append_decision
+from energy_core.ledger import LedgerLoadError, append_decision, read_decisions, summarize_decisions
 from energy_core.policy import load_policy
 from energy_core.reporter import (
     format_decision_markdown_report,
     format_decision_summary,
     format_evidence_markdown_report,
     format_evidence_summary,
+    format_ledger_markdown_report,
+    format_ledger_summary,
 )
 from energy_core.state import read_candidate_state
 
@@ -58,6 +60,14 @@ def build_parser() -> argparse.ArgumentParser:
     evidence_summary.add_argument("--format", choices=["json", "text", "markdown"], default="text")
     evidence_summary.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
 
+    ledger_summary = subparsers.add_parser(
+        "ledger-summary",
+        help="Summarize the append-only decision ledger without mutating it.",
+    )
+    ledger_summary.add_argument("--decisions", required=True, type=Path)
+    ledger_summary.add_argument("--format", choices=["json", "text", "markdown"], default="text")
+    ledger_summary.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
+
     return parser
 
 
@@ -70,7 +80,11 @@ def main(argv: list[str] | None = None) -> int:
             return _run_evaluate(args, parser)
         if args.command == "evidence-summary":
             return _run_evidence_summary(args)
+        if args.command == "ledger-summary":
+            return _run_ledger_summary(args)
     except EvidenceLoadError as exc:
+        parser.exit(2, f"error: {exc}\n")
+    except LedgerLoadError as exc:
         parser.exit(2, f"error: {exc}\n")
 
     parser.error(f"Unsupported command: {args.command}")
@@ -117,6 +131,24 @@ def _run_evidence_summary(args: argparse.Namespace) -> int:
         print(format_evidence_markdown_report(summary))
     else:
         print(format_evidence_summary(summary))
+
+    return 0
+
+
+def _run_ledger_summary(args: argparse.Namespace) -> int:
+    decisions = read_decisions(args.decisions)
+    summary = summarize_decisions(decisions)
+
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(format_ledger_markdown_report(summary), encoding="utf-8")
+
+    if args.format == "json":
+        print(json.dumps(summary, indent=2, sort_keys=True))
+    elif args.format == "markdown":
+        print(format_ledger_markdown_report(summary))
+    else:
+        print(format_ledger_summary(summary))
 
     return 0
 
