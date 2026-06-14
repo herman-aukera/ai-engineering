@@ -109,6 +109,14 @@ jobs:
             echo "Energy Core reviewer smoke skipped because script or package is absent."
           fi
 
+      - name: Energy Core Command Catalog Smoke
+        run: |
+          if test -d energy_core && test -f scripts/energy_core_command_catalog_smoke.py; then
+            uv run python scripts/energy_core_command_catalog_smoke.py
+          else
+            echo "Energy Core command catalog smoke skipped because script or package is absent."
+          fi
+
       - name: Energy Core Root Smoke
         working-directory: .
         run: |
