@@ -76,7 +76,7 @@ Read in this order:
 | evidence bundle builder | implemented |
 | DeepSeek baseline seam | implemented |
 | DeepSeek-to-Kimi fallback seam | implemented and deterministic-test covered |
-| deterministic RAG baseline | implemented |
+| deterministic RAG grounding baseline | implemented |
 | deterministic agent orchestration | implemented |
 | measurement-only benchmark harness | implemented |
 | report writer | implemented |
@@ -95,7 +95,7 @@ Do not claim these yet:
 2. Public deployment is live.
 3. Quality improvement over DeepSeek.
 4. Live provider fallback proof unless the manual live-provider smoke workflow passes.
-5. Vector database RAG for Energy Aware Chat.
+5. Vector database RAG grounding for Energy Aware Chat.
 6. Security hardening beyond the current deterministic boundaries.
 
 Required benchmark claim token:
