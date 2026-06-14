@@ -31,8 +31,7 @@ def _python_files(project_root: Path) -> list[str]:
     for root in roots:
         if root.exists():
             files.extend(
-                str(path.relative_to(project_root))
-                for path in root.rglob("*.py")
+                str(path.relative_to(project_root)) for path in root.rglob("*.py")
             )
     return sorted(files)
 
@@ -118,6 +117,18 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
                     "python",
                     "scripts/energy_core_command_catalog_smoke.py",
                 ),
+            ),
+            _project_command(
+                "Energy Core review pack smoke",
+                ("uv", "run", "python", "scripts/energy_core_review_pack_smoke.py"),
+            ),
+            _project_command(
+                "Energy Core scaffold smoke",
+                ("uv", "run", "python", "scripts/energy_core_scaffold_smoke.py"),
+            ),
+            _project_command(
+                "Energy Core export plan smoke",
+                ("uv", "run", "python", "scripts/energy_core_export_plan_smoke.py"),
             ),
             _repo_command(
                 "Energy Core root smoke",
