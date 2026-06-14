@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+cat <<'MANIFEST'
+# Energy Aware Chat standalone export manifest
+
+Target repository:
+  herman-aukera/energy-aware-chat
+
+Source branch:
+  gg-finalproject-energy-aware-chat
+
+Required paths:
+  app/energy_chat/
+  energy_chat_streamlit_app.py
+  docs/energy_aware_chat_demo.md
+  docs/energy_aware_chat_repository_readiness.md
+  docs/energy_aware_chat_final_project_delivery_plan.md
+  docs/energy_aware_chat_demo_walkthrough.md
+  docs/energy_aware_chat_session17_backlog.md
+  scripts/validate_energy_chat.sh
+  scripts/check_energy_chat_ci.sh
+  scripts/export_energy_chat_manifest.sh
+  tests/test_energy_chat_*.py
+  ../.github/workflows/ci.yml
+
+Required proof before export:
+  bash scripts/validate_energy_chat.sh
+  bash scripts/check_energy_chat_ci.sh
+  git status --short
+
+Claim boundary:
+  measurement_only_no_quality_claim
+
+Not exported as product claims yet:
+  RAG grounding
+  agent orchestration
+  production readiness
+  DeepSeek quality improvement
+  deployment readiness
+MANIFEST
