@@ -101,7 +101,14 @@ def _sha256(path: Path) -> str:
 
 
 def _is_required(role: object) -> bool:
-    return role in {"spec_required", "spec_example", "active_policy", "active_candidate", "active_evidence"}
+    return role in {
+        "spec_required",
+        "spec_example",
+        "active_policy",
+        "active_candidate",
+        "active_evidence",
+        "active_decisions",
+    }
 
 
 def _inline_list(items: object) -> str:
