@@ -4,6 +4,11 @@ from pathlib import Path
 from typing import Any
 
 from energy_core.command_catalog import build_command_catalog, format_command_catalog_markdown
+from energy_core.critic_coverage import (
+    build_critic_coverage,
+    format_critic_coverage_markdown,
+)
+from energy_core.export_plan import build_export_plan, format_export_plan_markdown
 from energy_core.package_manifest import (
     build_package_manifest,
     format_package_manifest_markdown,
@@ -95,9 +100,7 @@ def format_review_pack_markdown(summary: dict[str, Any]) -> str:
     lines.extend(["", "## Files", ""])
     for item in summary["files"]:
         status = "present" if item["exists"] else "missing"
-        lines.append(
-            f"- {item['filename']} ({status}, size={item['size_bytes']} bytes)"
-        )
+        lines.append(f"- {item['filename']} ({status}, size={item['size_bytes']} bytes)")
     lines.extend(["", "## Non goals", ""])
     lines.extend(_bullet_list(summary["non_goals"]))
     return "\n".join(lines)
@@ -107,6 +110,8 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     reviewer = build_reviewer_snapshot(project_root)
     package = build_package_manifest(project_root)
     command_catalog = build_command_catalog()
+    export_plan = build_export_plan(project_root)
+    critic_coverage = build_critic_coverage(project_root / DEFAULT_POLICY)
     release = build_release_readiness(
         project_root=project_root,
         spec_dir=project_root / DEFAULT_SPEC_DIR,
@@ -125,7 +130,9 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
             "- reviewer_snapshot.md",
             "- release_readiness.md",
             "- package_manifest.md",
+            "- export_plan.md",
             "- command_catalog.md",
+            "- critic_coverage.md",
             "",
             "This pack is generated from repository files and does not execute",
             "adapters, shell actions, or provider calls.",
@@ -138,7 +145,9 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
         "reviewer_snapshot.md": format_reviewer_snapshot_markdown(reviewer),
         "release_readiness.md": format_release_readiness_markdown(release),
         "package_manifest.md": format_package_manifest_markdown(package),
+        "export_plan.md": format_export_plan_markdown(export_plan),
         "command_catalog.md": format_command_catalog_markdown(command_catalog),
+        "critic_coverage.md": format_critic_coverage_markdown(critic_coverage),
     }
 
 
