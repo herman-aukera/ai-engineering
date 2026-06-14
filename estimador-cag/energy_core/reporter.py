@@ -67,6 +67,55 @@ def format_decision_markdown_report(decision: EnergyDecision) -> str:
     return "\n".join(sections)
 
 
+def format_evidence_summary(summary: dict[str, object]) -> str:
+    return "\n".join(
+        [
+            "Energy Aware Code Evidence Summary",
+            f"Total records: {summary['total']}",
+            f"Trusted records: {summary['trusted']}",
+            f"Not trusted records: {summary['not_trusted']}",
+            f"By status: {_inline_mapping(summary['by_status'])}",
+            f"By type: {_inline_mapping(summary['by_type'])}",
+            f"Failed evidence: {_inline_list(summary['failed_evidence'])}",
+            f"Missing evidence: {_inline_list(summary['missing_evidence'])}",
+            f"Conflicting evidence: {_inline_list(summary['conflicting_evidence'])}",
+        ]
+    )
+
+
+def format_evidence_markdown_report(summary: dict[str, object]) -> str:
+    return "\n".join(
+        [
+            "# Energy Aware Code Evidence Summary",
+            "",
+            f"- Total records: {summary['total']}",
+            f"- Trusted records: {summary['trusted']}",
+            f"- Not trusted records: {summary['not_trusted']}",
+            "",
+            "## By status",
+            "",
+            *_mapping_bullet_list(summary["by_status"]),
+            "",
+            "## By type",
+            "",
+            *_mapping_bullet_list(summary["by_type"]),
+            "",
+            "## Failed evidence",
+            "",
+            *_bullet_list(summary["failed_evidence"]),
+            "",
+            "## Missing evidence",
+            "",
+            *_bullet_list(summary["missing_evidence"]),
+            "",
+            "## Conflicting evidence",
+            "",
+            *_bullet_list(summary["conflicting_evidence"]),
+            "",
+        ]
+    )
+
+
 def _inline_list(items: list[str]) -> str:
     return ", ".join(items) if items else "none"
 
@@ -75,3 +124,15 @@ def _bullet_list(items: list[str]) -> list[str]:
     if not items:
         return ["- none"]
     return [f"- {item}" for item in items]
+
+
+def _inline_mapping(mapping: dict[str, int]) -> str:
+    if not mapping:
+        return "none"
+    return ", ".join(f"{key}={value}" for key, value in mapping.items())
+
+
+def _mapping_bullet_list(mapping: dict[str, int]) -> list[str]:
+    if not mapping:
+        return ["- none"]
+    return [f"- {key}: {value}" for key, value in mapping.items()]
