@@ -35,6 +35,7 @@ def main() -> int:
         required = [
             "README.md",
             "reviewer_snapshot.md",
+            "nightly_status.md",
             "release_readiness.md",
             "package_manifest.md",
             "export_plan.md",
