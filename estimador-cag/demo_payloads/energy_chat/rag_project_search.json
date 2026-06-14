@@ -1,0 +1,5 @@
+{
+  "query": "Which final project requirements mention RAG agents evals and deployment?",
+  "mode": "project",
+  "k": 3
+}
