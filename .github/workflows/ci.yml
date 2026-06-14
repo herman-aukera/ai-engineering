@@ -102,6 +102,14 @@ jobs:
             echo "Energy Core ledger integrity smoke skipped because script or package is absent."
           fi
 
+      - name: Energy Core Nightly Status Smoke
+        run: |
+          if test -d energy_core && test -f scripts/energy_core_nightly_status_smoke.py; then
+            uv run python scripts/energy_core_nightly_status_smoke.py
+          else
+            echo "Energy Core nightly status smoke skipped because script or package is absent."
+          fi
+
       - name: Energy Core Release Smoke
         run: |
           if test -d energy_core && test -f scripts/energy_core_release_smoke.py; then
