@@ -11,12 +11,31 @@ Run from `estimador-cag`:
     uv run ruff check --fix energy_core tests scripts
     uv run ruff check energy_core tests scripts
     uv run python -m py_compile $(find energy_core tests scripts -name '*.py' -type f)
-    uv run pytest -q tests/test_energy_core_policy_loading.py tests/test_energy_core_decider_accept.py tests/test_energy_core_decider_hard_reject.py tests/test_energy_core_decider_hard_repair.py tests/test_energy_core_ledger_append_only.py tests/test_energy_core_cli.py tests/test_energy_core_evidence_summary.py tests/test_energy_core_package_boundary.py tests/test_energy_core_spec_coverage.py
+    uv run pytest -q tests/test_energy_core_policy_loading.py tests/test_energy_core_decider_accept.py tests/test_energy_core_decider_hard_reject.py tests/test_energy_core_decider_hard_repair.py tests/test_energy_core_ledger_append_only.py tests/test_energy_core_cli.py tests/test_energy_core_evidence_summary.py tests/test_energy_core_package_boundary.py tests/test_energy_core_spec_coverage.py tests/test_energy_core_validation.py
     uv run pytest -q
     uv run python scripts/energy_core_boundary_check.py
     uv run python scripts/energy_core_smoke.py
 
 The smoke script exercises the same commands shown below so CLI examples cannot drift silently.
+
+## Validate the policy contract
+
+    uv run python -m energy_core.cli policy-validate \
+      --policy .energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
+      --format markdown \
+      --fail-on-invalid
+
+This command checks required hard constraints, required evidence types, acceptance evidence, decision rules, and threshold consistency before candidate evaluation starts.
+
+## Validate a candidate contract
+
+    uv run python -m energy_core.cli candidate-validate \
+      --policy .energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
+      --candidate .energy/specs/0001-energy-policy-ledger/examples/candidate_accept.json \
+      --format markdown \
+      --fail-on-invalid
+
+This command checks that a candidate state is internally usable before it is evaluated against evidence.
 
 ## Check spec package coverage
 
