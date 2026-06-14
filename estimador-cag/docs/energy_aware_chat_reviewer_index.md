@@ -25,16 +25,18 @@ Read in this order:
 5. `docs/energy_aware_chat_live_demo_readiness.md`
 6. `docs/energy_aware_chat_api_smoke_guide.md`
 7. `docs/energy_aware_chat_demo_results_template.md`
-8. `docs/energy_aware_chat_final_project_delivery_plan.md`
-9. `docs/energy_aware_chat_repository_readiness.md`
-10. `docs/energy_aware_chat_session17_backlog.md`
-11. `docs/energy_aware_chat_release_snapshot.md`
+8. `docs/energy_aware_chat_pr_body_draft.md`
+9. `docs/energy_aware_chat_final_project_delivery_plan.md`
+10. `docs/energy_aware_chat_repository_readiness.md`
+11. `docs/energy_aware_chat_session17_backlog.md`
+12. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
 | Purpose | Command |
 |---|---|
 | Final submission handoff | `docs/energy_aware_chat_final_submission_handoff.md` |
+| Pull request body draft | `docs/energy_aware_chat_pr_body_draft.md` |
 | Local Energy Chat gate | `bash scripts/validate_energy_chat.sh` |
 | Exact commit CI proof | `bash estimador-cag/scripts/check_energy_chat_ci.sh` from repository root |
 | Actions filtering guide | `docs/energy_aware_chat_actions_filtering.md` |
