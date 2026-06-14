@@ -3,7 +3,10 @@
   "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
   "remoteEnv": {
     "UV_LINK_MODE": "copy",
-    "ESTIMADOR_START_MODE": "api"
+    "ESTIMADOR_START_MODE": "none",
+    "GIT_PAGER": "cat",
+    "PAGER": "cat",
+    "LESS": "FRX"
   },
   "waitFor": "postCreateCommand",
   "features": {
@@ -37,12 +40,21 @@
           "*": true,
           "plaintext": true,
           "markdown": true
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": {
+            "path": "/bin/zsh"
+          },
+          "bash": {
+            "path": "/bin/bash"
+          }
         }
       }
     }
   },
   "postCreateCommand": "bash .devcontainer/setup-estimador.sh",
-  "postStartCommand": "bash .devcontainer/verify-estimador.sh && bash .devcontainer/start-estimador-services.sh ${ESTIMADOR_START_MODE:-api}",
+  "postStartCommand": "bash .devcontainer/verify-estimador.sh && bash .devcontainer/start-estimador-services.sh ${ESTIMADOR_START_MODE:-none}",
   "forwardPorts": [
     8000,
     8501,
@@ -74,5 +86,5 @@
       "onAutoForward": "silent"
     }
   },
-  "remoteUser": "root"
+  "remoteUser": "vscode"
 }
