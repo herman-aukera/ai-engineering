@@ -9,6 +9,10 @@ from energy_core.critic_coverage import (
     format_critic_coverage_markdown,
 )
 from energy_core.export_plan import build_export_plan, format_export_plan_markdown
+from energy_core.ledger_integrity import (
+    build_ledger_integrity,
+    format_ledger_integrity_markdown,
+)
 from energy_core.package_manifest import (
     build_package_manifest,
     format_package_manifest_markdown,
@@ -25,6 +29,7 @@ DEFAULT_SPEC_DIR = Path(".energy/specs/0001-energy-policy-ledger")
 DEFAULT_POLICY = DEFAULT_SPEC_DIR / "energy-policy.yaml"
 DEFAULT_CANDIDATE = DEFAULT_SPEC_DIR / "examples/candidate_accept.json"
 DEFAULT_EVIDENCE = DEFAULT_SPEC_DIR / "evidence.jsonl"
+DEFAULT_LEDGER = DEFAULT_SPEC_DIR / "decisions.jsonl"
 
 
 def build_review_pack(project_root: Path, output_dir: Path) -> dict[str, Any]:
@@ -112,6 +117,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     command_catalog = build_command_catalog()
     export_plan = build_export_plan(project_root)
     critic_coverage = build_critic_coverage(project_root / DEFAULT_POLICY)
+    ledger_integrity = build_ledger_integrity(project_root / DEFAULT_LEDGER)
     release = build_release_readiness(
         project_root=project_root,
         spec_dir=project_root / DEFAULT_SPEC_DIR,
@@ -133,6 +139,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
             "- export_plan.md",
             "- command_catalog.md",
             "- critic_coverage.md",
+            "- ledger_integrity.md",
             "",
             "This pack is generated from repository files and does not execute",
             "adapters, shell actions, or provider calls.",
@@ -148,6 +155,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
         "export_plan.md": format_export_plan_markdown(export_plan),
         "command_catalog.md": format_command_catalog_markdown(command_catalog),
         "critic_coverage.md": format_critic_coverage_markdown(critic_coverage),
+        "ledger_integrity.md": format_ledger_integrity_markdown(ledger_integrity),
     }
 
 
