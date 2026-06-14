@@ -80,6 +80,12 @@ Allowed claim:
 
     Energy Aware Chat has a deterministic evaluator, repair seam, evidence gate, provider baseline seam, measurement-only benchmark harness, local validation gate, and exact-commit CI proof on the staging branch.
 
+Benchmark claim token:
+
+    measurement_only_no_quality_claim
+
+This token is part of the benchmark contract. It means the benchmark records measurements only and must not be interpreted as a DeepSeek quality-improvement claim.
+
 ## Acceptance proof for each checkpoint
 
 Every checkpoint must be accepted with:
