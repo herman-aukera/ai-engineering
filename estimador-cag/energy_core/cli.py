@@ -9,17 +9,22 @@ from energy_core.evidence import EvidenceLoadError, read_evidence_records, summa
 from energy_core.ledger import LedgerLoadError, append_decision, read_decisions, summarize_decisions
 from energy_core.policy import load_policy
 from energy_core.reporter import (
+    format_candidate_validation_markdown_report,
+    format_candidate_validation_summary,
     format_decision_markdown_report,
     format_decision_summary,
     format_evidence_markdown_report,
     format_evidence_summary,
     format_ledger_markdown_report,
     format_ledger_summary,
+    format_policy_validation_markdown_report,
+    format_policy_validation_summary,
     format_spec_coverage_markdown_report,
     format_spec_coverage_summary,
 )
 from energy_core.specs import summarize_spec_package
 from energy_core.state import read_candidate_state
+from energy_core.validation import validate_candidate_state, validate_policy
 
 _DECISION_EXIT_CODES = {
     "accept": 0,
@@ -53,6 +58,33 @@ def build_parser() -> argparse.ArgumentParser:
         "--fail-on-non-accept",
         action="store_true",
         help="Return a non-zero exit code when the decision is not accept.",
+    )
+
+    policy_validate = subparsers.add_parser(
+        "policy-validate",
+        help="Validate an Energy Aware Code policy before evaluating candidates.",
+    )
+    policy_validate.add_argument("--policy", required=True, type=Path)
+    policy_validate.add_argument("--format", choices=["json", "text", "markdown"], default="text")
+    policy_validate.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
+    policy_validate.add_argument(
+        "--fail-on-invalid",
+        action="store_true",
+        help="Return exit code 1 when the policy contract is incomplete.",
+    )
+
+    candidate_validate = subparsers.add_parser(
+        "candidate-validate",
+        help="Validate a candidate state against the active policy before evaluation.",
+    )
+    candidate_validate.add_argument("--policy", required=True, type=Path)
+    candidate_validate.add_argument("--candidate", required=True, type=Path)
+    candidate_validate.add_argument("--format", choices=["json", "text", "markdown"], default="text")
+    candidate_validate.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
+    candidate_validate.add_argument(
+        "--fail-on-invalid",
+        action="store_true",
+        help="Return exit code 1 when the candidate contract is incomplete.",
     )
 
     evidence_summary = subparsers.add_parser(
@@ -94,6 +126,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "evaluate":
             return _run_evaluate(args, parser)
+        if args.command == "policy-validate":
+            return _run_policy_validate(args)
+        if args.command == "candidate-validate":
+            return _run_candidate_validate(args)
         if args.command == "evidence-summary":
             return _run_evidence_summary(args)
         if args.command == "ledger-summary":
@@ -132,6 +168,47 @@ def _run_evaluate(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
 
     if args.fail_on_non_accept:
         return _DECISION_EXIT_CODES[decision.decision]
+    return 0
+
+
+def _run_policy_validate(args: argparse.Namespace) -> int:
+    policy = load_policy(args.policy)
+    summary = validate_policy(policy)
+
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(format_policy_validation_markdown_report(summary), encoding="utf-8")
+
+    if args.format == "json":
+        print(json.dumps(summary, indent=2, sort_keys=True))
+    elif args.format == "markdown":
+        print(format_policy_validation_markdown_report(summary))
+    else:
+        print(format_policy_validation_summary(summary))
+
+    if args.fail_on_invalid and not summary["complete"]:
+        return 1
+    return 0
+
+
+def _run_candidate_validate(args: argparse.Namespace) -> int:
+    policy = load_policy(args.policy)
+    candidate = read_candidate_state(args.candidate)
+    summary = validate_candidate_state(policy, candidate)
+
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(format_candidate_validation_markdown_report(summary), encoding="utf-8")
+
+    if args.format == "json":
+        print(json.dumps(summary, indent=2, sort_keys=True))
+    elif args.format == "markdown":
+        print(format_candidate_validation_markdown_report(summary))
+    else:
+        print(format_candidate_validation_summary(summary))
+
+    if args.fail_on_invalid and not summary["complete"]:
+        return 1
     return 0
 
 
