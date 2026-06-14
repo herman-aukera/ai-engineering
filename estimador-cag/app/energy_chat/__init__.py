@@ -38,6 +38,14 @@ from app.energy_chat.reports import (
 )
 from app.energy_chat.review_packet import ReviewPacket, build_review_packet
 from app.energy_chat.source_guard import classify_source_need
+from app.energy_chat.workflow_proof import (
+    ENERGY_CHAT_BRANCH,
+    ENERGY_CHAT_PROOF_SCRIPT,
+    ENERGY_CHAT_VALIDATION_SCRIPT,
+    ENERGY_CHAT_WORKFLOW,
+    build_ci_proof_command,
+    build_local_gate_command,
+)
 
 __all__ = [
     "CORE_ARTIFACTS",
@@ -49,6 +57,10 @@ __all__ = [
     "DeepSeekBenchmarkCaseResult",
     "DeepSeekBenchmarkRequest",
     "DeepSeekBenchmarkRunResult",
+    "ENERGY_CHAT_BRANCH",
+    "ENERGY_CHAT_PROOF_SCRIPT",
+    "ENERGY_CHAT_VALIDATION_SCRIPT",
+    "ENERGY_CHAT_WORKFLOW",
     "EnergyCard",
     "EnergyChatArtifact",
     "EnergyChatRequest",
@@ -63,7 +75,9 @@ __all__ = [
     "SourceNeedRequest",
     "SourceNeedResult",
     "artifact_paths",
+    "build_ci_proof_command",
     "build_deepseek_benchmark_report_markdown",
+    "build_local_gate_command",
     "build_release_snapshot",
     "build_release_snapshot_markdown",
     "build_review_packet",
