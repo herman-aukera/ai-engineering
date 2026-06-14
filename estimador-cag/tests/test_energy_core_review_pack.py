@@ -7,14 +7,16 @@ def test_review_pack_writes_expected_artifacts(tmp_path: Path) -> None:
     summary = build_review_pack(Path("."), tmp_path / "review-pack")
 
     assert summary["complete"] is True
-    assert summary["present_total"] == 5
+    assert summary["present_total"] == 7
     filenames = {item["filename"] for item in summary["files"]}
     assert filenames == {
         "README.md",
         "reviewer_snapshot.md",
         "release_readiness.md",
         "package_manifest.md",
+        "export_plan.md",
         "command_catalog.md",
+        "critic_coverage.md",
     }
     for item in summary["files"]:
         assert Path(item["path"]).is_file()
@@ -29,3 +31,4 @@ def test_review_pack_markdown_lists_outputs(tmp_path: Path) -> None:
     assert "Complete: True" in markdown
     assert "reviewer_snapshot.md" in markdown
     assert "package_manifest.md" in markdown
+    assert "critic_coverage.md" in markdown
