@@ -60,8 +60,14 @@ def build_critic_coverage(policy_path: Path) -> dict[str, Any]:
     """Classify policy constraints by deterministic critic coverage."""
 
     policy = load_policy(policy_path)
-    hard_rows = [_hard_row(constraint) for constraint in policy.constraints]
-    soft_rows = [_soft_row(constraint) for constraint in policy.soft_constraints]
+    hard_rows = [
+        _hard_row(constraint_id, constraint)
+        for constraint_id, constraint in sorted(policy.hard_constraints.items())
+    ]
+    soft_rows = [
+        _soft_row(constraint_id, constraint)
+        for constraint_id, constraint in sorted(policy.soft_constraints.items())
+    ]
     rows = hard_rows + soft_rows
 
     unclassified = [row["constraint_id"] for row in rows if row["coverage"] == "unclassified"]
@@ -70,7 +76,7 @@ def build_critic_coverage(policy_path: Path) -> dict[str, Any]:
 
     return {
         "coverage_version": COVERAGE_VERSION,
-        "policy_id": policy.id,
+        "policy_id": policy.policy_id,
         "policy_version": policy.version,
         "complete": not unclassified,
         "coverage_level": "full" if not policy_only and not unclassified else "partial",
@@ -142,13 +148,13 @@ def format_critic_coverage_markdown(coverage: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _hard_row(constraint: ConstraintPolicy) -> dict[str, Any]:
-    if constraint.id in HARD_ENFORCEMENT:
-        critic, mechanism = HARD_ENFORCEMENT[constraint.id]
+def _hard_row(constraint_id: str, constraint: ConstraintPolicy) -> dict[str, Any]:
+    if constraint_id in HARD_ENFORCEMENT:
+        critic, mechanism = HARD_ENFORCEMENT[constraint_id]
         coverage = "enforced"
-    elif constraint.id in POLICY_ONLY_HARD:
+    elif constraint_id in POLICY_ONLY_HARD:
         critic = "policy_only"
-        mechanism = POLICY_ONLY_HARD[constraint.id]
+        mechanism = POLICY_ONLY_HARD[constraint_id]
         coverage = "policy_only"
     else:
         critic = "unclassified"
@@ -156,6 +162,7 @@ def _hard_row(constraint: ConstraintPolicy) -> dict[str, Any]:
         coverage = "unclassified"
 
     return _row(
+        constraint_id=constraint_id,
         constraint=constraint,
         kind="hard",
         coverage=coverage,
@@ -164,9 +171,10 @@ def _hard_row(constraint: ConstraintPolicy) -> dict[str, Any]:
     )
 
 
-def _soft_row(constraint: ConstraintPolicy) -> dict[str, Any]:
+def _soft_row(constraint_id: str, constraint: ConstraintPolicy) -> dict[str, Any]:
     critic, mechanism = SOFT_ENFORCEMENT
     return _row(
+        constraint_id=constraint_id,
         constraint=constraint,
         kind="soft",
         coverage="enforced",
@@ -177,6 +185,7 @@ def _soft_row(constraint: ConstraintPolicy) -> dict[str, Any]:
 
 def _row(
     *,
+    constraint_id: str,
     constraint: ConstraintPolicy,
     kind: str,
     coverage: str,
@@ -184,7 +193,7 @@ def _row(
     mechanism: str,
 ) -> dict[str, Any]:
     return {
-        "constraint_id": constraint.id,
+        "constraint_id": constraint_id,
         "kind": kind,
         "policy_decision": constraint.decision,
         "penalty": constraint.penalty,
