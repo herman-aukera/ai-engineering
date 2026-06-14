@@ -1,0 +1,11 @@
+{
+  "candidate_id": "slice-001-scope-creep",
+  "spec_id": "0001-energy-policy-ledger",
+  "energy_before": 200,
+  "changed_files": ["estimador-cag/app/energy_chat/evaluator.py"],
+  "required_artifacts": [],
+  "present_artifacts": [],
+  "validation_claims": [],
+  "scope_claims": ["scope_creep"],
+  "soft_flags": []
+}
