@@ -31,7 +31,7 @@ def test_command_catalog_markdown_exposes_mutation_behavior() -> None:
     assert "- evaluate" in markdown
     assert "Mutates ledger: True" in markdown
     assert "Mutates ledger: False" in markdown
-    assert "No shell" in markdown
+    assert "does not execute shell actions" in markdown
 
 
 def test_command_catalog_cli_outputs_json() -> None:
