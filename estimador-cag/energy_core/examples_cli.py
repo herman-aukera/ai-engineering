@@ -14,7 +14,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Evaluate bundled Energy Aware Code examples against expected decisions.")
+    parser = argparse.ArgumentParser(
+        description="Evaluate bundled Energy Aware Code examples against expected decisions."
+    )
     parser.add_argument("--spec-dir", required=True, type=Path)
     parser.add_argument("--policy", required=True, type=Path)
     parser.add_argument("--evidence", required=True, type=Path)
