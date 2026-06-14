@@ -7,7 +7,8 @@ Status: reviewer entry packet for the Energy Aware Chat final project branch.
 1. `docs/energy_aware_chat_reviewer_index.md`
 2. `docs/energy_aware_chat_live_demo_readiness.md`
 3. `docs/energy_aware_chat_release_snapshot.md`
-4. `docs/examples/energy_chat_release_snapshot_example.md`
+4. `docs/energy_aware_chat_demo_evidence_checklist.md`
+5. `docs/examples/energy_chat_release_snapshot_example.md`
 
 ## Run first
 
@@ -22,6 +23,7 @@ bash scripts/check_energy_chat_ci.sh
 2. Start `energy_chat_streamlit_app.py`.
 3. Use `demo_payloads/energy_chat/` for repeatable request examples.
 4. Record the Energy Card, decision, energy score, and claim boundaries.
+5. Complete `docs/energy_aware_chat_demo_evidence_checklist.md`.
 
 ## Claim boundary
 
