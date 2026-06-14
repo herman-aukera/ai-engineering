@@ -2,6 +2,8 @@
 
 from app.energy_chat.contracts import (
     CriticFinding,
+    DeepSeekBaselineRequest,
+    DeepSeekBaselineResult,
     EnergyCard,
     EnergyChatRequest,
     EnergyDecision,
@@ -14,6 +16,8 @@ from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_re
 
 __all__ = [
     "CriticFinding",
+    "DeepSeekBaselineRequest",
+    "DeepSeekBaselineResult",
     "EnergyCard",
     "EnergyChatRequest",
     "EnergyDecision",
