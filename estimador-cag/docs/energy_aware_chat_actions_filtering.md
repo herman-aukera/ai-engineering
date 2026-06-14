@@ -12,7 +12,7 @@ That page can show unrelated red runs from other branches such as Energy Aware C
 
 Use this exact target:
 
-- Branch: `gg-finalproject-energy-aware-chat`
+- Branch: `EACHAT`
 - Workflow: `Energy Aware Chat CI`
 - Proof script: `bash estimador-cag/scripts/check_energy_chat_ci.sh`
 
