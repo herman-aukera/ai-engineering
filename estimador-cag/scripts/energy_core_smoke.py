@@ -20,6 +20,7 @@ def main() -> int:
         decisions = tmp_path / "decisions.jsonl"
         report = tmp_path / "decision-report.md"
         evidence_report = tmp_path / "evidence-report.md"
+        ledger_report = tmp_path / "ledger-report.md"
         failed_evidence = tmp_path / "failed-evidence.jsonl"
 
         accept_json = _run(
@@ -133,6 +134,36 @@ def main() -> int:
         _assert(reject.returncode == 2, f"reject exit code should be 2, got {reject.returncode}")
         _assert("Decision: reject" in reject.stdout, "reject output should include decision")
         _assert("tests_failed" in reject.stdout, "reject output should include tests_failed")
+
+        ledger_json = _run(
+            "ledger-summary",
+            "--decisions",
+            str(decisions),
+            "--format",
+            "json",
+        )
+        ledger_summary = json.loads(ledger_json.stdout)
+        _assert(ledger_summary["total"] == 3, "ledger summary should count appended decisions")
+        _assert(ledger_summary["by_decision"] == {"accept": 2, "reject": 1}, "ledger summary should group decisions")
+
+        ledger_markdown = _run(
+            "ledger-summary",
+            "--decisions",
+            str(decisions),
+            "--format",
+            "markdown",
+            "--report",
+            str(ledger_report),
+        )
+        _assert(
+            "# Energy Aware Code Decision Ledger Summary" in ledger_markdown.stdout,
+            "Markdown ledger summary should print",
+        )
+        _assert("slice-001-accept" in ledger_markdown.stdout, "ledger summary should include candidate ids")
+        _assert(
+            "# Energy Aware Code Decision Ledger Summary" in ledger_report.read_text(encoding="utf-8"),
+            "Markdown ledger summary report should be written",
+        )
 
     print("Energy Core smoke passed.")
     return 0
