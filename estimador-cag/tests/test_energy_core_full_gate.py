@@ -18,6 +18,9 @@ def test_full_gate_plan_includes_all_smoke_families() -> None:
     assert "Energy Core package smoke" in labels
     assert "Energy Core reviewer smoke" in labels
     assert "Energy Core command catalog smoke" in labels
+    assert "Energy Core review pack smoke" in labels
+    assert "Energy Core scaffold smoke" in labels
+    assert "Energy Core export plan smoke" in labels
     assert "Energy Core root smoke" in labels
     assert "Git diff check" in labels
     assert "Git status check" in labels
