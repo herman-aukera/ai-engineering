@@ -5,7 +5,7 @@ Status: navigation index for final-project review, demo recording, and later sta
 Branch:
 
 ```text
-gg-finalproject-energy-aware-chat
+EACHAT
 ```
 
 Product target after Session 17:
