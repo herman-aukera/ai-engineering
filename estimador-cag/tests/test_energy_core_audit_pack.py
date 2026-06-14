@@ -36,9 +36,13 @@ def test_audit_pack_combines_readiness_inputs_without_mutating_ledger(tmp_path):
     assert pack["evidence_summary"]["total"] == 5
     assert pack["decision"]["decision"] == "accept"
     assert pack["ledger_summary"]["total"] == 0
+    assert pack["decision_trends"]["trend"] == "empty"
+    assert pack["bundle_manifest"]["complete"] is True
     assert not decisions_path.exists()
     assert "# Energy Aware Code Audit Pack" in markdown
     assert "Decision preview: accept" in markdown
+    assert "## Decision trends" in markdown
+    assert "## Bundle manifest" in markdown
 
 
 def test_cli_audit_pack_outputs_json_and_markdown_report(tmp_path):
@@ -99,6 +103,9 @@ def test_cli_audit_pack_outputs_json_and_markdown_report(tmp_path):
     assert payload["ready_to_accept"] is True
     assert payload["decision"]["decision"] == "accept"
     assert payload["ledger_summary"]["total"] == 1
+    assert payload["decision_trends"]["trend"] == "improving"
+    assert payload["bundle_manifest"]["complete"] is True
     assert "# Energy Aware Code Audit Pack" in markdown_result.stdout
     assert "Decision preview: accept" in markdown_result.stdout
-    assert "# Energy Aware Code Audit Pack" in report
+    assert "## Decision trends" in markdown_result.stdout
+    assert "## Bundle manifest" in report
