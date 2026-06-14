@@ -1,6 +1,6 @@
 # Energy Aware Code CLI usage
 
-Status: Slice 1 plus judge usability hardening.
+Status: incubator judge layer.
 
 Scope: deterministic judge only. This tool evaluates supplied candidate state and evidence. It does not execute shell commands, call LLM providers, edit files, open Cline, run Aider, or push commits.
 
@@ -11,11 +11,21 @@ Run from `estimador-cag`:
     uv run ruff check --fix energy_core tests scripts
     uv run ruff check energy_core tests scripts
     uv run python -m py_compile $(find energy_core tests scripts -name '*.py' -type f)
-    uv run pytest -q tests/test_energy_core_policy_loading.py tests/test_energy_core_decider_accept.py tests/test_energy_core_decider_hard_reject.py tests/test_energy_core_decider_hard_repair.py tests/test_energy_core_ledger_append_only.py tests/test_energy_core_cli.py tests/test_energy_core_evidence_summary.py
+    uv run pytest -q tests/test_energy_core_policy_loading.py tests/test_energy_core_decider_accept.py tests/test_energy_core_decider_hard_reject.py tests/test_energy_core_decider_hard_repair.py tests/test_energy_core_ledger_append_only.py tests/test_energy_core_cli.py tests/test_energy_core_evidence_summary.py tests/test_energy_core_package_boundary.py tests/test_energy_core_spec_coverage.py
     uv run pytest -q
+    uv run python scripts/energy_core_boundary_check.py
     uv run python scripts/energy_core_smoke.py
 
 The smoke script exercises the same commands shown below so CLI examples cannot drift silently.
+
+## Check spec package coverage
+
+    uv run python -m energy_core.cli spec-coverage \
+      --spec-dir .energy/specs/0001-energy-policy-ledger \
+      --format markdown \
+      --fail-on-incomplete
+
+This command validates that the spec package has the required requirements, design, tasks, acceptance, policy, evidence, and example candidate artifacts before evaluation starts.
 
 ## Evaluate a candidate and append a decision
 
@@ -86,4 +96,4 @@ Decision exit codes:
 6. No DeepSeek, OpenAI, or Kimi calls.
 7. No bridge with Energy Aware Chat.
 
-The current product layer is the judge: policy, candidate state, evidence, critics, score, decision, reports, and ledger inspection.
+The current product layer is the judge: spec package, policy, candidate state, evidence, critics, score, decision, reports, and ledger inspection.
