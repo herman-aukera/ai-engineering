@@ -22,12 +22,12 @@ def test_project_rag_retrieves_final_project_requirements() -> None:
 def test_project_rag_retrieves_provider_fallback_source() -> None:
     result = retrieve_project_context(
         ProjectRagRequest(
-            query="DeepSeek should use Kimi backup if the primary provider fails",
-            k=2,
+            query="DeepSeek should use Kimi backup provider routing when the primary fails",
+            k=6,
         )
     )
 
     source_ids = {chunk.source_id for chunk in result.results}
     assert "provider_fallback" in source_ids
     assert all(chunk.score >= 0.0 for chunk in result.results)
-    assert len(result.results) == 2
+    assert len(result.results) == 6
