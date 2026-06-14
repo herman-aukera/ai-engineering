@@ -18,14 +18,15 @@ herman-aukera/energy-aware-chat
 
 Read in this order:
 
-1. `docs/energy_aware_chat_demo.md`
-2. `docs/energy_aware_chat_live_demo_readiness.md`
-3. `docs/energy_aware_chat_api_smoke_guide.md`
-4. `docs/energy_aware_chat_demo_results_template.md`
-5. `docs/energy_aware_chat_final_project_delivery_plan.md`
-6. `docs/energy_aware_chat_repository_readiness.md`
-7. `docs/energy_aware_chat_session17_backlog.md`
-8. `docs/energy_aware_chat_release_snapshot.md`
+1. `docs/energy_aware_chat_final_project_proof_packet.md`
+2. `docs/energy_aware_chat_demo.md`
+3. `docs/energy_aware_chat_live_demo_readiness.md`
+4. `docs/energy_aware_chat_api_smoke_guide.md`
+5. `docs/energy_aware_chat_demo_results_template.md`
+6. `docs/energy_aware_chat_final_project_delivery_plan.md`
+7. `docs/energy_aware_chat_repository_readiness.md`
+8. `docs/energy_aware_chat_session17_backlog.md`
+9. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
