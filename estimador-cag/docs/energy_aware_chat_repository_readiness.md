@@ -44,6 +44,7 @@ Initial standalone export boundary:
     estimador-cag/scripts/check_energy_chat_ci.sh
     estimador-cag/scripts/export_energy_chat_manifest.sh
     estimador-cag/tests/test_energy_chat_*.py
+    .github/workflows/energy-chat-ci.yml
     .github/workflows/ci.yml
 
 Expected future standalone layout:
@@ -82,41 +83,42 @@ Correct branch interpretation:
 
 ## CI proof policy
 
-Use non-interactive GitHub CLI commands scoped to the exact branch and commit. Do not use the interactive `gh run view --log-failed` selector without a run id, because it can show failed workflow runs from other branches such as Energy Aware Code.
+Energy Aware Chat now has a dedicated workflow:
 
-From repository root:
+    Energy Aware Chat CI
+
+Use that workflow as the proof target. The shared `CI - Estimador CAG` workflow may still run as a repository backstop, but it is not the primary product proof because it also covers other branches and can be visually confused with Energy Aware Code runs.
+
+Use non-interactive GitHub CLI commands scoped to the exact workflow, branch, and commit. Do not use the interactive `gh run view --log-failed` selector without a run id, because it can show failed workflow runs from other branches such as Energy Aware Code.
+
+From repository root, prefer:
+
+    bash estimador-cag/scripts/check_energy_chat_ci.sh
+
+The helper checks:
+
+    workflow = Energy Aware Chat CI
+    branch = gg-finalproject-energy-aware-chat
+    sha = current HEAD
+    conclusion = success
+
+Manual equivalent:
 
     CURRENT_SHA="$(git rev-parse HEAD)"
 
     gh run list \
+      --workflow "Energy Aware Chat CI" \
       --branch gg-finalproject-energy-aware-chat \
       --commit "$CURRENT_SHA" \
       --limit 5 \
       --json databaseId,status,conclusion,displayTitle,workflowName,headBranch,headSha,url \
       --jq '.[] | {id: .databaseId, status, conclusion, title: .displayTitle, workflow: .workflowName, branch: .headBranch, sha: .headSha[0:7], url}'
 
-Then inspect the exact run id:
-
-    RUN_ID="$(
-      gh run list \
-        --branch gg-finalproject-energy-aware-chat \
-        --commit "$CURRENT_SHA" \
-        --limit 1 \
-        --json databaseId \
-        --jq '.[0].databaseId'
-    )"
-
-    gh run view "$RUN_ID" \
-      --json status,conclusion,displayTitle,workflowName,headBranch,headSha,url,jobs \
-      --jq '{status, conclusion, title: .displayTitle, workflow: .workflowName, branch: .headBranch, sha: .headSha[0:7], url, jobs: [.jobs[] | {name, conclusion, status}]}'
-
-    gh run view "$RUN_ID" --log-failed
-
 Acceptance condition:
 
+    workflow = Energy Aware Chat CI
     branch = gg-finalproject-energy-aware-chat
     sha = current HEAD
-    workflow = CI - Estimador CAG
     conclusion = success
 
 ## Local proof policy
