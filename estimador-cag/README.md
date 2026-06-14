@@ -1,5 +1,41 @@
 # LIDR AI Engineering: Estimador CAG
 
+## Session 08: live-inspired hardening branch
+
+Current learning branch:
+
+    gg-session-08-live-inspired-hardening
+
+This branch is a post-live learning branch. It is not the strict homework baseline and it is not a teacher-code copy.
+
+The strict homework baseline proved the required Session 08 flow: PostgreSQL plus pgvector persistence, Alembic schema, persistent ingest, duplicate source_path handling, /search with cosine distance, query_examples.py, output_examples.txt, and README justification.
+
+This live-inspired hardening branch keeps that baseline intact and adds extra-mile improvements for learning purposes.
+
+### Baseline Session 08 deliverables
+
+    PostgreSQL plus pgvector
+    Alembic documents and chunks schema
+    persistent POST /embeddings/ingest
+    duplicate source_path returns 409
+    POST /search with cosine distance
+    query_examples.py
+    output_examples.txt
+    README schema and retrieval justification
+
+### Post-live extra-mile features
+
+    metadata filters
+    browser search demo
+    search metrics
+    HNSW cosine vector index
+    Streamlit search UI
+    DevEx defaults
+    DB integration smoke aligned with the HNSW index
+
+These additions are intentionally kept on a learning branch so the official homework baseline remains explainable and scope-clean.
+
+
 ## Session 08: pgvector semantic search
 
 Current working branch:
