@@ -4,6 +4,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from energy_core.models import EvidenceRecord
 
 
@@ -33,9 +35,22 @@ def read_evidence_records(path: str | Path) -> list[EvidenceRecord]:
             raise EvidenceLoadError(
                 f"Evidence line {line_number} must be an object: {evidence_path}"
             )
-        records.append(EvidenceRecord.model_validate(payload))
+        try:
+            records.append(EvidenceRecord.model_validate(payload))
+        except ValidationError as exc:
+            raise EvidenceLoadError(
+                f"Evidence line {line_number} does not match the Energy Aware Code evidence schema. "
+                "Expected fields include evidence_id, type, status, summary, and trusted. "
+                "Valid status values are pass, fail, missing, and conflict."
+            ) from exc
 
     return records
+
+
+def load_evidence_records(path: str | Path) -> list[EvidenceRecord]:
+    """Backward-compatible alias for older smoke probes."""
+
+    return read_evidence_records(path)
 
 
 def summarize_evidence(records: list[EvidenceRecord]) -> dict[str, object]:
