@@ -59,6 +59,11 @@ DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         purpose="final project proof packet",
     ),
     EnergyChatArtifact(
+        path="docs/energy_aware_chat_actions_filtering.md",
+        kind="doc",
+        purpose="actions filtering guide",
+    ),
+    EnergyChatArtifact(
         path="docs/energy_aware_chat_demo_evidence_checklist.md",
         kind="doc",
         purpose="demo evidence checklist",
