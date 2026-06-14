@@ -27,7 +27,7 @@ def test_reviewer_index_points_to_core_demo_artifacts() -> None:
 
 
 def test_reviewer_index_preserves_strategy_and_non_claims() -> None:
-    assert "gg-finalproject-energy-aware-chat" in REVIEWER_INDEX
+    assert "EACHAT" in REVIEWER_INDEX
     assert "herman-aukera/energy-aware-chat" in REVIEWER_INDEX
     assert "measurement_only_no_quality_claim" in REVIEWER_INDEX
     assert "Do not claim" in REVIEWER_INDEX
