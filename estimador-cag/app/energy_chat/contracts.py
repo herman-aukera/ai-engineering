@@ -10,6 +10,7 @@ Decision = Literal["accept", "repair", "reject", "clarify"]
 ConstraintType = Literal["hard_reject", "hard_repair", "soft"]
 Mode = Literal["chat_lite", "research", "project", "tutor"]
 DeepSeekTier = Literal["flash", "pro"]
+ProviderTier = Literal["flash", "pro", "backup", "backup_pro"]
 SourceNeedDecision = Literal[
     "sources_not_required",
     "sources_recommended",
@@ -150,13 +151,13 @@ class DeepSeekBaselineRequest(BaseModel):
 
 
 class DeepSeekBaselineResult(BaseModel):
-    """Provider-normalized plain DeepSeek draft result for benchmark capture."""
+    """Provider-normalized plain draft result for benchmark capture."""
 
     request: DeepSeekBaselineRequest
     draft_answer: str
     provider: str
     model: str
-    tier: DeepSeekTier
+    tier: ProviderTier
     input_tokens: int | None = None
     output_tokens: int | None = None
     cost_usd: float | None = None
@@ -268,3 +269,57 @@ class EvidenceBundleResult(BaseModel):
     can_support_current_claim: bool
     reasoning_summary: str
     next_action: str
+
+
+class ProjectRagChunk(BaseModel):
+    """One retrieved project-source chunk used as answer evidence."""
+
+    source_id: str
+    title: str
+    content: str
+    evidence_ref: str
+    score: float = Field(ge=0.0)
+
+
+class ProjectRagRequest(BaseModel):
+    """Input for deterministic local RAG over committed project sources."""
+
+    query: str
+    mode: Mode = "project"
+    k: int = Field(default=3, ge=1, le=8)
+
+
+class ProjectRagResult(BaseModel):
+    """Retrieved evidence chunks for project-grounded Energy Aware Chat answers."""
+
+    query: str
+    k: int
+    retrieval_strategy: str
+    results: list[ProjectRagChunk] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    grounding_summary: str
+
+
+class EnergyAwareChatAgentRequest(BaseModel):
+    """End-to-end local MVP chat request with retrieval, draft, critics, and Energy Card."""
+
+    user_message: str
+    mode: Mode = "project"
+    k: int = Field(default=3, ge=1, le=8)
+    required_constraints: list[str] = Field(default_factory=list)
+    required_sections: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class EnergyAwareChatAgentResult(BaseModel):
+    """End-to-end local MVP chat result with visible evidence and decision trace."""
+
+    request: EnergyAwareChatAgentRequest
+    rag: ProjectRagResult
+    draft_answer: str
+    evaluation: EvaluationResult
+    repair_evaluation: RepairEvaluationResult
+    final_answer: str
+    energy_card: EnergyCard
+    agent_trace: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
