@@ -32,6 +32,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Combines spec, policy, candidate, evidence, decision preview, and ledger status.",
     },
     {
+        "id": "ledger_integrity",
+        "title": "Ledger integrity",
+        "command": "python -m energy_core.ledger_integrity_cli --format markdown --fail-on-invalid",
+        "purpose": "Inspects JSONL decision ledger integrity without mutation.",
+    },
+    {
         "id": "schema_bundle",
         "title": "Schema bundle",
         "command": "python -m energy_core.schema_cli --format text",
@@ -103,6 +109,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
             "Use export-plan for future standalone extraction planning.",
             "Use release-readiness for final extraction gate status.",
             "Use audit-pack when reviewing one candidate state against policy and evidence.",
+            "Use ledger-integrity before trusting decision ledger history.",
             "Use command-catalog to understand which commands mutate the ledger.",
             "Use critic-coverage to see which constraints are enforced versus policy-only.",
         ],
@@ -135,7 +142,6 @@ def format_reviewer_snapshot_markdown(snapshot: dict[str, Any]) -> str:
         f"- Project root: {snapshot['project_root']}",
         f"- Complete: {snapshot['complete']}",
         f"- Sections: {snapshot['section_present_total']}/{snapshot['section_total']}",
-        f"- Package manifest complete: {snapshot['package_manifest_complete']}",
         f"- Package files: {snapshot['package_manifest_present_files']}/{snapshot['package_manifest_required_files']}",
         "",
         "## Reviewer sections",
