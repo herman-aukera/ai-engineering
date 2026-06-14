@@ -12,11 +12,14 @@ from app.energy_chat.contracts import (
     DeepSeekBenchmarkRunResult,
     EnergyChatRequest,
     EvaluationResult,
+    EvidenceBundleRequest,
+    EvidenceBundleResult,
     RepairEvaluationResult,
     SourceNeedRequest,
     SourceNeedResult,
 )
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
+from app.energy_chat.evidence import build_evidence_bundle
 from app.energy_chat.source_guard import classify_source_need
 
 router = APIRouter()
@@ -55,6 +58,20 @@ def classify_energy_chat_source_need(request: SourceNeedRequest) -> SourceNeedRe
     RAG yet. It is deterministic, provider-free, and CI safe.
     """
     return classify_source_need(request)
+
+
+@router.post("/evidence/bundle", response_model=EvidenceBundleResult)
+def build_energy_chat_evidence_bundle(
+    request: EvidenceBundleRequest,
+) -> EvidenceBundleResult:
+    """
+    Normalize evidence refs and command outputs for project/research checks.
+
+    This Batch 9 endpoint prepares project grounding without adding a vector
+    database, repository crawler, or live provider call. It only turns attached
+    evidence strings into typed refs that the evaluator can already consume.
+    """
+    return build_evidence_bundle(request)
 
 
 @router.post("/draft/deepseek-baseline", response_model=DeepSeekBaselineResult)
