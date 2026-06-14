@@ -7,7 +7,7 @@ QUICKSTART = (ROOT / "docs" / "energy_aware_chat_examiner_quickstart.md").read_t
 
 
 def test_examiner_quickstart_names_exact_branch_and_workflow() -> None:
-    assert "gg-finalproject-energy-aware-chat" in QUICKSTART
+    assert "EACHAT" in QUICKSTART
     assert "Energy Aware Chat CI" in QUICKSTART
     assert "current HEAD" in QUICKSTART
 
