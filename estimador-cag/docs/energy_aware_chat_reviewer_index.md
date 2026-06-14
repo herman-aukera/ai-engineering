@@ -25,6 +25,7 @@ Read in this order:
 5. `docs/energy_aware_chat_final_project_delivery_plan.md`
 6. `docs/energy_aware_chat_repository_readiness.md`
 7. `docs/energy_aware_chat_session17_backlog.md`
+8. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
@@ -35,6 +36,7 @@ Read in this order:
 | Demo API startup | `bash ../.devcontainer/start-estimador-services.sh api` from `estimador-cag` |
 | Streamlit UI | `streamlit run energy_chat_streamlit_app.py --server.address 0.0.0.0 --server.port 8501` |
 | Standalone export manifest | `bash scripts/export_energy_chat_manifest.sh` from `estimador-cag` |
+| Release snapshot renderer | `uv run python scripts/render_energy_chat_release_snapshot.py` from `estimador-cag` |
 
 ## Demo payloads
 
@@ -58,6 +60,7 @@ Read in this order:
 | DeepSeek baseline seam | implemented |
 | measurement-only benchmark harness | implemented |
 | report writer | implemented |
+| release snapshot helper | implemented |
 | Streamlit demo | implemented |
 | dedicated Energy Chat CI | implemented |
 | standalone repository extraction plan | documented |
