@@ -96,6 +96,28 @@ def test_cli_writes_markdown_report(tmp_path):
     assert "Evidence refs" in report
 
 
+def test_cli_can_dry_run_without_appending_decision_ledger(tmp_path):
+    decisions_path = tmp_path / "decisions.jsonl"
+
+    result = _run_cli(
+        "evaluate",
+        "--policy",
+        str(SPEC_DIR / "energy-policy.yaml"),
+        "--candidate",
+        str(SPEC_DIR / "examples/candidate_accept.json"),
+        "--evidence",
+        str(SPEC_DIR / "evidence.jsonl"),
+        "--format",
+        "json",
+        "--dry-run",
+    )
+
+    payload = json.loads(result.stdout)
+
+    assert payload["decision"] == "accept"
+    assert not decisions_path.exists()
+
+
 def test_cli_can_fail_automation_on_non_accept_decision(tmp_path):
     decisions_path = tmp_path / "decisions.jsonl"
     evidence_path = tmp_path / "failed-evidence.jsonl"
@@ -137,3 +159,32 @@ def test_cli_can_fail_automation_on_non_accept_decision(tmp_path):
     assert payload["decision"] == "reject"
     assert "tests_failed" in payload["hard_reject_violations"]
     assert len(ledger_rows) == 1
+
+
+def test_cli_evidence_summary_outputs_json_and_markdown_report(tmp_path):
+    report_path = tmp_path / "evidence-report.md"
+
+    json_result = _run_cli(
+        "evidence-summary",
+        "--evidence",
+        str(SPEC_DIR / "evidence.jsonl"),
+        "--format",
+        "json",
+    )
+    markdown_result = _run_cli(
+        "evidence-summary",
+        "--evidence",
+        str(SPEC_DIR / "evidence.jsonl"),
+        "--format",
+        "markdown",
+        "--report",
+        str(report_path),
+    )
+
+    summary = json.loads(json_result.stdout)
+    report = report_path.read_text(encoding="utf-8")
+
+    assert summary["total"] == 5
+    assert summary["by_status"] == {"pass": 5}
+    assert "# Energy Aware Code Evidence Summary" in markdown_result.stdout
+    assert "# Energy Aware Code Evidence Summary" in report
