@@ -17,7 +17,7 @@ cd /workspaces/ai-engineering/estimador-cag
 ## 1. Start the API
 
 ```bash
-bash ../.devcontainer/start-estimador-services.sh api
+bash scripts/start_energy_chat.sh
 ```
 
 Health check:
@@ -99,7 +99,43 @@ trusted_refs includes test:pytest-passed
 can_support_project_claim = true
 ```
 
-## 6. Benchmark payload caveat
+## 6. RAG grounding baseline case
+
+```bash
+curl -sS \
+  -X POST http://127.0.0.1:8000/energy-chat/rag/search \
+  -H 'Content-Type: application/json' \
+  --data-binary @demo_payloads/energy_chat/rag_project_search.json \
+  | python -m json.tool
+```
+
+Expected minimum proof:
+
+```text
+retrieval_strategy = deterministic_lexical_cosine_project_rag
+evidence_refs includes source:final_project_requirements
+```
+
+## 7. End-to-end local chat MVP case
+
+```bash
+curl -sS \
+  -X POST http://127.0.0.1:8000/energy-chat/chat \
+  -H 'Content-Type: application/json' \
+  --data-binary @demo_payloads/energy_chat/chat_project_mvp.json \
+  | python -m json.tool
+```
+
+Expected minimum proof:
+
+```text
+rag.evidence_refs is non-empty
+final_answer is non-empty
+energy_card.decision = accept
+metadata.mvp_layer = rag_plus_agent_orchestration
+```
+
+## 8. Benchmark payload caveat
 
 The benchmark fixture is committed for contract and demo shape checks:
 
@@ -113,7 +149,7 @@ Do not use it to claim quality improvement. It belongs to the measurement-only p
 measurement_only_no_quality_claim
 ```
 
-## 7. Required closing proof
+## 9. Required closing proof
 
 After any demo changes, run:
 
