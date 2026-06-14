@@ -37,7 +37,9 @@ def main() -> int:
             "reviewer_snapshot.md",
             "release_readiness.md",
             "package_manifest.md",
+            "export_plan.md",
             "command_catalog.md",
+            "critic_coverage.md",
         ]
         for filename in required:
             path = output_dir / filename
