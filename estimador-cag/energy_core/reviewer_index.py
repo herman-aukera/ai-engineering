@@ -32,6 +32,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Shows machine-readable contracts for candidates, evidence, policy, violations, and decisions.",
     },
     {
+        "id": "command_catalog",
+        "title": "Command catalog",
+        "command": "python -m energy_core.command_catalog_cli --format markdown --fail-on-incomplete",
+        "purpose": "Lists supported commands, mutation behavior, root support, and smoke coverage.",
+    },
+    {
         "id": "example_matrix",
         "title": "Example matrix",
         "command": "python -m energy_core.examples_cli --format markdown --fail-on-mismatch",
@@ -72,6 +78,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
             "Use package-manifest for copy/extraction inventory.",
             "Use release-readiness for final extraction gate status.",
             "Use audit-pack when reviewing one candidate state against policy and evidence.",
+            "Use command-catalog to understand which commands mutate the ledger.",
         ],
         "non_goals": [
             "This snapshot does not execute shell actions.",
