@@ -147,3 +147,52 @@ class DeepSeekBaselineResult(BaseModel):
     fallback_used: bool = False
     evidence_refs: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DeepSeekBenchmarkCase(BaseModel):
+    """One fixed benchmark case used for measurement-only runs."""
+
+    case_id: str
+    user_message: str
+    mode: Mode = "chat_lite"
+    required_constraints: list[str] = Field(default_factory=list)
+    required_sections: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DeepSeekBenchmarkRequest(BaseModel):
+    """Batch request for DeepSeek baseline plus Energy Aware measurement."""
+
+    cases: list[DeepSeekBenchmarkCase] = Field(min_length=1, max_length=20)
+    tier: DeepSeekTier = "flash"
+    max_tokens: int = Field(default=700, ge=64, le=4000)
+    run_id: str | None = None
+
+
+class DeepSeekBenchmarkCaseResult(BaseModel):
+    """Per-case benchmark measurement record."""
+
+    case: DeepSeekBenchmarkCase
+    baseline: DeepSeekBaselineResult
+    baseline_evaluation: EvaluationResult
+    repair_evaluation: RepairEvaluationResult
+    final_decision: Decision
+    final_energy: int
+    energy_delta_after_repair: int
+    accepted_after_repair: bool
+
+
+class DeepSeekBenchmarkRunResult(BaseModel):
+    """Measurement-only benchmark batch result."""
+
+    run_id: str
+    provider: str
+    model: str
+    tier: DeepSeekTier
+    cases_total: int
+    accepted_baseline: int
+    accepted_after_repair: int
+    repairs_attempted: int
+    hard_rejects: int
+    results: list[DeepSeekBenchmarkCaseResult] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
