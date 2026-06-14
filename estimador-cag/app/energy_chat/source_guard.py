@@ -97,7 +97,6 @@ def classify_source_need(request: SourceNeedRequest) -> SourceNeedResult:
     """Classify whether a user/draft pair needs external or project evidence."""
 
     user_text = request.user_message.casefold()
-    draft_text = (request.draft_answer or "").casefold()
     combined_text = _combined_text(request.user_message, request.draft_answer)
 
     source_requested = _source_requested(user_text, request.metadata)
