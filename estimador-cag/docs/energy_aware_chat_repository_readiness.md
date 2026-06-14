@@ -37,7 +37,12 @@ Initial standalone export boundary:
     estimador-cag/energy_chat_streamlit_app.py
     estimador-cag/docs/energy_aware_chat_demo.md
     estimador-cag/docs/energy_aware_chat_repository_readiness.md
+    estimador-cag/docs/energy_aware_chat_final_project_delivery_plan.md
+    estimador-cag/docs/energy_aware_chat_demo_walkthrough.md
+    estimador-cag/docs/energy_aware_chat_session17_backlog.md
     estimador-cag/scripts/validate_energy_chat.sh
+    estimador-cag/scripts/check_energy_chat_ci.sh
+    estimador-cag/scripts/export_energy_chat_manifest.sh
     estimador-cag/tests/test_energy_chat_*.py
     .github/workflows/ci.yml
 
@@ -52,6 +57,17 @@ Expected future standalone layout:
       .github/workflows/ci.yml
       README.md
       pyproject.toml
+
+## Delivery artifacts
+
+The current staging branch includes these final-project handoff artifacts:
+
+1. `docs/energy_aware_chat_final_project_delivery_plan.md`
+2. `docs/energy_aware_chat_demo_walkthrough.md`
+3. `docs/energy_aware_chat_session17_backlog.md`
+4. `scripts/export_energy_chat_manifest.sh`
+
+These files keep delivery, demo, backlog, and future extraction decisions explicit.
 
 ## Do not merge policy
 
