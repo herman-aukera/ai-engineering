@@ -68,6 +68,20 @@ def post_energy_chat_evaluation_request(payload: dict[str, Any]) -> dict[str, An
     return response.json()
 
 
+def extract_energy_card(result: dict[str, Any]) -> dict[str, Any]:
+    """Return the visible Energy Card from the FastAPI evaluation result.
+
+    The backend contract returns the card under `energy_card`. Keep a legacy
+    `card` fallback so older local demo payloads do not break while the product
+    evolves through early slices.
+    """
+
+    card = result.get("energy_card") or result.get("card") or {}
+    if isinstance(card, dict):
+        return card
+    return {}
+
+
 def format_decision_label(decision: str) -> str:
     """Return a compact human label for an Energy Aware decision."""
 
@@ -137,7 +151,7 @@ def render_findings(findings: list[dict[str, Any]]) -> None:
 def render_evaluation_result(result: dict[str, Any]) -> None:
     """Render the deterministic evaluator result for a human demo."""
 
-    render_energy_card(result.get("card") or {})
+    render_energy_card(extract_energy_card(result))
     render_findings(result.get("findings") or [])
 
     with st.expander("Raw evaluation result"):
