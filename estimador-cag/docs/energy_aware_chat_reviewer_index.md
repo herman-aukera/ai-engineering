@@ -18,21 +18,23 @@ herman-aukera/energy-aware-chat
 
 Read in this order:
 
-1. `docs/energy_aware_chat_final_project_proof_packet.md`
-2. `docs/energy_aware_chat_actions_filtering.md`
-3. `docs/energy_aware_chat_demo.md`
-4. `docs/energy_aware_chat_live_demo_readiness.md`
-5. `docs/energy_aware_chat_api_smoke_guide.md`
-6. `docs/energy_aware_chat_demo_results_template.md`
-7. `docs/energy_aware_chat_final_project_delivery_plan.md`
-8. `docs/energy_aware_chat_repository_readiness.md`
-9. `docs/energy_aware_chat_session17_backlog.md`
-10. `docs/energy_aware_chat_release_snapshot.md`
+1. `docs/energy_aware_chat_final_submission_handoff.md`
+2. `docs/energy_aware_chat_final_project_proof_packet.md`
+3. `docs/energy_aware_chat_actions_filtering.md`
+4. `docs/energy_aware_chat_demo.md`
+5. `docs/energy_aware_chat_live_demo_readiness.md`
+6. `docs/energy_aware_chat_api_smoke_guide.md`
+7. `docs/energy_aware_chat_demo_results_template.md`
+8. `docs/energy_aware_chat_final_project_delivery_plan.md`
+9. `docs/energy_aware_chat_repository_readiness.md`
+10. `docs/energy_aware_chat_session17_backlog.md`
+11. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
 | Purpose | Command |
 |---|---|
+| Final submission handoff | `docs/energy_aware_chat_final_submission_handoff.md` |
 | Local Energy Chat gate | `bash scripts/validate_energy_chat.sh` |
 | Exact commit CI proof | `bash estimador-cag/scripts/check_energy_chat_ci.sh` from repository root |
 | Actions filtering guide | `docs/energy_aware_chat_actions_filtering.md` |
