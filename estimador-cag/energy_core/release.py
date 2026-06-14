@@ -1,22 +1,22 @@
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 from typing import Any
 
 from energy_core.audit import build_audit_pack
 
-FORBIDDEN_BOUNDARY_TOKENS = {
-    "from app",
-    "import app",
+FORBIDDEN_IMPORT_ROOTS = {
+    "aider",
+    "anthropic",
+    "app",
+    "cline",
     "fastapi",
-    "streamlit",
     "litellm",
     "openai",
-    "anthropic",
-    "redis",
-    "cline",
-    "aider",
     "opencode",
+    "redis",
+    "streamlit",
 }
 
 REQUIRED_RELEASE_DOCS = [
@@ -78,27 +78,30 @@ def build_release_readiness(
 
 
 def scan_energy_core_boundary(project_root: Path) -> dict[str, Any]:
-    """Scan energy_core source for forbidden product-layer imports."""
+    """Scan actual imports in energy_core source for forbidden product layers."""
 
     package_root = project_root / "energy_core"
+    python_files = sorted(package_root.rglob("*.py"))
     violations: list[dict[str, str]] = []
 
-    for path in sorted(package_root.rglob("*.py")):
-        text = path.read_text(encoding="utf-8").lower()
-        for token in sorted(FORBIDDEN_BOUNDARY_TOKENS):
-            if token in text:
-                violations.append(
-                    {
-                        "path": str(path),
-                        "token": token,
-                    }
-                )
+    for path in python_files:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            imported_roots = _imported_roots(node)
+            for root in imported_roots:
+                if root in FORBIDDEN_IMPORT_ROOTS:
+                    violations.append(
+                        {
+                            "path": str(path),
+                            "import_root": root,
+                        }
+                    )
 
     return {
         "clean": not violations,
         "package_root": str(package_root),
         "violations": violations,
-        "checked_files": len(list(package_root.rglob("*.py"))),
+        "checked_files": len(python_files),
     }
 
 
@@ -181,10 +184,18 @@ def format_release_readiness_text(summary: dict[str, Any]) -> str:
     )
 
 
+def _imported_roots(node: ast.AST) -> list[str]:
+    if isinstance(node, ast.Import):
+        return [alias.name.split(".", maxsplit=1)[0] for alias in node.names]
+    if isinstance(node, ast.ImportFrom) and node.module:
+        return [node.module.split(".", maxsplit=1)[0]]
+    return []
+
+
 def _format_boundary_violations(violations: list[dict[str, str]]) -> str:
     if not violations:
         return "none"
-    return ", ".join(f"{item['path']}:{item['token']}" for item in violations)
+    return ", ".join(f"{item['path']}:{item['import_root']}" for item in violations)
 
 
 def _inline_list(items: list[str]) -> str:
