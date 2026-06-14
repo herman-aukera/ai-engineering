@@ -84,9 +84,29 @@ DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         purpose="examiner quickstart",
     ),
     EnergyChatArtifact(
+        path="docs/energy_aware_chat_final_project_acceptance_matrix.md",
+        kind="doc",
+        purpose="final-project requirement to evidence matrix",
+    ),
+    EnergyChatArtifact(
         path="docs/energy_aware_chat_mvp_upgrade.md",
         kind="doc",
         purpose="MVP upgrade and claim boundary",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_deployment_readiness_runbook.md",
+        kind="doc",
+        purpose="deployment readiness runbook",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_live_provider_evidence_template.md",
+        kind="doc",
+        purpose="manual live provider smoke evidence template",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_mvp_demo_recording_packet.md",
+        kind="doc",
+        purpose="2 to 3 minute MVP demo recording packet",
     ),
     EnergyChatArtifact(
         path="docs/energy_aware_chat_final_submission_handoff.md",
