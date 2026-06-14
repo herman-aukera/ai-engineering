@@ -40,6 +40,11 @@ CORE_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         kind="script",
         purpose="dedicated workflow proof helper",
     ),
+    EnergyChatArtifact(
+        path="scripts/render_energy_chat_release_snapshot.py",
+        kind="script",
+        purpose="release snapshot renderer",
+    ),
 )
 
 DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
@@ -47,6 +52,16 @@ DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         path="docs/energy_aware_chat_reviewer_index.md",
         kind="doc",
         purpose="reviewer entry point",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_final_project_proof_packet.md",
+        kind="doc",
+        purpose="final project proof packet",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_demo_evidence_checklist.md",
+        kind="doc",
+        purpose="demo evidence checklist",
     ),
     EnergyChatArtifact(
         path="docs/energy_aware_chat_live_demo_readiness.md",
