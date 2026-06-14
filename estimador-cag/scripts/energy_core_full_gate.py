@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,12 +22,27 @@ def _project_root() -> Path:
 
 
 def _python_files(project_root: Path) -> list[str]:
-    roots = [project_root / "energy_core", project_root / "tests", project_root / "scripts"]
+    roots = [
+        project_root / "energy_core",
+        project_root / "tests",
+        project_root / "scripts",
+    ]
     files: list[str] = []
     for root in roots:
         if root.exists():
-            files.extend(str(path.relative_to(project_root)) for path in root.rglob("*.py"))
+            files.extend(
+                str(path.relative_to(project_root))
+                for path in root.rglob("*.py")
+            )
     return sorted(files)
+
+
+def _project_command(label: str, argv: tuple[str, ...]) -> GateCommand:
+    return GateCommand(label, _project_root(), argv)
+
+
+def _repo_command(label: str, argv: tuple[str, ...]) -> GateCommand:
+    return GateCommand(label, _repo_root(), argv)
 
 
 def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
@@ -39,73 +53,81 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
     commands: list[GateCommand] = []
     if include_ruff_fix:
         commands.append(
-            GateCommand(
+            _project_command(
                 "Ruff autofix",
-                project_root,
-                ("uv", "run", "ruff", "check", "--fix", "energy_core", "tests", "scripts"),
+                (
+                    "uv",
+                    "run",
+                    "ruff",
+                    "check",
+                    "--fix",
+                    "energy_core",
+                    "tests",
+                    "scripts",
+                ),
             )
         )
     commands.extend(
         [
-            GateCommand(
+            _project_command(
                 "Ruff check",
-                project_root,
                 ("uv", "run", "ruff", "check", "energy_core", "tests", "scripts"),
             ),
-            GateCommand(
+            _project_command(
                 "Python compile",
-                project_root,
                 ("uv", "run", "python", "-m", "py_compile", *py_files),
             ),
-            GateCommand(
+            _project_command(
                 "Energy Core boundary",
-                project_root,
                 ("uv", "run", "python", "scripts/energy_core_boundary_check.py"),
             ),
-            GateCommand("Pytest", project_root, ("uv", "run", "pytest", "-q")),
-            GateCommand("Energy Core smoke", project_root, ("uv", "run", "python", "scripts/energy_core_smoke.py")),
-            GateCommand(
+            _project_command("Pytest", ("uv", "run", "pytest", "-q")),
+            _project_command(
+                "Energy Core smoke",
+                ("uv", "run", "python", "scripts/energy_core_smoke.py"),
+            ),
+            _project_command(
                 "Energy Core example smoke",
-                project_root,
                 ("uv", "run", "python", "scripts/energy_core_example_smoke.py"),
             ),
-            GateCommand(
+            _project_command(
                 "Energy Core constraint smoke",
-                project_root,
                 ("uv", "run", "python", "scripts/energy_core_constraint_smoke.py"),
             ),
-            GateCommand(
+            _project_command(
                 "Energy Core release smoke",
-                project_root,
                 ("uv", "run", "python", "scripts/energy_core_release_smoke.py"),
             ),
-            GateCommand(
+            _project_command(
                 "Energy Core schema smoke",
-                project_root,
                 ("uv", "run", "python", "scripts/energy_core_schema_smoke.py"),
             ),
-            GateCommand(
+            _project_command(
                 "Energy Core package smoke",
-                project_root,
                 ("uv", "run", "python", "scripts/energy_core_package_smoke.py"),
             ),
-            GateCommand(
+            _project_command(
                 "Energy Core reviewer smoke",
-                project_root,
                 ("uv", "run", "python", "scripts/energy_core_reviewer_smoke.py"),
             ),
-            GateCommand(
+            _project_command(
                 "Energy Core command catalog smoke",
-                project_root,
-                ("uv", "run", "python", "scripts/energy_core_command_catalog_smoke.py"),
+                (
+                    "uv",
+                    "run",
+                    "python",
+                    "scripts/energy_core_command_catalog_smoke.py",
+                ),
             ),
-            GateCommand(
+            _repo_command(
                 "Energy Core root smoke",
-                repo_root,
-                (str(repo_root / "estimador-cag/.venv/bin/python"), "scripts/energy_core_root_smoke.py"),
+                (
+                    str(repo_root / "estimador-cag/.venv/bin/python"),
+                    "scripts/energy_core_root_smoke.py",
+                ),
             ),
-            GateCommand("Git diff check", repo_root, ("git", "diff", "--check")),
-            GateCommand("Git status check", repo_root, ("git", "status", "--short")),
+            _repo_command("Git diff check", ("git", "diff", "--check")),
+            _repo_command("Git status check", ("git", "status", "--short")),
         ]
     )
     return commands
@@ -113,9 +135,6 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
 
 def _run(command: GateCommand) -> None:
     print(f"=== {command.label} ===", flush=True)
-    completed = subprocess.run(command.argv, cwd=command.cwd, text=True, check=False)
-    if completed.returncode != 0:
-        raise SystemExit(completed.returncode)
     if command.label == "Git status check":
         status = subprocess.run(
             command.argv,
@@ -124,14 +143,27 @@ def _run(command: GateCommand) -> None:
             check=False,
             capture_output=True,
         )
+        if status.returncode != 0:
+            raise SystemExit(status.returncode)
         if status.stdout.strip():
             print(status.stdout, end="")
             raise SystemExit("Repository is dirty after full gate.")
+        return
+
+    completed = subprocess.run(command.argv, cwd=command.cwd, text=True, check=False)
+    if completed.returncode != 0:
+        raise SystemExit(completed.returncode)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run the full Energy Core validation gate.")
-    parser.add_argument("--fix", action="store_true", help="Run Ruff autofix before the read-only gates.")
+    parser = argparse.ArgumentParser(
+        description="Run the full Energy Core validation gate."
+    )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Run Ruff autofix before the read-only gates.",
+    )
     args = parser.parse_args(argv)
 
     for command in build_gate_commands(include_ruff_fix=args.fix):
