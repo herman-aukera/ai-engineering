@@ -1,8 +1,7 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
-QUICKSTART = (ROOT / "docs/energy_aware_chat_examiner_quickstart.md").read_text(
+QUICKSTART = (ROOT / "docs" / "energy_aware_chat_examiner_quickstart.md").read_text(
     encoding="utf-8"
 )
 
