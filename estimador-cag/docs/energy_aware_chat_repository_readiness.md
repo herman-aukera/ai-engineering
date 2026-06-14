@@ -35,10 +35,13 @@ Initial standalone export boundary:
 
     estimador-cag/app/energy_chat/
     estimador-cag/energy_chat_streamlit_app.py
+    estimador-cag/demo_payloads/energy_chat/
     estimador-cag/docs/energy_aware_chat_demo.md
     estimador-cag/docs/energy_aware_chat_repository_readiness.md
     estimador-cag/docs/energy_aware_chat_final_project_delivery_plan.md
     estimador-cag/docs/energy_aware_chat_demo_walkthrough.md
+    estimador-cag/docs/energy_aware_chat_live_demo_readiness.md
+    estimador-cag/docs/energy_aware_chat_standalone_export_readme.md
     estimador-cag/docs/energy_aware_chat_session17_backlog.md
     estimador-cag/scripts/validate_energy_chat.sh
     estimador-cag/scripts/check_energy_chat_ci.sh
@@ -52,6 +55,7 @@ Expected future standalone layout:
     energy-aware-chat/
       app/energy_chat/
       apps/streamlit/energy_chat_streamlit_app.py
+      demo_payloads/energy_chat/
       docs/
       scripts/
       tests/
@@ -65,8 +69,11 @@ The current staging branch includes these final-project handoff artifacts:
 
 1. `docs/energy_aware_chat_final_project_delivery_plan.md`
 2. `docs/energy_aware_chat_demo_walkthrough.md`
-3. `docs/energy_aware_chat_session17_backlog.md`
-4. `scripts/export_energy_chat_manifest.sh`
+3. `docs/energy_aware_chat_live_demo_readiness.md`
+4. `docs/energy_aware_chat_standalone_export_readme.md`
+5. `docs/energy_aware_chat_session17_backlog.md`
+6. `demo_payloads/energy_chat/`
+7. `scripts/export_energy_chat_manifest.sh`
 
 These files keep delivery, demo, backlog, and future extraction decisions explicit.
 
