@@ -19,34 +19,38 @@ herman-aukera/energy-aware-chat
 Read in this order:
 
 1. `docs/energy_aware_chat_examiner_quickstart.md`
-2. `docs/energy_aware_chat_final_submission_handoff.md`
-3. `docs/energy_aware_chat_final_project_proof_packet.md`
-4. `docs/energy_aware_chat_actions_filtering.md`
-5. `docs/energy_aware_chat_demo.md`
-6. `docs/energy_aware_chat_live_demo_readiness.md`
-7. `docs/energy_aware_chat_demo_script.md`
-8. `docs/energy_aware_chat_demo_command_checklist.md`
-9. `docs/energy_aware_chat_api_smoke_guide.md`
-10. `docs/energy_aware_chat_demo_results_template.md`
-11. `docs/energy_aware_chat_pr_body_draft.md`
-12. `docs/energy_aware_chat_final_project_delivery_plan.md`
-13. `docs/energy_aware_chat_repository_readiness.md`
-14. `docs/energy_aware_chat_session17_backlog.md`
-15. `docs/energy_aware_chat_release_snapshot.md`
+2. `docs/energy_aware_chat_mvp_upgrade.md`
+3. `docs/energy_aware_chat_final_submission_handoff.md`
+4. `docs/energy_aware_chat_final_project_proof_packet.md`
+5. `docs/energy_aware_chat_actions_filtering.md`
+6. `docs/energy_aware_chat_demo.md`
+7. `docs/energy_aware_chat_live_demo_readiness.md`
+8. `docs/energy_aware_chat_demo_script.md`
+9. `docs/energy_aware_chat_demo_command_checklist.md`
+10. `docs/energy_aware_chat_api_smoke_guide.md`
+11. `docs/energy_aware_chat_demo_results_template.md`
+12. `docs/energy_aware_chat_pr_body_draft.md`
+13. `docs/energy_aware_chat_final_project_delivery_plan.md`
+14. `docs/energy_aware_chat_repository_readiness.md`
+15. `docs/energy_aware_chat_session17_backlog.md`
+16. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
 | Purpose | Command |
 |---|---|
 | Examiner quickstart | `docs/energy_aware_chat_examiner_quickstart.md` |
+| MVP upgrade proof | `docs/energy_aware_chat_mvp_upgrade.md` |
 | Final submission handoff | `docs/energy_aware_chat_final_submission_handoff.md` |
 | Pull request body draft | `docs/energy_aware_chat_pr_body_draft.md` |
 | Demo narration script | `docs/energy_aware_chat_demo_script.md` |
 | Demo command checklist | `docs/energy_aware_chat_demo_command_checklist.md` |
 | Local Energy Chat gate | `bash scripts/validate_energy_chat.sh` |
 | Exact commit CI proof | `bash estimador-cag/scripts/check_energy_chat_ci.sh` from repository root |
+| Manual live provider smoke | `gh workflow run "Energy Aware Chat Live Provider Smoke" --ref EACHAT` |
 | Actions filtering guide | `docs/energy_aware_chat_actions_filtering.md` |
-| Demo API startup | `bash ../.devcontainer/start-estimador-services.sh api` from `estimador-cag` |
+| Demo API startup | `bash scripts/start_energy_chat.sh` from `estimador-cag` |
+| Docker compose API | `docker compose -f docker-compose.energy-chat.yml up --build` from `estimador-cag` |
 | Streamlit UI | `streamlit run energy_chat_streamlit_app.py --server.address 0.0.0.0 --server.port 8501` |
 | Standalone export manifest | `bash scripts/export_energy_chat_manifest.sh` from `estimador-cag` |
 | Release snapshot renderer | `uv run python scripts/render_energy_chat_release_snapshot.py` from `estimador-cag` |
@@ -71,11 +75,16 @@ Read in this order:
 | source-needed classifier | implemented |
 | evidence bundle builder | implemented |
 | DeepSeek baseline seam | implemented |
+| DeepSeek-to-Kimi fallback seam | implemented and deterministic-test covered |
+| deterministic RAG baseline | implemented |
+| deterministic agent orchestration | implemented |
 | measurement-only benchmark harness | implemented |
 | report writer | implemented |
 | release snapshot helper | implemented |
 | Streamlit demo | implemented |
+| Docker and compose deployment path | implemented |
 | dedicated Energy Chat CI | implemented |
+| manual live provider smoke workflow | implemented |
 | standalone repository extraction plan | documented |
 
 ## Explicit non-claims
@@ -83,10 +92,10 @@ Read in this order:
 Do not claim these yet:
 
 1. Production readiness.
-2. Deployment readiness.
-3. RAG grounding.
-4. Autonomous agent orchestration.
-5. Quality improvement over DeepSeek.
+2. Public deployment is live.
+3. Quality improvement over DeepSeek.
+4. Live provider fallback proof unless the manual live-provider smoke workflow passes.
+5. Vector database RAG for Energy Aware Chat.
 6. Security hardening beyond the current deterministic boundaries.
 
 Required benchmark claim token:
