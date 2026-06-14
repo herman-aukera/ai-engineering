@@ -1,7 +1,12 @@
 from fastapi.testclient import TestClient
 
-from app.energy_chat import baseline
-from app.energy_chat.contracts import DeepSeekBaselineRequest, DeepSeekBaselineResult
+from app.energy_chat import baseline, benchmark
+from app.energy_chat.contracts import (
+    DeepSeekBaselineRequest,
+    DeepSeekBaselineResult,
+    DeepSeekBenchmarkRequest,
+    DeepSeekBenchmarkRunResult,
+)
 from app.main import app
 
 client = TestClient(app)
@@ -23,6 +28,12 @@ def test_energy_chat_deepseek_baseline_route_is_registered() -> None:
     schema = client.get("/openapi.json").json()
 
     assert "/energy-chat/draft/deepseek-baseline" in schema["paths"]
+
+
+def test_energy_chat_deepseek_benchmark_route_is_registered() -> None:
+    schema = client.get("/openapi.json").json()
+
+    assert "/energy-chat/benchmark/deepseek-energy-aware" in schema["paths"]
 
 
 def test_energy_chat_evaluate_accepts_clean_candidate() -> None:
@@ -98,6 +109,45 @@ def test_energy_chat_deepseek_baseline_route_uses_injected_provider(monkeypatch)
     assert body["provider"] == "deepseek"
     assert body["tier"] == "flash"
     assert body["metadata"]["energy_evaluated"] is False
+
+
+def test_energy_chat_deepseek_benchmark_route_uses_injected_runner(monkeypatch) -> None:
+    def fake_run(request: DeepSeekBenchmarkRequest) -> DeepSeekBenchmarkRunResult:
+        return DeepSeekBenchmarkRunResult(
+            run_id=request.run_id or "fake-benchmark-run",
+            provider="deepseek",
+            model="deepseek-v4-flash",
+            tier=request.tier,
+            cases_total=len(request.cases),
+            accepted_baseline=0,
+            accepted_after_repair=1,
+            repairs_attempted=1,
+            hard_rejects=0,
+            results=[],
+            metadata={"claim_status": "measurement_only_no_quality_claim"},
+        )
+
+    monkeypatch.setattr(benchmark, "run_deepseek_energy_benchmark", fake_run)
+
+    response = client.post(
+        "/energy-chat/benchmark/deepseek-energy-aware",
+        json={
+            "run_id": "fake-benchmark-run",
+            "cases": [
+                {
+                    "case_id": "router_case",
+                    "user_message": "Benchmark this draft path.",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] == "fake-benchmark-run"
+    assert body["cases_total"] == 1
+    assert body["accepted_after_repair"] == 1
+    assert body["metadata"]["claim_status"] == "measurement_only_no_quality_claim"
 
 
 def test_energy_chat_evaluate_rejects_hidden_chain_of_thought() -> None:
