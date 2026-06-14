@@ -12,12 +12,19 @@ Target repository:
 Source branch:
   EACHAT
 
+Canonical final-project mirror:
+  finalproject-GGC
+
 Required paths:
   app/energy_chat/
   energy_chat_streamlit_app.py
   demo_payloads/energy_chat/
   docs/energy_aware_chat_examiner_quickstart.md
+  docs/energy_aware_chat_final_project_acceptance_matrix.md
   docs/energy_aware_chat_mvp_upgrade.md
+  docs/energy_aware_chat_deployment_readiness_runbook.md
+  docs/energy_aware_chat_live_provider_evidence_template.md
+  docs/energy_aware_chat_mvp_demo_recording_packet.md
   docs/energy_aware_chat_final_submission_handoff.md
   docs/energy_aware_chat_pr_body_draft.md
   docs/energy_aware_chat_demo.md
