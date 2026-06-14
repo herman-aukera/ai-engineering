@@ -1,0 +1,5 @@
+{"evidence_id":"ev-pytest","type":"pytest_output","status":"pass","summary":"focused tests passed","trusted":true}
+{"evidence_id":"ev-compile","type":"compile_output","status":"pass","summary":"py_compile passed","trusted":true}
+{"evidence_id":"ev-lint","type":"lint_output","status":"pass","summary":"ruff passed","trusted":true}
+{"evidence_id":"ev-secret","type":"secret_scan_output","status":"pass","summary":"no credential-like values found","trusted":true}
+{"evidence_id":"ev-diff","type":"git_diff","status":"pass","summary":"diff is scoped to Energy Aware Code Slice 1","trusted":true}
