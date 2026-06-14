@@ -161,6 +161,70 @@ def test_cli_can_fail_automation_on_non_accept_decision(tmp_path):
     assert len(ledger_rows) == 1
 
 
+def test_cli_policy_validate_outputs_json_and_markdown_report(tmp_path):
+    report_path = tmp_path / "policy-report.md"
+
+    json_result = _run_cli(
+        "policy-validate",
+        "--policy",
+        str(SPEC_DIR / "energy-policy.yaml"),
+        "--format",
+        "json",
+        "--fail-on-invalid",
+    )
+    markdown_result = _run_cli(
+        "policy-validate",
+        "--policy",
+        str(SPEC_DIR / "energy-policy.yaml"),
+        "--format",
+        "markdown",
+        "--report",
+        str(report_path),
+    )
+
+    summary = json.loads(json_result.stdout)
+    report = report_path.read_text(encoding="utf-8")
+
+    assert summary["complete"] is True
+    assert summary["missing"] == []
+    assert "# Energy Aware Code Policy Validation" in markdown_result.stdout
+    assert "# Energy Aware Code Policy Validation" in report
+
+
+def test_cli_candidate_validate_outputs_json_and_markdown_report(tmp_path):
+    report_path = tmp_path / "candidate-report.md"
+
+    json_result = _run_cli(
+        "candidate-validate",
+        "--policy",
+        str(SPEC_DIR / "energy-policy.yaml"),
+        "--candidate",
+        str(SPEC_DIR / "examples/candidate_accept.json"),
+        "--format",
+        "json",
+        "--fail-on-invalid",
+    )
+    markdown_result = _run_cli(
+        "candidate-validate",
+        "--policy",
+        str(SPEC_DIR / "energy-policy.yaml"),
+        "--candidate",
+        str(SPEC_DIR / "examples/candidate_accept.json"),
+        "--format",
+        "markdown",
+        "--report",
+        str(report_path),
+    )
+
+    summary = json.loads(json_result.stdout)
+    report = report_path.read_text(encoding="utf-8")
+
+    assert summary["complete"] is True
+    assert summary["candidate_id"] == "slice-001-accept"
+    assert "# Energy Aware Code Candidate Validation" in markdown_result.stdout
+    assert "# Energy Aware Code Candidate Validation" in report
+
+
 def test_cli_evidence_summary_outputs_json_and_markdown_report(tmp_path):
     report_path = tmp_path / "evidence-report.md"
 
