@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 
 from energy_core.models import EvidenceRecord
@@ -35,3 +36,22 @@ def read_evidence_records(path: str | Path) -> list[EvidenceRecord]:
         records.append(EvidenceRecord.model_validate(payload))
 
     return records
+
+
+def summarize_evidence(records: list[EvidenceRecord]) -> dict[str, object]:
+    """Summarize evidence records without executing or approving anything."""
+
+    by_status = Counter(record.status for record in records)
+    by_type = Counter(record.type for record in records)
+    trusted_count = sum(1 for record in records if record.trusted)
+
+    return {
+        "total": len(records),
+        "by_status": dict(sorted(by_status.items())),
+        "by_type": dict(sorted(by_type.items())),
+        "trusted": trusted_count,
+        "not_trusted": len(records) - trusted_count,
+        "failed_evidence": [record.evidence_id for record in records if record.status == "fail"],
+        "missing_evidence": [record.evidence_id for record in records if record.status == "missing"],
+        "conflicting_evidence": [record.evidence_id for record in records if record.status == "conflict"],
+    }
