@@ -21,6 +21,7 @@ def main() -> int:
         report = tmp_path / "decision-report.md"
         evidence_report = tmp_path / "evidence-report.md"
         ledger_report = tmp_path / "ledger-report.md"
+        spec_report = tmp_path / "spec-report.md"
         failed_evidence = tmp_path / "failed-evidence.jsonl"
 
         accept_json = _run(
@@ -72,6 +73,35 @@ def main() -> int:
         )
         _assert(json.loads(dry_run.stdout)["decision"] == "accept", "dry run should evaluate")
         _assert(not dry_run_decisions.exists(), "dry run should not create a decision ledger")
+
+        spec_coverage = _run(
+            "spec-coverage",
+            "--spec-dir",
+            str(SPEC_DIR),
+            "--format",
+            "json",
+        )
+        spec_payload = json.loads(spec_coverage.stdout)
+        _assert(spec_payload["complete"] is True, "spec coverage should be complete")
+        _assert(spec_payload["missing"] == [], "spec coverage should not report missing artifacts")
+
+        spec_markdown = _run(
+            "spec-coverage",
+            "--spec-dir",
+            str(SPEC_DIR),
+            "--format",
+            "markdown",
+            "--report",
+            str(spec_report),
+        )
+        _assert(
+            "# Energy Aware Code Spec Coverage" in spec_markdown.stdout,
+            "Markdown spec coverage should print",
+        )
+        _assert(
+            "# Energy Aware Code Spec Coverage" in spec_report.read_text(encoding="utf-8"),
+            "Markdown spec coverage report should be written",
+        )
 
         summary_json = _run(
             "evidence-summary",
