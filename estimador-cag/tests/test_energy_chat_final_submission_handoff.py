@@ -23,8 +23,17 @@ def test_final_submission_handoff_keeps_claim_boundary() -> None:
     assert "model quality improvement" in HANDOFF
 
 
-def test_reviewer_index_opens_with_examiner_quickstart_then_mvp_upgrade() -> None:
+def test_reviewer_index_opens_with_examiner_then_milestone_packet() -> None:
     fast_path = INDEX.split("## Fast path for review", maxsplit=1)[1]
-    assert "1. `docs/energy_aware_chat_examiner_quickstart.md`" in fast_path
-    assert "2. `docs/energy_aware_chat_mvp_upgrade.md`" in fast_path
-    assert "3. `docs/energy_aware_chat_final_submission_handoff.md`" in fast_path
+    expected_items = [
+        "1. `docs/energy_aware_chat_examiner_quickstart.md`",
+        "2. `docs/energy_aware_chat_final_project_acceptance_matrix.md`",
+        "3. `docs/energy_aware_chat_mvp_upgrade.md`",
+        "4. `docs/energy_aware_chat_deployment_readiness_runbook.md`",
+        "5. `docs/energy_aware_chat_live_provider_evidence_template.md`",
+        "6. `docs/energy_aware_chat_mvp_demo_recording_packet.md`",
+        "7. `docs/energy_aware_chat_final_submission_handoff.md`",
+    ]
+
+    for item in expected_items:
+        assert item in fast_path
