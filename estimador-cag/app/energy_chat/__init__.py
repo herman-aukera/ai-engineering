@@ -36,6 +36,7 @@ from app.energy_chat.reports import (
     build_deepseek_benchmark_report_markdown,
     write_deepseek_benchmark_report,
 )
+from app.energy_chat.review_packet import ReviewPacket, build_review_packet
 from app.energy_chat.source_guard import classify_source_need
 
 __all__ = [
@@ -58,12 +59,14 @@ __all__ = [
     "GateSnapshot",
     "ReleaseSnapshot",
     "RepairEvaluationResult",
+    "ReviewPacket",
     "SourceNeedRequest",
     "SourceNeedResult",
     "artifact_paths",
     "build_deepseek_benchmark_report_markdown",
     "build_release_snapshot",
     "build_release_snapshot_markdown",
+    "build_review_packet",
     "classify_source_need",
     "evaluate_answer",
     "evaluate_with_one_pass_repair",
