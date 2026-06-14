@@ -2,7 +2,6 @@ from pathlib import Path
 
 from energy_core.policy import load_policy
 
-
 POLICY_PATH = Path(".energy/specs/0001-energy-policy-ledger/energy-policy.yaml")
 
 

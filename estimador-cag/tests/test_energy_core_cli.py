@@ -3,7 +3,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 SPEC_DIR = Path(".energy/specs/0001-energy-policy-ledger")
 
 

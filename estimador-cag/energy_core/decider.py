@@ -3,8 +3,20 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from energy_core.critics import run_critics
-from energy_core.models import CandidateState, EnergyDecision, EnergyPolicy, EvidenceRecord, Violation
-from energy_core.scorer import hard_reject_ids, hard_repair_ids, missing_evidence_ids, soft_ids, total_energy
+from energy_core.models import (
+    CandidateState,
+    EnergyDecision,
+    EnergyPolicy,
+    EvidenceRecord,
+    Violation,
+)
+from energy_core.scorer import (
+    hard_reject_ids,
+    hard_repair_ids,
+    missing_evidence_ids,
+    soft_ids,
+    total_energy,
+)
 
 
 def evaluate_candidate(

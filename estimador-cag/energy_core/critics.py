@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from energy_core.models import CandidateState, ConstraintPolicy, EnergyPolicy, EvidenceRecord, Violation
+from energy_core.models import (
+    CandidateState,
+    ConstraintPolicy,
+    EnergyPolicy,
+    EvidenceRecord,
+    Violation,
+)
 
 _FAILED_EVIDENCE_TO_CONSTRAINT = {
     "pytest_output": "tests_failed",

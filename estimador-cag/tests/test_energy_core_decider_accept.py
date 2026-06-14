@@ -2,7 +2,6 @@ from energy_core.decider import evaluate_candidate
 from energy_core.models import CandidateState, EvidenceRecord
 from energy_core.policy import load_policy
 
-
 POLICY_PATH = ".energy/specs/0001-energy-policy-ledger/energy-policy.yaml"
 
 
