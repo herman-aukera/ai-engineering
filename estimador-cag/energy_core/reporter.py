@@ -116,6 +116,60 @@ def format_evidence_markdown_report(summary: dict[str, object]) -> str:
     )
 
 
+def format_ledger_summary(summary: dict[str, object]) -> str:
+    latest = summary["latest_decision"]
+    latest_line = "none" if latest is None else f"{latest['candidate_id']} -> {latest['decision']}"
+    return "\n".join(
+        [
+            "Energy Aware Code Decision Ledger Summary",
+            f"Total decisions: {summary['total']}",
+            f"By decision: {_inline_mapping(summary['by_decision'])}",
+            f"Accepted: {summary['accepted']}",
+            f"Repair: {summary['repair']}",
+            f"Reject: {summary['reject']}",
+            f"Escalate: {summary['escalate']}",
+            f"Latest decision: {latest_line}",
+            f"Candidate ids: {_inline_list(summary['candidate_ids'])}",
+        ]
+    )
+
+
+def format_ledger_markdown_report(summary: dict[str, object]) -> str:
+    latest = summary["latest_decision"]
+    latest_lines = ["- none"]
+    if latest is not None:
+        latest_lines = [
+            f"- Candidate: {latest['candidate_id']}",
+            f"- Decision: {latest['decision']}",
+            f"- Energy after: {latest['energy_after']}",
+            f"- Next action: {latest['next_action']}",
+        ]
+    return "\n".join(
+        [
+            "# Energy Aware Code Decision Ledger Summary",
+            "",
+            f"- Total decisions: {summary['total']}",
+            f"- Accepted: {summary['accepted']}",
+            f"- Repair: {summary['repair']}",
+            f"- Reject: {summary['reject']}",
+            f"- Escalate: {summary['escalate']}",
+            "",
+            "## By decision",
+            "",
+            *_mapping_bullet_list(summary["by_decision"]),
+            "",
+            "## Candidate ids",
+            "",
+            *_bullet_list(summary["candidate_ids"]),
+            "",
+            "## Latest decision",
+            "",
+            *latest_lines,
+            "",
+        ]
+    )
+
+
 def format_evidence_summary_text(summary: dict[str, object]) -> str:
     """Backward-compatible alias for older smoke probes."""
 
