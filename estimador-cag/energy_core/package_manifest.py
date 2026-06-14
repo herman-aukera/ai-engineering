@@ -91,7 +91,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_review_pack_smoke.py",
     "scripts/energy_core_critic_coverage_smoke.py",
     "scripts/energy_core_ledger_integrity_smoke.py",
-    "scripts/energy_core_nightly_status_smoke.py",
+    "scripts/energy_core_nightly_status_v2_smoke.py",
     "scripts/energy_core_schema_smoke.py",
     "scripts/energy_core_scaffold_smoke.py",
     "scripts/energy_core_export_plan_smoke.py",
