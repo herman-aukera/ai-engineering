@@ -62,6 +62,18 @@ VALIDATION_COMMAND_MARKERS = (
     "gate",
 )
 
+COMMAND_REF_ORDER: dict[str, int] = {
+    "git": 10,
+    "test": 20,
+    "ci": 30,
+    "file": 40,
+    "source": 50,
+    "web": 60,
+    "manual": 70,
+    "cmd": 80,
+    "unknown": 90,
+}
+
 
 def build_evidence_bundle(request: EvidenceBundleRequest) -> EvidenceBundleResult:
     """Normalize refs and command outputs into a project/research evidence bundle."""
@@ -171,7 +183,21 @@ def _refs_from_command_outputs(command_outputs: dict[str, str]) -> list[str]:
 
         if output.strip():
             refs.append(f"cmd:{slug}")
-    return refs
+    return _sort_command_refs(refs)
+
+
+def _sort_command_refs(refs: list[str]) -> list[str]:
+    """Return command-derived refs in stable semantic order.
+
+    Evidence entered explicitly by a user keeps input order. Derived command evidence is
+    canonicalized so project-state proof such as git status appears before validation
+    proof such as pytest, regardless of command dictionary insertion or lexical order.
+    """
+
+    return sorted(
+        refs,
+        key=lambda ref: (COMMAND_REF_ORDER.get(_source_type(ref), 90), ref),
+    )
 
 
 def _looks_like_validation_command(command: str) -> bool:
