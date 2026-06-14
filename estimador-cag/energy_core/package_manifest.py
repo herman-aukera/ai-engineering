@@ -12,6 +12,8 @@ REQUIRED_PACKAGE_FILES = [
     "energy_core/audit.py",
     "energy_core/bundle.py",
     "energy_core/cli.py",
+    "energy_core/command_catalog.py",
+    "energy_core/command_catalog_cli.py",
     "energy_core/constraints.py",
     "energy_core/constraints_cli.py",
     "energy_core/critics.py",
@@ -67,6 +69,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_constraint_smoke.py",
     "scripts/energy_core_release_smoke.py",
     "scripts/energy_core_reviewer_smoke.py",
+    "scripts/energy_core_command_catalog_smoke.py",
     "scripts/energy_core_schema_smoke.py",
 ]
 
