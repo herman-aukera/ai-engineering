@@ -106,3 +106,14 @@ class EvaluationResult(BaseModel):
     score: EnergyScore
     decision: EnergyDecision
     energy_card: EnergyCard
+
+
+class RepairEvaluationResult(BaseModel):
+    """One pass deterministic repair attempt result."""
+
+    initial_result: EvaluationResult
+    final_result: EvaluationResult
+    repair_attempted: bool
+    repairs_applied: list[str] = Field(default_factory=list)
+    repaired_request: EnergyChatRequest | None = None
+    repaired_result: EvaluationResult | None = None
