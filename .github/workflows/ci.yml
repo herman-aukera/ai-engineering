@@ -43,10 +43,12 @@ jobs:
           test -d evals && TARGETS="$TARGETS evals"
           test -d energy_core && TARGETS="$TARGETS energy_core"
           test -d scripts && TARGETS="$TARGETS scripts"
+          test -d ../energy_core && TARGETS="$TARGETS ../energy_core"
+          test -f ../scripts/energy_core_root_smoke.py && TARGETS="$TARGETS ../scripts/energy_core_root_smoke.py"
           uv run ruff check $TARGETS
 
       - name: Compile Python
-        run: uv run python -m py_compile $(find app tests evals energy_core scripts -name '*.py' -type f 2>/dev/null)
+        run: uv run python -m py_compile $(find app tests evals energy_core scripts ../energy_core ../scripts -name '*.py' -type f 2>/dev/null)
 
       - name: Energy Core Boundary
         run: |
@@ -65,4 +67,13 @@ jobs:
             uv run python scripts/energy_core_smoke.py
           else
             echo "Energy Core smoke skipped because script or package is absent."
+          fi
+
+      - name: Energy Core Root Smoke
+        working-directory: .
+        run: |
+          if test -d energy_core && test -f scripts/energy_core_root_smoke.py; then
+            estimador-cag/.venv/bin/python scripts/energy_core_root_smoke.py
+          else
+            echo "Energy Core root smoke skipped because root shim or script is absent."
           fi
