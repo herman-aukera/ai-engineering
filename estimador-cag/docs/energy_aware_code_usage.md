@@ -14,6 +14,7 @@ Run from `estimador-cag`:
     uv run pytest -q
     uv run python scripts/energy_core_boundary_check.py
     uv run python scripts/energy_core_smoke.py
+    uv run python scripts/energy_core_constraint_smoke.py
     uv run python scripts/energy_core_release_smoke.py
 
 From the repository root, the incubator branch also supports `python -m energy_core.cli` through a small compatibility shim:
@@ -21,7 +22,7 @@ From the repository root, the incubator branch also supports `python -m energy_c
     estimador-cag/.venv/bin/python -m energy_core.cli --help
     estimador-cag/.venv/bin/python scripts/energy_core_root_smoke.py
 
-The CI pipeline runs project smoke, release smoke, repository-root smoke, and a final git status cleanliness check so examples cannot drift silently.
+The CI pipeline runs project smoke, constraint smoke, release smoke, repository-root smoke, and a final git status cleanliness check so examples cannot drift silently.
 
 ## Validate the policy contract
 
@@ -40,6 +41,24 @@ From the repository root:
       --fail-on-invalid
 
 This command checks required hard constraints, required evidence types, acceptance evidence, decision rules, and threshold consistency before candidate evaluation starts.
+
+## Render the constraint index
+
+From `estimador-cag`:
+
+    uv run python -m energy_core.constraints_cli \
+      --policy .energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
+      --format markdown \
+      --fail-on-incomplete
+
+From the repository root:
+
+    estimador-cag/.venv/bin/python -m energy_core.constraints_cli \
+      --policy .energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
+      --format text \
+      --fail-on-incomplete
+
+This command renders the active hard reject, hard repair, soft, evidence, threshold, and decision-rule contract before a candidate is evaluated.
 
 ## Validate a candidate contract
 
@@ -216,4 +235,4 @@ Decision exit codes:
 6. No DeepSeek, OpenAI, or Kimi calls.
 7. No bridge with Energy Aware Chat.
 
-The current product layer is the judge: spec package, policy, candidate state, evidence, critics, score, decision, reports, ledger inspection, trend analysis, portable bundle metadata, audit packs, and release readiness.
+The current product layer is the judge: spec package, policy, candidate state, evidence, critics, score, decision, reports, ledger inspection, trend analysis, portable bundle metadata, audit packs, release readiness, schema export, adapter contracts, and constraint indexes.
