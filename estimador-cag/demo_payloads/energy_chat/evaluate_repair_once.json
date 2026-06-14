@@ -1,0 +1,13 @@
+{
+  "user_message": "Review this release readiness answer and preserve the project constraint.",
+  "draft_answer": "Start with tests.",
+  "mode": "chat_lite",
+  "required_constraints": [
+    "scope remains limited"
+  ],
+  "required_sections": [],
+  "evidence_refs": [],
+  "metadata": {
+    "demo_case": "evaluate_repair_once"
+  }
+}
