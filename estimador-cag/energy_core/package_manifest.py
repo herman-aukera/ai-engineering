@@ -178,9 +178,8 @@ def format_package_manifest_markdown(manifest: dict[str, Any]) -> str:
     lines.extend(["", "## Files", ""])
     for item in manifest["files"]:
         status = "present" if item["exists"] else "missing"
-        lines.append(
-            f"- {item['group']}: {item['relative_path']} ({status}, sha256={item['sha256'] or 'none'})"
-        )
+        summary = f"{status}, sha256={item['sha256'] or 'none'}"
+        lines.append(f"- {item['group']}: {item['relative_path']} ({summary})")
     lines.extend(["", "## Non goals", ""])
     lines.extend(_bullet_list(manifest["non_goals"]))
     return "\n".join(lines)
