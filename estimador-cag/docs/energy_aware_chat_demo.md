@@ -17,6 +17,8 @@ Implemented layers:
 6. Measurement-only benchmark harness
 7. Benchmark report writer
 8. Deterministic source-needed classifier for research and project-mode preparation
+9. Deterministic evidence bundle builder for project and research evidence refs
+10. Dynamic Energy Chat validation gate and CI conformance tests
 
 ## What is deliberately not claimed yet
 
@@ -36,7 +38,21 @@ From `estimador-cag`:
 
     bash scripts/validate_energy_chat.sh
 
-This gate runs Ruff auto-fix, Ruff check, Python compilation, focused Energy Chat tests, the full test suite, root diff check, and git status.
+This gate runs Ruff auto-fix, Ruff check, Python compilation, dynamic focused Energy Chat test discovery, the full test suite, root diff check, and dirty-tree detection.
+
+The gate must fail when a generated formatting change, test cache, or any other file leaves the working tree dirty after validation.
+
+## CI gate
+
+`.github/workflows/ci.yml` runs on `gg-*` branches and invokes:
+
+    bash scripts/validate_energy_chat.sh
+
+The validation script discovers focused tests with:
+
+    tests/test_energy_chat_*.py
+
+This prevents new Energy Chat tests from being accidentally left out of the focused gate.
 
 ## Run FastAPI
 
@@ -53,6 +69,7 @@ Useful endpoints:
     POST /energy-chat/evaluate
     POST /energy-chat/evaluate/repair-once
     POST /energy-chat/source-needed
+    POST /energy-chat/evidence/bundle
     POST /energy-chat/draft/deepseek-baseline
     POST /energy-chat/benchmark/deepseek-energy-aware
 
@@ -67,9 +84,34 @@ Open the forwarded port 8501.
 Demo tabs:
 
 1. Evaluate answer
-2. Benchmark harness
+2. Evidence bundle
+3. Benchmark harness
 
-The first tab renders the Energy Card for a draft answer. The second tab runs a tiny measurement-only benchmark through the API.
+The first tab renders the Energy Card for a draft answer. The second tab normalizes evidence refs for project and research claims. The third tab runs a tiny measurement-only benchmark through the API.
+
+## Evidence refs
+
+The evaluator already accepts `evidence_refs`. The evidence bundle endpoint prepares those refs without crawling a repository or retrieving RAG documents.
+
+Trusted evidence prefixes:
+
+1. `git:` for branch or status evidence
+2. `test:` for validation output
+3. `ci:` for GitHub Actions or pipeline evidence
+4. `file:` for repository file evidence
+5. `source:` for uploaded source-pack evidence
+6. `web:` for retrieved external evidence
+7. `manual:` for manually attached evidence
+8. `cmd:` for command-output excerpts
+
+Project mode should attach project-state and validation evidence before claiming branch readiness.
+
+Example project evidence refs:
+
+    git:status-clean
+    test:325-passed
+    ci:energy-chat-validation-green
+    file:docs/energy_aware_chat_demo.md
 
 ## Source-needed classifier
 
@@ -109,6 +151,13 @@ For one-pass repair:
     -> deterministic repair if repairable
     -> final evaluation
     -> repair decision record
+
+For evidence bundling:
+
+    evidence refs + command outputs
+    -> normalize trusted refs
+    -> detect missing project/research evidence kinds
+    -> attach trusted refs to evaluation requests
 
 For measurement-only benchmarking:
 
