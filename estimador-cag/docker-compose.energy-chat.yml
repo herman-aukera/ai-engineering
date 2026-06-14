@@ -1,0 +1,17 @@
+services:
+  energy-chat-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.energy-chat
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-test}
+      KIMI_API_KEY: ${KIMI_API_KEY:-test}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-test}
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
