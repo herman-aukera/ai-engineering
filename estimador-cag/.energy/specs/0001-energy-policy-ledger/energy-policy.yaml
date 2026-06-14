@@ -1,0 +1,151 @@
+{
+  "policy_id": "energy-code-default",
+  "version": "1.0.0",
+  "owner": "Gonzalo / AI Engineer LIDR",
+  "status": "active",
+  "thresholds": {
+    "accept_max_soft_energy": 120,
+    "repair_min_soft_energy": 121,
+    "reject_on_any_hard_reject": true,
+    "reject_on_missing_required_evidence": false
+  },
+  "required_acceptance_evidence": [
+    "pytest_output",
+    "compile_output",
+    "lint_output",
+    "secret_scan_output",
+    "git_diff"
+  ],
+  "hard_constraints": {
+    "tests_failed": {
+      "description": "Required tests failed.",
+      "penalty": 1000,
+      "decision": "reject",
+      "required_evidence": ["pytest_output"],
+      "repair_hint": "Fix failing tests before proceeding."
+    },
+    "compile_failed": {
+      "description": "Python compilation or equivalent compile gate failed.",
+      "penalty": 1000,
+      "decision": "reject",
+      "required_evidence": ["compile_output"],
+      "repair_hint": "Fix compile failures before proceeding."
+    },
+    "lint_failed": {
+      "description": "Lint gate failed after auto-fix attempt.",
+      "penalty": 700,
+      "decision": "repair",
+      "required_evidence": ["lint_output"],
+      "repair_hint": "Run auto-fix when possible, then repair remaining lint findings."
+    },
+    "secret_leak": {
+      "description": "Credential-like value found.",
+      "penalty": 1000,
+      "decision": "reject",
+      "required_evidence": ["secret_scan_output"],
+      "repair_hint": "Remove credential-like material and rerun the scan."
+    },
+    "scope_creep": {
+      "description": "Candidate implements work outside approved scope.",
+      "penalty": 900,
+      "decision": "reject",
+      "required_evidence": ["git_diff"],
+      "repair_hint": "Remove out-of-scope changes and keep this slice focused on Energy Aware Code."
+    },
+    "missing_required_artifact": {
+      "description": "Required file or artifact is missing.",
+      "penalty": 800,
+      "decision": "repair",
+      "required_evidence": ["artifact_check"],
+      "repair_hint": "Add the missing required artifact."
+    },
+    "missing_required_evidence": {
+      "description": "Required acceptance evidence is missing.",
+      "penalty": 700,
+      "decision": "repair",
+      "required_evidence": [],
+      "repair_hint": "Add trusted validation evidence before acceptance."
+    },
+    "unverified_success_claim": {
+      "description": "Agent claims success without validation evidence.",
+      "penalty": 900,
+      "decision": "reject",
+      "required_evidence": ["validation_log"],
+      "repair_hint": "Replace success claims with validation evidence."
+    },
+    "unsafe_command": {
+      "description": "Candidate requires unsafe or unapproved execution.",
+      "penalty": 1000,
+      "decision": "reject",
+      "required_evidence": [],
+      "repair_hint": "Remove unsafe execution from this slice."
+    },
+    "wrong_branch": {
+      "description": "Candidate was produced on the wrong branch.",
+      "penalty": 900,
+      "decision": "reject",
+      "required_evidence": ["git_diff"],
+      "repair_hint": "Move the work to the correct Energy Aware Code branch."
+    },
+    "leaked_proprietary_code": {
+      "description": "Candidate uses leaked proprietary source material.",
+      "penalty": 1000,
+      "decision": "reject",
+      "required_evidence": [],
+      "repair_hint": "Remove the material and use clean-room design only."
+    },
+    "executor_self_approved": {
+      "description": "Executor approved its own output without independent checks.",
+      "penalty": 900,
+      "decision": "reject",
+      "required_evidence": [],
+      "repair_hint": "Require separate verifier and decider evidence."
+    }
+  },
+  "soft_constraints": {
+    "weak_documentation": {
+      "description": "Documentation exists but is incomplete or unclear.",
+      "penalty": 80,
+      "decision": "repair_if_threshold_exceeded",
+      "required_evidence": [],
+      "repair_hint": "Improve the documentation enough for a developer to run the slice."
+    },
+    "unnecessary_complexity": {
+      "description": "Candidate adds complexity not required by the spec.",
+      "penalty": 100,
+      "decision": "repair_if_threshold_exceeded",
+      "required_evidence": [],
+      "repair_hint": "Remove unnecessary complexity."
+    },
+    "weak_naming": {
+      "description": "Naming reduces maintainability.",
+      "penalty": 40,
+      "decision": "repair_if_threshold_exceeded",
+      "required_evidence": [],
+      "repair_hint": "Rename unclear identifiers."
+    },
+    "missing_non_obvious_comment": {
+      "description": "Non-obvious architectural logic lacks explanation.",
+      "penalty": 30,
+      "decision": "repair_if_threshold_exceeded",
+      "required_evidence": [],
+      "repair_hint": "Add a concise architectural comment."
+    }
+  },
+  "evidence_types": {
+    "pytest_output": {"required_format": "text", "trusted": true},
+    "compile_output": {"required_format": "text", "trusted": true},
+    "lint_output": {"required_format": "text", "trusted": true},
+    "secret_scan_output": {"required_format": "text", "trusted": true},
+    "git_diff": {"required_format": "text", "trusted": true},
+    "validation_log": {"required_format": "text", "trusted": true},
+    "agent_explanation": {"required_format": "text", "trusted": false}
+  },
+  "decision_rules": [
+    {"id": "reject_on_hard_reject", "rule": "If any hard reject constraint fails, reject candidate."},
+    {"id": "repair_on_hard_repair", "rule": "If hard reject constraints pass but hard repair constraints fail, request repair."},
+    {"id": "repair_on_missing_evidence", "rule": "If required evidence is missing, request repair."},
+    {"id": "accept_low_energy", "rule": "If hard constraints pass and soft energy is below threshold, accept."},
+    {"id": "escalate_on_conflict", "rule": "If trusted sources conflict on a material decision, escalate to human review."}
+  ]
+}
