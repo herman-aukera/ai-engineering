@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from energy_core.audit import build_audit_pack, format_audit_pack_markdown
 from energy_core.decider import evaluate_candidate
 from energy_core.evidence import EvidenceLoadError, read_evidence_records, summarize_evidence
 from energy_core.ledger import LedgerLoadError, append_decision, read_decisions, summarize_decisions
@@ -118,6 +119,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Return exit code 1 when required spec artifacts are missing.",
     )
 
+    audit_pack = subparsers.add_parser(
+        "audit-pack",
+        help="Build one deterministic audit packet before handing a candidate to a human reviewer.",
+    )
+    audit_pack.add_argument("--spec-dir", required=True, type=Path)
+    audit_pack.add_argument("--policy", required=True, type=Path)
+    audit_pack.add_argument("--candidate", required=True, type=Path)
+    audit_pack.add_argument("--evidence", required=True, type=Path)
+    audit_pack.add_argument("--decisions", type=Path, help="Optional existing decision JSONL ledger path.")
+    audit_pack.add_argument("--format", choices=["json", "markdown"], default="markdown")
+    audit_pack.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
+    audit_pack.add_argument(
+        "--fail-on-not-ready",
+        action="store_true",
+        help="Return exit code 1 when the audit packet is not ready to accept.",
+    )
+
     return parser
 
 
@@ -138,6 +156,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_ledger_summary(args)
         if args.command == "spec-coverage":
             return _run_spec_coverage(args)
+        if args.command == "audit-pack":
+            return _run_audit_pack(args)
     except EvidenceLoadError as exc:
         parser.exit(2, f"error: {exc}\n")
     except LedgerLoadError as exc:
@@ -265,6 +285,29 @@ def _run_spec_coverage(args: argparse.Namespace) -> int:
         print(format_spec_coverage_summary(summary))
 
     if args.fail_on_incomplete and not summary["complete"]:
+        return 1
+    return 0
+
+
+def _run_audit_pack(args: argparse.Namespace) -> int:
+    pack = build_audit_pack(
+        spec_dir=args.spec_dir,
+        policy_path=args.policy,
+        candidate_path=args.candidate,
+        evidence_path=args.evidence,
+        decisions_path=args.decisions,
+    )
+
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(format_audit_pack_markdown(pack), encoding="utf-8")
+
+    if args.format == "json":
+        print(json.dumps(pack, indent=2, sort_keys=True))
+    else:
+        print(format_audit_pack_markdown(pack))
+
+    if args.fail_on_not_ready and not pack["ready_to_accept"]:
         return 1
     return 0
 
