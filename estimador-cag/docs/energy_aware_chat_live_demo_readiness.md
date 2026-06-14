@@ -89,7 +89,12 @@ Open the Streamlit forwarded URL and run these tabs in order:
 2. Evidence bundle
 3. Benchmark harness
 
-Do not claim production readiness, RAG grounding, or model quality improvement. The current benchmark layer is still measurement-only.
+## Claim boundaries
+
+- No production readiness claim.
+- No RAG grounding claim.
+- No model quality improvement claim.
+- The current benchmark layer is still measurement-only and must keep the `measurement_only_no_quality_claim` boundary.
 
 ## Recording checklist
 
