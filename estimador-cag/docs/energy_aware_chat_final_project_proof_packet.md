@@ -5,10 +5,11 @@ Status: reviewer entry packet for the Energy Aware Chat final project branch.
 ## Open first
 
 1. `docs/energy_aware_chat_reviewer_index.md`
-2. `docs/energy_aware_chat_live_demo_readiness.md`
-3. `docs/energy_aware_chat_release_snapshot.md`
-4. `docs/energy_aware_chat_demo_evidence_checklist.md`
-5. `docs/examples/energy_chat_release_snapshot_example.md`
+2. `docs/energy_aware_chat_actions_filtering.md`
+3. `docs/energy_aware_chat_live_demo_readiness.md`
+4. `docs/energy_aware_chat_release_snapshot.md`
+5. `docs/energy_aware_chat_demo_evidence_checklist.md`
+6. `docs/examples/energy_chat_release_snapshot_example.md`
 
 ## Run first
 
@@ -16,6 +17,11 @@ Status: reviewer entry packet for the Energy Aware Chat final project branch.
 bash scripts/validate_energy_chat.sh
 bash scripts/check_energy_chat_ci.sh
 ```
+
+## CI interpretation
+
+Use `docs/energy_aware_chat_actions_filtering.md` before reading the GitHub Actions page.
+The unfiltered Actions page can contain unrelated runs from other branches.
 
 ## Demo first
 
