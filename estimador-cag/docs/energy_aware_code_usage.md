@@ -11,7 +11,7 @@ Run from `estimador-cag`:
     uv run ruff check --fix energy_core tests scripts
     uv run ruff check energy_core tests scripts
     uv run python -m py_compile $(find energy_core tests scripts -name '*.py' -type f)
-    uv run pytest -q tests/test_energy_core_policy_loading.py tests/test_energy_core_decider_accept.py tests/test_energy_core_decider_hard_reject.py tests/test_energy_core_decider_hard_repair.py tests/test_energy_core_ledger_append_only.py tests/test_energy_core_cli.py tests/test_energy_core_evidence_summary.py tests/test_energy_core_package_boundary.py tests/test_energy_core_spec_coverage.py tests/test_energy_core_validation.py tests/test_energy_core_audit_pack.py
+    uv run pytest -q tests/test_energy_core_policy_loading.py tests/test_energy_core_decider_accept.py tests/test_energy_core_decider_hard_reject.py tests/test_energy_core_decider_hard_repair.py tests/test_energy_core_ledger_append_only.py tests/test_energy_core_cli.py tests/test_energy_core_evidence_summary.py tests/test_energy_core_package_boundary.py tests/test_energy_core_spec_coverage.py tests/test_energy_core_validation.py tests/test_energy_core_audit_pack.py tests/test_energy_core_trends_bundle.py
     uv run pytest -q
     uv run python scripts/energy_core_boundary_check.py
     uv run python scripts/energy_core_smoke.py
@@ -110,6 +110,28 @@ This command validates that the spec package has the required requirements, desi
       --decisions /tmp/eac-decisions.jsonl \
       --format markdown
 
+## Analyze decision trends
+
+    uv run python -m energy_core.cli decision-trends \
+      --decisions /tmp/eac-decisions.jsonl \
+      --format markdown \
+      --fail-on-regression
+
+This command reports accept versus non-accept decisions, energy deltas, regressing steps, average energy, and the latest decision. It reads the ledger only and does not mutate it.
+
+## Build a portable bundle manifest
+
+    uv run python -m energy_core.cli bundle-manifest \
+      --spec-dir .energy/specs/0001-energy-policy-ledger \
+      --policy .energy/specs/0001-energy-policy-ledger/energy-policy.yaml \
+      --candidate .energy/specs/0001-energy-policy-ledger/examples/candidate_accept.json \
+      --evidence .energy/specs/0001-energy-policy-ledger/evidence.jsonl \
+      --decisions /tmp/eac-decisions.jsonl \
+      --format markdown \
+      --fail-on-incomplete
+
+This command creates a deterministic manifest with file roles, paths, sizes, and SHA-256 hashes. It does not embed file contents, execute commands, or mutate the ledger.
+
 ## Build one audit pack before human review
 
 From `estimador-cag`:
@@ -166,4 +188,4 @@ Decision exit codes:
 6. No DeepSeek, OpenAI, or Kimi calls.
 7. No bridge with Energy Aware Chat.
 
-The current product layer is the judge: spec package, policy, candidate state, evidence, critics, score, decision, reports, and ledger inspection.
+The current product layer is the judge: spec package, policy, candidate state, evidence, critics, score, decision, reports, ledger inspection, trend analysis, and portable bundle metadata.
