@@ -24,6 +24,13 @@ def test_energy_chat_repair_once_route_is_registered() -> None:
     assert "/energy-chat/evaluate/repair-once" in schema["paths"]
 
 
+def test_energy_chat_rag_and_chat_routes_are_registered() -> None:
+    schema = client.get("/openapi.json").json()
+
+    assert "/energy-chat/rag/search" in schema["paths"]
+    assert "/energy-chat/chat" in schema["paths"]
+
+
 def test_energy_chat_deepseek_baseline_route_is_registered() -> None:
     schema = client.get("/openapi.json").json()
 
@@ -75,6 +82,40 @@ def test_energy_chat_repair_once_repairs_candidate() -> None:
     assert body["final_result"]["decision"]["decision"] == "accept"
     assert "added_next_action" in body["repairs_applied"]
     assert "DeepSeek remains deferred" in body["repaired_request"]["draft_answer"]
+
+
+def test_energy_chat_rag_route_returns_evidence_refs() -> None:
+    response = client.post(
+        "/energy-chat/rag/search",
+        json={
+            "query": "final project needs RAG agents evals deployment",
+            "k": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["retrieval_strategy"] == "deterministic_lexical_cosine_project_rag"
+    assert body["results"]
+    assert "source:final_project_requirements" in body["evidence_refs"]
+
+
+def test_energy_chat_chat_route_returns_final_answer_and_energy_card() -> None:
+    response = client.post(
+        "/energy-chat/chat",
+        json={
+            "user_message": "Is deployment evidence mandatory for the final project?",
+            "required_constraints": ["deployment evidence"],
+            "required_sections": ["Decision", "Next action"],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["rag"]["evidence_refs"]
+    assert body["final_answer"]
+    assert body["energy_card"]["decision"] == "accept"
+    assert body["metadata"]["mvp_layer"] == "rag_plus_agent_orchestration"
 
 
 def test_energy_chat_deepseek_baseline_route_uses_injected_provider(monkeypatch) -> None:
