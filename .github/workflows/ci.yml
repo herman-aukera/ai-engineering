@@ -48,6 +48,14 @@ jobs:
       - name: Compile Python
         run: uv run python -m py_compile $(find app tests evals energy_core scripts -name '*.py' -type f 2>/dev/null)
 
+      - name: Energy Core Boundary
+        run: |
+          if test -d energy_core && test -f scripts/energy_core_boundary_check.py; then
+            uv run python scripts/energy_core_boundary_check.py
+          else
+            echo "Energy Core boundary check skipped because script or package is absent."
+          fi
+
       - name: Tests
         run: uv run pytest -q
 
