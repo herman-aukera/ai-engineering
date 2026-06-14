@@ -8,6 +8,12 @@ Branch:
 EACHAT
 ```
 
+Canonical final-project mirror:
+
+```text
+finalproject-GGC
+```
+
 Product target after Session 17:
 
 ```text
@@ -19,28 +25,36 @@ herman-aukera/energy-aware-chat
 Read in this order:
 
 1. `docs/energy_aware_chat_examiner_quickstart.md`
-2. `docs/energy_aware_chat_mvp_upgrade.md`
-3. `docs/energy_aware_chat_final_submission_handoff.md`
-4. `docs/energy_aware_chat_final_project_proof_packet.md`
-5. `docs/energy_aware_chat_actions_filtering.md`
-6. `docs/energy_aware_chat_demo.md`
-7. `docs/energy_aware_chat_live_demo_readiness.md`
-8. `docs/energy_aware_chat_demo_script.md`
-9. `docs/energy_aware_chat_demo_command_checklist.md`
-10. `docs/energy_aware_chat_api_smoke_guide.md`
-11. `docs/energy_aware_chat_demo_results_template.md`
-12. `docs/energy_aware_chat_pr_body_draft.md`
-13. `docs/energy_aware_chat_final_project_delivery_plan.md`
-14. `docs/energy_aware_chat_repository_readiness.md`
-15. `docs/energy_aware_chat_session17_backlog.md`
-16. `docs/energy_aware_chat_release_snapshot.md`
+2. `docs/energy_aware_chat_final_project_acceptance_matrix.md`
+3. `docs/energy_aware_chat_mvp_upgrade.md`
+4. `docs/energy_aware_chat_deployment_readiness_runbook.md`
+5. `docs/energy_aware_chat_live_provider_evidence_template.md`
+6. `docs/energy_aware_chat_mvp_demo_recording_packet.md`
+7. `docs/energy_aware_chat_final_submission_handoff.md`
+8. `docs/energy_aware_chat_final_project_proof_packet.md`
+9. `docs/energy_aware_chat_actions_filtering.md`
+10. `docs/energy_aware_chat_demo.md`
+11. `docs/energy_aware_chat_live_demo_readiness.md`
+12. `docs/energy_aware_chat_demo_script.md`
+13. `docs/energy_aware_chat_demo_command_checklist.md`
+14. `docs/energy_aware_chat_api_smoke_guide.md`
+15. `docs/energy_aware_chat_demo_results_template.md`
+16. `docs/energy_aware_chat_pr_body_draft.md`
+17. `docs/energy_aware_chat_final_project_delivery_plan.md`
+18. `docs/energy_aware_chat_repository_readiness.md`
+19. `docs/energy_aware_chat_session17_backlog.md`
+20. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
 | Purpose | Command |
 |---|---|
 | Examiner quickstart | `docs/energy_aware_chat_examiner_quickstart.md` |
+| Final-project acceptance matrix | `docs/energy_aware_chat_final_project_acceptance_matrix.md` |
 | MVP upgrade proof | `docs/energy_aware_chat_mvp_upgrade.md` |
+| Deployment readiness runbook | `docs/energy_aware_chat_deployment_readiness_runbook.md` |
+| Live provider evidence template | `docs/energy_aware_chat_live_provider_evidence_template.md` |
+| MVP demo recording packet | `docs/energy_aware_chat_mvp_demo_recording_packet.md` |
 | Final submission handoff | `docs/energy_aware_chat_final_submission_handoff.md` |
 | Pull request body draft | `docs/energy_aware_chat_pr_body_draft.md` |
 | Demo narration script | `docs/energy_aware_chat_demo_script.md` |
@@ -64,6 +78,8 @@ Read in this order:
 | `demo_payloads/energy_chat/source_needed_project.json` | project evidence requirement |
 | `demo_payloads/energy_chat/evidence_bundle_project.json` | project evidence normalization |
 | `demo_payloads/energy_chat/benchmark_measurement.json` | measurement-only benchmark request shape |
+| `demo_payloads/energy_chat/rag_search_project_rules.json` | deterministic project-source RAG search |
+| `demo_payloads/energy_chat/chat_project_release_readiness.json` | local agent orchestration over project rules |
 
 ## Current implemented layers
 
