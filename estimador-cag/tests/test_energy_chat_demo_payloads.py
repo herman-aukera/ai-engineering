@@ -5,8 +5,10 @@ from fastapi.testclient import TestClient
 
 from app.energy_chat.contracts import (
     DeepSeekBenchmarkRequest,
+    EnergyAwareChatAgentRequest,
     EnergyChatRequest,
     EvidenceBundleRequest,
+    ProjectRagRequest,
     SourceNeedRequest,
 )
 from app.main import app
@@ -24,9 +26,11 @@ def _load_payload(name: str) -> dict:
 def test_demo_payload_directory_contains_expected_contract_examples() -> None:
     assert sorted(path.name for path in PAYLOAD_DIR.glob("*.json")) == [
         "benchmark_measurement.json",
+        "chat_project_mvp.json",
         "evaluate_accept.json",
         "evaluate_repair_once.json",
         "evidence_bundle_project.json",
+        "rag_project_search.json",
         "source_needed_project.json",
     ]
 
@@ -87,6 +91,31 @@ def test_evidence_bundle_payload_matches_contract_and_route() -> None:
         "test:pytest-passed",
     ]
     assert body["can_support_project_claim"] is True
+
+
+def test_rag_payload_matches_contract_and_route() -> None:
+    payload = _load_payload("rag_project_search.json")
+    request = ProjectRagRequest.model_validate(payload)
+
+    response = client.post("/energy-chat/rag/search", json=request.model_dump())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["results"]
+    assert "source:final_project_requirements" in body["evidence_refs"]
+
+
+def test_chat_payload_matches_contract_and_route() -> None:
+    payload = _load_payload("chat_project_mvp.json")
+    request = EnergyAwareChatAgentRequest.model_validate(payload)
+
+    response = client.post("/energy-chat/chat", json=request.model_dump())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["final_answer"]
+    assert body["energy_card"]["decision"] == "accept"
+    assert body["metadata"]["mvp_layer"] == "rag_plus_agent_orchestration"
 
 
 def test_benchmark_payload_matches_measurement_request_contract() -> None:
