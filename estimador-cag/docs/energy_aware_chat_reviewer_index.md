@@ -18,24 +18,26 @@ herman-aukera/energy-aware-chat
 
 Read in this order:
 
-1. `docs/energy_aware_chat_final_submission_handoff.md`
-2. `docs/energy_aware_chat_final_project_proof_packet.md`
-3. `docs/energy_aware_chat_actions_filtering.md`
-4. `docs/energy_aware_chat_demo.md`
-5. `docs/energy_aware_chat_live_demo_readiness.md`
-6. `docs/energy_aware_chat_demo_script.md`
-7. `docs/energy_aware_chat_api_smoke_guide.md`
-8. `docs/energy_aware_chat_demo_results_template.md`
-9. `docs/energy_aware_chat_pr_body_draft.md`
-10. `docs/energy_aware_chat_final_project_delivery_plan.md`
-11. `docs/energy_aware_chat_repository_readiness.md`
-12. `docs/energy_aware_chat_session17_backlog.md`
-13. `docs/energy_aware_chat_release_snapshot.md`
+1. `docs/energy_aware_chat_examiner_quickstart.md`
+2. `docs/energy_aware_chat_final_submission_handoff.md`
+3. `docs/energy_aware_chat_final_project_proof_packet.md`
+4. `docs/energy_aware_chat_actions_filtering.md`
+5. `docs/energy_aware_chat_demo.md`
+6. `docs/energy_aware_chat_live_demo_readiness.md`
+7. `docs/energy_aware_chat_demo_script.md`
+8. `docs/energy_aware_chat_api_smoke_guide.md`
+9. `docs/energy_aware_chat_demo_results_template.md`
+10. `docs/energy_aware_chat_pr_body_draft.md`
+11. `docs/energy_aware_chat_final_project_delivery_plan.md`
+12. `docs/energy_aware_chat_repository_readiness.md`
+13. `docs/energy_aware_chat_session17_backlog.md`
+14. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
 | Purpose | Command |
 |---|---|
+| Examiner quickstart | `docs/energy_aware_chat_examiner_quickstart.md` |
 | Final submission handoff | `docs/energy_aware_chat_final_submission_handoff.md` |
 | Pull request body draft | `docs/energy_aware_chat_pr_body_draft.md` |
 | Demo narration script | `docs/energy_aware_chat_demo_script.md` |
