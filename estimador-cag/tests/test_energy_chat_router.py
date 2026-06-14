@@ -11,6 +11,12 @@ def test_energy_chat_evaluate_route_is_registered() -> None:
     assert "/energy-chat/evaluate" in schema["paths"]
 
 
+def test_energy_chat_repair_once_route_is_registered() -> None:
+    schema = client.get("/openapi.json").json()
+
+    assert "/energy-chat/evaluate/repair-once" in schema["paths"]
+
+
 def test_energy_chat_evaluate_accepts_clean_candidate() -> None:
     response = client.post(
         "/energy-chat/evaluate",
@@ -31,6 +37,25 @@ def test_energy_chat_evaluate_accepts_clean_candidate() -> None:
     assert body["energy_card"]["decision"] == "accept"
     assert body["energy_card"]["hard_constraints_passed"] is True
     assert "critic_results" in body["energy_card"]["evidence"]
+
+
+def test_energy_chat_repair_once_repairs_candidate() -> None:
+    response = client.post(
+        "/energy-chat/evaluate/repair-once",
+        json={
+            "user_message": "Review this release-readiness answer",
+            "draft_answer": "Start with tests.",
+            "required_constraints": ["DeepSeek remains deferred"],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["initial_result"]["decision"]["decision"] == "repair"
+    assert body["repair_attempted"] is True
+    assert body["final_result"]["decision"]["decision"] == "accept"
+    assert "added_next_action" in body["repairs_applied"]
+    assert "DeepSeek remains deferred" in body["repaired_request"]["draft_answer"]
 
 
 def test_energy_chat_evaluate_rejects_hidden_chain_of_thought() -> None:
