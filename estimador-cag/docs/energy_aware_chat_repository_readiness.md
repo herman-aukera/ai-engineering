@@ -74,8 +74,15 @@ The current staging branch includes these final-project handoff artifacts:
 5. `docs/energy_aware_chat_session17_backlog.md`
 6. `demo_payloads/energy_chat/`
 7. `scripts/export_energy_chat_manifest.sh`
+8. `app/energy_chat/release_snapshot.py`
 
-These files keep delivery, demo, backlog, and future extraction decisions explicit.
+These files keep delivery, demo, backlog, snapshot, and future extraction decisions explicit.
+
+## Release snapshot helper
+
+`app/energy_chat/release_snapshot.py` provides a small pure-Python helper for recording a branch and commit checkpoint from already observed local and remote validation facts.
+
+The helper is not a runtime dependency for the evaluator. It is a reviewer-support artifact for summarizing a known-good checkpoint.
 
 ## Do not merge policy
 
