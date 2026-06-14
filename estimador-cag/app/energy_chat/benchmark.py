@@ -10,9 +10,9 @@ from app.energy_chat.baseline import (
 )
 from app.energy_chat.contracts import (
     DeepSeekBaselineRequest,
+    DeepSeekBenchmarkCaseResult,
     DeepSeekBenchmarkRequest,
     DeepSeekBenchmarkRunResult,
-    DeepSeekBenchmarkCaseResult,
     EnergyChatRequest,
 )
 from app.energy_chat.evaluator import evaluate_with_one_pass_repair, run_evaluation
