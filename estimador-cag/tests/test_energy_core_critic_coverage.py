@@ -1,6 +1,6 @@
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from energy_core.critic_coverage import (
     build_critic_coverage,
