@@ -26,6 +26,7 @@ Required paths:
   docs/energy_aware_chat_demo_walkthrough.md
   docs/energy_aware_chat_session17_backlog.md
   docs/energy_aware_chat_standalone_export_readme.md
+  docs/energy_aware_chat_release_snapshot.md
   scripts/validate_energy_chat.sh
   scripts/check_energy_chat_ci.sh
   scripts/export_energy_chat_manifest.sh
