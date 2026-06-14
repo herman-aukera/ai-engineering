@@ -1,8 +1,7 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
-CHECKLIST = (ROOT / "docs/energy_aware_chat_demo_command_checklist.md").read_text(
+CHECKLIST = (ROOT / "docs" / "energy_aware_chat_demo_command_checklist.md").read_text(
     encoding="utf-8"
 )
 
