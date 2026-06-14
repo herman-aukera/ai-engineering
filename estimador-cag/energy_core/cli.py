@@ -15,7 +15,10 @@ from energy_core.reporter import (
     format_evidence_summary,
     format_ledger_markdown_report,
     format_ledger_summary,
+    format_spec_coverage_markdown_report,
+    format_spec_coverage_summary,
 )
+from energy_core.specs import summarize_spec_package
 from energy_core.state import read_candidate_state
 
 _DECISION_EXIT_CODES = {
@@ -68,6 +71,19 @@ def build_parser() -> argparse.ArgumentParser:
     ledger_summary.add_argument("--format", choices=["json", "text", "markdown"], default="text")
     ledger_summary.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
 
+    spec_coverage = subparsers.add_parser(
+        "spec-coverage",
+        help="Summarize required files and examples in an Energy Aware Code spec package.",
+    )
+    spec_coverage.add_argument("--spec-dir", required=True, type=Path)
+    spec_coverage.add_argument("--format", choices=["json", "text", "markdown"], default="text")
+    spec_coverage.add_argument("--report", type=Path, help="Optional Markdown report path to write.")
+    spec_coverage.add_argument(
+        "--fail-on-incomplete",
+        action="store_true",
+        help="Return exit code 1 when required spec artifacts are missing.",
+    )
+
     return parser
 
 
@@ -82,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_evidence_summary(args)
         if args.command == "ledger-summary":
             return _run_ledger_summary(args)
+        if args.command == "spec-coverage":
+            return _run_spec_coverage(args)
     except EvidenceLoadError as exc:
         parser.exit(2, f"error: {exc}\n")
     except LedgerLoadError as exc:
@@ -150,6 +168,25 @@ def _run_ledger_summary(args: argparse.Namespace) -> int:
     else:
         print(format_ledger_summary(summary))
 
+    return 0
+
+
+def _run_spec_coverage(args: argparse.Namespace) -> int:
+    summary = summarize_spec_package(args.spec_dir)
+
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(format_spec_coverage_markdown_report(summary), encoding="utf-8")
+
+    if args.format == "json":
+        print(json.dumps(summary, indent=2, sort_keys=True))
+    elif args.format == "markdown":
+        print(format_spec_coverage_markdown_report(summary))
+    else:
+        print(format_spec_coverage_summary(summary))
+
+    if args.fail_on_incomplete and not summary["complete"]:
+        return 1
     return 0
 
 
