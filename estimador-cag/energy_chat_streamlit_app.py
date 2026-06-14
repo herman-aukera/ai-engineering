@@ -21,6 +21,7 @@ import streamlit as st
 DEFAULT_BACKEND_URL = "http://localhost:8000"
 ENERGY_CHAT_EVALUATE_PATH = "/energy-chat/evaluate"
 ENERGY_CHAT_BENCHMARK_PATH = "/energy-chat/benchmark/deepseek-energy-aware"
+ENERGY_CHAT_EVIDENCE_PATH = "/energy-chat/evidence/bundle"
 BACKEND_CONNECT_TIMEOUT_SECONDS = 10
 BACKEND_READ_TIMEOUT_SECONDS = 120
 
@@ -49,18 +50,39 @@ def build_energy_chat_benchmark_url() -> str:
     return f"{get_backend_url()}{ENERGY_CHAT_BENCHMARK_PATH}"
 
 
+def build_energy_chat_evidence_url() -> str:
+    """Build the deterministic evidence bundle endpoint URL."""
+
+    return f"{get_backend_url()}{ENERGY_CHAT_EVIDENCE_PATH}"
+
+
+def parse_evidence_refs(raw_refs: str) -> list[str]:
+    """Parse comma or newline separated evidence refs for demo payloads."""
+
+    refs: list[str] = []
+    for line in raw_refs.replace(",", "\n").splitlines():
+        value = line.strip()
+        if value:
+            refs.append(value)
+    return list(dict.fromkeys(refs))
+
+
 def build_energy_chat_payload(
     user_message: str,
     draft_answer: str,
     mode: str = "chat_lite",
+    evidence_refs: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build the deterministic evaluator request payload used by the demo."""
 
-    return {
+    payload: dict[str, Any] = {
         "user_message": user_message,
         "draft_answer": draft_answer,
         "mode": mode,
     }
+    if evidence_refs:
+        payload["evidence_refs"] = evidence_refs
+    return payload
 
 
 def build_energy_chat_benchmark_payload(run_id: str | None = None) -> dict[str, Any]:
@@ -84,6 +106,28 @@ def build_energy_chat_benchmark_payload(run_id: str | None = None) -> dict[str, 
     return payload
 
 
+def build_energy_chat_evidence_payload(
+    *,
+    mode: str,
+    evidence_refs_text: str,
+    git_status_output: str,
+    validation_output: str,
+) -> dict[str, Any]:
+    """Build the evidence bundle payload from the Streamlit evidence tab."""
+
+    command_outputs: dict[str, str] = {}
+    if git_status_output or mode == "project":
+        command_outputs["git status --short"] = git_status_output
+    if validation_output:
+        command_outputs["energy chat validation gate"] = validation_output
+
+    return {
+        "mode": mode,
+        "evidence_refs": parse_evidence_refs(evidence_refs_text),
+        "command_outputs": command_outputs,
+    }
+
+
 def post_energy_chat_evaluation_request(payload: dict[str, Any]) -> dict[str, Any]:
     """Send an Energy Aware Chat evaluation request to the backend."""
 
@@ -101,6 +145,18 @@ def post_energy_chat_benchmark_request(payload: dict[str, Any]) -> dict[str, Any
 
     response = requests.post(
         build_energy_chat_benchmark_url(),
+        json=payload,
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def post_energy_chat_evidence_request(payload: dict[str, Any]) -> dict[str, Any]:
+    """Send an evidence bundle request to the backend."""
+
+    response = requests.post(
+        build_energy_chat_evidence_url(),
         json=payload,
         timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
     )
@@ -257,6 +313,24 @@ def benchmark_case_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def evidence_item_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten evidence bundle items into UI-friendly rows."""
+
+    rows: list[dict[str, Any]] = []
+    for item in result.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            {
+                "ref": item.get("ref", "unknown"),
+                "source_type": item.get("source_type", "unknown"),
+                "trusted": item.get("trusted", False),
+                "summary": item.get("summary", ""),
+            }
+        )
+    return rows
+
+
 def render_benchmark_result(result: dict[str, Any]) -> None:
     """Render measurement-only benchmark output for a human demo."""
 
@@ -285,6 +359,36 @@ def render_benchmark_result(result: dict[str, Any]) -> None:
         st.json(result)
 
 
+def render_evidence_bundle_result(result: dict[str, Any]) -> None:
+    """Render normalized evidence refs and missing evidence gaps."""
+
+    st.subheader("Evidence bundle")
+    st.caption(result.get("reasoning_summary", "No evidence summary returned."))
+
+    col_trusted, col_project, col_current = st.columns(3)
+    with col_trusted:
+        st.metric("Trusted refs", len(result.get("trusted_refs") or []))
+    with col_project:
+        st.metric("Project claim support", str(result.get("can_support_project_claim", False)))
+    with col_current:
+        st.metric("Current claim support", str(result.get("can_support_current_claim", False)))
+
+    missing = result.get("missing_required_kinds") or []
+    if missing:
+        st.warning("Missing required evidence: " + ", ".join(missing))
+    else:
+        st.success("Evidence bundle has no missing required kinds for this mode.")
+
+    rows = evidence_item_rows(result)
+    if rows:
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+    else:
+        st.info("No evidence refs were attached.")
+
+    with st.expander("Raw evidence bundle result"):
+        st.json(result)
+
+
 def main() -> None:
     """Render the Energy Aware Chat Streamlit demo."""
 
@@ -297,7 +401,7 @@ def main() -> None:
     st.title("Energy Aware Chat")
     st.caption(
         "Deterministic evaluator, FastAPI endpoint, Streamlit Energy Card, "
-        "one-pass repair seam, and measurement-only benchmark harness."
+        "one-pass repair seam, evidence bundles, and measurement-only benchmark harness."
     )
 
     with st.sidebar:
@@ -308,12 +412,13 @@ def main() -> None:
         st.markdown("- deterministic evaluator")
         st.markdown("- FastAPI evaluation endpoint")
         st.markdown("- one-pass deterministic repair")
+        st.markdown("- deterministic evidence bundle")
         st.markdown("- measurement-only benchmark harness")
         st.markdown("- no RAG yet")
         st.markdown("- no improvement claim yet")
 
-    evaluate_tab, benchmark_tab = st.tabs(
-        ["Evaluate answer", "Benchmark harness"],
+    evaluate_tab, evidence_tab, benchmark_tab = st.tabs(
+        ["Evaluate answer", "Evidence bundle", "Benchmark harness"],
     )
 
     with evaluate_tab:
@@ -328,7 +433,17 @@ def main() -> None:
                 value=DEMO_DRAFT_ANSWER,
                 height=220,
             )
-            mode = st.selectbox("Mode", options=["chat_lite"], index=0)
+            mode = st.selectbox(
+                "Mode",
+                options=["chat_lite", "research", "project", "tutor"],
+                index=0,
+            )
+            evidence_refs_text = st.text_area(
+                "Evidence refs",
+                value="",
+                height=100,
+                help="Optional refs such as git:status-clean or test:325-passed.",
+            )
             submitted = st.form_submit_button("Evaluate answer", type="primary")
 
         if not submitted:
@@ -338,6 +453,7 @@ def main() -> None:
                 user_message=user_message,
                 draft_answer=draft_answer,
                 mode=mode,
+                evidence_refs=parse_evidence_refs(evidence_refs_text),
             )
             with st.spinner("Evaluating candidate answer..."):
                 try:
@@ -350,6 +466,54 @@ def main() -> None:
                 else:
                     render_evaluation_result(result)
                     with st.expander("Request payload"):
+                        st.json(payload)
+
+    with evidence_tab:
+        st.write(
+            "Normalize project or research evidence before attaching it to an "
+            "evaluation request. This is deterministic and does not retrieve RAG yet."
+        )
+        with st.form("energy_chat_evidence_form"):
+            evidence_mode = st.selectbox(
+                "Evidence mode",
+                options=["project", "research", "chat_lite", "tutor"],
+                index=0,
+            )
+            raw_refs = st.text_area(
+                "Existing evidence refs",
+                value="git:status-clean\ntest:325-passed",
+                height=120,
+            )
+            git_status_output = st.text_area(
+                "git status --short output",
+                value="",
+                height=100,
+            )
+            validation_output = st.text_area(
+                "Validation output excerpt",
+                value="325 passed in 5.02s",
+                height=100,
+            )
+            evidence_submitted = st.form_submit_button("Build evidence bundle")
+
+        if evidence_submitted:
+            payload = build_energy_chat_evidence_payload(
+                mode=evidence_mode,
+                evidence_refs_text=raw_refs,
+                git_status_output=git_status_output,
+                validation_output=validation_output,
+            )
+            with st.spinner("Building deterministic evidence bundle..."):
+                try:
+                    evidence_result = post_energy_chat_evidence_request(payload)
+                except requests.HTTPError as exc:
+                    response_text = exc.response.text if exc.response is not None else str(exc)
+                    st.error(f"Backend returned an error: {response_text}")
+                except requests.RequestException as exc:
+                    st.error(f"Could not reach backend: {exc}")
+                else:
+                    render_evidence_bundle_result(evidence_result)
+                    with st.expander("Evidence request payload"):
                         st.json(payload)
 
     with benchmark_tab:
