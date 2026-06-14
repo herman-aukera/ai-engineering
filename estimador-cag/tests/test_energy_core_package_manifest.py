@@ -1,0 +1,43 @@
+from pathlib import Path
+
+from energy_core.package_manifest import (
+    build_package_manifest,
+    format_package_manifest_markdown,
+    format_package_manifest_text,
+)
+
+
+def test_package_manifest_is_complete_from_project_root() -> None:
+    manifest = build_package_manifest(Path("."))
+
+    assert manifest["complete"] is True
+    assert manifest["present_total"] == manifest["required_total"]
+    assert manifest["missing_required"] == []
+    assert "energy_core/" in manifest["copy_roots"]
+    assert ".energy/" in manifest["copy_roots"]
+
+
+def test_package_manifest_resolves_repository_root() -> None:
+    manifest = build_package_manifest(Path(".."))
+
+    assert manifest["complete"] is True
+    assert manifest["project_root"].endswith("estimador-cag")
+
+
+def test_package_manifest_reports_missing_files(tmp_path: Path) -> None:
+    manifest = build_package_manifest(tmp_path)
+
+    assert manifest["complete"] is False
+    assert "energy_core/models.py" in manifest["missing_required"]
+
+
+def test_package_manifest_formats_text_and_markdown() -> None:
+    manifest = build_package_manifest(Path("."))
+
+    text = format_package_manifest_text(manifest)
+    markdown = format_package_manifest_markdown(manifest)
+
+    assert "Energy Aware Code Package Manifest" in text
+    assert "Complete: True" in text
+    assert "# Energy Aware Code Package Manifest" in markdown
+    assert "## Copy roots" in markdown
