@@ -22,6 +22,44 @@ def test_energy_chat_streamlit_demo_exposes_visible_energy_card():
     assert "Remaining caveats" in STREAMLIT_SOURCE
 
 
+def test_energy_chat_streamlit_demo_reads_energy_card_api_contract():
+    assert 'result.get("energy_card")' in STREAMLIT_SOURCE
+    assert "render_energy_card(extract_energy_card(result))" in STREAMLIT_SOURCE
+
+
+def test_extract_energy_card_prefers_api_contract_over_legacy_card():
+    result = {
+        "card": {"decision": "unknown", "energy": "unknown"},
+        "energy_card": {
+            "decision": "accept",
+            "energy": 0,
+            "hard_constraints_passed": True,
+            "repairs": 0,
+            "evidence": ["policy", "critic_results"],
+            "remaining_caveats": [],
+        },
+    }
+
+    assert energy_ui.extract_energy_card(result) == result["energy_card"]
+
+
+def test_extract_energy_card_keeps_legacy_card_fallback():
+    result = {
+        "card": {
+            "decision": "repair",
+            "energy": 300,
+            "hard_constraints_passed": False,
+        }
+    }
+
+    assert energy_ui.extract_energy_card(result) == result["card"]
+
+
+def test_extract_energy_card_handles_missing_or_invalid_card():
+    assert energy_ui.extract_energy_card({}) == {}
+    assert energy_ui.extract_energy_card({"energy_card": "not-a-dict"}) == {}
+
+
 def test_build_energy_chat_payload_uses_chat_lite_by_default():
     payload = energy_ui.build_energy_chat_payload(
         user_message="Check whether this answer satisfies the constraints.",
