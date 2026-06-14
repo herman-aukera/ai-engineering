@@ -126,6 +126,14 @@ jobs:
             echo "Energy Core review pack smoke skipped because script or package is absent."
           fi
 
+      - name: Energy Core Scaffold Smoke
+        run: |
+          if test -d energy_core && test -f scripts/energy_core_scaffold_smoke.py; then
+            uv run python scripts/energy_core_scaffold_smoke.py
+          else
+            echo "Energy Core scaffold smoke skipped because script or package is absent."
+          fi
+
       - name: Energy Core Full Gate
         run: |
           if test -d energy_core && test -f scripts/energy_core_full_gate.py; then
