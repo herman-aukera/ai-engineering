@@ -17,6 +17,23 @@ def test_package_manifest_is_complete_from_project_root() -> None:
     assert ".energy/" in manifest["copy_roots"]
 
 
+def test_package_manifest_includes_latest_review_and_export_surfaces() -> None:
+    manifest = build_package_manifest(Path("."))
+    paths = {item["relative_path"] for item in manifest["files"]}
+
+    assert "energy_core/review_pack.py" in paths
+    assert "energy_core/review_pack_cli.py" in paths
+    assert "energy_core/scaffold.py" in paths
+    assert "energy_core/scaffold_cli.py" in paths
+    assert "energy_core/export_plan.py" in paths
+    assert "energy_core/export_plan_cli.py" in paths
+    assert "scripts/energy_core_review_pack_smoke.py" in paths
+    assert "scripts/energy_core_scaffold_smoke.py" in paths
+    assert "scripts/energy_core_export_plan_smoke.py" in paths
+    assert "scripts/energy_core_full_gate.py" in paths
+    assert "docs/energy_aware_code_review_pack.md" in paths
+
+
 def test_package_manifest_resolves_repository_root() -> None:
     manifest = build_package_manifest(Path(".."))
 
