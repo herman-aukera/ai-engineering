@@ -14,6 +14,15 @@ def test_validation_gate_discovers_energy_chat_tests_dynamically() -> None:
     assert 'uv run pytest -q "${energy_chat_tests[@]}"' in VALIDATION_SCRIPT
 
 
+def test_validation_gate_runs_demo_payload_contracts_before_tests() -> None:
+    assert "DEMO PAYLOAD CONTRACTS" in VALIDATION_SCRIPT
+    assert "scripts/validate_energy_chat_demo_payloads.py" in VALIDATION_SCRIPT
+    assert "uv run python scripts/validate_energy_chat_demo_payloads.py" in VALIDATION_SCRIPT
+    assert VALIDATION_SCRIPT.index("DEMO PAYLOAD CONTRACTS") < VALIDATION_SCRIPT.index(
+        "FOCUSED TEST DISCOVERY"
+    )
+
+
 def test_validation_gate_fails_when_working_tree_is_dirty() -> None:
     assert "fail_on_dirty_tree" in VALIDATION_SCRIPT
     assert "git status --short" in VALIDATION_SCRIPT
