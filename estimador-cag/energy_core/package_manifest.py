@@ -29,6 +29,8 @@ REQUIRED_PACKAGE_FILES = [
     "energy_core/ledger_integrity.py",
     "energy_core/ledger_integrity_cli.py",
     "energy_core/models.py",
+    "energy_core/nightly_status.py",
+    "energy_core/nightly_status_cli.py",
     "energy_core/package_cli.py",
     "energy_core/package_manifest.py",
     "energy_core/policy.py",
@@ -74,6 +76,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_review_pack.md",
     "docs/energy_aware_code_critic_coverage.md",
     "docs/energy_aware_code_ledger_integrity.md",
+    "docs/energy_aware_code_nightly_status.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
@@ -88,6 +91,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_review_pack_smoke.py",
     "scripts/energy_core_critic_coverage_smoke.py",
     "scripts/energy_core_ledger_integrity_smoke.py",
+    "scripts/energy_core_nightly_status_smoke.py",
     "scripts/energy_core_schema_smoke.py",
     "scripts/energy_core_scaffold_smoke.py",
     "scripts/energy_core_export_plan_smoke.py",
