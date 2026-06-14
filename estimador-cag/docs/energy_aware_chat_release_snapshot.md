@@ -17,6 +17,10 @@ Then render a Markdown checkpoint with:
       --ci-ref <ci-proof-label> \
       --output docs/generated/energy_chat_release_snapshot.md
 
+A checked example lives at:
+
+    docs/examples/energy_chat_release_snapshot_example.md
+
 The snapshot is evidence bookkeeping only. It preserves the token:
 
     measurement_only_no_quality_claim
