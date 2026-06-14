@@ -20,6 +20,7 @@ def test_reviewer_index_points_to_core_demo_artifacts() -> None:
         "docs/energy_aware_chat_final_project_delivery_plan.md",
         "docs/energy_aware_chat_repository_readiness.md",
         "docs/energy_aware_chat_session17_backlog.md",
+        "docs/energy_aware_chat_mvp_upgrade.md",
     ]
 
     for path in required_paths:
@@ -31,7 +32,7 @@ def test_reviewer_index_preserves_strategy_and_non_claims() -> None:
     assert "herman-aukera/energy-aware-chat" in REVIEWER_INDEX
     assert "measurement_only_no_quality_claim" in REVIEWER_INDEX
     assert "Do not claim" in REVIEWER_INDEX
-    assert "RAG grounding" in REVIEWER_INDEX
+    assert "deterministic RAG grounding baseline" in REVIEWER_INDEX
     assert "Quality improvement over DeepSeek" in REVIEWER_INDEX
 
 
@@ -41,6 +42,8 @@ def test_api_smoke_guide_uses_committed_payloads_and_exact_paths() -> None:
         "evaluate_repair_once.json",
         "source_needed_project.json",
         "evidence_bundle_project.json",
+        "rag_project_search.json",
+        "chat_project_mvp.json",
         "benchmark_measurement.json",
     ]
     expected_routes = [
@@ -48,6 +51,8 @@ def test_api_smoke_guide_uses_committed_payloads_and_exact_paths() -> None:
         "/energy-chat/evaluate/repair-once",
         "/energy-chat/source-needed",
         "/energy-chat/evidence/bundle",
+        "/energy-chat/rag/search",
+        "/energy-chat/chat",
     ]
 
     for payload in expected_payloads:
