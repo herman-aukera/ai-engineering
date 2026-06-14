@@ -40,6 +40,7 @@ def main() -> int:
             "export_plan.md",
             "command_catalog.md",
             "critic_coverage.md",
+            "ledger_integrity.md",
         ]
         for filename in required:
             path = output_dir / filename
