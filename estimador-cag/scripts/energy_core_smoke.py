@@ -24,6 +24,7 @@ def main() -> int:
         evidence_report = tmp_path / "evidence-report.md"
         ledger_report = tmp_path / "ledger-report.md"
         spec_report = tmp_path / "spec-report.md"
+        audit_report = tmp_path / "audit-pack.md"
         failed_evidence = tmp_path / "failed-evidence.jsonl"
 
         policy_validation = _run(
@@ -255,6 +256,51 @@ def main() -> int:
         _assert(
             "# Energy Aware Code Decision Ledger Summary" in ledger_report.read_text(encoding="utf-8"),
             "Markdown ledger summary report should be written",
+        )
+
+        audit_json = _run(
+            "audit-pack",
+            "--spec-dir",
+            str(SPEC_DIR),
+            "--policy",
+            str(POLICY),
+            "--candidate",
+            str(ACCEPT_CANDIDATE),
+            "--evidence",
+            str(EVIDENCE),
+            "--decisions",
+            str(decisions),
+            "--format",
+            "json",
+            "--fail-on-not-ready",
+        )
+        audit_payload = json.loads(audit_json.stdout)
+        _assert(audit_payload["ready_to_accept"] is True, "audit pack should be ready to accept")
+        _assert(audit_payload["decision"]["decision"] == "accept", "audit pack decision should accept")
+        _assert(audit_payload["ledger_summary"]["total"] == 3, "audit pack should include ledger summary")
+
+        audit_markdown = _run(
+            "audit-pack",
+            "--spec-dir",
+            str(SPEC_DIR),
+            "--policy",
+            str(POLICY),
+            "--candidate",
+            str(ACCEPT_CANDIDATE),
+            "--evidence",
+            str(EVIDENCE),
+            "--decisions",
+            str(decisions),
+            "--format",
+            "markdown",
+            "--report",
+            str(audit_report),
+        )
+        _assert("# Energy Aware Code Audit Pack" in audit_markdown.stdout, "audit pack Markdown should print")
+        _assert("Decision preview: accept" in audit_markdown.stdout, "audit pack should include decision preview")
+        _assert(
+            "# Energy Aware Code Audit Pack" in audit_report.read_text(encoding="utf-8"),
+            "audit pack Markdown report should be written",
         )
 
     print("Energy Core smoke passed.")
