@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +18,7 @@ def main() -> int:
     help_result = _run("--help")
     _assert("policy-validate" in help_result.stdout, "root help should include policy-validate")
     _assert("candidate-validate" in help_result.stdout, "root help should include candidate-validate")
+    _assert("audit-pack" in help_result.stdout, "root help should include audit-pack")
 
     policy = _run(
         "policy-validate",
@@ -65,6 +67,41 @@ def main() -> int:
         "# Energy Aware Code Evidence Summary" in evidence_summary.stdout,
         "root evidence summary should print Markdown",
     )
+
+    with tempfile.TemporaryDirectory(prefix="energy-core-root-smoke-") as tmp:
+        decisions = Path(tmp) / "decisions.jsonl"
+        _run(
+            "evaluate",
+            "--policy",
+            str(POLICY),
+            "--candidate",
+            str(ACCEPT_CANDIDATE),
+            "--evidence",
+            str(EVIDENCE),
+            "--decisions",
+            str(decisions),
+            "--format",
+            "json",
+        )
+        audit = _run(
+            "audit-pack",
+            "--spec-dir",
+            str(SPEC_DIR),
+            "--policy",
+            str(POLICY),
+            "--candidate",
+            str(ACCEPT_CANDIDATE),
+            "--evidence",
+            str(EVIDENCE),
+            "--decisions",
+            str(decisions),
+            "--format",
+            "json",
+            "--fail-on-not-ready",
+        )
+        audit_payload = json.loads(audit.stdout)
+        _assert(audit_payload["ready_to_accept"] is True, "root audit pack should be ready to accept")
+        _assert(audit_payload["decision"]["decision"] == "accept", "root audit pack should preview accept")
 
     print("Energy Core root smoke passed.")
     return 0
