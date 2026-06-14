@@ -23,6 +23,8 @@ CONTRACT_NAMES = {
     "source_needed_project.json": "SourceNeedRequest",
     "evidence_bundle_project.json": "EvidenceBundleRequest",
     "benchmark_measurement.json": "DeepSeekBenchmarkRequest",
+    "rag_project_search.json": "ProjectRagRequest",
+    "chat_project_mvp.json": "EnergyAwareChatAgentRequest",
 }
 
 
