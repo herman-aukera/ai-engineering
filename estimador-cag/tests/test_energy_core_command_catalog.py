@@ -18,6 +18,10 @@ def test_command_catalog_lists_supported_surfaces() -> None:
     assert "audit_pack" in command_ids
     assert "reviewer_snapshot" in command_ids
     assert "package_manifest" in command_ids
+    assert "review_pack" in command_ids
+    assert "scaffold" in command_ids
+    assert "export_plan" in command_ids
+    assert "critic_coverage" in command_ids
     assert catalog["mutating_command_ids"] == ["evaluate"]
     assert "audit_pack" in catalog["dry_run_command_ids"]
     assert catalog["repo_root_supported"] is True
@@ -29,6 +33,7 @@ def test_command_catalog_markdown_exposes_mutation_behavior() -> None:
     assert "# Energy Aware Code Command Catalog" in markdown
     assert "## Mutating commands" in markdown
     assert "- evaluate" in markdown
+    assert "### critic_coverage" in markdown
     assert "Mutates ledger: True" in markdown
     assert "Mutates ledger: False" in markdown
     assert "does not execute shell actions" in markdown
@@ -53,8 +58,9 @@ def test_command_catalog_cli_outputs_json() -> None:
     payload = json.loads(completed.stdout)
 
     assert payload["complete"] is True
-    assert payload["command_total"] >= 10
+    assert payload["command_total"] >= 17
     assert "evaluate" in payload["mutating_command_ids"]
+    assert "critic_coverage" in {command["id"] for command in payload["commands"]}
 
 
 def test_command_catalog_cli_runs_from_repository_root() -> None:
