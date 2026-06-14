@@ -5,7 +5,7 @@ Status: final reviewer handoff for the current Energy Aware Chat branch.
 ## Certified branch
 
 ```text
-gg-finalproject-energy-aware-chat
+EACHAT
 ```
 
 ## Latest accepted checkpoint before this handoff
@@ -22,7 +22,7 @@ Run from the repository root unless noted otherwise.
 cd /workspaces/ai-engineering
 
 git fetch origin
-git switch gg-finalproject-energy-aware-chat
+git switch EACHAT
 git pull --ff-only
 
 cd estimador-cag
