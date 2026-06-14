@@ -94,6 +94,10 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
                 ("uv", "run", "python", "scripts/energy_core_constraint_smoke.py"),
             ),
             _project_command(
+                "Energy Core critic coverage smoke",
+                ("uv", "run", "python", "scripts/energy_core_critic_coverage_smoke.py"),
+            ),
+            _project_command(
                 "Energy Core release smoke",
                 ("uv", "run", "python", "scripts/energy_core_release_smoke.py"),
             ),
