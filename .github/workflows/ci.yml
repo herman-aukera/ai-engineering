@@ -69,6 +69,14 @@ jobs:
             echo "Energy Core smoke skipped because script or package is absent."
           fi
 
+      - name: Energy Core Constraint Smoke
+        run: |
+          if test -d energy_core && test -f scripts/energy_core_constraint_smoke.py; then
+            uv run python scripts/energy_core_constraint_smoke.py
+          else
+            echo "Energy Core constraint smoke skipped because script or package is absent."
+          fi
+
       - name: Energy Core Release Smoke
         run: |
           if test -d energy_core && test -f scripts/energy_core_release_smoke.py; then
