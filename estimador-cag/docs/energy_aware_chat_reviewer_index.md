@@ -19,14 +19,15 @@ herman-aukera/energy-aware-chat
 Read in this order:
 
 1. `docs/energy_aware_chat_final_project_proof_packet.md`
-2. `docs/energy_aware_chat_demo.md`
-3. `docs/energy_aware_chat_live_demo_readiness.md`
-4. `docs/energy_aware_chat_api_smoke_guide.md`
-5. `docs/energy_aware_chat_demo_results_template.md`
-6. `docs/energy_aware_chat_final_project_delivery_plan.md`
-7. `docs/energy_aware_chat_repository_readiness.md`
-8. `docs/energy_aware_chat_session17_backlog.md`
-9. `docs/energy_aware_chat_release_snapshot.md`
+2. `docs/energy_aware_chat_actions_filtering.md`
+3. `docs/energy_aware_chat_demo.md`
+4. `docs/energy_aware_chat_live_demo_readiness.md`
+5. `docs/energy_aware_chat_api_smoke_guide.md`
+6. `docs/energy_aware_chat_demo_results_template.md`
+7. `docs/energy_aware_chat_final_project_delivery_plan.md`
+8. `docs/energy_aware_chat_repository_readiness.md`
+9. `docs/energy_aware_chat_session17_backlog.md`
+10. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
@@ -34,6 +35,7 @@ Read in this order:
 |---|---|
 | Local Energy Chat gate | `bash scripts/validate_energy_chat.sh` |
 | Exact commit CI proof | `bash estimador-cag/scripts/check_energy_chat_ci.sh` from repository root |
+| Actions filtering guide | `docs/energy_aware_chat_actions_filtering.md` |
 | Demo API startup | `bash ../.devcontainer/start-estimador-services.sh api` from `estimador-cag` |
 | Streamlit UI | `streamlit run energy_chat_streamlit_app.py --server.address 0.0.0.0 --server.port 8501` |
 | Standalone export manifest | `bash scripts/export_energy_chat_manifest.sh` from `estimador-cag` |
