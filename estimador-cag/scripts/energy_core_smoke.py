@@ -23,7 +23,9 @@ def main() -> int:
         candidate_report = tmp_path / "candidate-report.md"
         evidence_report = tmp_path / "evidence-report.md"
         ledger_report = tmp_path / "ledger-report.md"
+        trends_report = tmp_path / "decision-trends.md"
         spec_report = tmp_path / "spec-report.md"
+        bundle_report = tmp_path / "bundle-manifest.md"
         audit_report = tmp_path / "audit-pack.md"
         failed_evidence = tmp_path / "failed-evidence.jsonl"
 
@@ -256,6 +258,82 @@ def main() -> int:
         _assert(
             "# Energy Aware Code Decision Ledger Summary" in ledger_report.read_text(encoding="utf-8"),
             "Markdown ledger summary report should be written",
+        )
+
+        trends_json = _run(
+            "decision-trends",
+            "--decisions",
+            str(decisions),
+            "--format",
+            "json",
+        )
+        trends = json.loads(trends_json.stdout)
+        _assert(trends["total"] == 3, "decision trends should count ledger rows")
+        _assert(trends["non_accept"] == 1, "decision trends should count non-accept decisions")
+        _assert(trends["trend"] == "needs_attention", "reject decision should make trend need attention")
+
+        trends_markdown = _run(
+            "decision-trends",
+            "--decisions",
+            str(decisions),
+            "--format",
+            "markdown",
+            "--report",
+            str(trends_report),
+        )
+        _assert(
+            "# Energy Aware Code Decision Trends" in trends_markdown.stdout,
+            "Markdown decision trends should print",
+        )
+        _assert(
+            "# Energy Aware Code Decision Trends" in trends_report.read_text(encoding="utf-8"),
+            "Markdown decision trends report should be written",
+        )
+
+        bundle_json = _run(
+            "bundle-manifest",
+            "--spec-dir",
+            str(SPEC_DIR),
+            "--policy",
+            str(POLICY),
+            "--candidate",
+            str(ACCEPT_CANDIDATE),
+            "--evidence",
+            str(EVIDENCE),
+            "--decisions",
+            str(decisions),
+            "--format",
+            "json",
+            "--fail-on-incomplete",
+        )
+        bundle = json.loads(bundle_json.stdout)
+        _assert(bundle["complete"] is True, "bundle manifest should be complete")
+        _assert(bundle["missing_required"] == [], "bundle manifest should not miss required files")
+
+        bundle_markdown = _run(
+            "bundle-manifest",
+            "--spec-dir",
+            str(SPEC_DIR),
+            "--policy",
+            str(POLICY),
+            "--candidate",
+            str(ACCEPT_CANDIDATE),
+            "--evidence",
+            str(EVIDENCE),
+            "--decisions",
+            str(decisions),
+            "--format",
+            "markdown",
+            "--report",
+            str(bundle_report),
+        )
+        _assert(
+            "# Energy Aware Code Bundle Manifest" in bundle_markdown.stdout,
+            "Markdown bundle manifest should print",
+        )
+        _assert(
+            "# Energy Aware Code Bundle Manifest" in bundle_report.read_text(encoding="utf-8"),
+            "Markdown bundle manifest report should be written",
         )
 
         audit_json = _run(
