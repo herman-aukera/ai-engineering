@@ -23,6 +23,7 @@ Required paths:
   docs/energy_aware_chat_reviewer_index.md
   docs/energy_aware_chat_final_project_proof_packet.md
   docs/energy_aware_chat_demo_evidence_checklist.md
+  docs/energy_aware_chat_actions_filtering.md
   docs/energy_aware_chat_repository_readiness.md
   docs/energy_aware_chat_final_project_delivery_plan.md
   docs/energy_aware_chat_demo_walkthrough.md
