@@ -16,6 +16,7 @@ Implemented layers:
 5. DeepSeek baseline draft seam
 6. Measurement-only benchmark harness
 7. Benchmark report writer
+8. Deterministic source-needed classifier for research and project-mode preparation
 
 ## What is deliberately not claimed yet
 
@@ -51,6 +52,7 @@ Useful endpoints:
 
     POST /energy-chat/evaluate
     POST /energy-chat/evaluate/repair-once
+    POST /energy-chat/source-needed
     POST /energy-chat/draft/deepseek-baseline
     POST /energy-chat/benchmark/deepseek-energy-aware
 
@@ -69,10 +71,33 @@ Demo tabs:
 
 The first tab renders the Energy Card for a draft answer. The second tab runs a tiny measurement-only benchmark through the API.
 
+## Source-needed classifier
+
+The source-needed classifier is deterministic and provider-free. It prepares the later research and project modes by detecting whether an answer needs current external evidence or project-specific evidence.
+
+Current or external evidence examples:
+
+1. current API version
+2. release notes
+3. model availability
+4. legal or regulatory claims
+5. changing deadlines or pricing
+
+Project evidence examples:
+
+1. branch state
+2. repository files
+3. validation gate output
+4. pytest, Ruff, CI, or git evidence
+5. LIDR source-pack rules
+
+The classifier does not retrieve documents yet. It only decides whether evidence is required, recommended, or not required.
+
 ## Current architecture flow
 
     user message + draft answer
     -> deterministic critics
+    -> source-needed classifier
     -> energy score
     -> decider
     -> Energy Card
