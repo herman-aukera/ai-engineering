@@ -16,6 +16,8 @@ REQUIRED_PACKAGE_FILES = [
     "energy_core/command_catalog_cli.py",
     "energy_core/constraints.py",
     "energy_core/constraints_cli.py",
+    "energy_core/critic_coverage.py",
+    "energy_core/critic_coverage_cli.py",
     "energy_core/critics.py",
     "energy_core/decider.py",
     "energy_core/evidence.py",
@@ -68,6 +70,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_reviewer_snapshot.md",
     "docs/energy_aware_code_command_catalog.md",
     "docs/energy_aware_code_review_pack.md",
+    "docs/energy_aware_code_critic_coverage.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
@@ -80,6 +83,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_reviewer_smoke.py",
     "scripts/energy_core_command_catalog_smoke.py",
     "scripts/energy_core_review_pack_smoke.py",
+    "scripts/energy_core_critic_coverage_smoke.py",
     "scripts/energy_core_schema_smoke.py",
     "scripts/energy_core_scaffold_smoke.py",
     "scripts/energy_core_export_plan_smoke.py",
