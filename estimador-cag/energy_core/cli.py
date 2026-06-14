@@ -9,22 +9,24 @@ from energy_core.evidence import EvidenceLoadError, read_evidence_records, summa
 from energy_core.ledger import LedgerLoadError, append_decision, read_decisions, summarize_decisions
 from energy_core.policy import load_policy
 from energy_core.reporter import (
-    format_candidate_validation_markdown_report,
-    format_candidate_validation_summary,
     format_decision_markdown_report,
     format_decision_summary,
     format_evidence_markdown_report,
     format_evidence_summary,
     format_ledger_markdown_report,
     format_ledger_summary,
-    format_policy_validation_markdown_report,
-    format_policy_validation_summary,
     format_spec_coverage_markdown_report,
     format_spec_coverage_summary,
 )
 from energy_core.specs import summarize_spec_package
 from energy_core.state import read_candidate_state
 from energy_core.validation import validate_candidate_state, validate_policy
+from energy_core.validation_reporter import (
+    format_candidate_validation_markdown_report,
+    format_candidate_validation_summary,
+    format_policy_validation_markdown_report,
+    format_policy_validation_summary,
+)
 
 _DECISION_EXIT_CODES = {
     "accept": 0,
