@@ -21,10 +21,14 @@ REQUIRED_PACKAGE_FILES = [
     "energy_core/examples_cli.py",
     "energy_core/ledger.py",
     "energy_core/models.py",
+    "energy_core/package_cli.py",
+    "energy_core/package_manifest.py",
     "energy_core/policy.py",
     "energy_core/release.py",
     "energy_core/release_cli.py",
     "energy_core/reporter.py",
+    "energy_core/reviewer_cli.py",
+    "energy_core/reviewer_index.py",
     "energy_core/schema_bundle.py",
     "energy_core/schema_cli.py",
     "energy_core/scorer.py",
@@ -53,6 +57,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_extraction_plan.md",
     "docs/energy_aware_code_roadmap.md",
     "docs/energy_aware_code_package_manifest.md",
+    "docs/energy_aware_code_reviewer_snapshot.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
@@ -61,6 +66,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_example_smoke.py",
     "scripts/energy_core_constraint_smoke.py",
     "scripts/energy_core_release_smoke.py",
+    "scripts/energy_core_reviewer_smoke.py",
     "scripts/energy_core_schema_smoke.py",
 ]
 
