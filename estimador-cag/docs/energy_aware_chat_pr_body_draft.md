@@ -9,7 +9,7 @@ The current scope is a deterministic proof layer for answer evaluation, repair d
 ## Certified branch
 
 ```text
-gg-finalproject-energy-aware-chat
+EACHAT
 ```
 
 ## Validation commands
@@ -18,7 +18,7 @@ gg-finalproject-energy-aware-chat
 cd /workspaces/ai-engineering
 
 git fetch origin
-git switch gg-finalproject-energy-aware-chat
+git switch EACHAT
 git pull --ff-only
 
 cd estimador-cag
