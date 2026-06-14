@@ -36,4 +36,4 @@ def test_reviewer_snapshot_text_and_markdown_are_human_readable() -> None:
     assert "# Energy Aware Code Reviewer Snapshot" in markdown
     assert "## Reviewer sections" in markdown
     assert "Release readiness" in markdown
-    assert "No shell" in markdown
+    assert "does not execute shell actions" in markdown
