@@ -68,6 +68,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Shows which bundled candidate examples are structurally ready for judgment.",
     },
     {
+        "id": "review_gap_register",
+        "title": "Review gap register",
+        "command": "python -m energy_core.review_gap_register_cli --format markdown --fail-on-blocking",
+        "purpose": "Lists blocking gaps, planned boundaries, and accepted non-blocking review gaps.",
+    },
+    {
         "id": "example_matrix",
         "title": "Example matrix",
         "command": "python -m energy_core.examples_cli --format markdown --fail-on-mismatch",
@@ -126,6 +132,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
             "Use command-catalog to understand which commands mutate the ledger.",
             "Use critic-coverage to see which constraints are enforced versus policy-only.",
             "Use candidate-readiness before trusting bundled examples as acceptance cases.",
+            "Use review-gap-register to separate blocking defects from accepted boundaries.",
         ],
         "non_goals": [
             "This snapshot does not execute shell actions.",
