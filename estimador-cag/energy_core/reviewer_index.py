@@ -50,6 +50,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Separates EACODE incubation from Session 08, Session 09, Chat, and final-project branch roles.",
     },
     {
+        "id": "closeout_pack",
+        "title": "Closeout pack",
+        "command": "python -m energy_core.closeout_pack_cli --format markdown --fail-on-incomplete",
+        "purpose": "Provides an end-of-day handoff across status, evidence, gaps, demo, and next slices.",
+    },
+    {
         "id": "audit_pack",
         "title": "Audit pack",
         "command": "python -m energy_core.cli audit-pack --format markdown --fail-on-not-ready",
@@ -141,6 +147,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
         "package_manifest_required_files": package_manifest["required_total"],
         "reviewer_use": [
             "Show this snapshot before asking a human to inspect individual command outputs.",
+            "Use closeout-pack as the last end-of-day handoff before stopping work.",
             "Use demo-walkthrough to decide the order of a portfolio or teacher demo.",
             "Use course-boundary before mixing EACODE with coursework or final-project branches.",
             "Use nightly-status as the first morning checkpoint after overnight work.",
