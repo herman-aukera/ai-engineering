@@ -13,6 +13,7 @@ REVIEW_PACK_ARTIFACT_FILES = (
     "candidate_readiness.md",
     "review_gap_register.md",
     "acceptance_trace.md",
+    "demo_walkthrough.md",
 )
 
 
