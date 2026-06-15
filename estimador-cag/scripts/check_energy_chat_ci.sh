@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 BRANCH="${1:-EACHAT}"
 SHA="${2:-$(git rev-parse HEAD)}"
-WORKFLOW="${3:-Energy Aware Chat CI}"
+WORKFLOW="${3:-CI - Estimador CAG}"
 MAX_ATTEMPTS="${ENERGY_CHAT_CI_ATTEMPTS:-36}"
 SLEEP_SECONDS="${ENERGY_CHAT_CI_SLEEP_SECONDS:-5}"
 
