@@ -76,6 +76,11 @@ CORE_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         purpose="end-of-day closeout pack renderer",
     ),
     EnergyChatArtifact(
+        path="scripts/render_energy_chat_unsupervised_continuation.py",
+        kind="script",
+        purpose="continuation guard renderer",
+    ),
+    EnergyChatArtifact(
         path="Dockerfile.energy-chat",
         kind="deployment",
         purpose="container image for Energy Aware Chat API",
@@ -112,6 +117,11 @@ DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         path="docs/energy_aware_chat_closeout_pack.md",
         kind="doc",
         purpose="end-of-day closeout and resume handoff",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_unsupervised_continuation.md",
+        kind="doc",
+        purpose="continuation guard",
     ),
     EnergyChatArtifact(
         path="docs/energy_aware_chat_demo_ready_checklist.md",
