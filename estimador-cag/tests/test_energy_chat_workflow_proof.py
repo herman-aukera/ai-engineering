@@ -10,7 +10,7 @@ from app.energy_chat.workflow_proof import (
 
 def test_energy_chat_workflow_proof_targets_dedicated_branch_and_workflow() -> None:
     assert ENERGY_CHAT_BRANCH == "EACHAT"
-    assert ENERGY_CHAT_WORKFLOW == "CI - Estimador CAG"
+    assert ENERGY_CHAT_WORKFLOW == "Energy Aware Chat CI"
 
 
 def test_energy_chat_workflow_proof_commands_are_non_interactive() -> None:
