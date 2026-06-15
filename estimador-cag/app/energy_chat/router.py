@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.energy_chat import baseline, benchmark
+from app.energy_chat import baseline, benchmark, live_agent
 from app.energy_chat.agent import run_energy_aware_chat_agent
 from app.energy_chat.contracts import (
     DeepSeekBaselineRequest,
@@ -25,7 +25,6 @@ from app.energy_chat.contracts import (
 )
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
 from app.energy_chat.evidence import build_evidence_bundle
-from app.energy_chat.live_agent import run_live_energy_aware_chat_agent
 from app.energy_chat.rag import retrieve_project_context
 from app.energy_chat.source_guard import classify_source_need
 
@@ -114,7 +113,7 @@ def chat_energy_aware_live_provider(request: EnergyAwareChatAgentRequest) -> Ene
     needed, and returns the Energy Card. Normal CI tests monkeypatch the live
     draft seam; real credentials are only for local/manual smoke.
     """
-    return run_live_energy_aware_chat_agent(request)
+    return live_agent.run_live_energy_aware_chat_agent(request)
 
 
 @router.post("/draft/deepseek-baseline", response_model=DeepSeekBaselineResult)
