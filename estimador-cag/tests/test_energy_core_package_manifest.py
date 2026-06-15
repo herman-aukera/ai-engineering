@@ -29,6 +29,8 @@ def test_package_manifest_includes_latest_review_and_export_surfaces() -> None:
     assert "energy_core/export_plan_cli.py" in paths
     assert "energy_core/critic_coverage.py" in paths
     assert "energy_core/critic_coverage_cli.py" in paths
+    assert "energy_core/policy_roadmap.py" in paths
+    assert "energy_core/policy_roadmap_cli.py" in paths
     assert "energy_core/ledger_integrity.py" in paths
     assert "energy_core/ledger_integrity_cli.py" in paths
     assert "energy_core/nightly_status.py" in paths
@@ -37,11 +39,13 @@ def test_package_manifest_includes_latest_review_and_export_surfaces() -> None:
     assert "scripts/energy_core_scaffold_smoke.py" in paths
     assert "scripts/energy_core_export_plan_smoke.py" in paths
     assert "scripts/energy_core_critic_coverage_smoke.py" in paths
+    assert "scripts/energy_core_policy_roadmap_smoke.py" in paths
     assert "scripts/energy_core_ledger_integrity_smoke.py" in paths
     assert "scripts/energy_core_nightly_status_v3_smoke.py" in paths
     assert "scripts/energy_core_full_gate.py" in paths
     assert "docs/energy_aware_code_review_pack.md" in paths
     assert "docs/energy_aware_code_critic_coverage.md" in paths
+    assert "docs/energy_aware_code_policy_roadmap.md" in paths
     assert "docs/energy_aware_code_ledger_integrity.md" in paths
     assert "docs/energy_aware_code_nightly_status.md" in paths
 
