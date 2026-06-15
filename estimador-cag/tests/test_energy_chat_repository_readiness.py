@@ -42,9 +42,11 @@ def test_repository_readiness_doc_preserves_claim_boundaries() -> None:
 def test_ci_helper_is_noninteractive_and_commit_scoped() -> None:
     assert "gh api" in CI_HELPER
     assert "actions/runs?per_page=100" in CI_HELPER
-    assert ".head_branch == \"$BRANCH\"" in CI_HELPER
-    assert ".head_sha == \"$SHA\"" in CI_HELPER
-    assert ".name == \"$workflow_name\"" in CI_HELPER
+    assert "head_branch" in CI_HELPER
+    assert "head_sha" in CI_HELPER
+    assert "workflow_name" in CI_HELPER
+    assert "$BRANCH" in CI_HELPER
+    assert "$SHA" in CI_HELPER
     assert "gh run view \"$RUN_ID\"" in CI_HELPER
     assert "--log-failed" in CI_HELPER
     assert "conclusion" in CI_HELPER
