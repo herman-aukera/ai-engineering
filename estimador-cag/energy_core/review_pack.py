@@ -147,23 +147,26 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
         decisions_path=None,
     )
 
-    index = "\n".join(
+    index_lines = [
+        "# EACODE Review Pack",
+        "",
+        "Generated deterministic review artifacts:",
+        "",
+    ]
+    index_lines.extend(
+        f"- {filename}"
+        for filename in REVIEW_PACK_ARTIFACT_FILES
+        if filename != "README.md"
+    )
+    index_lines.extend(
         [
-            "# EACODE Review Pack",
-            "",
-            "Generated deterministic review artifacts:",
-            "",
-            *[
-                f"- {filename}"
-                for filename in REVIEW_PACK_ARTIFACT_FILES
-                if filename != "README.md"
-            ],
             "",
             "This pack is generated from repository files and does not execute",
             "adapters, shell actions, or provider calls.",
             "",
         ]
     )
+    index = "\n".join(index_lines)
 
     return {
         "README.md": index,
@@ -185,4 +188,4 @@ def _inline_list(items: list[str]) -> str:
 
 
 def _bullet_list(items: list[str]) -> list[str]:
-    return [f"- {item}" for item in items] if items else ["- none"]
+    return [f"- {item}" for item in items if item] or ["- none"]
