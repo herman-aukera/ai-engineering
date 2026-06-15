@@ -28,8 +28,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        default="docs/energy_aware_chat_closeout_pack.md",
-        help="Output Markdown path relative to project root unless absolute.",
+        default="/tmp/energy_aware_chat_closeout_pack.md",
+        help="Output Markdown path. Relative paths are resolved from project root.",
     )
     parser.add_argument(
         "--fail-on-incomplete",
