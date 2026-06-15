@@ -44,6 +44,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Gives a human-facing proof order for reviewer demos and portfolio recordings.",
     },
     {
+        "id": "course_boundary",
+        "title": "Course boundary",
+        "command": "python -m energy_core.course_boundary_cli --format markdown --fail-on-conflict",
+        "purpose": "Separates EACODE incubation from Session 08, Session 09, Chat, and final-project branch roles.",
+    },
+    {
         "id": "audit_pack",
         "title": "Audit pack",
         "command": "python -m energy_core.cli audit-pack --format markdown --fail-on-not-ready",
@@ -136,6 +142,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
         "reviewer_use": [
             "Show this snapshot before asking a human to inspect individual command outputs.",
             "Use demo-walkthrough to decide the order of a portfolio or teacher demo.",
+            "Use course-boundary before mixing EACODE with coursework or final-project branches.",
             "Use nightly-status as the first morning checkpoint after overnight work.",
             "Use acceptance-trace to connect acceptance criteria to evidence and tests.",
             "Use package-manifest for copy/extraction inventory.",
