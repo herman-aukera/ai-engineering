@@ -5,7 +5,7 @@ They intentionally do not describe every GitHub Actions run in the repository.
 """
 
 ENERGY_CHAT_BRANCH = "EACHAT"
-ENERGY_CHAT_WORKFLOW = "CI - Estimador CAG"
+ENERGY_CHAT_WORKFLOW = "Energy Aware Chat CI"
 ENERGY_CHAT_PROOF_SCRIPT = "scripts/check_energy_chat_ci.sh"
 ENERGY_CHAT_VALIDATION_SCRIPT = "scripts/validate_energy_chat.sh"
 
