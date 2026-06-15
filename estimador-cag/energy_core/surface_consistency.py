@@ -151,5 +151,5 @@ def _inline_list(items: list[str]) -> str:
     return ", ".join(items) if items else "none"
 
 
-def _bullet_list(items: list[str]) -> list[str:
+def _bullet_list(items: list[str]) -> list[str]:
     return [f"- {item}" for item in items] if items else ["- none"]
