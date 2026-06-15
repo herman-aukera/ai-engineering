@@ -17,6 +17,7 @@ REQUIRED_REVIEW_PACK_FILES = [
     "ledger_integrity.md",
     "candidate_readiness.md",
     "review_gap_register.md",
+    "acceptance_trace.md",
 ]
 
 
