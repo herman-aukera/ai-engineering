@@ -155,7 +155,7 @@ def render_energy_chat_closeout_markdown(pack: CloseoutPack) -> str:
 
     lines.extend(
         [
-            "## Non claims",
+            "## Claim boundary reminders",
             "",
             "- This closeout pack does not prove production readiness.",
             "- This closeout pack does not prove quality improvement over DeepSeek.",
