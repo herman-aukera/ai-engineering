@@ -33,7 +33,9 @@ class CloseoutPack:
     def complete(self) -> bool:
         """Return whether every closeout section is complete."""
 
-        return not self.missing_artifacts and all(section.complete for section in self.sections)
+        return not self.missing_artifacts and all(
+            section.complete for section in self.sections
+        )
 
 
 REQUIRED_CLOSEOUT_ARTIFACTS: tuple[str, ...] = (
@@ -89,7 +91,10 @@ def build_energy_chat_closeout_pack(project_root: Path | str) -> CloseoutPack:
                 "docs/energy_aware_chat_final_project_acceptance_matrix.md",
                 "docs/energy_aware_chat_final_project_proof_packet.md",
             ),
-            next_action="Keep final-project claims tied to deterministic and live-smoke evidence.",
+            next_action=(
+                "Keep final-project claims tied to deterministic and "
+                "live-smoke evidence."
+            ),
         ),
         CloseoutSection(
             section_id="validation_proof",
@@ -100,7 +105,10 @@ def build_energy_chat_closeout_pack(project_root: Path | str) -> CloseoutPack:
                 "scripts/validate_energy_chat.sh",
                 "scripts/check_energy_chat_ci.sh",
             ),
-            next_action="Run both commands after every EACHAT patch before accepting the branch.",
+            next_action=(
+                "Run both commands after every EACHAT patch before accepting "
+                "the branch."
+            ),
         ),
         CloseoutSection(
             section_id="reviewer_navigation",
@@ -111,7 +119,10 @@ def build_energy_chat_closeout_pack(project_root: Path | str) -> CloseoutPack:
                 "docs/energy_aware_chat_reviewer_index.md",
                 "scripts/list_energy_chat_artifacts.py",
             ),
-            next_action="Use the reviewer index as the first entry point for demos and handoff.",
+            next_action=(
+                "Use the reviewer index as the first entry point for demos "
+                "and handoff."
+            ),
         ),
         CloseoutSection(
             section_id="scope_boundaries",
@@ -122,7 +133,10 @@ def build_energy_chat_closeout_pack(project_root: Path | str) -> CloseoutPack:
                 "measurement_only_no_quality_claim",
                 "EACHAT remains separate from EACODE and coursework branches.",
             ),
-            next_action="Do not merge Chat, Code, Session 08, or Session 09 work in one patch.",
+            next_action=(
+                "Do not merge Chat, Code, Session 08, or Session 09 work "
+                "in one patch."
+            ),
         ),
         CloseoutSection(
             section_id="next_slice",
@@ -133,7 +147,10 @@ def build_energy_chat_closeout_pack(project_root: Path | str) -> CloseoutPack:
                 "docs/energy_aware_chat_session17_backlog.md",
                 "docs/energy_aware_chat_release_snapshot.md",
             ),
-            next_action="Pick one evidence or deployment-readiness slice after gates are green.",
+            next_action=(
+                "Pick one evidence or deployment-readiness slice after gates "
+                "are green."
+            ),
         ),
     )
 
@@ -148,13 +165,14 @@ def build_energy_chat_closeout_pack(project_root: Path | str) -> CloseoutPack:
 def render_energy_chat_closeout_markdown(pack: CloseoutPack) -> str:
     """Render the closeout packet as reviewer-friendly Markdown."""
 
+    completed_sections = sum(section.complete for section in pack.sections)
     lines = [
         "# Energy Aware Chat closeout pack",
         "",
         f"- Version: {pack.version}",
         f"- Project root: `{pack.project_root}`",
         f"- Complete: {pack.complete}",
-        f"- Sections: {sum(section.complete for section in pack.sections)}/{len(pack.sections)}",
+        f"- Sections: {completed_sections}/{len(pack.sections)}",
         "",
         "## Missing artifacts",
         "",
