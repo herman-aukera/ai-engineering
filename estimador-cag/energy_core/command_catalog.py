@@ -36,6 +36,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "validation",
     },
     {
+        "id": "candidate_readiness",
+        "entrypoint": "python -m energy_core.candidate_readiness_cli",
+        "purpose": "Report whether bundled candidates are structurally ready for judgment.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "focused pytest coverage",
+        "category": "examples",
+    },
+    {
         "id": "evidence_summary",
         "entrypoint": "python -m energy_core.cli evidence-summary",
         "purpose": "Summarize evidence records without evaluating a candidate.",
