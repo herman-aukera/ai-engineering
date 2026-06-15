@@ -14,6 +14,14 @@ Canonical final-project mirror:
 finalproject-GGC
 ```
 
+Current mirrored checkpoint:
+
+```text
+EACHAT = finalproject-GGC = 65b3e79
+CI: CI - Estimador CAG, run_id=27572861445, success
+claim_status: measurement_only_no_quality_claim
+```
+
 Product target after Session 17:
 
 ```text
@@ -24,34 +32,35 @@ herman-aukera/energy-aware-chat
 
 Read in this order:
 
-1. `docs/energy_aware_chat_examiner_quickstart.md`
-2. `docs/energy_aware_chat_final_project_acceptance_matrix.md`
-3. `docs/energy_aware_chat_mvp_upgrade.md`
-4. `docs/energy_aware_chat_deployment_readiness_runbook.md`
-5. `docs/energy_aware_chat_live_provider_evidence_template.md`
-6. `docs/energy_aware_chat_mvp_demo_recording_packet.md`
-7. `docs/energy_aware_chat_final_submission_handoff.md`
-8. `docs/energy_aware_chat_evaluator_landing_page.md`
-9. `docs/energy_aware_chat_closeout_pack.md`
-10. `docs/energy_aware_chat_unsupervised_continuation.md`
-11. `docs/energy_aware_chat_demo_ready_checklist.md`
-12. `docs/energy_aware_chat_mvp_recording_script_final.md`
-13. `docs/energy_aware_chat_final_project_readiness_matrix.md`
-14. `docs/energy_aware_chat_local_deployment_smoke.md`
-15. `docs/energy_aware_chat_fixed_benchmark_report.md`
-16. `docs/energy_aware_chat_final_project_proof_packet.md`
-17. `docs/energy_aware_chat_actions_filtering.md`
-18. `docs/energy_aware_chat_demo.md`
-19. `docs/energy_aware_chat_live_demo_readiness.md`
-20. `docs/energy_aware_chat_demo_script.md`
-21. `docs/energy_aware_chat_demo_command_checklist.md`
-22. `docs/energy_aware_chat_api_smoke_guide.md`
-23. `docs/energy_aware_chat_demo_results_template.md`
-24. `docs/energy_aware_chat_pr_body_draft.md`
-25. `docs/energy_aware_chat_final_project_delivery_plan.md`
-26. `docs/energy_aware_chat_repository_readiness.md`
-27. `docs/energy_aware_chat_session17_backlog.md`
-28. `docs/energy_aware_chat_release_snapshot.md`
+1. `README.md`
+2. `docs/energy_aware_chat_examiner_quickstart.md`
+3. `docs/energy_aware_chat_final_project_acceptance_matrix.md`
+4. `docs/energy_aware_chat_mvp_upgrade.md`
+5. `docs/energy_aware_chat_deployment_readiness_runbook.md`
+6. `docs/energy_aware_chat_live_provider_evidence_template.md`
+7. `docs/energy_aware_chat_mvp_demo_recording_packet.md`
+8. `docs/energy_aware_chat_final_submission_handoff.md`
+9. `docs/energy_aware_chat_evaluator_landing_page.md`
+10. `docs/energy_aware_chat_closeout_pack.md`
+11. `docs/energy_aware_chat_unsupervised_continuation.md`
+12. `docs/energy_aware_chat_demo_ready_checklist.md`
+13. `docs/energy_aware_chat_mvp_recording_script_final.md`
+14. `docs/energy_aware_chat_final_project_readiness_matrix.md`
+15. `docs/energy_aware_chat_local_deployment_smoke.md`
+16. `docs/energy_aware_chat_fixed_benchmark_report.md`
+17. `docs/energy_aware_chat_final_project_proof_packet.md`
+18. `docs/energy_aware_chat_actions_filtering.md`
+19. `docs/energy_aware_chat_demo.md`
+20. `docs/energy_aware_chat_live_demo_readiness.md`
+21. `docs/energy_aware_chat_demo_script.md`
+22. `docs/energy_aware_chat_demo_command_checklist.md`
+23. `docs/energy_aware_chat_api_smoke_guide.md`
+24. `docs/energy_aware_chat_demo_results_template.md`
+25. `docs/energy_aware_chat_pr_body_draft.md`
+26. `docs/energy_aware_chat_final_project_delivery_plan.md`
+27. `docs/energy_aware_chat_repository_readiness.md`
+28. `docs/energy_aware_chat_session17_backlog.md`
+29. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
