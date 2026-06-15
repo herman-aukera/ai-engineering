@@ -39,6 +39,8 @@ def test_package_manifest_includes_latest_review_and_export_surfaces() -> None:
     assert "energy_core/surface_consistency_cli.py" in paths
     assert "energy_core/nightly_status.py" in paths
     assert "energy_core/nightly_status_cli.py" in paths
+    assert "energy_core/demo_walkthrough.py" in paths
+    assert "energy_core/demo_walkthrough_cli.py" in paths
     assert "scripts/energy_core_review_pack_smoke.py" in paths
     assert "scripts/energy_core_scaffold_smoke.py" in paths
     assert "scripts/energy_core_export_plan_smoke.py" in paths
@@ -47,6 +49,7 @@ def test_package_manifest_includes_latest_review_and_export_surfaces() -> None:
     assert "scripts/energy_core_ledger_integrity_smoke.py" in paths
     assert "scripts/energy_core_candidate_readiness_smoke.py" in paths
     assert "scripts/energy_core_surface_consistency_smoke.py" in paths
+    assert "scripts/energy_core_demo_walkthrough_smoke.py" in paths
     assert "scripts/energy_core_nightly_status_v3_smoke.py" in paths
     assert "scripts/energy_core_full_gate.py" in paths
     assert "docs/energy_aware_code_review_pack.md" in paths
@@ -54,6 +57,7 @@ def test_package_manifest_includes_latest_review_and_export_surfaces() -> None:
     assert "docs/energy_aware_code_policy_roadmap.md" in paths
     assert "docs/energy_aware_code_ledger_integrity.md" in paths
     assert "docs/energy_aware_code_nightly_status.md" in paths
+    assert "docs/energy_aware_code_demo_walkthrough.md" in paths
 
 
 def test_package_manifest_resolves_repository_root() -> None:
