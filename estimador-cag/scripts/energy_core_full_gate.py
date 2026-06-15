@@ -150,6 +150,15 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
                 ("uv", "run", "python", "scripts/energy_core_closeout_pack_smoke.py"),
             ),
             _project_command(
+                "Energy Core extraction readiness smoke",
+                (
+                    "uv",
+                    "run",
+                    "python",
+                    "scripts/energy_core_extraction_readiness_smoke.py",
+                ),
+            ),
+            _project_command(
                 "Energy Core scaffold smoke",
                 ("uv", "run", "python", "scripts/energy_core_scaffold_smoke.py"),
             ),
