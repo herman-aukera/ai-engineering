@@ -16,6 +16,10 @@ from energy_core.critic_coverage import (
     build_critic_coverage,
     format_critic_coverage_markdown,
 )
+from energy_core.demo_walkthrough import (
+    build_demo_walkthrough,
+    format_demo_walkthrough_markdown,
+)
 from energy_core.export_plan import build_export_plan, format_export_plan_markdown
 from energy_core.ledger_integrity import (
     build_ledger_integrity,
@@ -135,6 +139,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     export_plan = build_export_plan(project_root)
     nightly_status = build_nightly_status(project_root)
     acceptance_trace = build_acceptance_trace(project_root)
+    demo_walkthrough = build_demo_walkthrough(project_root)
     critic_coverage = build_critic_coverage(project_root / DEFAULT_POLICY)
     ledger_integrity = build_ledger_integrity(project_root / DEFAULT_LEDGER)
     candidate_readiness = build_candidate_readiness_matrix(
@@ -186,6 +191,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
         "candidate_readiness.md": format_candidate_readiness_markdown(candidate_readiness),
         "review_gap_register.md": format_review_gap_register_markdown(review_gap_register),
         "acceptance_trace.md": format_acceptance_trace_markdown(acceptance_trace),
+        "demo_walkthrough.md": format_demo_walkthrough_markdown(demo_walkthrough),
     }
 
 
