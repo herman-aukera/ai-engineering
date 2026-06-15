@@ -25,19 +25,19 @@ herman-aukera/energy-aware-chat
 Read in this order:
 
 1. `docs/energy_aware_chat_examiner_quickstart.md`
-2. `docs/energy_aware_chat_evaluator_landing_page.md`
-3. `docs/energy_aware_chat_closeout_pack.md`
-4. `docs/energy_aware_chat_demo_ready_checklist.md`
-5. `docs/energy_aware_chat_mvp_recording_script_final.md`
-6. `docs/energy_aware_chat_final_project_readiness_matrix.md`
-7. `docs/energy_aware_chat_local_deployment_smoke.md`
-8. `docs/energy_aware_chat_fixed_benchmark_report.md`
-9. `docs/energy_aware_chat_final_project_acceptance_matrix.md`
-10. `docs/energy_aware_chat_mvp_upgrade.md`
-11. `docs/energy_aware_chat_deployment_readiness_runbook.md`
-12. `docs/energy_aware_chat_live_provider_evidence_template.md`
-13. `docs/energy_aware_chat_mvp_demo_recording_packet.md`
-14. `docs/energy_aware_chat_final_submission_handoff.md`
+2. `docs/energy_aware_chat_final_project_acceptance_matrix.md`
+3. `docs/energy_aware_chat_mvp_upgrade.md`
+4. `docs/energy_aware_chat_deployment_readiness_runbook.md`
+5. `docs/energy_aware_chat_live_provider_evidence_template.md`
+6. `docs/energy_aware_chat_mvp_demo_recording_packet.md`
+7. `docs/energy_aware_chat_final_submission_handoff.md`
+8. `docs/energy_aware_chat_evaluator_landing_page.md`
+9. `docs/energy_aware_chat_closeout_pack.md`
+10. `docs/energy_aware_chat_demo_ready_checklist.md`
+11. `docs/energy_aware_chat_mvp_recording_script_final.md`
+12. `docs/energy_aware_chat_final_project_readiness_matrix.md`
+13. `docs/energy_aware_chat_local_deployment_smoke.md`
+14. `docs/energy_aware_chat_fixed_benchmark_report.md`
 15. `docs/energy_aware_chat_final_project_proof_packet.md`
 16. `docs/energy_aware_chat_actions_filtering.md`
 17. `docs/energy_aware_chat_demo.md`
