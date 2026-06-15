@@ -47,6 +47,8 @@ Claim status
 Accepted after repair
 Hard constraints passed
 Remaining caveats
+Visible execution audit
+This is not hidden chain-of-thought
 """
 
 
@@ -204,13 +206,17 @@ def render_energy_card(card: dict[str, Any] | None) -> None:
 
     col_decision, col_energy, col_repairs, col_hard = st.columns(4)
     with col_decision:
-        st.metric("Decision", card.get("decision", "unknown"))
+        st.metric("Decision", card.get("decision", "unknown"), help="Final decider result: accept, repair, reject, or clarify.")
     with col_energy:
-        st.metric("Energy", card.get("energy", "unknown"))
+        st.metric("Energy", card.get("energy", "unknown"), help="Lower is better. Energy is the weighted penalty total after critics run.")
     with col_repairs:
-        st.metric("Repairs", card.get("repairs", "unknown"))
+        st.metric("Repairs", card.get("repairs", "unknown"), help="Number of visible findings or repairs tracked by the Energy Card.")
     with col_hard:
-        st.metric("Hard constraints passed", "yes" if card.get("hard_constraints_passed") else "no")
+        st.metric(
+            "Hard constraints passed",
+            "yes" if card.get("hard_constraints_passed") else "no",
+            help="Hard reject constraints must pass before a candidate can be accepted.",
+        )
 
     st.markdown("#### Evidence")
     st.json(card.get("evidence") or [])
@@ -221,11 +227,54 @@ def render_energy_card(card: dict[str, Any] | None) -> None:
         st.json(caveats)
 
 
+def render_execution_audit(result: dict[str, Any]) -> None:
+    metadata = result.get("metadata") or {}
+    call_plan = metadata.get("call_plan") or {}
+    visible_steps = metadata.get("visible_steps") or result.get("agent_trace") or []
+
+    st.markdown("### Visible execution audit")
+    st.caption("This is a concise execution summary. It is not hidden chain-of-thought.")
+
+    col_provider, col_critics, col_repair, col_delta = st.columns(4)
+    with col_provider:
+        st.metric(
+            "Provider draft calls",
+            call_plan.get("provider_draft_calls", "n/a"),
+            help="Live mode normally makes one draft call. Fallback may call another provider only if the first one fails.",
+        )
+    with col_critics:
+        st.metric(
+            "Critic LLM calls",
+            call_plan.get("critic_llm_calls", 0),
+            help="Current critics are deterministic Python checks, not separate LLM judges.",
+        )
+    with col_repair:
+        st.metric(
+            "Repair LLM calls",
+            call_plan.get("repair_llm_calls", 0),
+            help="Current repair is deterministic one-pass text repair, not a second model call.",
+        )
+    with col_delta:
+        st.metric(
+            "Energy delta",
+            metadata.get("energy_delta", "n/a"),
+            help="Final energy minus initial energy. Negative means the repair reduced energy.",
+        )
+
+    if call_plan:
+        st.info(call_plan.get("note", "Call plan returned without a note."))
+    if visible_steps:
+        for step in visible_steps:
+            st.markdown(f"- {step}")
+
+
 def render_chat_result(result: dict[str, Any]) -> None:
     render_energy_card(extract_energy_card(result))
 
     st.markdown("### Final answer")
     st.write(result.get("final_answer") or result.get("draft_answer") or "No final answer returned.")
+
+    render_execution_audit(result)
 
     metadata = result.get("metadata") or {}
     if metadata:
@@ -262,13 +311,15 @@ def main() -> None:
     st.title("Energy Aware Chat ⚡")
     st.caption(
         "Incubator UI for Energy Aware Chat. Choose the mode, choose deterministic or live provider execution, "
-        "then inspect the Energy Card, evidence, provider metadata, and raw trace."
+        "then inspect the Energy Card, evidence, provider metadata, and visible execution audit."
     )
 
     with st.sidebar:
         st.subheader("Backend")
         st.code(get_backend_url())
-        st.caption("Set ESTIMADOR_BACKEND_URL when Streamlit runs outside the FastAPI host.")
+        st.caption(
+            "FastAPI root now redirects to /energy-chat/demo. Set ESTIMADOR_BACKEND_URL only when Streamlit runs on a different origin."
+        )
 
         st.subheader("Execution")
         execution_label = st.selectbox(
@@ -281,21 +332,47 @@ def main() -> None:
             "Chat mode",
             options=list(MODE_OPTIONS.keys()),
             index=2,
+            help="chat_lite is general answer validation; research adds source discipline; project uses project evidence; tutor favors teaching quality.",
         )
-        k = st.slider("Retrieved evidence chunks", min_value=1, max_value=8, value=3)
+        k = st.slider(
+            "Retrieved evidence chunks",
+            min_value=1,
+            max_value=8,
+            value=3,
+            help="How many committed project-source chunks the RAG step retrieves before drafting the answer.",
+        )
 
     question = st.text_area(
         "User question",
         value="Is deployment evidence mandatory for the Energy Aware Chat final project MVP?",
         height=140,
+        help="The user message sent to the selected Energy Aware Chat path.",
     )
-    required_constraint = st.text_input("Required constraint", value="deployment evidence")
-    required_sections_raw = st.text_input("Required sections", value="Decision, Next action")
+    required_constraint = st.text_input(
+        "Required constraint",
+        value="deployment evidence",
+        help="A hard requirement that the answer must visibly satisfy. Leave empty if no extra constraint is needed.",
+    )
+    required_sections_raw = st.text_input(
+        "Required sections",
+        value="Decision, Next action",
+        help="Comma-separated sections the answer must include. The evaluator checks these headings or phrases.",
+    )
 
     col_chat, col_rag, col_benchmark = st.columns(3)
-    chat_clicked = col_chat.button("Run Energy Aware Chat", type="primary")
-    rag_clicked = col_rag.button("Run RAG only")
-    benchmark_clicked = col_benchmark.button("Run measurement benchmark")
+    chat_clicked = col_chat.button(
+        "Run Energy Aware Chat",
+        type="primary",
+        help="Runs retrieval, draft generation, critics, decider, optional repair, and Energy Card.",
+    )
+    rag_clicked = col_rag.button(
+        "Run RAG only",
+        help="Runs retrieval only. No provider call, no critics, no decider, no final answer.",
+    )
+    benchmark_clicked = col_benchmark.button(
+        "Run measurement benchmark",
+        help="Runs measurement-only baseline versus energy-aware evaluation. It does not prove quality improvement.",
+    )
 
     constraints = [required_constraint.strip()] if required_constraint.strip() else []
     sections = [section.strip() for section in required_sections_raw.split(",") if section.strip()]
@@ -332,6 +409,7 @@ def main() -> None:
                 st.error(f"RAG request failed: {exc}")
                 return
         st.success("RAG retrieval completed.")
+        st.info("RAG-only mode does not call DeepSeek/Kimi or run the Energy Card.")
         st.json(result)
 
     if benchmark_clicked:
