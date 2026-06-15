@@ -6,32 +6,46 @@ cd "$ROOT_DIR"
 
 BRANCH="${1:-EACHAT}"
 SHA="${2:-$(git rev-parse HEAD)}"
-WORKFLOW="${3:-CI - Estimador CAG}"
+PRIMARY_WORKFLOW="${3:-Energy Aware Chat CI}"
+FALLBACK_WORKFLOW="${ENERGY_CHAT_CI_FALLBACK_WORKFLOW:-CI - Estimador CAG}"
 MAX_ATTEMPTS="${ENERGY_CHAT_CI_ATTEMPTS:-36}"
 SLEEP_SECONDS="${ENERGY_CHAT_CI_SLEEP_SECONDS:-5}"
 
 echo "=== ENERGY CHAT CI PROOF ==="
 echo "branch=$BRANCH"
 echo "sha=${SHA:0:7}"
-echo "workflow=$WORKFLOW"
+echo "primary_workflow=$PRIMARY_WORKFLOW"
+echo "fallback_workflow=$FALLBACK_WORKFLOW"
+
+find_run_id_for_workflow() {
+  local workflow_name="$1"
+
+  gh run list \
+    --branch "$BRANCH" \
+    --commit "$SHA" \
+    --limit 50 \
+    --json databaseId,workflowName \
+    --jq ".[] | select(.workflowName == \"$workflow_name\") | .databaseId" \
+    | head -n 1
+}
 
 RUN_ID=""
 STATUS=""
 CONCLUSION=""
+WORKFLOW="$PRIMARY_WORKFLOW"
 
 for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
-  RUN_ID="$(
-    gh run list \
-      --workflow "$WORKFLOW" \
-      --branch "$BRANCH" \
-      --commit "$SHA" \
-      --limit 1 \
-      --json databaseId \
-      --jq '.[0].databaseId // ""'
-  )"
+  RUN_ID="$(find_run_id_for_workflow "$PRIMARY_WORKFLOW")"
+  WORKFLOW="$PRIMARY_WORKFLOW"
+
+  if [[ -z "$RUN_ID" && -n "$FALLBACK_WORKFLOW" && "$FALLBACK_WORKFLOW" != "$PRIMARY_WORKFLOW" ]]; then
+    RUN_ID="$(find_run_id_for_workflow "$FALLBACK_WORKFLOW")"
+    WORKFLOW="$FALLBACK_WORKFLOW"
+  fi
 
   if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
-    echo "No $WORKFLOW run found yet for branch=$BRANCH sha=${SHA:0:7}; attempt $attempt/$MAX_ATTEMPTS."
+    echo "No proof run found yet for branch=$BRANCH sha=${SHA:0:7}; attempt $attempt/$MAX_ATTEMPTS."
+    echo "Checked workflowName=$PRIMARY_WORKFLOW and fallback=$FALLBACK_WORKFLOW."
     sleep "$SLEEP_SECONDS"
     continue
   fi
@@ -47,7 +61,7 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
       --jq '.conclusion // ""'
   )"
 
-  echo "run_id=$RUN_ID status=$STATUS conclusion=${CONCLUSION:-pending}"
+  echo "run_id=$RUN_ID status=$STATUS conclusion=${CONCLUSION:-pending} workflow=$WORKFLOW"
 
   if [[ "$STATUS" == "completed" ]]; then
     break
@@ -57,8 +71,9 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
 done
 
 if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
-  echo "No $WORKFLOW run found for branch=$BRANCH sha=${SHA:0:7}."
+  echo "No proof run found for branch=$BRANCH sha=${SHA:0:7}."
   echo "Do not use the interactive gh run selector because it may show other branches."
+  echo "This script lists runs by exact branch and commit, then filters workflowName in JSON."
   exit 1
 fi
 
