@@ -10,7 +10,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.embedding_pipeline.router import router as embedding_router
 from app.energy_chat.router import router as energy_chat_router
@@ -76,24 +76,22 @@ def energy_chat_browser_demo() -> FileResponse:
 
 
 @app.get("/demo", include_in_schema=False)
-def browser_demo() -> FileResponse:
+def browser_demo() -> RedirectResponse:
     """
-    LAYER: presentation helper
-    RESPONSIBILITY: Serve the browser SSE demo from the FastAPI app.
-    WHY IT EXISTS: Keeps the browser demo on the same origin as the API, which avoids
-    Codespaces CORS and mixed-content issues while giving nontechnical users one clean URL.
-    DEPENDS_ON: docs/sse_demo.html
+    Redirect the generic demo URL to the Energy Aware Chat browser demo.
+
+    The old SSE demo remains available only as a static file in docs. For the
+    final-project branch, the default human path should be Energy Aware Chat.
     """
-    return FileResponse(DEMO_HTML_PATH)
+    return RedirectResponse(url="/energy-chat/demo", status_code=307)
 
 
 @app.get("/", include_in_schema=False)
-def root_demo() -> FileResponse:
+def root_demo() -> RedirectResponse:
     """
-    LAYER: presentation helper
-    RESPONSIBILITY: Serve the browser demo from the root URL.
-    WHY IT EXISTS: Gives nontechnical testers one obvious URL when they open
-    the forwarded FastAPI port in Codespaces.
-    DEPENDS_ON: docs/sse_demo.html
+    Redirect the FastAPI root to the Energy Aware Chat browser demo.
+
+    This makes opening the Codespaces port 8000 URL land on the correct product
+    demo without manually typing `/energy-chat/demo`.
     """
-    return FileResponse(DEMO_HTML_PATH)
+    return RedirectResponse(url="/energy-chat/demo", status_code=307)
