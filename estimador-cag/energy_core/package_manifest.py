@@ -20,6 +20,8 @@ REQUIRED_PACKAGE_FILES = [
     "energy_core/command_catalog_cli.py",
     "energy_core/constraints.py",
     "energy_core/constraints_cli.py",
+    "energy_core/course_boundary.py",
+    "energy_core/course_boundary_cli.py",
     "energy_core/critic_coverage.py",
     "energy_core/critic_coverage_cli.py",
     "energy_core/critics.py",
@@ -94,6 +96,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_review_gap_register.md",
     "docs/energy_aware_code_acceptance_trace.md",
     "docs/energy_aware_code_demo_walkthrough.md",
+    "docs/energy_aware_code_course_boundary.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
@@ -113,6 +116,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_review_gap_register_smoke.py",
     "scripts/energy_core_acceptance_trace_smoke.py",
     "scripts/energy_core_demo_walkthrough_smoke.py",
+    "scripts/energy_core_course_boundary_smoke.py",
     "scripts/energy_core_nightly_status_v3_smoke.py",
     "scripts/energy_core_policy_roadmap_smoke.py",
     "scripts/energy_core_schema_smoke.py",
@@ -220,23 +224,22 @@ def format_package_manifest_markdown(manifest: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _file_record(project_root: Path, group: str, relative_path: str) -> dict[str, Any]:
-    path = (project_root / relative_path).resolve()
+def _file_record(root: Path, group: str, relative_path: str) -> dict[str, Any]:
+    path = (root / relative_path).resolve()
     exists = path.is_file()
     return {
         "group": group,
         "relative_path": relative_path,
         "path": str(path),
         "exists": exists,
-        "size_bytes": path.stat().st_size if exists else None,
         "sha256": _sha256(path) if exists else None,
     }
 
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
 
@@ -246,4 +249,4 @@ def _inline_list(items: list[str]) -> str:
 
 
 def _bullet_list(items: list[str]) -> list[str]:
-    return [f"- {item}" for item in items] if items else ["- none"]
+    return [f"- {item}" for item in items if item] or ["- none"]
