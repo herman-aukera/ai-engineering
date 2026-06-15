@@ -31,6 +31,16 @@ CORE_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         purpose="checked demo request payloads",
     ),
     EnergyChatArtifact(
+        path="evals/energy_chat/fixed_benchmark_cases.jsonl",
+        kind="eval",
+        purpose="fixed deterministic benchmark cases",
+    ),
+    EnergyChatArtifact(
+        path="evals/energy_chat/fixed_benchmark_result.json",
+        kind="eval",
+        purpose="committed fixed benchmark result evidence",
+    ),
+    EnergyChatArtifact(
         path="scripts/validate_energy_chat.sh",
         kind="script",
         purpose="local validation gate",
@@ -49,6 +59,11 @@ CORE_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         path="scripts/start_energy_chat.sh",
         kind="script",
         purpose="local API start command",
+    ),
+    EnergyChatArtifact(
+        path="scripts/render_energy_chat_fixed_benchmark_report.py",
+        kind="script",
+        purpose="fixed benchmark report renderer",
     ),
     EnergyChatArtifact(
         path="scripts/render_energy_chat_release_snapshot.py",
@@ -87,6 +102,41 @@ DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         path="docs/energy_aware_chat_examiner_quickstart.md",
         kind="doc",
         purpose="examiner quickstart",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_evaluator_landing_page.md",
+        kind="doc",
+        purpose="browser-testable evaluator landing page",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_closeout_pack.md",
+        kind="doc",
+        purpose="end-of-day closeout and resume handoff",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_demo_ready_checklist.md",
+        kind="doc",
+        purpose="demo-ready checklist",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_mvp_recording_script_final.md",
+        kind="doc",
+        purpose="final MVP recording script",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_final_project_readiness_matrix.md",
+        kind="doc",
+        purpose="final project readiness matrix",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_local_deployment_smoke.md",
+        kind="doc",
+        purpose="local deployment smoke proof",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_fixed_benchmark_report.md",
+        kind="doc",
+        purpose="fixed deterministic benchmark report",
     ),
     EnergyChatArtifact(
         path="docs/energy_aware_chat_final_project_acceptance_matrix.md",
@@ -139,6 +189,11 @@ DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         purpose="actions filtering guide",
     ),
     EnergyChatArtifact(
+        path="docs/energy_aware_chat_demo.md",
+        kind="doc",
+        purpose="browser and API demo guide",
+    ),
+    EnergyChatArtifact(
         path="docs/energy_aware_chat_demo_evidence_checklist.md",
         kind="doc",
         purpose="demo evidence checklist",
@@ -159,19 +214,44 @@ DOC_ARTIFACTS: tuple[EnergyChatArtifact, ...] = (
         purpose="demo command checklist",
     ),
     EnergyChatArtifact(
+        path="docs/energy_aware_chat_api_smoke_guide.md",
+        kind="doc",
+        purpose="API smoke guide",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_demo_results_template.md",
+        kind="doc",
+        purpose="demo results template",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_repository_readiness.md",
+        kind="doc",
+        purpose="repository readiness checklist",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_final_project_delivery_plan.md",
+        kind="doc",
+        purpose="final project delivery plan",
+    ),
+    EnergyChatArtifact(
+        path="docs/energy_aware_chat_demo_walkthrough.md",
+        kind="doc",
+        purpose="demo walkthrough",
+    ),
+    EnergyChatArtifact(
         path="docs/energy_aware_chat_session17_backlog.md",
         kind="doc",
         purpose="Session 17 intake backlog",
     ),
     EnergyChatArtifact(
+        path="docs/energy_aware_chat_standalone_export_readme.md",
+        kind="doc",
+        purpose="standalone export README draft",
+    ),
+    EnergyChatArtifact(
         path="docs/energy_aware_chat_release_snapshot.md",
         kind="doc",
         purpose="release snapshot guide",
-    ),
-    EnergyChatArtifact(
-        path="docs/energy_aware_chat_closeout_pack.md",
-        kind="doc",
-        purpose="end-of-day closeout and resume handoff",
     ),
 )
 
