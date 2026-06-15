@@ -56,6 +56,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "review",
     },
     {
+        "id": "demo_walkthrough",
+        "entrypoint": "python -m energy_core.demo_walkthrough_cli",
+        "purpose": "Generate a reviewer demo sequence with commands, proof points, and talk track.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "scripts/energy_core_demo_walkthrough_smoke.py",
+        "category": "review",
+    },
+    {
         "id": "evidence_summary",
         "entrypoint": "python -m energy_core.cli evidence-summary",
         "purpose": "Summarize evidence records without evaluating a candidate.",
