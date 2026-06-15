@@ -102,6 +102,10 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
                 ("uv", "run", "python", "scripts/energy_core_ledger_integrity_smoke.py"),
             ),
             _project_command(
+                "Energy Core acceptance trace smoke",
+                ("uv", "run", "python", "scripts/energy_core_acceptance_trace_smoke.py"),
+            ),
+            _project_command(
                 "Energy Core nightly status smoke",
                 (
                     "uv",
