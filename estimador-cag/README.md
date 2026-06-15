@@ -75,6 +75,45 @@ Do not claim:
 4. frontier-model superiority
 5. vector database RAG grounding for Energy Aware Chat
 
+## Historical coursework compatibility notes
+
+These notes keep the current README aligned with earlier validated coursework slices while the Energy Aware Chat reviewer entry point stays at the top.
+
+### Session 04 Live Plus
+
+Session 04 Live Plus documents the hardened product-interface architecture:
+
+1. Structured JSON output
+2. DeepSeek flash → DeepSeek pro → Kimi 2.5 backup → Kimi 2.6 backup_pro
+3. Exact Redis cache runs before semantic cache
+4. Semantic cache shadow mode
+5. `requested_tier`
+6. `served_tier`
+7. `fallback_used`
+8. `semantic_cache_mode`
+9. `semantic_candidate_found`
+
+### Session 05 memory and attachments
+
+Session 05 adds session-scoped memory and attachment-aware estimation flows:
+
+1. `POST /sessions`
+2. `POST /sessions/{session_id}/estimate`
+3. `project_metadata`
+4. `ConversationHistory`
+5. sliding window memory
+6. `multipart/form-data`
+7. `pypdf`
+8. `python-docx`
+
+Streamlit Session 05 usage includes:
+
+1. New conversation
+2. Project metadata
+3. PDF uploads
+4. DOCX uploads
+5. `ESTIMADOR_BACKEND_URL`
+
 ## Session 07: Embedding pipeline pre-exercise
 
 Current working branch:
