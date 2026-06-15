@@ -45,6 +45,7 @@ REQUIRED_PACKAGE_FILES = [
     "energy_core/review_gap_register_cli.py",
     "energy_core/review_pack.py",
     "energy_core/review_pack_cli.py",
+    "energy_core/review_pack_contract.py",
     "energy_core/reviewer_cli.py",
     "energy_core/reviewer_index.py",
     "energy_core/schema_bundle.py",
