@@ -50,10 +50,14 @@ def test_dedicated_energy_chat_ci_is_branch_scoped_and_unambiguous() -> None:
 def test_ci_proof_helper_uses_exact_commit_and_robust_workflow_lookup() -> None:
     assert "Energy Aware Chat CI" in CI_PROOF_SCRIPT
     assert "CI - Estimador CAG" in CI_PROOF_SCRIPT
-    assert '--branch "$BRANCH"' in CI_PROOF_SCRIPT
-    assert '--commit "$SHA"' in CI_PROOF_SCRIPT
-    assert 'workflowName == \\"$workflow_name\\"' in CI_PROOF_SCRIPT
+    assert "GITHUB_REPOSITORY" in CI_PROOF_SCRIPT
+    assert "/actions/runs?per_page=100" in CI_PROOF_SCRIPT
+    assert "--paginate" in CI_PROOF_SCRIPT
+    assert ".head_branch" in CI_PROOF_SCRIPT
+    assert ".head_sha" in CI_PROOF_SCRIPT
+    assert ".name ==" in CI_PROOF_SCRIPT
     assert '--workflow "$WORKFLOW"' not in CI_PROOF_SCRIPT
+    assert '--commit "$SHA"' not in CI_PROOF_SCRIPT
     assert "Do not use the interactive gh run selector" in CI_PROOF_SCRIPT
     assert "gh run view --log-failed" not in CI_PROOF_SCRIPT
     assert "--log-failed" in CI_PROOF_SCRIPT
