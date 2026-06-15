@@ -76,6 +76,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "review",
     },
     {
+        "id": "closeout_pack",
+        "entrypoint": "python -m energy_core.closeout_pack_cli",
+        "purpose": "Build an end-of-day handoff report across status, evidence, gaps, demo, and next slices.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "scripts/energy_core_closeout_pack_smoke.py",
+        "category": "review",
+    },
+    {
         "id": "evidence_summary",
         "entrypoint": "python -m energy_core.cli evidence-summary",
         "purpose": "Summarize evidence records without evaluating a candidate.",
