@@ -8,6 +8,7 @@ from energy_core.review_gap_register import build_review_gap_register
 from energy_core.surface_consistency import build_surface_consistency
 
 DEMO_WALKTHROUGH_VERSION = "1.0.0"
+INTRINSIC_DEMO_STEPS = {"review_pack", "surface_consistency", "full_gate"}
 
 DEMO_STEPS = [
     {
@@ -55,12 +56,12 @@ def build_demo_walkthrough(project_root: Path) -> dict[str, Any]:
     package = build_package_manifest(root)
     surfaces = build_surface_consistency(root)
     gaps = build_review_gap_register(root)
+    surface_ids = {row["surface_id"] for row in surfaces["rows"]}
 
     missing_step_surfaces = [
         step["id"]
         for step in DEMO_STEPS
-        if step["id"] not in {"review_pack", "full_gate"}
-        and step["id"] not in {row["surface_id"] for row in surfaces["rows"]}
+        if step["id"] not in INTRINSIC_DEMO_STEPS and step["id"] not in surface_ids
     ]
     blocking_gaps = [gap for gap in gaps["gaps"] if gap["blocking"]]
 
