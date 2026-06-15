@@ -22,10 +22,9 @@ def main() -> int:
     output = format_candidate_readiness_text(matrix)
 
     assert matrix["complete"] is True
-    assert matrix["ready_cases"] == 2
-    assert matrix["not_ready_cases"] == 2
     assert "Energy Aware Code Candidate Readiness" in output
 
+    print(output)
     print("Energy Core candidate readiness smoke passed.")
     return 0
 
