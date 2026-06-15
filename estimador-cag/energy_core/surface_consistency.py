@@ -5,7 +5,7 @@ from typing import Any
 
 from energy_core.command_catalog import build_command_catalog
 from energy_core.package_manifest import build_package_manifest, resolve_project_root
-from energy_core.review_pack import get_review_pack_artifact_files
+from energy_core.review_pack_contract import get_review_pack_artifact_files
 from energy_core.reviewer_index import REVIEWER_SECTIONS
 
 SURFACE_CONSISTENCY_VERSION = "1.0.0"
