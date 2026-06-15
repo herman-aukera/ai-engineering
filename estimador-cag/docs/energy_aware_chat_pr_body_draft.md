@@ -16,7 +16,7 @@ claim_status=measurement_only_no_quality_claim
 
 This branch keeps the Energy Aware Chat final project track inside `estimador-cag`.
 
-The current scope is a browser-testable, production-oriented MVP candidate with deterministic answer evaluation, Energy Card output, source requirement detection, evidence bundles, deterministic project-source grounding, local agent orchestration, benchmark measurement artifacts, reviewer documentation, release snapshots, closeout proof, continuation guard, and exact CI proof.
+The current scope is a browser-testable, production-oriented MVP candidate with deterministic answer evaluation, Energy Card output, source requirement detection, evidence bundles, deterministic project-source RAG grounding, local agent orchestration, benchmark measurement artifacts, reviewer documentation, release snapshots, closeout proof, continuation guard, and exact CI proof.
 
 ## Fast reviewer entry point
 
@@ -78,4 +78,5 @@ Do not claim:
 2. public deployment is live,
 3. quality improvement over plain DeepSeek,
 4. frontier-model superiority,
-5. live provider fallback proof without the manual live-provider smoke workflow.
+5. live provider fallback proof without the manual live-provider smoke workflow,
+6. vector database RAG grounding beyond the committed deterministic project-source RAG grounding baseline.
