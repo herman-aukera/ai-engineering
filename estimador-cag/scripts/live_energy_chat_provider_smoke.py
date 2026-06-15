@@ -88,7 +88,10 @@ def main() -> None:
         user_message="Return one concise sentence confirming the Kimi fallback path is reachable.",
         mode="chat_lite",
         tier="flash",
-        max_tokens=96,
+        # Kimi K2.x can consume a tiny 96-token budget without emitting final
+        # visible content. The fallback smoke proves a real backup response, so
+        # use a modest but safer cap for the forced-Kimi path.
+        max_tokens=768,
     )
     fallback_result = generate_deepseek_baseline_draft(
         fallback_request,
