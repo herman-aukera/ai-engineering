@@ -22,6 +22,7 @@ def test_surface_consistency_reports_reviewer_surfaces() -> None:
     assert "command_catalog" in surface_ids
     assert "critic_coverage" in surface_ids
     assert "ledger_integrity" in surface_ids
+    assert "review_gap_register" in surface_ids
 
 
 def test_surface_consistency_handles_intrinsic_surfaces() -> None:
@@ -34,12 +35,24 @@ def test_surface_consistency_handles_intrinsic_surfaces() -> None:
     assert rows["reviewer_snapshot"]["reviewer"] is True
 
 
+def test_surface_consistency_marks_review_gap_register_complete() -> None:
+    report = build_surface_consistency(Path("."))
+    rows = {row["surface_id"]: row for row in report["rows"]}
+
+    assert rows["review_gap_register"]["complete"] is True
+    assert rows["review_gap_register"]["catalog"] is True
+    assert rows["review_gap_register"]["reviewer"] is True
+    assert rows["review_gap_register"]["review_pack"] is True
+    assert rows["review_gap_register"]["package"] is True
+
+
 def test_surface_consistency_markdown_is_reviewer_readable() -> None:
     markdown = format_surface_consistency_markdown(build_surface_consistency(Path(".")))
 
     assert "# Energy Aware Code Surface Consistency" in markdown
     assert "- Complete: True" in markdown
     assert "### candidate_readiness" in markdown
+    assert "### review_gap_register" in markdown
     assert "Review pack:" in markdown
     assert "Package manifest:" in markdown
 
