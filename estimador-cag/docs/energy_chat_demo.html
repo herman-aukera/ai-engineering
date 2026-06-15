@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Energy Aware Chat MVP Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111827;
+      --panel: #172033;
+      --panel-2: #0f172a;
+      --border: #334155;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --ok: #10b981;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+    }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 48px 24px 72px;
+    }
+    h1, h2, h3 { margin: 0 0 12px; }
+    p { color: var(--muted); line-height: 1.55; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-top: 24px;
+    }
+    .card {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 20px 50px rgb(0 0 0 / 0.25);
+    }
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    textarea, input {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #020617;
+      color: var(--text);
+      padding: 12px;
+      font: inherit;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    button {
+      cursor: pointer;
+      border: 1px solid #2563eb;
+      background: #1d4ed8;
+      color: white;
+      padding: 11px 14px;
+      margin: 12px 8px 0 0;
+      border-radius: 12px;
+      font-weight: 700;
+    }
+    button.secondary { background: #0f172a; border-color: var(--border); }
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      min-height: 140px;
+      color: #dbeafe;
+    }
+    .pill {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      border-radius: 999px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: #020617;
+      color: var(--muted);
+      margin: 4px 8px 4px 0;
+      font-size: 0.9rem;
+    }
+    .pill.ok { color: #d1fae5; border-color: #065f46; background: #064e3b; }
+    .pill.warn { color: #fef3c7; border-color: #92400e; background: #78350f; }
+    .pill.bad { color: #fee2e2; border-color: #991b1b; background: #7f1d1d; }
+    .answer {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+    .small { font-size: 0.9rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Energy Aware Chat MVP Demo ⚡</h1>
+  <p>
+    Same-origin browser UI for the Energy Aware Chat incubator branch. It exercises the MVP path:
+    deterministic project RAG, local agent orchestration, Energy Card, and measurement-only DeepSeek benchmark output.
+  </p>
+
+  <section class="card">
+    <h2>Ask a project-governance question</h2>
+    <label for="question">User question</label>
+    <textarea id="question">Is deployment evidence mandatory for the Energy Aware Chat final project MVP?</textarea>
+    <label for="constraint">Required constraint</label>
+    <input id="constraint" value="deployment evidence" />
+    <button onclick="runChat()">Run Energy Aware Chat</button>
+    <button class="secondary" onclick="runRag()">Run RAG only</button>
+    <button class="secondary" onclick="runBenchmark()">Run measurement benchmark</button>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Energy Card</h2>
+      <div id="energy-card" class="small">No run yet.</div>
+    </section>
+    <section class="card">
+      <h2>Final answer</h2>
+      <div id="answer" class="answer">No run yet.</div>
+    </section>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Evidence and agent trace</h2>
+      <pre id="trace">No run yet.</pre>
+    </section>
+    <section class="card">
+      <h2>Raw response</h2>
+      <pre id="raw">No run yet.</pre>
+    </section>
+  </div>
+</main>
+
+<script>
+  function question() {
+    return document.getElementById('question').value.trim();
+  }
+
+  function constraint() {
+    return document.getElementById('constraint').value.trim();
+  }
+
+  function setBusy(label) {
+    document.getElementById('energy-card').innerHTML = `<span class="pill warn">running</span> ${label}`;
+    document.getElementById('answer').textContent = 'Waiting for response...';
+    document.getElementById('trace').textContent = 'Waiting for response...';
+    document.getElementById('raw').textContent = 'Waiting for response...';
+  }
+
+  function renderRaw(payload) {
+    document.getElementById('raw').textContent = JSON.stringify(payload, null, 2);
+  }
+
+  function renderEnergyCard(card) {
+    if (!card) {
+      document.getElementById('energy-card').innerHTML = '<span class="pill warn">no-card</span>';
+      return;
+    }
+    const cls = card.decision === 'accept' ? 'ok' : (card.decision === 'reject' ? 'bad' : 'warn');
+    document.getElementById('energy-card').innerHTML = `
+      <span class="pill ${cls}">decision: ${card.decision}</span>
+      <span class="pill">energy: ${card.energy}</span>
+      <span class="pill">repairs: ${card.repairs}</span>
+      <span class="pill ${card.hard_constraints_passed ? 'ok' : 'bad'}">hard constraints: ${card.hard_constraints_passed ? 'passed' : 'failed'}</span>
+      <p><strong>Evidence</strong></p>
+      <pre>${JSON.stringify(card.evidence || [], null, 2)}</pre>
+      <p><strong>Caveats</strong></p>
+      <pre>${JSON.stringify(card.remaining_caveats || [], null, 2)}</pre>
+    `;
+  }
+
+  async function postJson(path, payload) {
+    const response = await fetch(path, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(JSON.stringify(data, null, 2));
+    }
+    return data;
+  }
+
+  async function runChat() {
+    setBusy('running RAG + agent + Energy Card');
+    try {
+      const payload = {
+        user_message: question(),
+        mode: 'project',
+        required_constraints: [constraint()],
+        required_sections: ['Decision', 'Next action'],
+        k: 3,
+        metadata: {ui_demo: 'energy_chat_browser'}
+      };
+      const data = await postJson('/energy-chat/chat', payload);
+      renderEnergyCard(data.energy_card);
+      document.getElementById('answer').textContent = data.final_answer || data.draft_answer || '(empty answer)';
+      document.getElementById('trace').textContent = JSON.stringify({
+        evidence_refs: data.evidence_refs,
+        retrieval: data.retrieval,
+        agent_trace: data.agent_trace,
+        metadata: data.metadata,
+      }, null, 2);
+      renderRaw(data);
+    } catch (error) {
+      document.getElementById('energy-card').innerHTML = '<span class="pill bad">error</span>';
+      document.getElementById('answer').textContent = String(error);
+      document.getElementById('trace').textContent = String(error);
+      document.getElementById('raw').textContent = String(error);
+    }
+  }
+
+  async function runRag() {
+    setBusy('running RAG retrieval only');
+    try {
+      const data = await postJson('/energy-chat/rag/search', {query: question(), k: 3});
+      document.getElementById('energy-card').innerHTML = '<span class="pill ok">rag: success</span>';
+      document.getElementById('answer').textContent = data.grounding_summary || 'Retrieved project context.';
+      document.getElementById('trace').textContent = JSON.stringify({
+        evidence_refs: data.evidence_refs,
+        results: data.results,
+      }, null, 2);
+      renderRaw(data);
+    } catch (error) {
+      document.getElementById('energy-card').innerHTML = '<span class="pill bad">error</span>';
+      document.getElementById('answer').textContent = String(error);
+      document.getElementById('trace').textContent = String(error);
+      document.getElementById('raw').textContent = String(error);
+    }
+  }
+
+  async function runBenchmark() {
+    setBusy('running measurement-only benchmark');
+    try {
+      const data = await postJson('/energy-chat/benchmark/deepseek-energy-aware', {
+        run_id: 'browser-demo-measurement-only',
+        provider: 'deepseek',
+        tier: 'flash',
+        model: 'deepseek-v4-pro',
+        cases: [{
+          case_id: 'browser_scoped_answer',
+          user_message: 'Review whether the answer stays inside the current implementation layer.',
+          mode: 'chat_lite',
+          required_constraints: ['keep the answer scoped'],
+          required_sections: [],
+          metadata: {ui_demo: 'energy_chat_browser'}
+        }]
+      });
+      document.getElementById('energy-card').innerHTML = `
+        <span class="pill ok">benchmark: measurement only</span>
+        <span class="pill">accepted baseline: ${data.accepted_baseline}</span>
+        <span class="pill">accepted after repair: ${data.accepted_after_repair}</span>
+      `;
+      document.getElementById('answer').textContent = 'Measurement-only run completed. This is not a validated quality-improvement claim.';
+      document.getElementById('trace').textContent = JSON.stringify(data.results, null, 2);
+      renderRaw(data);
+    } catch (error) {
+      document.getElementById('energy-card').innerHTML = '<span class="pill bad">error</span>';
+      document.getElementById('answer').textContent = String(error);
+      document.getElementById('trace').textContent = String(error);
+      document.getElementById('raw').textContent = String(error);
+    }
+  }
+</script>
+</body>
+</html>
