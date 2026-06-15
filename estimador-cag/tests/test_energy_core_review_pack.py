@@ -2,7 +2,6 @@ from pathlib import Path
 
 from energy_core.review_pack import build_review_pack, format_review_pack_markdown
 
-
 EXPECTED_REVIEW_PACK_FILES = {
     "README.md",
     "reviewer_snapshot.md",
