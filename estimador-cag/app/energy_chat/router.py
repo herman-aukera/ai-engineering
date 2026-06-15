@@ -1,4 +1,4 @@
-"""FastAPI transport for deterministic Energy Aware Chat evaluation."""
+"""FastAPI transport for deterministic and live Energy Aware Chat evaluation."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ from app.energy_chat.contracts import (
 )
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
 from app.energy_chat.evidence import build_evidence_bundle
+from app.energy_chat.live_agent import run_live_energy_aware_chat_agent
 from app.energy_chat.rag import retrieve_project_context
 from app.energy_chat.source_guard import classify_source_need
 
@@ -95,13 +96,25 @@ def search_energy_chat_project_sources(request: ProjectRagRequest) -> ProjectRag
 @router.post("/chat", response_model=EnergyAwareChatAgentResult)
 def chat_energy_aware_mvp(request: EnergyAwareChatAgentRequest) -> EnergyAwareChatAgentResult:
     """
-    Run the local MVP agent path: retrieve, draft, critique, repair, and return an Energy Card.
+    Run the deterministic local MVP agent path.
 
-    This endpoint provides deterministic agent orchestration for final-project
-    validation while keeping live provider calls and deployment evidence as
-    separate controlled gates.
+    This endpoint is intentionally provider-free and CI-safe. Use
+    `/energy-chat/chat/live` for human testing with DeepSeek and Kimi fallback.
     """
     return run_energy_aware_chat_agent(request)
+
+
+@router.post("/chat/live", response_model=EnergyAwareChatAgentResult)
+def chat_energy_aware_live_provider(request: EnergyAwareChatAgentRequest) -> EnergyAwareChatAgentResult:
+    """
+    Run the live-provider MVP agent path for manual product testing.
+
+    This endpoint retrieves project context, calls DeepSeek through the provider
+    fallback ladder, evaluates the draft, applies one deterministic repair if
+    needed, and returns the Energy Card. Normal CI tests monkeypatch the live
+    draft seam; real credentials are only for local/manual smoke.
+    """
+    return run_live_energy_aware_chat_agent(request)
 
 
 @router.post("/draft/deepseek-baseline", response_model=DeepSeekBaselineResult)
