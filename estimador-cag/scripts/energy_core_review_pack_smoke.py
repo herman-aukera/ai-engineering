@@ -5,7 +5,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-
 REQUIRED_REVIEW_PACK_FILES = [
     "README.md",
     "reviewer_snapshot.md",
