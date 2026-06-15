@@ -38,6 +38,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Traces acceptance criteria to evidence, tests, and reviewer surfaces.",
     },
     {
+        "id": "demo_walkthrough",
+        "title": "Demo walkthrough",
+        "command": "python -m energy_core.demo_walkthrough_cli --format markdown --fail-on-incomplete",
+        "purpose": "Gives a human-facing proof order for reviewer demos and portfolio recordings.",
+    },
+    {
         "id": "audit_pack",
         "title": "Audit pack",
         "command": "python -m energy_core.cli audit-pack --format markdown --fail-on-not-ready",
@@ -129,6 +135,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
         "package_manifest_required_files": package_manifest["required_total"],
         "reviewer_use": [
             "Show this snapshot before asking a human to inspect individual command outputs.",
+            "Use demo-walkthrough to decide the order of a portfolio or teacher demo.",
             "Use nightly-status as the first morning checkpoint after overnight work.",
             "Use acceptance-trace to connect acceptance criteria to evidence and tests.",
             "Use package-manifest for copy/extraction inventory.",
