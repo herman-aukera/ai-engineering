@@ -12,6 +12,10 @@ from energy_core.candidate_readiness import (
     format_candidate_readiness_markdown,
 )
 from energy_core.command_catalog import build_command_catalog, format_command_catalog_markdown
+from energy_core.course_boundary import (
+    build_course_boundary_report,
+    format_course_boundary_markdown,
+)
 from energy_core.critic_coverage import (
     build_critic_coverage,
     format_critic_coverage_markdown,
@@ -140,6 +144,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     nightly_status = build_nightly_status(project_root)
     acceptance_trace = build_acceptance_trace(project_root)
     demo_walkthrough = build_demo_walkthrough(project_root)
+    course_boundary = build_course_boundary_report(project_root)
     critic_coverage = build_critic_coverage(project_root / DEFAULT_POLICY)
     ledger_integrity = build_ledger_integrity(project_root / DEFAULT_LEDGER)
     candidate_readiness = build_candidate_readiness_matrix(
@@ -192,6 +197,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
         "review_gap_register.md": format_review_gap_register_markdown(review_gap_register),
         "acceptance_trace.md": format_acceptance_trace_markdown(acceptance_trace),
         "demo_walkthrough.md": format_demo_walkthrough_markdown(demo_walkthrough),
+        "course_boundary.md": format_course_boundary_markdown(course_boundary),
     }
 
 
