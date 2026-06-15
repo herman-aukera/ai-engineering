@@ -22,6 +22,8 @@ CRITICAL_SURFACES = {
     "reviewer_snapshot": "reviewer_snapshot.md",
 }
 
+INTRINSIC_SURFACES = {"command_catalog", "reviewer_snapshot"}
+
 PACKAGE_MODULES = {
     "candidate_readiness": "energy_core/candidate_readiness.py",
     "command_catalog": "energy_core/command_catalog.py",
@@ -51,11 +53,11 @@ def build_surface_consistency(project_root: Path) -> dict[str, Any]:
 
     for surface_id, review_pack_file in sorted(CRITICAL_SURFACES.items()):
         module_path = PACKAGE_MODULES[surface_id]
-        reviewer_present = surface_id == "reviewer_snapshot" or surface_id in reviewer_ids
+        intrinsic = surface_id in INTRINSIC_SURFACES
         row = {
             "surface_id": surface_id,
-            "catalog": surface_id in catalog_ids,
-            "reviewer": reviewer_present,
+            "catalog": intrinsic or surface_id in catalog_ids,
+            "reviewer": intrinsic or surface_id in reviewer_ids,
             "review_pack": review_pack_file in review_pack_files,
             "package": module_path in package_files,
             "review_pack_file": review_pack_file,
