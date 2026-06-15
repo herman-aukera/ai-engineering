@@ -33,6 +33,10 @@ def test_package_manifest_includes_latest_review_and_export_surfaces() -> None:
     assert "energy_core/policy_roadmap_cli.py" in paths
     assert "energy_core/ledger_integrity.py" in paths
     assert "energy_core/ledger_integrity_cli.py" in paths
+    assert "energy_core/candidate_readiness.py" in paths
+    assert "energy_core/candidate_readiness_cli.py" in paths
+    assert "energy_core/surface_consistency.py" in paths
+    assert "energy_core/surface_consistency_cli.py" in paths
     assert "energy_core/nightly_status.py" in paths
     assert "energy_core/nightly_status_cli.py" in paths
     assert "scripts/energy_core_review_pack_smoke.py" in paths
@@ -41,6 +45,8 @@ def test_package_manifest_includes_latest_review_and_export_surfaces() -> None:
     assert "scripts/energy_core_critic_coverage_smoke.py" in paths
     assert "scripts/energy_core_policy_roadmap_smoke.py" in paths
     assert "scripts/energy_core_ledger_integrity_smoke.py" in paths
+    assert "scripts/energy_core_candidate_readiness_smoke.py" in paths
+    assert "scripts/energy_core_surface_consistency_smoke.py" in paths
     assert "scripts/energy_core_nightly_status_v3_smoke.py" in paths
     assert "scripts/energy_core_full_gate.py" in paths
     assert "docs/energy_aware_code_review_pack.md" in paths
