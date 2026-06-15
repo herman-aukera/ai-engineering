@@ -3,6 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from energy_core.candidate_readiness import (
+    build_candidate_readiness_matrix,
+    format_candidate_readiness_markdown,
+)
 from energy_core.command_catalog import build_command_catalog, format_command_catalog_markdown
 from energy_core.critic_coverage import (
     build_critic_coverage,
@@ -123,6 +127,11 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     nightly_status = build_nightly_status(project_root)
     critic_coverage = build_critic_coverage(project_root / DEFAULT_POLICY)
     ledger_integrity = build_ledger_integrity(project_root / DEFAULT_LEDGER)
+    candidate_readiness = build_candidate_readiness_matrix(
+        spec_dir=project_root / DEFAULT_SPEC_DIR,
+        policy_path=project_root / DEFAULT_POLICY,
+        evidence_path=project_root / DEFAULT_EVIDENCE,
+    )
     release = build_release_readiness(
         project_root=project_root,
         spec_dir=project_root / DEFAULT_SPEC_DIR,
@@ -146,6 +155,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
             "- command_catalog.md",
             "- critic_coverage.md",
             "- ledger_integrity.md",
+            "- candidate_readiness.md",
             "",
             "This pack is generated from repository files and does not execute",
             "adapters, shell actions, or provider calls.",
@@ -163,6 +173,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
         "command_catalog.md": format_command_catalog_markdown(command_catalog),
         "critic_coverage.md": format_critic_coverage_markdown(critic_coverage),
         "ledger_integrity.md": format_ledger_integrity_markdown(ledger_integrity),
+        "candidate_readiness.md": format_candidate_readiness_markdown(candidate_readiness),
     }
 
 
