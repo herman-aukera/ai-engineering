@@ -20,6 +20,7 @@ REQUIRED_REVIEW_PACK_FILES = [
     "acceptance_trace.md",
     "demo_walkthrough.md",
     "course_boundary.md",
+    "closeout_pack.md",
 ]
 
 
