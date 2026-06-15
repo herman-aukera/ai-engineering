@@ -17,8 +17,8 @@ finalproject-GGC
 Current accepted checkpoint:
 
 ```text
-EACHAT = ee2dde7
-CI: CI - Estimator CAG, run_id=27573281439, success
+EACHAT = d85abed
+CI: CI - Estimador CAG, run_id=27573386817, success
 claim_status: measurement_only_no_quality_claim
 ```
 
