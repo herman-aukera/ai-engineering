@@ -19,8 +19,16 @@ Required paths:
   app/energy_chat/
   energy_chat_streamlit_app.py
   demo_payloads/energy_chat/
+  evals/energy_chat/fixed_benchmark_cases.jsonl
+  evals/energy_chat/fixed_benchmark_result.json
   docs/energy_aware_chat_examiner_quickstart.md
+  docs/energy_aware_chat_evaluator_landing_page.md
   docs/energy_aware_chat_closeout_pack.md
+  docs/energy_aware_chat_demo_ready_checklist.md
+  docs/energy_aware_chat_mvp_recording_script_final.md
+  docs/energy_aware_chat_final_project_readiness_matrix.md
+  docs/energy_aware_chat_local_deployment_smoke.md
+  docs/energy_aware_chat_fixed_benchmark_report.md
   docs/energy_aware_chat_final_project_acceptance_matrix.md
   docs/energy_aware_chat_mvp_upgrade.md
   docs/energy_aware_chat_deployment_readiness_runbook.md
@@ -49,6 +57,7 @@ Required paths:
   scripts/smoke_energy_chat_live_provider.py
   scripts/start_energy_chat.sh
   scripts/export_energy_chat_manifest.sh
+  scripts/render_energy_chat_fixed_benchmark_report.py
   scripts/render_energy_chat_release_snapshot.py
   scripts/render_energy_chat_closeout_pack.py
   Dockerfile.energy-chat
