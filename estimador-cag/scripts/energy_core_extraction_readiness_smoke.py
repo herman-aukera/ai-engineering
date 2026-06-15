@@ -1,20 +1,62 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
-from energy_core.extraction_readiness import (
-    build_extraction_readiness,
-    format_extraction_readiness_text,
-)
+
+def _run(argv: list[str], *, cwd: Path) -> str:
+    completed = subprocess.run(
+        argv,
+        cwd=cwd,
+        text=True,
+        check=False,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        print(completed.stdout)
+        print(completed.stderr, file=sys.stderr)
+        raise SystemExit(completed.returncode)
+    return completed.stdout
 
 
 def main() -> int:
-    report = build_extraction_readiness(Path("."))
-    print(format_extraction_readiness_text(report))
-    if not report["complete"]:
-        raise SystemExit("Extraction readiness report is incomplete.")
-    if report["complete_check_total"] != report["check_total"]:
-        raise SystemExit("Extraction readiness checks are incomplete.")
+    project_root = Path(__file__).resolve().parents[1]
+    repo_root = project_root.parent
+
+    text_output = _run(
+        [
+            sys.executable,
+            "-m",
+            "energy_core.extraction_readiness_cli",
+            "--project-root",
+            ".",
+            "--format",
+            "text",
+        ],
+        cwd=project_root,
+    )
+    if "Energy Aware Code Extraction Readiness" not in text_output:
+        print(text_output)
+        raise SystemExit("Extraction readiness text output is missing the title.")
+
+    markdown_output = _run(
+        [
+            sys.executable,
+            "-m",
+            "energy_core.extraction_readiness_cli",
+            "--project-root",
+            "estimador-cag",
+            "--format",
+            "markdown",
+        ],
+        cwd=repo_root,
+    )
+    if "# Energy Aware Code Extraction Readiness" not in markdown_output:
+        print(markdown_output)
+        raise SystemExit("Extraction readiness markdown output is missing the title.")
+
+    print("Energy Core extraction readiness smoke passed.")
     return 0
 
 
