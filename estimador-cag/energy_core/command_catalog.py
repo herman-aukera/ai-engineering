@@ -46,6 +46,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "examples",
     },
     {
+        "id": "acceptance_trace",
+        "entrypoint": "python -m energy_core.acceptance_trace_cli",
+        "purpose": "Trace acceptance criteria to required evidence, tests, and review surfaces.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "focused pytest coverage",
+        "category": "review",
+    },
+    {
         "id": "evidence_summary",
         "entrypoint": "python -m energy_core.cli evidence-summary",
         "purpose": "Summarize evidence records without evaluating a candidate.",
