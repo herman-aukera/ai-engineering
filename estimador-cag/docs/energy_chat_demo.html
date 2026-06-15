@@ -50,7 +50,7 @@
       color: var(--muted);
       font-size: 0.9rem;
     }
-    textarea, input {
+    textarea, input, select {
       width: 100%;
       box-sizing: border-box;
       border-radius: 12px;
@@ -106,22 +106,50 @@
       white-space: pre-wrap;
     }
     .small { font-size: 0.9rem; color: var(--muted); }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
   </style>
 </head>
 <body>
 <main>
   <h1>Energy Aware Chat MVP Demo ⚡</h1>
   <p>
-    Same-origin browser UI for the Energy Aware Chat incubator branch. It exercises the MVP path:
-    deterministic project RAG, local agent orchestration, Energy Card, and measurement-only DeepSeek benchmark output.
+    Same-origin browser UI for the Energy Aware Chat incubator branch. Choose deterministic CI-safe mode or live
+    provider mode. Live mode calls DeepSeek through the provider fallback ladder, then evaluates the answer with the
+    Energy Card.
   </p>
 
   <section class="card">
-    <h2>Ask a project-governance question</h2>
+    <h2>Ask an Energy Aware Chat question</h2>
     <label for="question">User question</label>
     <textarea id="question">Is deployment evidence mandatory for the Energy Aware Chat final project MVP?</textarea>
-    <label for="constraint">Required constraint</label>
-    <input id="constraint" value="deployment evidence" />
+
+    <div class="controls">
+      <div>
+        <label for="mode">Chat mode</label>
+        <select id="mode">
+          <option value="chat_lite">chat_lite</option>
+          <option value="research">research</option>
+          <option value="project" selected>project</option>
+          <option value="tutor">tutor</option>
+        </select>
+      </div>
+      <div>
+        <label for="execution-mode">Execution mode</label>
+        <select id="execution-mode">
+          <option value="live" selected>live provider draft: DeepSeek primary, Kimi fallback</option>
+          <option value="deterministic">deterministic CI-safe draft</option>
+        </select>
+      </div>
+      <div>
+        <label for="constraint">Required constraint</label>
+        <input id="constraint" value="deployment evidence" />
+      </div>
+    </div>
+
     <button onclick="runChat()">Run Energy Aware Chat</button>
     <button class="secondary" onclick="runRag()">Run RAG only</button>
     <button class="secondary" onclick="runBenchmark()">Run measurement benchmark</button>
@@ -140,7 +168,7 @@
 
   <div class="grid">
     <section class="card">
-      <h2>Evidence and agent trace</h2>
+      <h2>Evidence, provider, and agent trace</h2>
       <pre id="trace">No run yet.</pre>
     </section>
     <section class="card">
@@ -157,6 +185,14 @@
 
   function constraint() {
     return document.getElementById('constraint').value.trim();
+  }
+
+  function selectedMode() {
+    return document.getElementById('mode').value;
+  }
+
+  function selectedExecutionMode() {
+    return document.getElementById('execution-mode').value;
   }
 
   function setBusy(label) {
@@ -202,22 +238,24 @@
   }
 
   async function runChat() {
-    setBusy('running RAG + agent + Energy Card');
+    const executionMode = selectedExecutionMode();
+    const endpoint = executionMode === 'live' ? '/energy-chat/chat/live' : '/energy-chat/chat';
+    setBusy(executionMode === 'live' ? 'calling live provider + RAG + Energy Card' : 'running deterministic RAG + Energy Card');
     try {
       const payload = {
         user_message: question(),
-        mode: 'project',
-        required_constraints: [constraint()],
+        mode: selectedMode(),
+        required_constraints: constraint() ? [constraint()] : [],
         required_sections: ['Decision', 'Next action'],
         k: 3,
-        metadata: {ui_demo: 'energy_chat_browser'}
+        metadata: {ui_demo: 'energy_chat_browser', execution_mode: executionMode}
       };
-      const data = await postJson('/energy-chat/chat', payload);
+      const data = await postJson(endpoint, payload);
       renderEnergyCard(data.energy_card);
       document.getElementById('answer').textContent = data.final_answer || data.draft_answer || '(empty answer)';
       document.getElementById('trace').textContent = JSON.stringify({
-        evidence_refs: data.evidence_refs,
-        retrieval: data.retrieval,
+        evidence_refs: data.rag ? data.rag.evidence_refs : [],
+        retrieval: data.rag ? data.rag.results : [],
         agent_trace: data.agent_trace,
         metadata: data.metadata,
       }, null, 2);
@@ -233,7 +271,7 @@
   async function runRag() {
     setBusy('running RAG retrieval only');
     try {
-      const data = await postJson('/energy-chat/rag/search', {query: question(), k: 3});
+      const data = await postJson('/energy-chat/rag/search', {query: question(), mode: selectedMode(), k: 3});
       document.getElementById('energy-card').innerHTML = '<span class="pill ok">rag: success</span>';
       document.getElementById('answer').textContent = data.grounding_summary || 'Retrieved project context.';
       document.getElementById('trace').textContent = JSON.stringify({
@@ -254,14 +292,12 @@
     try {
       const data = await postJson('/energy-chat/benchmark/deepseek-energy-aware', {
         run_id: 'browser-demo-measurement-only',
-        provider: 'deepseek',
         tier: 'flash',
-        model: 'deepseek-v4-pro',
         cases: [{
           case_id: 'browser_scoped_answer',
-          user_message: 'Review whether the answer stays inside the current implementation layer.',
-          mode: 'chat_lite',
-          required_constraints: ['keep the answer scoped'],
+          user_message: question(),
+          mode: selectedMode(),
+          required_constraints: constraint() ? [constraint()] : [],
           required_sections: [],
           metadata: {ui_demo: 'energy_chat_browser'}
         }]
