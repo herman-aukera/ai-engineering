@@ -84,6 +84,7 @@
     <button onclick="runChat()" title="Runs RAG, draft generation, critics, decider, optional repair, and Energy Card.">Run Energy Aware Chat</button>
     <button class="secondary" onclick="runRag()" title="Only retrieves project evidence. It does not call the provider and does not produce a final answer.">Run RAG only</button>
     <button class="secondary" onclick="runBenchmark()" title="Runs measurement-only baseline versus energy-aware evaluation. This is not a quality-improvement claim.">Run measurement benchmark</button>
+    <button class="secondary" onclick="runFixedBenchmarkEvidence()" title="Loads the committed deterministic benchmark report and JSON result. No provider call is made.">Show fixed benchmark evidence</button>
   </section>
 
   <div class="grid">
@@ -176,6 +177,20 @@
     return data;
   }
 
+  async function getJson(path) {
+    const response = await fetch(path);
+    const data = await response.json();
+    if (!response.ok) { throw new Error(JSON.stringify(data, null, 2)); }
+    return data;
+  }
+
+  async function getText(path) {
+    const response = await fetch(path);
+    const text = await response.text();
+    if (!response.ok) { throw new Error(text); }
+    return text;
+  }
+
   async function runChat() {
     const executionMode = selectedExecutionMode();
     const endpoint = executionMode === 'live' ? '/energy-chat/chat/live' : '/energy-chat/chat';
@@ -251,6 +266,31 @@
       document.getElementById('answer').textContent = 'Measurement-only run completed. This is not a validated quality-improvement claim.';
       document.getElementById('audit').innerHTML = '<p>Benchmark mode runs a measurement harness. It is not proof of model superiority or production readiness.</p>';
       document.getElementById('trace').textContent = JSON.stringify(data.results, null, 2);
+      renderRaw(data);
+    } catch (error) {
+      document.getElementById('energy-card').innerHTML = '<span class="pill bad">error</span>';
+      document.getElementById('answer').textContent = String(error);
+      document.getElementById('audit').textContent = String(error);
+      document.getElementById('trace').textContent = String(error);
+      document.getElementById('raw').textContent = String(error);
+    }
+  }
+
+  async function runFixedBenchmarkEvidence() {
+    setBusy('loading committed fixed benchmark evidence');
+    try {
+      const data = await getJson('/energy-chat/benchmark/fixed');
+      const report = await getText('/energy-chat/benchmark/fixed/report');
+      document.getElementById('energy-card').innerHTML = `
+        <span class="pill ok">fixed benchmark evidence</span>
+        <span class="pill">cases: ${data.cases_total}</span>
+        <span class="pill">baseline accepted: ${data.accepted_baseline}</span>
+        <span class="pill">after repair: ${data.accepted_after_repair}</span>
+        <span class="pill warn">${data.metadata ? data.metadata.claim_status : 'measurement_only_no_quality_claim'}</span>
+      `;
+      document.getElementById('answer').textContent = report;
+      document.getElementById('audit').innerHTML = '<p>Fixed benchmark evidence loads committed deterministic artifacts. It makes no provider call and makes no quality-improvement claim.</p>';
+      document.getElementById('trace').textContent = JSON.stringify(data.results || [], null, 2);
       renderRaw(data);
     } catch (error) {
       document.getElementById('energy-card').innerHTML = '<span class="pill bad">error</span>';
