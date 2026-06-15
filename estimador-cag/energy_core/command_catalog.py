@@ -66,6 +66,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "review",
     },
     {
+        "id": "course_boundary",
+        "entrypoint": "python -m energy_core.course_boundary_cli",
+        "purpose": "Separate EACODE incubation from coursework, Chat, and final-project branch roles.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "scripts/energy_core_course_boundary_smoke.py",
+        "category": "review",
+    },
+    {
         "id": "evidence_summary",
         "entrypoint": "python -m energy_core.cli evidence-summary",
         "purpose": "Summarize evidence records without evaluating a candidate.",
