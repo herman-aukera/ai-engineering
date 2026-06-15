@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
+from fastapi.responses import PlainTextResponse
 
-from app.energy_chat import baseline, benchmark, live_agent
+from app.energy_chat import baseline, benchmark, fixed_benchmark, live_agent
 from app.energy_chat.agent import run_energy_aware_chat_agent
 from app.energy_chat.contracts import (
     DeepSeekBaselineRequest,
@@ -25,6 +26,7 @@ from app.energy_chat.contracts import (
 )
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
 from app.energy_chat.evidence import build_evidence_bundle
+from app.energy_chat.fixed_benchmark import FixedBenchmarkRunResult
 from app.energy_chat.rag import retrieve_project_context
 from app.energy_chat.source_guard import classify_source_need
 
@@ -139,3 +141,23 @@ def benchmark_deepseek_energy_aware(
     the provider call and must not require live DeepSeek credentials.
     """
     return benchmark.run_deepseek_energy_benchmark(request)
+
+
+@router.get("/benchmark/fixed", response_model=FixedBenchmarkRunResult)
+def get_fixed_energy_chat_benchmark() -> FixedBenchmarkRunResult:
+    """
+    Return the fixed deterministic Energy Aware Chat benchmark evidence.
+
+    This route is provider-free and safe for normal CI. It exists so human
+    reviewers can inspect benchmark evidence from the browser and Streamlit UIs
+    without opening raw repository files.
+    """
+    return fixed_benchmark.run_fixed_benchmark()
+
+
+@router.get("/benchmark/fixed/report", response_class=PlainTextResponse)
+def get_fixed_energy_chat_benchmark_report() -> str:
+    """Return the reviewer-readable fixed benchmark report as Markdown text."""
+    return fixed_benchmark.render_fixed_benchmark_markdown(
+        fixed_benchmark.run_fixed_benchmark()
+    )
