@@ -32,6 +32,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Summarizes five overnight maintainer checkpoints in one status surface.",
     },
     {
+        "id": "acceptance_trace",
+        "title": "Acceptance trace",
+        "command": "python -m energy_core.acceptance_trace_cli --format markdown --fail-on-incomplete",
+        "purpose": "Traces acceptance criteria to evidence, tests, and reviewer surfaces.",
+    },
+    {
         "id": "audit_pack",
         "title": "Audit pack",
         "command": "python -m energy_core.cli audit-pack --format markdown --fail-on-not-ready",
@@ -124,6 +130,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
         "reviewer_use": [
             "Show this snapshot before asking a human to inspect individual command outputs.",
             "Use nightly-status as the first morning checkpoint after overnight work.",
+            "Use acceptance-trace to connect acceptance criteria to evidence and tests.",
             "Use package-manifest for copy/extraction inventory.",
             "Use export-plan for future standalone extraction planning.",
             "Use release-readiness for final extraction gate status.",
