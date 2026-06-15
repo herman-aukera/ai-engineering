@@ -24,6 +24,8 @@ REQUIRED_PACKAGE_FILES = [
     "energy_core/critic_coverage_cli.py",
     "energy_core/critics.py",
     "energy_core/decider.py",
+    "energy_core/demo_walkthrough.py",
+    "energy_core/demo_walkthrough_cli.py",
     "energy_core/evidence.py",
     "energy_core/examples.py",
     "energy_core/examples_cli.py",
@@ -91,6 +93,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_policy_roadmap.md",
     "docs/energy_aware_code_review_gap_register.md",
     "docs/energy_aware_code_acceptance_trace.md",
+    "docs/energy_aware_code_demo_walkthrough.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
@@ -109,6 +112,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_surface_consistency_smoke.py",
     "scripts/energy_core_review_gap_register_smoke.py",
     "scripts/energy_core_acceptance_trace_smoke.py",
+    "scripts/energy_core_demo_walkthrough_smoke.py",
     "scripts/energy_core_nightly_status_v3_smoke.py",
     "scripts/energy_core_policy_roadmap_smoke.py",
     "scripts/energy_core_schema_smoke.py",
