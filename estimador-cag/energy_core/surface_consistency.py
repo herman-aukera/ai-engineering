@@ -41,7 +41,7 @@ def build_surface_consistency(project_root: Path) -> dict[str, Any]:
     reviewer_ids = {section["id"] for section in REVIEWER_SECTIONS}
     review_pack_files = set(_render_artifacts(root))
     package_files = {
-        item["path"]
+        item["relative_path"]
         for item in build_package_manifest(root)["files"]
         if item["group"] == "package" and item["exists"]
     }
