@@ -16,6 +16,8 @@ REQUIRED_PACKAGE_FILES = [
     "energy_core/candidate_readiness.py",
     "energy_core/candidate_readiness_cli.py",
     "energy_core/cli.py",
+    "energy_core/closeout_pack.py",
+    "energy_core/closeout_pack_cli.py",
     "energy_core/command_catalog.py",
     "energy_core/command_catalog_cli.py",
     "energy_core/constraints.py",
@@ -97,6 +99,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_acceptance_trace.md",
     "docs/energy_aware_code_demo_walkthrough.md",
     "docs/energy_aware_code_course_boundary.md",
+    "docs/energy_aware_code_closeout_pack.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
@@ -117,6 +120,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_acceptance_trace_smoke.py",
     "scripts/energy_core_demo_walkthrough_smoke.py",
     "scripts/energy_core_course_boundary_smoke.py",
+    "scripts/energy_core_closeout_pack_smoke.py",
     "scripts/energy_core_nightly_status_v3_smoke.py",
     "scripts/energy_core_policy_roadmap_smoke.py",
     "scripts/energy_core_schema_smoke.py",
