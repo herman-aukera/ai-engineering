@@ -186,6 +186,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "review",
     },
     {
+        "id": "review_gap_register",
+        "entrypoint": "python -m energy_core.review_gap_register_cli",
+        "purpose": "List blocking gaps, planned boundaries, and accepted non-blocking review gaps.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "scripts/energy_core_review_gap_register_smoke.py",
+        "category": "review",
+    },
+    {
         "id": "scaffold",
         "entrypoint": "python -m energy_core.scaffold_cli",
         "purpose": "Generate a standalone repository scaffold without copying source files.",
