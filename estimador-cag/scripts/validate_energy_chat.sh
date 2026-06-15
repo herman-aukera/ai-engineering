@@ -3,6 +3,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+export UV_HTTP_TIMEOUT="${UV_HTTP_TIMEOUT:-300}"
+
 cleanup_pycaches() {
   find app tests -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
   rm -rf .pytest_cache 2>/dev/null || true
