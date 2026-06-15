@@ -20,6 +20,7 @@ Required paths:
   energy_chat_streamlit_app.py
   demo_payloads/energy_chat/
   docs/energy_aware_chat_examiner_quickstart.md
+  docs/energy_aware_chat_closeout_pack.md
   docs/energy_aware_chat_final_project_acceptance_matrix.md
   docs/energy_aware_chat_mvp_upgrade.md
   docs/energy_aware_chat_deployment_readiness_runbook.md
@@ -49,6 +50,7 @@ Required paths:
   scripts/start_energy_chat.sh
   scripts/export_energy_chat_manifest.sh
   scripts/render_energy_chat_release_snapshot.py
+  scripts/render_energy_chat_closeout_pack.py
   Dockerfile.energy-chat
   docker-compose.energy-chat.yml
   tests/test_energy_chat_*.py
