@@ -57,7 +57,22 @@ def metrics():
     return get_last_metrics()
 
 
-DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "sse_demo.html"
+DOCS_DIR = Path(__file__).resolve().parents[1] / "docs"
+DEMO_HTML_PATH = DOCS_DIR / "sse_demo.html"
+ENERGY_CHAT_DEMO_HTML_PATH = DOCS_DIR / "energy_chat_demo.html"
+
+
+@app.get("/energy-chat/demo", include_in_schema=False)
+def energy_chat_browser_demo() -> FileResponse:
+    """
+    LAYER: presentation helper
+    RESPONSIBILITY: Serve the Energy Aware Chat browser demo from the FastAPI app.
+    WHY IT EXISTS: Gives reviewers and humans a same-origin UI for the MVP path:
+                   project RAG, local agent orchestration, Energy Card, and
+                   measurement-only benchmark output.
+    DEPENDS_ON: docs/energy_chat_demo.html
+    """
+    return FileResponse(ENERGY_CHAT_DEMO_HTML_PATH)
 
 
 @app.get("/demo", include_in_schema=False)
