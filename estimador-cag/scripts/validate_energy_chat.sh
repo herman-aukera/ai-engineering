@@ -22,14 +22,21 @@ fail_on_dirty_tree() {
   fi
 }
 
+ENERGY_CHAT_SCRIPT_TARGETS=(
+  scripts/validate_energy_chat_demo_payloads.py
+  scripts/render_energy_chat_release_snapshot.py
+  scripts/render_energy_chat_closeout_pack.py
+  scripts/list_energy_chat_artifacts.py
+)
+
 echo "=== ENERGY CHAT VALIDATION: RUFF FIX ==="
-uv run ruff check --fix app tests energy_chat_streamlit_app.py scripts/validate_energy_chat_demo_payloads.py scripts/render_energy_chat_release_snapshot.py scripts/list_energy_chat_artifacts.py
+uv run ruff check --fix app tests energy_chat_streamlit_app.py "${ENERGY_CHAT_SCRIPT_TARGETS[@]}"
 
 echo "=== ENERGY CHAT VALIDATION: RUFF CHECK ==="
-uv run ruff check app tests energy_chat_streamlit_app.py scripts/validate_energy_chat_demo_payloads.py scripts/render_energy_chat_release_snapshot.py scripts/list_energy_chat_artifacts.py
+uv run ruff check app tests energy_chat_streamlit_app.py "${ENERGY_CHAT_SCRIPT_TARGETS[@]}"
 
 echo "=== ENERGY CHAT VALIDATION: PY COMPILE ==="
-uv run python -m py_compile $(find app tests -name '*.py' -type f 2>/dev/null) streamlit_app.py energy_chat_streamlit_app.py scripts/validate_energy_chat_demo_payloads.py scripts/render_energy_chat_release_snapshot.py scripts/list_energy_chat_artifacts.py
+uv run python -m py_compile $(find app tests -name '*.py' -type f 2>/dev/null) streamlit_app.py energy_chat_streamlit_app.py "${ENERGY_CHAT_SCRIPT_TARGETS[@]}"
 
 echo "=== ENERGY CHAT VALIDATION: DEMO PAYLOAD CONTRACTS ==="
 uv run python scripts/validate_energy_chat_demo_payloads.py
