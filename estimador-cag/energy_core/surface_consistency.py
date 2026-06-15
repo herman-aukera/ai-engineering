@@ -5,7 +5,7 @@ from typing import Any
 
 from energy_core.command_catalog import build_command_catalog
 from energy_core.package_manifest import build_package_manifest, resolve_project_root
-from energy_core.review_pack import _render_artifacts
+from energy_core.review_pack import get_review_pack_artifact_files
 from energy_core.reviewer_index import REVIEWER_SECTIONS
 
 SURFACE_CONSISTENCY_VERSION = "1.0.0"
@@ -19,6 +19,7 @@ CRITICAL_SURFACES = {
     "nightly_status": "nightly_status.md",
     "package_manifest": "package_manifest.md",
     "release_readiness": "release_readiness.md",
+    "review_gap_register": "review_gap_register.md",
     "reviewer_snapshot": "reviewer_snapshot.md",
 }
 
@@ -33,6 +34,7 @@ PACKAGE_MODULES = {
     "nightly_status": "energy_core/nightly_status.py",
     "package_manifest": "energy_core/package_manifest.py",
     "release_readiness": "energy_core/release.py",
+    "review_gap_register": "energy_core/review_gap_register.py",
     "reviewer_snapshot": "energy_core/reviewer_index.py",
 }
 
@@ -41,7 +43,7 @@ def build_surface_consistency(project_root: Path) -> dict[str, Any]:
     root = resolve_project_root(project_root)
     catalog_ids = {command["id"] for command in build_command_catalog()["commands"]}
     reviewer_ids = {section["id"] for section in REVIEWER_SECTIONS}
-    review_pack_files = set(_render_artifacts(root))
+    review_pack_files = set(get_review_pack_artifact_files())
     package_files = {
         item["relative_path"]
         for item in build_package_manifest(root)["files"]
