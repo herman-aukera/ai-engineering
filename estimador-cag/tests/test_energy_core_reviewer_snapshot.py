@@ -19,12 +19,14 @@ def test_reviewer_snapshot_is_complete_for_current_incubator_package() -> None:
         "package_manifest",
         "export_plan",
         "nightly_status",
+        "acceptance_trace",
         "audit_pack",
         "ledger_integrity",
         "schema_bundle",
         "command_catalog",
         "critic_coverage",
         "candidate_readiness",
+        "review_gap_register",
         "example_matrix",
         "constraint_index",
         "review_pack",
@@ -44,6 +46,7 @@ def test_reviewer_snapshot_text_and_markdown_are_human_readable() -> None:
     assert "# Energy Aware Code Reviewer Snapshot" in markdown
     assert "## Reviewer sections" in markdown
     assert "Release readiness" in markdown
+    assert "Acceptance trace" in markdown
     assert "Critic coverage" in markdown
     assert "Candidate readiness" in markdown
     assert "Ledger integrity" in markdown
