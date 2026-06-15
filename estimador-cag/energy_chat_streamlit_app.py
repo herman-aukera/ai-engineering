@@ -22,6 +22,8 @@ BACKEND_READ_TIMEOUT_SECONDS = 120
 
 ENERGY_CHAT_EVALUATE_PATH = "/energy-chat/evaluate"
 ENERGY_CHAT_BENCHMARK_PATH = "/energy-chat/benchmark/deepseek-energy-aware"
+ENERGY_CHAT_FIXED_BENCHMARK_PATH = "/energy-chat/benchmark/fixed"
+ENERGY_CHAT_FIXED_BENCHMARK_REPORT_PATH = "/energy-chat/benchmark/fixed/report"
 ENERGY_CHAT_EVIDENCE_PATH = "/energy-chat/evidence/bundle"
 ENERGY_CHAT_DETERMINISTIC_CHAT_PATH = "/energy-chat/chat"
 ENERGY_CHAT_LIVE_CHAT_PATH = "/energy-chat/chat/live"
@@ -42,6 +44,7 @@ EXECUTION_OPTIONS = {
 STREAMLIT_UI_CONTRACT_NOTES = """
 Benchmark harness
 Measurement-only benchmark summary
+Fixed deterministic benchmark evidence
 This panel does not claim improvement without a fixed dataset and rubric.
 Claim status
 Accepted after repair
@@ -68,6 +71,14 @@ def build_energy_chat_evaluate_url() -> str:
 
 def build_energy_chat_benchmark_url() -> str:
     return f"{get_backend_url()}{ENERGY_CHAT_BENCHMARK_PATH}"
+
+
+def build_energy_chat_fixed_benchmark_url() -> str:
+    return f"{get_backend_url()}{ENERGY_CHAT_FIXED_BENCHMARK_PATH}"
+
+
+def build_energy_chat_fixed_benchmark_report_url() -> str:
+    return f"{get_backend_url()}{ENERGY_CHAT_FIXED_BENCHMARK_REPORT_PATH}"
 
 
 def build_energy_chat_payload(
@@ -116,6 +127,24 @@ def post_json(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     return response.json()
 
 
+def get_json(path: str) -> dict[str, Any]:
+    response = requests.get(
+        f"{get_backend_url()}{path}",
+        timeout=BACKEND_TIMEOUT,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def get_text(path: str) -> str:
+    response = requests.get(
+        f"{get_backend_url()}{path}",
+        timeout=BACKEND_TIMEOUT,
+    )
+    response.raise_for_status()
+    return response.text
+
+
 def post_energy_chat_evaluation_request(payload: dict[str, Any]) -> dict[str, Any]:
     response = requests.post(
         build_energy_chat_evaluate_url(),
@@ -134,6 +163,14 @@ def post_energy_chat_benchmark_request(payload: dict[str, Any]) -> dict[str, Any
     )
     response.raise_for_status()
     return response.json()
+
+
+def get_energy_chat_fixed_benchmark_result() -> dict[str, Any]:
+    return get_json(ENERGY_CHAT_FIXED_BENCHMARK_PATH)
+
+
+def get_energy_chat_fixed_benchmark_report() -> str:
+    return get_text(ENERGY_CHAT_FIXED_BENCHMARK_REPORT_PATH)
 
 
 def extract_energy_card(result: dict[str, Any]) -> dict[str, Any]:
@@ -191,6 +228,25 @@ def benchmark_case_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
                 "baseline_decision": baseline_decision.get("decision"),
                 "final_decision": item.get("final_decision"),
                 "baseline_energy": baseline_score.get("total_energy"),
+                "final_energy": item.get("final_energy"),
+                "energy_delta_after_repair": item.get("energy_delta_after_repair"),
+                "accepted_after_repair": item.get("accepted_after_repair"),
+            }
+        )
+    return rows
+
+
+def fixed_benchmark_case_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for item in result.get("results") or []:
+        case = item.get("case") or {}
+        rows.append(
+            {
+                "case_id": case.get("case_id"),
+                "category": case.get("category"),
+                "baseline_decision": item.get("baseline_decision"),
+                "baseline_energy": item.get("baseline_energy"),
+                "final_decision": item.get("final_decision"),
                 "final_energy": item.get("final_energy"),
                 "energy_delta_after_repair": item.get("energy_delta_after_repair"),
                 "accepted_after_repair": item.get("accepted_after_repair"),
@@ -301,6 +357,17 @@ def render_chat_result(result: dict[str, Any]) -> None:
         st.json(result)
 
 
+def render_fixed_benchmark_result(result: dict[str, Any], report: str) -> None:
+    st.markdown("### Fixed deterministic benchmark evidence")
+    st.warning("Measurement-only evidence. This does not claim live provider quality improvement.")
+    st.json(summarize_benchmark_result(result))
+    st.dataframe(fixed_benchmark_case_rows(result), use_container_width=True, hide_index=True)
+    with st.expander("Rendered benchmark report"):
+        st.markdown(report)
+    with st.expander("Raw fixed benchmark JSON"):
+        st.json(result)
+
+
 def main() -> None:
     st.set_page_config(
         page_title="Energy Aware Chat",
@@ -311,7 +378,7 @@ def main() -> None:
     st.title("Energy Aware Chat ⚡")
     st.caption(
         "Incubator UI for Energy Aware Chat. Choose the mode, choose deterministic or live provider execution, "
-        "then inspect the Energy Card, evidence, provider metadata, and visible execution audit."
+        "then inspect the Energy Card, evidence, provider metadata, visible execution audit, and benchmark evidence."
     )
 
     with st.sidebar:
@@ -359,7 +426,7 @@ def main() -> None:
         help="Comma-separated sections the answer must include. The evaluator checks these headings or phrases.",
     )
 
-    col_chat, col_rag, col_benchmark = st.columns(3)
+    col_chat, col_rag, col_benchmark, col_fixed = st.columns(4)
     chat_clicked = col_chat.button(
         "Run Energy Aware Chat",
         type="primary",
@@ -372,6 +439,10 @@ def main() -> None:
     benchmark_clicked = col_benchmark.button(
         "Run measurement benchmark",
         help="Runs measurement-only baseline versus energy-aware evaluation. It does not prove quality improvement.",
+    )
+    fixed_benchmark_clicked = col_fixed.button(
+        "Show fixed benchmark evidence",
+        help="Loads provider-free deterministic benchmark evidence committed for reviewer inspection.",
     )
 
     constraints = [required_constraint.strip()] if required_constraint.strip() else []
@@ -440,6 +511,16 @@ def main() -> None:
         st.dataframe(benchmark_case_rows(result), use_container_width=True, hide_index=True)
         with st.expander("Raw benchmark response"):
             st.json(result)
+
+    if fixed_benchmark_clicked:
+        with st.spinner("Loading fixed deterministic benchmark evidence..."):
+            try:
+                result = get_energy_chat_fixed_benchmark_result()
+                report = get_energy_chat_fixed_benchmark_report()
+            except requests.RequestException as exc:
+                st.error(f"Fixed benchmark request failed: {exc}")
+                return
+        render_fixed_benchmark_result(result, report)
 
 
 if __name__ == "__main__":
