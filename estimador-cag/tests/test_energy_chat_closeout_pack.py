@@ -6,7 +6,6 @@ from app.energy_chat.closeout_pack import (
     render_energy_chat_closeout_markdown,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
