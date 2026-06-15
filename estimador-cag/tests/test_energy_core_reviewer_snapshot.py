@@ -20,6 +20,7 @@ def test_reviewer_snapshot_is_complete_for_current_incubator_package() -> None:
         "export_plan",
         "nightly_status",
         "acceptance_trace",
+        "course_boundary",
         "audit_pack",
         "ledger_integrity",
         "schema_bundle",
@@ -47,6 +48,7 @@ def test_reviewer_snapshot_text_and_markdown_are_human_readable() -> None:
     assert "## Reviewer sections" in markdown
     assert "Release readiness" in markdown
     assert "Acceptance trace" in markdown
+    assert "Course boundary" in markdown
     assert "Critic coverage" in markdown
     assert "Candidate readiness" in markdown
     assert "Ledger integrity" in markdown
