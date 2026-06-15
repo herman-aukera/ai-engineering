@@ -3,6 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from energy_core.acceptance_trace import (
+    build_acceptance_trace,
+    format_acceptance_trace_markdown,
+)
 from energy_core.candidate_readiness import (
     build_candidate_readiness_matrix,
     format_candidate_readiness_markdown,
@@ -130,6 +134,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     command_catalog = build_command_catalog()
     export_plan = build_export_plan(project_root)
     nightly_status = build_nightly_status(project_root)
+    acceptance_trace = build_acceptance_trace(project_root)
     critic_coverage = build_critic_coverage(project_root / DEFAULT_POLICY)
     ledger_integrity = build_ledger_integrity(project_root / DEFAULT_LEDGER)
     candidate_readiness = build_candidate_readiness_matrix(
@@ -180,6 +185,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
         "ledger_integrity.md": format_ledger_integrity_markdown(ledger_integrity),
         "candidate_readiness.md": format_candidate_readiness_markdown(candidate_readiness),
         "review_gap_register.md": format_review_gap_register_markdown(review_gap_register),
+        "acceptance_trace.md": format_acceptance_trace_markdown(acceptance_trace),
     }
 
 
