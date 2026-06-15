@@ -21,6 +21,7 @@ def test_surface_consistency_reports_reviewer_surfaces() -> None:
     assert "acceptance_trace" in surface_ids
     assert "candidate_readiness" in surface_ids
     assert "command_catalog" in surface_ids
+    assert "course_boundary" in surface_ids
     assert "critic_coverage" in surface_ids
     assert "demo_walkthrough" in surface_ids
     assert "ledger_integrity" in surface_ids
@@ -70,6 +71,17 @@ def test_surface_consistency_marks_demo_walkthrough_complete() -> None:
     assert rows["demo_walkthrough"]["package"] is True
 
 
+def test_surface_consistency_marks_course_boundary_complete() -> None:
+    report = build_surface_consistency(Path("."))
+    rows = {row["surface_id"]: row for row in report["rows"]}
+
+    assert rows["course_boundary"]["complete"] is True
+    assert rows["course_boundary"]["catalog"] is True
+    assert rows["course_boundary"]["reviewer"] is True
+    assert rows["course_boundary"]["review_pack"] is True
+    assert rows["course_boundary"]["package"] is True
+
+
 def test_surface_consistency_markdown_is_reviewer_readable() -> None:
     markdown = format_surface_consistency_markdown(build_surface_consistency(Path(".")))
 
@@ -77,6 +89,7 @@ def test_surface_consistency_markdown_is_reviewer_readable() -> None:
     assert "- Complete: True" in markdown
     assert "### acceptance_trace" in markdown
     assert "### candidate_readiness" in markdown
+    assert "### course_boundary" in markdown
     assert "### demo_walkthrough" in markdown
     assert "### review_gap_register" in markdown
     assert "Review pack:" in markdown
