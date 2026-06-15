@@ -120,7 +120,7 @@ def _policy_only_gaps(roadmap: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _evidence_gaps(matrix: dict[str, Any]) -> list[dict[str, Any]]:
     gaps: list[dict[str, Any]] = []
-    for missing in matrix["missing_required_acceptance_evidence"]:
+    for missing in matrix["missing_required_acceptance"]:
         gaps.append(
             {
                 "id": f"evidence_missing:{missing}",
@@ -133,15 +133,16 @@ def _evidence_gaps(matrix: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     for row in matrix["rows"]:
-        if not row["required_acceptance"] and row["records"] == 0:
+        if not row["required_acceptance"] and row["record_total"] == 0:
+            evidence_type = row["evidence_type"]
             gaps.append(
                 {
-                    "id": f"optional_evidence_empty:{row['type']}",
+                    "id": f"optional_evidence_empty:{evidence_type}",
                     "category": "evidence",
                     "severity": "informational",
                     "blocking": False,
                     "summary": "Declared optional evidence has no records yet.",
-                    "evidence": row["type"],
+                    "evidence": evidence_type,
                     "next_action": "add-records-when-this-surface-becomes-required",
                 }
             )
