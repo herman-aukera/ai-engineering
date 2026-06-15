@@ -166,6 +166,14 @@ jobs:
             echo "Energy Core export plan smoke skipped because script or package is absent."
           fi
 
+      - name: Energy Core Extraction Readiness Smoke
+        run: |
+          if test -d energy_core && test -f scripts/energy_core_extraction_readiness_smoke.py; then
+            uv run python scripts/energy_core_extraction_readiness_smoke.py
+          else
+            echo "Energy Core extraction readiness smoke skipped because script or package is absent."
+          fi
+
       - name: Energy Core Full Gate
         run: |
           if test -d energy_core && test -f scripts/energy_core_full_gate.py; then
