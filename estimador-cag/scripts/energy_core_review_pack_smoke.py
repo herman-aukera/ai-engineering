@@ -6,6 +6,21 @@ import tempfile
 from pathlib import Path
 
 
+REQUIRED_REVIEW_PACK_FILES = [
+    "README.md",
+    "reviewer_snapshot.md",
+    "nightly_status.md",
+    "release_readiness.md",
+    "package_manifest.md",
+    "export_plan.md",
+    "command_catalog.md",
+    "critic_coverage.md",
+    "ledger_integrity.md",
+    "candidate_readiness.md",
+    "review_gap_register.md",
+]
+
+
 def main() -> int:
     project_root = Path(__file__).resolve().parents[1]
     repo_root = project_root.parent
@@ -32,19 +47,7 @@ def main() -> int:
             check=True,
         )
 
-        required = [
-            "README.md",
-            "reviewer_snapshot.md",
-            "nightly_status.md",
-            "release_readiness.md",
-            "package_manifest.md",
-            "export_plan.md",
-            "command_catalog.md",
-            "critic_coverage.md",
-            "ledger_integrity.md",
-            "candidate_readiness.md",
-        ]
-        for filename in required:
+        for filename in REQUIRED_REVIEW_PACK_FILES:
             path = output_dir / filename
             if not path.is_file() or path.stat().st_size == 0:
                 raise AssertionError(f"Review pack artifact missing or empty: {path}")
