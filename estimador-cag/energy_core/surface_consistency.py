@@ -11,6 +11,7 @@ from energy_core.reviewer_index import REVIEWER_SECTIONS
 SURFACE_CONSISTENCY_VERSION = "1.0.0"
 
 CRITICAL_SURFACES = {
+    "acceptance_trace": "acceptance_trace.md",
     "candidate_readiness": "candidate_readiness.md",
     "command_catalog": "command_catalog.md",
     "critic_coverage": "critic_coverage.md",
@@ -26,6 +27,7 @@ CRITICAL_SURFACES = {
 INTRINSIC_SURFACES = {"command_catalog", "reviewer_snapshot"}
 
 PACKAGE_MODULES = {
+    "acceptance_trace": "energy_core/acceptance_trace.py",
     "candidate_readiness": "energy_core/candidate_readiness.py",
     "command_catalog": "energy_core/command_catalog.py",
     "critic_coverage": "energy_core/critic_coverage.py",
