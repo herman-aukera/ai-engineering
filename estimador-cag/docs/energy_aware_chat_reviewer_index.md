@@ -33,24 +33,25 @@ Read in this order:
 7. `docs/energy_aware_chat_final_submission_handoff.md`
 8. `docs/energy_aware_chat_evaluator_landing_page.md`
 9. `docs/energy_aware_chat_closeout_pack.md`
-10. `docs/energy_aware_chat_demo_ready_checklist.md`
-11. `docs/energy_aware_chat_mvp_recording_script_final.md`
-12. `docs/energy_aware_chat_final_project_readiness_matrix.md`
-13. `docs/energy_aware_chat_local_deployment_smoke.md`
-14. `docs/energy_aware_chat_fixed_benchmark_report.md`
-15. `docs/energy_aware_chat_final_project_proof_packet.md`
-16. `docs/energy_aware_chat_actions_filtering.md`
-17. `docs/energy_aware_chat_demo.md`
-18. `docs/energy_aware_chat_live_demo_readiness.md`
-19. `docs/energy_aware_chat_demo_script.md`
-20. `docs/energy_aware_chat_demo_command_checklist.md`
-21. `docs/energy_aware_chat_api_smoke_guide.md`
-22. `docs/energy_aware_chat_demo_results_template.md`
-23. `docs/energy_aware_chat_pr_body_draft.md`
-24. `docs/energy_aware_chat_final_project_delivery_plan.md`
-25. `docs/energy_aware_chat_repository_readiness.md`
-26. `docs/energy_aware_chat_session17_backlog.md`
-27. `docs/energy_aware_chat_release_snapshot.md`
+10. `docs/energy_aware_chat_unsupervised_continuation.md`
+11. `docs/energy_aware_chat_demo_ready_checklist.md`
+12. `docs/energy_aware_chat_mvp_recording_script_final.md`
+13. `docs/energy_aware_chat_final_project_readiness_matrix.md`
+14. `docs/energy_aware_chat_local_deployment_smoke.md`
+15. `docs/energy_aware_chat_fixed_benchmark_report.md`
+16. `docs/energy_aware_chat_final_project_proof_packet.md`
+17. `docs/energy_aware_chat_actions_filtering.md`
+18. `docs/energy_aware_chat_demo.md`
+19. `docs/energy_aware_chat_live_demo_readiness.md`
+20. `docs/energy_aware_chat_demo_script.md`
+21. `docs/energy_aware_chat_demo_command_checklist.md`
+22. `docs/energy_aware_chat_api_smoke_guide.md`
+23. `docs/energy_aware_chat_demo_results_template.md`
+24. `docs/energy_aware_chat_pr_body_draft.md`
+25. `docs/energy_aware_chat_final_project_delivery_plan.md`
+26. `docs/energy_aware_chat_repository_readiness.md`
+27. `docs/energy_aware_chat_session17_backlog.md`
+28. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
@@ -59,6 +60,7 @@ Read in this order:
 | Examiner quickstart | `docs/energy_aware_chat_examiner_quickstart.md` |
 | Evaluator landing page | `docs/energy_aware_chat_evaluator_landing_page.md` |
 | Closeout pack | `uv run python scripts/render_energy_chat_closeout_pack.py --fail-on-incomplete` |
+| Continuation guard | `uv run python scripts/render_energy_chat_unsupervised_continuation.py --fail-on-incomplete` |
 | Final-project acceptance matrix | `docs/energy_aware_chat_final_project_acceptance_matrix.md` |
 | MVP upgrade proof | `docs/energy_aware_chat_mvp_upgrade.md` |
 | Deployment readiness runbook | `docs/energy_aware_chat_deployment_readiness_runbook.md` |
@@ -109,6 +111,7 @@ Read in this order:
 | report writer | implemented |
 | release snapshot helper | implemented |
 | closeout pack helper | implemented |
+| continuation guard helper | implemented |
 | Streamlit demo | implemented |
 | Docker and compose deployment path | implemented |
 | dedicated Energy Chat CI | implemented |
