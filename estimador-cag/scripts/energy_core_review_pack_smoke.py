@@ -19,6 +19,7 @@ REQUIRED_REVIEW_PACK_FILES = [
     "review_gap_register.md",
     "acceptance_trace.md",
     "demo_walkthrough.md",
+    "course_boundary.md",
 ]
 
 
