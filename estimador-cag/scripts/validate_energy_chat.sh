@@ -26,6 +26,7 @@ ENERGY_CHAT_SCRIPT_TARGETS=(
   scripts/validate_energy_chat_demo_payloads.py
   scripts/render_energy_chat_release_snapshot.py
   scripts/render_energy_chat_closeout_pack.py
+  scripts/render_energy_chat_unsupervised_continuation.py
   scripts/list_energy_chat_artifacts.py
 )
 
