@@ -14,11 +14,11 @@ Canonical final-project mirror:
 finalproject-GGC
 ```
 
-Current mirrored checkpoint:
+Current accepted checkpoint:
 
 ```text
-EACHAT = finalproject-GGC = 65b3e79
-CI: CI - Estimador CAG, run_id=27572861445, success
+EACHAT = ee2dde7
+CI: CI - Estimator CAG, run_id=27573281439, success
 claim_status: measurement_only_no_quality_claim
 ```
 
