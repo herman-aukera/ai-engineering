@@ -24,6 +24,7 @@ def test_reviewer_snapshot_is_complete_for_current_incubator_package() -> None:
         "schema_bundle",
         "command_catalog",
         "critic_coverage",
+        "candidate_readiness",
         "example_matrix",
         "constraint_index",
         "review_pack",
@@ -44,6 +45,7 @@ def test_reviewer_snapshot_text_and_markdown_are_human_readable() -> None:
     assert "## Reviewer sections" in markdown
     assert "Release readiness" in markdown
     assert "Critic coverage" in markdown
+    assert "Candidate readiness" in markdown
     assert "Ledger integrity" in markdown
     assert "Nightly status" in markdown
     assert "does not execute shell actions" in markdown
