@@ -11,6 +11,7 @@ from energy_core.candidate_readiness import (
     build_candidate_readiness_matrix,
     format_candidate_readiness_markdown,
 )
+from energy_core.closeout_pack import build_closeout_pack, format_closeout_pack_markdown
 from energy_core.command_catalog import build_command_catalog, format_command_catalog_markdown
 from energy_core.course_boundary import (
     build_course_boundary_report,
@@ -145,6 +146,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     acceptance_trace = build_acceptance_trace(project_root)
     demo_walkthrough = build_demo_walkthrough(project_root)
     course_boundary = build_course_boundary_report(project_root)
+    closeout_pack = build_closeout_pack(project_root)
     critic_coverage = build_critic_coverage(project_root / DEFAULT_POLICY)
     ledger_integrity = build_ledger_integrity(project_root / DEFAULT_LEDGER)
     candidate_readiness = build_candidate_readiness_matrix(
@@ -198,6 +200,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
         "acceptance_trace.md": format_acceptance_trace_markdown(acceptance_trace),
         "demo_walkthrough.md": format_demo_walkthrough_markdown(demo_walkthrough),
         "course_boundary.md": format_course_boundary_markdown(course_boundary),
+        "closeout_pack.md": format_closeout_pack_markdown(closeout_pack),
     }
 
 
