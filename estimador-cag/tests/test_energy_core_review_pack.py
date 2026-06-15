@@ -15,6 +15,7 @@ EXPECTED_REVIEW_PACK_FILES = {
     "candidate_readiness.md",
     "review_gap_register.md",
     "acceptance_trace.md",
+    "demo_walkthrough.md",
 }
 
 
@@ -44,3 +45,4 @@ def test_review_pack_markdown_lists_outputs(tmp_path: Path) -> None:
     assert "candidate_readiness.md" in markdown
     assert "review_gap_register.md" in markdown
     assert "acceptance_trace.md" in markdown
+    assert "demo_walkthrough.md" in markdown
