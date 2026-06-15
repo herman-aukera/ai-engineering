@@ -21,6 +21,7 @@ jobs:
       KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
       OPENAI_API_KEY: test
       PYTHONUNBUFFERED: "1"
+      UV_HTTP_TIMEOUT: "600"
 
     steps:
       - name: Checkout
@@ -45,4 +46,4 @@ jobs:
         run: uv sync --frozen --extra dev
 
       - name: Run Energy Chat live provider smoke
-        run: uv run python scripts/smoke_energy_chat_live_provider.py
+        run: uv run python scripts/live_energy_chat_provider_smoke.py
