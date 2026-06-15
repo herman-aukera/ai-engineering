@@ -19,6 +19,7 @@ jobs:
       run:
         working-directory: estimador-cag
     env:
+      OPENAI_API_KEY: test
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
       PYTHONUNBUFFERED: "1"
