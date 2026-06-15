@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - EACHAT
+      - finalproject-GGC
       - "gg-*"
       - "sesion-*"
       - "session*"
