@@ -51,10 +51,11 @@ def build_surface_consistency(project_root: Path) -> dict[str, Any]:
 
     for surface_id, review_pack_file in sorted(CRITICAL_SURFACES.items()):
         module_path = PACKAGE_MODULES[surface_id]
+        reviewer_present = surface_id == "reviewer_snapshot" or surface_id in reviewer_ids
         row = {
             "surface_id": surface_id,
             "catalog": surface_id in catalog_ids,
-            "reviewer": surface_id in reviewer_ids,
+            "reviewer": reviewer_present,
             "review_pack": review_pack_file in review_pack_files,
             "package": module_path in package_files,
             "review_pack_file": review_pack_file,
