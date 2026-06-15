@@ -27,6 +27,11 @@ from energy_core.package_manifest import (
     resolve_project_root,
 )
 from energy_core.release import build_release_readiness, format_release_readiness_markdown
+from energy_core.review_gap_register import (
+    build_review_gap_register,
+    format_review_gap_register_markdown,
+)
+from energy_core.review_pack_contract import REVIEW_PACK_ARTIFACT_FILES
 from energy_core.reviewer_index import (
     build_reviewer_snapshot,
     format_reviewer_snapshot_markdown,
@@ -38,25 +43,6 @@ DEFAULT_POLICY = DEFAULT_SPEC_DIR / "energy-policy.yaml"
 DEFAULT_CANDIDATE = DEFAULT_SPEC_DIR / "examples/candidate_accept.json"
 DEFAULT_EVIDENCE = DEFAULT_SPEC_DIR / "evidence.jsonl"
 DEFAULT_LEDGER = DEFAULT_SPEC_DIR / "decisions.jsonl"
-REVIEW_PACK_ARTIFACT_FILES = (
-    "README.md",
-    "reviewer_snapshot.md",
-    "nightly_status.md",
-    "release_readiness.md",
-    "package_manifest.md",
-    "export_plan.md",
-    "command_catalog.md",
-    "critic_coverage.md",
-    "ledger_integrity.md",
-    "candidate_readiness.md",
-    "review_gap_register.md",
-)
-
-
-def get_review_pack_artifact_files() -> tuple[str, ...]:
-    """Return generated review pack filenames without rendering their content."""
-
-    return REVIEW_PACK_ARTIFACT_FILES
 
 
 def build_review_pack(project_root: Path, output_dir: Path) -> dict[str, Any]:
@@ -139,11 +125,6 @@ def format_review_pack_markdown(summary: dict[str, Any]) -> str:
 
 
 def _render_artifacts(project_root: Path) -> dict[str, str]:
-    from energy_core.review_gap_register import (  # noqa: PLC0415
-        build_review_gap_register,
-        format_review_gap_register_markdown,
-    )
-
     reviewer = build_reviewer_snapshot(project_root)
     package = build_package_manifest(project_root)
     command_catalog = build_command_catalog()
@@ -172,7 +153,11 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
             "",
             "Generated deterministic review artifacts:",
             "",
-            *[f"- {filename}" for filename in REVIEW_PACK_ARTIFACT_FILES if filename != "README.md"],
+            *[
+                f"- {filename}"
+                for filename in REVIEW_PACK_ARTIFACT_FILES
+                if filename != "README.md"
+            ],
             "",
             "This pack is generated from repository files and does not execute",
             "adapters, shell actions, or provider calls.",
