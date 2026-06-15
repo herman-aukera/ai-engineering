@@ -35,6 +35,8 @@ REQUIRED_PACKAGE_FILES = [
     "energy_core/examples_cli.py",
     "energy_core/export_plan.py",
     "energy_core/export_plan_cli.py",
+    "energy_core/extraction_readiness.py",
+    "energy_core/extraction_readiness_cli.py",
     "energy_core/ledger.py",
     "energy_core/ledger_integrity.py",
     "energy_core/ledger_integrity_cli.py",
@@ -100,6 +102,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_demo_walkthrough.md",
     "docs/energy_aware_code_course_boundary.md",
     "docs/energy_aware_code_closeout_pack.md",
+    "docs/energy_aware_code_extraction_readiness.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
@@ -121,6 +124,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_demo_walkthrough_smoke.py",
     "scripts/energy_core_course_boundary_smoke.py",
     "scripts/energy_core_closeout_pack_smoke.py",
+    "scripts/energy_core_extraction_readiness_smoke.py",
     "scripts/energy_core_nightly_status_v3_smoke.py",
     "scripts/energy_core_policy_roadmap_smoke.py",
     "scripts/energy_core_schema_smoke.py",
@@ -218,34 +222,28 @@ def format_package_manifest_markdown(manifest: dict[str, Any]) -> str:
     lines.extend(_bullet_list(manifest["missing_required"]))
     lines.extend(["", "## Copy roots", ""])
     lines.extend(_bullet_list(manifest["copy_roots"]))
-    lines.extend(["", "## Files", ""])
-    for item in manifest["files"]:
-        status = "present" if item["exists"] else "missing"
-        summary = f"{status}, sha256={item['sha256'] or 'none'}"
-        lines.append(f"- {item['group']}: {item['relative_path']} ({summary})")
     lines.extend(["", "## Non goals", ""])
     lines.extend(_bullet_list(manifest["non_goals"]))
     return "\n".join(lines)
 
 
 def _file_record(root: Path, group: str, relative_path: str) -> dict[str, Any]:
-    path = (root / relative_path).resolve()
+    path = root / relative_path
     exists = path.is_file()
+    digest = ""
+    size = 0
+    if exists:
+        content = path.read_bytes()
+        digest = hashlib.sha256(content).hexdigest()
+        size = len(content)
     return {
         "group": group,
         "relative_path": relative_path,
         "path": str(path),
         "exists": exists,
-        "sha256": _sha256(path) if exists else None,
+        "size_bytes": size,
+        "sha256": digest,
     }
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as file:
-        for chunk in iter(lambda: file.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def _inline_list(items: list[str]) -> str:
@@ -253,4 +251,4 @@ def _inline_list(items: list[str]) -> str:
 
 
 def _bullet_list(items: list[str]) -> list[str]:
-    return [f"- {item}" for item in items if item] or ["- none"]
+    return [f"- {item}" for item in items] if items else ["- none"]
