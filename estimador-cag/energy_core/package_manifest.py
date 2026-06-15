@@ -8,6 +8,8 @@ MANIFEST_VERSION = "1.0.0"
 
 REQUIRED_PACKAGE_FILES = [
     "energy_core/__init__.py",
+    "energy_core/acceptance_trace.py",
+    "energy_core/acceptance_trace_cli.py",
     "energy_core/adapter_contracts.py",
     "energy_core/audit.py",
     "energy_core/bundle.py",
@@ -88,6 +90,7 @@ REQUIRED_DOC_FILES = [
     "docs/energy_aware_code_nightly_status.md",
     "docs/energy_aware_code_policy_roadmap.md",
     "docs/energy_aware_code_review_gap_register.md",
+    "docs/energy_aware_code_acceptance_trace.md",
 ]
 
 REQUIRED_SCRIPT_FILES = [
@@ -105,6 +108,7 @@ REQUIRED_SCRIPT_FILES = [
     "scripts/energy_core_candidate_readiness_smoke.py",
     "scripts/energy_core_surface_consistency_smoke.py",
     "scripts/energy_core_review_gap_register_smoke.py",
+    "scripts/energy_core_acceptance_trace_smoke.py",
     "scripts/energy_core_nightly_status_v3_smoke.py",
     "scripts/energy_core_policy_roadmap_smoke.py",
     "scripts/energy_core_schema_smoke.py",
