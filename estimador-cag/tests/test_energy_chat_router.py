@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.energy_chat import baseline, benchmark
+from app.energy_chat import baseline, benchmark, live_agent
 from app.energy_chat.contracts import (
     DeepSeekBaselineRequest,
     DeepSeekBaselineResult,
@@ -29,6 +29,7 @@ def test_energy_chat_rag_and_chat_routes_are_registered() -> None:
 
     assert "/energy-chat/rag/search" in schema["paths"]
     assert "/energy-chat/chat" in schema["paths"]
+    assert "/energy-chat/chat/live" in schema["paths"]
 
 
 def test_energy_chat_deepseek_baseline_route_is_registered() -> None:
@@ -116,6 +117,50 @@ def test_energy_chat_chat_route_returns_final_answer_and_energy_card() -> None:
     assert body["final_answer"]
     assert body["energy_card"]["decision"] == "accept"
     assert body["metadata"]["mvp_layer"] == "rag_plus_agent_orchestration"
+
+
+def test_energy_chat_live_route_uses_injected_provider_path(monkeypatch) -> None:
+    def fake_live_agent(request):
+        baseline = DeepSeekBaselineResult(
+            request=DeepSeekBaselineRequest(
+                user_message=request.user_message,
+                mode=request.mode,
+                tier="flash",
+                required_constraints=request.required_constraints,
+                required_sections=request.required_sections,
+            ),
+            draft_answer=(
+                "Decision: live provider path answered the actual user question. "
+                "Constraint satisfied: deployment evidence. "
+                "Next action: inspect the Energy Card."
+            ),
+            provider="deepseek",
+            model="deepseek-v4-flash",
+            tier="flash",
+            input_tokens=10,
+            output_tokens=12,
+            evidence_refs=["provider:deepseek_baseline", "tier:flash"],
+            metadata={"energy_evaluated": False},
+        )
+        return live_agent.run_live_energy_aware_chat_agent(request, baseline_result=baseline)
+
+    monkeypatch.setattr(live_agent, "run_live_energy_aware_chat_agent", fake_live_agent)
+
+    response = client.post(
+        "/energy-chat/chat/live",
+        json={
+            "user_message": "Explain why this answer is fast.",
+            "mode": "project",
+            "required_constraints": ["deployment evidence"],
+            "required_sections": ["Decision", "Next action"],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["metadata"]["mvp_layer"] == "live_provider_rag_plus_agent_orchestration"
+    assert body["metadata"]["provider"] == "deepseek"
+    assert "live provider path answered the actual user question" in body["draft_answer"]
 
 
 def test_energy_chat_deepseek_baseline_route_uses_injected_provider(monkeypatch) -> None:
