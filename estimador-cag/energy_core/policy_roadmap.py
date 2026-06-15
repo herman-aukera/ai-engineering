@@ -9,26 +9,38 @@ ROADMAP_VERSION = "1.0.0"
 
 POLICY_ONLY_ROADMAP: dict[str, dict[str, str]] = {
     "unsafe_command": {
-        "boundary": "No shell executor exists in the judge layer.",
-        "unblocker": "Add a command proposal model and a non-executing command safety critic before any executor exists.",
+        "boundary": "No executor exists in the judge layer.",
+        "unblocker": (
+            "Add a command proposal model and command safety critic before "
+            "any executor exists."
+        ),
         "future_evidence": "command_policy_report",
         "slice": "command-safety-proposal-gate",
     },
     "wrong_branch": {
         "boundary": "No git branch reader exists in the judge layer.",
-        "unblocker": "Add a read-only repository state provider that reports current branch and target branch.",
+        "unblocker": (
+            "Add a read-only repository state provider that reports current "
+            "branch and target branch."
+        ),
         "future_evidence": "repository_state_report",
         "slice": "repository-state-reader",
     },
     "leaked_proprietary_code": {
         "boundary": "No provenance or license scanner exists in the judge layer.",
-        "unblocker": "Add a source provenance input and deterministic scanner result contract.",
+        "unblocker": (
+            "Add a source provenance input and deterministic scanner result "
+            "contract."
+        ),
         "future_evidence": "provenance_scan_report",
         "slice": "provenance-and-license-critic",
     },
     "executor_self_approved": {
         "boundary": "No executor role exists in the judge layer.",
-        "unblocker": "Add actor role metadata and require critic or decider approval from a different role.",
+        "unblocker": (
+            "Add actor role metadata and require approval from a different "
+            "critic or decider role."
+        ),
         "future_evidence": "role_separation_report",
         "slice": "role-separation-check",
     },
@@ -64,7 +76,7 @@ def build_policy_roadmap(policy_path: Path) -> dict[str, Any]:
             "Policy roadmap does not read live git state.",
             "Policy roadmap does not call LLM providers.",
             "Policy roadmap does not approve adapter execution.",
-            "Policy roadmap turns policy-only constraints into explicit future slices, not fake coverage.",
+            "Policy roadmap turns policy-only constraints into future slices.",
         ],
     }
 
@@ -126,7 +138,10 @@ def _entry(constraint_id: str) -> dict[str, str]:
         "future_evidence": "critic_mapping_report",
         "slice": "critic-mapping-repair",
     }
-    return {"constraint_id": constraint_id, **POLICY_ONLY_ROADMAP.get(constraint_id, fallback)}
+    return {
+        "constraint_id": constraint_id,
+        **POLICY_ONLY_ROADMAP.get(constraint_id, fallback),
+    }
 
 
 def _inline_list(items: list[str]) -> str:
