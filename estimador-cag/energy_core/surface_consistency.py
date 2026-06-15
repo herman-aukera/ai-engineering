@@ -13,6 +13,7 @@ SURFACE_CONSISTENCY_VERSION = "1.0.0"
 CRITICAL_SURFACES = {
     "acceptance_trace": "acceptance_trace.md",
     "candidate_readiness": "candidate_readiness.md",
+    "closeout_pack": "closeout_pack.md",
     "command_catalog": "command_catalog.md",
     "course_boundary": "course_boundary.md",
     "critic_coverage": "critic_coverage.md",
@@ -31,6 +32,7 @@ INTRINSIC_SURFACES = {"command_catalog", "reviewer_snapshot"}
 PACKAGE_MODULES = {
     "acceptance_trace": "energy_core/acceptance_trace.py",
     "candidate_readiness": "energy_core/candidate_readiness.py",
+    "closeout_pack": "energy_core/closeout_pack.py",
     "command_catalog": "energy_core/command_catalog.py",
     "course_boundary": "energy_core/course_boundary.py",
     "critic_coverage": "energy_core/critic_coverage.py",
@@ -149,5 +151,5 @@ def _inline_list(items: list[str]) -> str:
     return ", ".join(items) if items else "none"
 
 
-def _bullet_list(items: list[str]) -> list[str]:
+def _bullet_list(items: list[str]) -> list[str:
     return [f"- {item}" for item in items] if items else ["- none"]
