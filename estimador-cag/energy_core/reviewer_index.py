@@ -62,6 +62,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Shows which policy constraints are enforced by deterministic critics versus policy-only.",
     },
     {
+        "id": "candidate_readiness",
+        "title": "Candidate readiness",
+        "command": "python -m energy_core.candidate_readiness_cli --format markdown --fail-on-incomplete",
+        "purpose": "Shows which bundled candidate examples are structurally ready for judgment.",
+    },
+    {
         "id": "example_matrix",
         "title": "Example matrix",
         "command": "python -m energy_core.examples_cli --format markdown --fail-on-mismatch",
@@ -119,6 +125,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
             "Use ledger-integrity before trusting decision ledger history.",
             "Use command-catalog to understand which commands mutate the ledger.",
             "Use critic-coverage to see which constraints are enforced versus policy-only.",
+            "Use candidate-readiness before trusting bundled examples as acceptance cases.",
         ],
         "non_goals": [
             "This snapshot does not execute shell actions.",
