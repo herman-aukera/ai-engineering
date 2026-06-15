@@ -25,32 +25,39 @@ herman-aukera/energy-aware-chat
 Read in this order:
 
 1. `docs/energy_aware_chat_examiner_quickstart.md`
-2. `docs/energy_aware_chat_closeout_pack.md`
-3. `docs/energy_aware_chat_final_project_acceptance_matrix.md`
-4. `docs/energy_aware_chat_mvp_upgrade.md`
-5. `docs/energy_aware_chat_deployment_readiness_runbook.md`
-6. `docs/energy_aware_chat_live_provider_evidence_template.md`
-7. `docs/energy_aware_chat_mvp_demo_recording_packet.md`
-8. `docs/energy_aware_chat_final_submission_handoff.md`
-9. `docs/energy_aware_chat_final_project_proof_packet.md`
-10. `docs/energy_aware_chat_actions_filtering.md`
-11. `docs/energy_aware_chat_demo.md`
-12. `docs/energy_aware_chat_live_demo_readiness.md`
-13. `docs/energy_aware_chat_demo_script.md`
-14. `docs/energy_aware_chat_demo_command_checklist.md`
-15. `docs/energy_aware_chat_api_smoke_guide.md`
-16. `docs/energy_aware_chat_demo_results_template.md`
-17. `docs/energy_aware_chat_pr_body_draft.md`
-18. `docs/energy_aware_chat_final_project_delivery_plan.md`
-19. `docs/energy_aware_chat_repository_readiness.md`
-20. `docs/energy_aware_chat_session17_backlog.md`
-21. `docs/energy_aware_chat_release_snapshot.md`
+2. `docs/energy_aware_chat_evaluator_landing_page.md`
+3. `docs/energy_aware_chat_closeout_pack.md`
+4. `docs/energy_aware_chat_demo_ready_checklist.md`
+5. `docs/energy_aware_chat_mvp_recording_script_final.md`
+6. `docs/energy_aware_chat_final_project_readiness_matrix.md`
+7. `docs/energy_aware_chat_local_deployment_smoke.md`
+8. `docs/energy_aware_chat_fixed_benchmark_report.md`
+9. `docs/energy_aware_chat_final_project_acceptance_matrix.md`
+10. `docs/energy_aware_chat_mvp_upgrade.md`
+11. `docs/energy_aware_chat_deployment_readiness_runbook.md`
+12. `docs/energy_aware_chat_live_provider_evidence_template.md`
+13. `docs/energy_aware_chat_mvp_demo_recording_packet.md`
+14. `docs/energy_aware_chat_final_submission_handoff.md`
+15. `docs/energy_aware_chat_final_project_proof_packet.md`
+16. `docs/energy_aware_chat_actions_filtering.md`
+17. `docs/energy_aware_chat_demo.md`
+18. `docs/energy_aware_chat_live_demo_readiness.md`
+19. `docs/energy_aware_chat_demo_script.md`
+20. `docs/energy_aware_chat_demo_command_checklist.md`
+21. `docs/energy_aware_chat_api_smoke_guide.md`
+22. `docs/energy_aware_chat_demo_results_template.md`
+23. `docs/energy_aware_chat_pr_body_draft.md`
+24. `docs/energy_aware_chat_final_project_delivery_plan.md`
+25. `docs/energy_aware_chat_repository_readiness.md`
+26. `docs/energy_aware_chat_session17_backlog.md`
+27. `docs/energy_aware_chat_release_snapshot.md`
 
 ## Executable proof entry points
 
 | Purpose | Command |
 |---|---|
 | Examiner quickstart | `docs/energy_aware_chat_examiner_quickstart.md` |
+| Evaluator landing page | `docs/energy_aware_chat_evaluator_landing_page.md` |
 | Closeout pack | `uv run python scripts/render_energy_chat_closeout_pack.py --fail-on-incomplete` |
 | Final-project acceptance matrix | `docs/energy_aware_chat_final_project_acceptance_matrix.md` |
 | MVP upgrade proof | `docs/energy_aware_chat_mvp_upgrade.md` |
@@ -80,8 +87,10 @@ Read in this order:
 | `demo_payloads/energy_chat/source_needed_project.json` | project evidence requirement |
 | `demo_payloads/energy_chat/evidence_bundle_project.json` | project evidence normalization |
 | `demo_payloads/energy_chat/benchmark_measurement.json` | measurement-only benchmark request shape |
-| `demo_payloads/energy_chat/rag_search_project_rules.json` | deterministic project-source RAG search |
-| `demo_payloads/energy_chat/chat_project_release_readiness.json` | local agent orchestration over project rules |
+| `demo_payloads/energy_chat/rag_project_search.json` | deterministic project-source RAG search |
+| `demo_payloads/energy_chat/rag_search_project_rules.json` | legacy deterministic project-source RAG search alias |
+| `demo_payloads/energy_chat/chat_project_mvp.json` | local agent orchestration over project rules |
+| `demo_payloads/energy_chat/chat_project_release_readiness.json` | legacy local agent orchestration alias |
 
 ## Current implemented layers
 
