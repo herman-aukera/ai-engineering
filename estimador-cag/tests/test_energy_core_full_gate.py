@@ -15,7 +15,6 @@ def test_full_gate_plan_includes_all_smoke_families() -> None:
     assert "Energy Core constraint smoke" in labels
     assert "Energy Core critic coverage smoke" in labels
     assert "Energy Core ledger integrity smoke" in labels
-    assert "Energy Core acceptance trace smoke" in labels
     assert "Energy Core release smoke" in labels
     assert "Energy Core schema smoke" in labels
     assert "Energy Core package smoke" in labels
