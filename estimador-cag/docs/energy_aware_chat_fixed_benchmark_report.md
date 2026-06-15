@@ -16,7 +16,7 @@ claim_status: `measurement_only_no_quality_claim`
 
 ## Boundary
 
-This report is deterministic CI evidence. It does not prove live provider quality improvement. 
+This report is deterministic CI evidence. It does not prove live provider quality improvement.
 Use it to verify benchmark plumbing, case stability, evaluator behavior, and repair behavior.
 
 ## Cases
