@@ -12,6 +12,21 @@ from app.main import app
 client = TestClient(app)
 
 
+def test_fastapi_root_redirects_to_energy_chat_demo() -> None:
+    response = client.get("/", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/energy-chat/demo"
+
+
+def test_energy_chat_demo_route_serves_browser_ui() -> None:
+    response = client.get("/energy-chat/demo")
+
+    assert response.status_code == 200
+    assert "Energy Aware Chat MVP Demo" in response.text
+    assert "Visible execution audit" in response.text
+
+
 def test_energy_chat_evaluate_route_is_registered() -> None:
     schema = client.get("/openapi.json").json()
 
@@ -120,6 +135,8 @@ def test_energy_chat_chat_route_returns_final_answer_and_energy_card() -> None:
 
 
 def test_energy_chat_live_route_uses_injected_provider_path(monkeypatch) -> None:
+    original_live_agent = live_agent.run_live_energy_aware_chat_agent
+
     def fake_live_agent(request):
         baseline = DeepSeekBaselineResult(
             request=DeepSeekBaselineRequest(
@@ -142,7 +159,7 @@ def test_energy_chat_live_route_uses_injected_provider_path(monkeypatch) -> None
             evidence_refs=["provider:deepseek_baseline", "tier:flash"],
             metadata={"energy_evaluated": False},
         )
-        return live_agent.run_live_energy_aware_chat_agent(request, baseline_result=baseline)
+        return original_live_agent(request, baseline_result=baseline)
 
     monkeypatch.setattr(live_agent, "run_live_energy_aware_chat_agent", fake_live_agent)
 
@@ -160,6 +177,10 @@ def test_energy_chat_live_route_uses_injected_provider_path(monkeypatch) -> None
     body = response.json()
     assert body["metadata"]["mvp_layer"] == "live_provider_rag_plus_agent_orchestration"
     assert body["metadata"]["provider"] == "deepseek"
+    assert body["metadata"]["call_plan"]["provider_draft_calls"] == 1
+    assert body["metadata"]["call_plan"]["critic_llm_calls"] == 0
+    assert "This MVP does not execute six LLM calls" in body["metadata"]["call_plan"]["note"]
+    assert "Visible audit" not in body["final_answer"]
     assert "live provider path answered the actual user question" in body["draft_answer"]
 
 
