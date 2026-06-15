@@ -157,6 +157,7 @@ def render_energy_chat_closeout_markdown(pack: CloseoutPack) -> str:
         [
             "## Claim boundary reminders",
             "",
+            "- Keep production claims tied to deployment evidence.",
             "- This closeout pack does not prove production readiness.",
             "- This closeout pack does not prove quality improvement over DeepSeek.",
             "- This closeout pack does not replace local validation or exact-commit CI proof.",
