@@ -25,7 +25,8 @@ def test_energy_chat_closeout_pack_renders_reviewer_markdown() -> None:
     assert "# Energy Aware Chat closeout pack" in markdown
     assert "- Complete: True" in markdown
     assert "measurement_only_no_quality_claim" in markdown
-    assert "does not prove production readiness" in markdown
+    assert "Claim boundary reminders" in markdown
+    assert "Keep production claims tied to deployment evidence" in markdown
 
 
 def test_required_closeout_artifacts_are_registered() -> None:
