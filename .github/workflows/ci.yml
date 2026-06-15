@@ -54,7 +54,16 @@ jobs:
         run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null) streamlit_app.py energy_chat_streamlit_app.py
 
       - name: Tests
-        run: uv run pytest -q
+        run: |
+          set -o pipefail
+          uv run pytest -q 2>&1 | tee /tmp/pytest-output.txt
+
+      - name: Upload pytest output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-output
+          path: /tmp/pytest-output.txt
 
       - name: Energy Chat validation gate
         if: ${{ hashFiles('estimador-cag/scripts/validate_energy_chat.sh') != '' }}
