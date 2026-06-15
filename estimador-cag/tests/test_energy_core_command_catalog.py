@@ -19,6 +19,7 @@ def test_command_catalog_lists_supported_surfaces() -> None:
     assert "ledger_integrity" in command_ids
     assert "nightly_status" in command_ids
     assert "candidate_readiness" in command_ids
+    assert "acceptance_trace" in command_ids
     assert "reviewer_snapshot" in command_ids
     assert "package_manifest" in command_ids
     assert "review_pack" in command_ids
@@ -38,6 +39,7 @@ def test_command_catalog_markdown_exposes_mutation_behavior() -> None:
     assert "- evaluate" in markdown
     assert "### critic_coverage" in markdown
     assert "### candidate_readiness" in markdown
+    assert "### acceptance_trace" in markdown
     assert "### ledger_integrity" in markdown
     assert "### nightly_status" in markdown
     assert "Mutates ledger: True" in markdown
@@ -64,12 +66,13 @@ def test_command_catalog_cli_outputs_json() -> None:
     payload = json.loads(completed.stdout)
 
     assert payload["complete"] is True
-    assert payload["command_total"] >= 20
+    assert payload["command_total"] >= 21
     assert "evaluate" in payload["mutating_command_ids"]
     command_ids = {command["id"] for command in payload["commands"]}
     assert "ledger_integrity" in command_ids
     assert "nightly_status" in command_ids
     assert "candidate_readiness" in command_ids
+    assert "acceptance_trace" in command_ids
 
 
 def test_command_catalog_cli_runs_from_repository_root() -> None:
