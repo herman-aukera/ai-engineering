@@ -8,6 +8,12 @@ from app.energy_chat.artifact_registry import (
     artifact_paths,
     list_energy_chat_artifacts,
 )
+from app.energy_chat.closeout_pack import (
+    CloseoutPack,
+    CloseoutSection,
+    build_energy_chat_closeout_pack,
+    render_energy_chat_closeout_markdown,
+)
 from app.energy_chat.contracts import (
     CriticFinding,
     DeepSeekBaselineRequest,
@@ -56,6 +62,8 @@ from app.energy_chat.workflow_proof import (
 
 __all__ = [
     "CORE_ARTIFACTS",
+    "CloseoutPack",
+    "CloseoutSection",
     "DOC_ARTIFACTS",
     "CriticFinding",
     "DeepSeekBaselineRequest",
@@ -89,6 +97,7 @@ __all__ = [
     "artifact_paths",
     "build_ci_proof_command",
     "build_deepseek_benchmark_report_markdown",
+    "build_energy_chat_closeout_pack",
     "build_local_gate_command",
     "build_release_snapshot",
     "build_release_snapshot_markdown",
@@ -97,6 +106,7 @@ __all__ = [
     "evaluate_answer",
     "evaluate_with_one_pass_repair",
     "list_energy_chat_artifacts",
+    "render_energy_chat_closeout_markdown",
     "retrieve_project_context",
     "run_energy_aware_chat_agent",
     "write_deepseek_benchmark_report",
