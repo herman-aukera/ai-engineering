@@ -17,10 +17,10 @@ finalproject-GGC
 Current accepted checkpoint:
 
 ```text
-EACHAT = 1372d77
-finalproject-GGC = 1372d77
-CI: CI - Estimador CAG, run_id=27574120157, success
-claim_status: measurement_only_no_quality_claim
+EACHAT = d60f6e6
+finalproject-GGC = d60f6e6
+CI: CI - Estimador CAG, run_id=27594146660, success
+claim_status: release_claims_blocked_missing_evidence
 ```
 
 Product target after Session 17:
@@ -141,10 +141,10 @@ Do not claim these yet:
 5. Vector database RAG grounding for Energy Aware Chat.
 6. Security hardening beyond the current deterministic boundaries.
 
-Required benchmark claim token:
+Required release claim token:
 
 ```text
-measurement_only_no_quality_claim
+release_claims_blocked_missing_evidence
 ```
 
 ## Session 17 intake rule
