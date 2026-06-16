@@ -19,7 +19,7 @@ Current accepted checkpoint:
 ```text
 EACHAT = 1372d77
 finalproject-GGC = 1372d77
-CI: CI - Estimator CAG, run_id=27574120157, success
+CI: CI - Estimador CAG, run_id=27574120157, success
 claim_status: measurement_only_no_quality_claim
 ```
 
