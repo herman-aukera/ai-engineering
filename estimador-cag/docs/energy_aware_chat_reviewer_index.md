@@ -61,6 +61,7 @@ The top-level `README.md` now points to this index. After that entry point, read
 26. `docs/energy_aware_chat_repository_readiness.md`
 27. `docs/energy_aware_chat_session17_backlog.md`
 28. `docs/energy_aware_chat_release_snapshot.md`
+29. `docs/energy_aware_chat_release_claims_gate.md`
 
 ## Executable proof entry points
 
@@ -82,6 +83,7 @@ The top-level `README.md` now points to this index. After that entry point, read
 | Local Energy Chat gate | `bash scripts/validate_energy_chat.sh` |
 | Exact commit CI proof | `bash estimador-cag/scripts/check_energy_chat_ci.sh` from repository root |
 | Manual live provider smoke | `UV_HTTP_TIMEOUT=600 uv run python scripts/live_energy_chat_provider_smoke.py` from `estimador-cag` |
+| Release claim gate renderer | `uv run python scripts/render_energy_chat_release_claims_report.py` from `estimador-cag` |
 | Actions filtering guide | `docs/energy_aware_chat_actions_filtering.md` |
 | Demo API startup | `bash scripts/start_energy_chat.sh` from `estimador-cag` |
 | Docker compose API | `docker compose -f docker-compose.energy-chat.yml up --build` from `estimador-cag` |
@@ -117,6 +119,7 @@ The top-level `README.md` now points to this index. After that entry point, read
 | deterministic RAG grounding baseline | implemented |
 | deterministic agent orchestration | implemented |
 | measurement-only benchmark harness | implemented |
+| release claim gate | implemented |
 | report writer | implemented |
 | release snapshot helper | implemented |
 | closeout pack helper | implemented |
