@@ -21,6 +21,7 @@ EACHAT = d60f6e6
 finalproject-GGC = d60f6e6
 CI: CI - Estimador CAG, run_id=27594146660, success
 claim_status: release_claims_blocked_missing_evidence
+benchmark_claim_status: measurement_only_no_quality_claim
 ```
 
 Product target after Session 17:
@@ -145,6 +146,12 @@ Required release claim token:
 
 ```text
 release_claims_blocked_missing_evidence
+```
+
+Required benchmark claim token:
+
+```text
+measurement_only_no_quality_claim
 ```
 
 ## Session 17 intake rule
