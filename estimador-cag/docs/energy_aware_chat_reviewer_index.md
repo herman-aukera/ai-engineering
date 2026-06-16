@@ -17,8 +17,9 @@ finalproject-GGC
 Current accepted checkpoint:
 
 ```text
-EACHAT = 9a4a8c8
-CI: CI - Estimador CAG, run_id=27574007286, success
+EACHAT = 1372d77
+finalproject-GGC = 1372d77
+CI: CI - Estimator CAG, run_id=27574120157, success
 claim_status: measurement_only_no_quality_claim
 ```
 
@@ -80,7 +81,7 @@ The top-level `README.md` now points to this index. After that entry point, read
 | Demo command checklist | `docs/energy_aware_chat_demo_command_checklist.md` |
 | Local Energy Chat gate | `bash scripts/validate_energy_chat.sh` |
 | Exact commit CI proof | `bash estimador-cag/scripts/check_energy_chat_ci.sh` from repository root |
-| Manual live provider smoke | `gh workflow run "Energy Aware Chat Live Provider Smoke" --ref EACHAT` |
+| Manual live provider smoke | `UV_HTTP_TIMEOUT=600 uv run python scripts/live_energy_chat_provider_smoke.py` from `estimador-cag` |
 | Actions filtering guide | `docs/energy_aware_chat_actions_filtering.md` |
 | Demo API startup | `bash scripts/start_energy_chat.sh` from `estimador-cag` |
 | Docker compose API | `docker compose -f docker-compose.energy-chat.yml up --build` from `estimador-cag` |
@@ -133,7 +134,7 @@ Do not claim these yet:
 1. Production readiness.
 2. Public deployment is live.
 3. Quality improvement over DeepSeek.
-4. Live provider fallback proof unless the manual live-provider smoke workflow passes.
+4. Live provider fallback proof unless the manual live-provider smoke workflow or local live smoke passes with real provider keys.
 5. Vector database RAG grounding for Energy Aware Chat.
 6. Security hardening beyond the current deterministic boundaries.
 
