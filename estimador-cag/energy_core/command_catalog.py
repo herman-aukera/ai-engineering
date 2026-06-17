@@ -236,6 +236,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "review",
     },
     {
+        "id": "extraction_readiness",
+        "entrypoint": "python -m energy_core.extraction_readiness_cli",
+        "purpose": "Report whether the incubator has enough inventory, review artifacts, consistency, gaps, and handoff data for future extraction review.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "scripts/energy_core_extraction_readiness_smoke.py",
+        "category": "release",
+    },
+    {
         "id": "scaffold",
         "entrypoint": "python -m energy_core.scaffold_cli",
         "purpose": "Generate a standalone repository scaffold without copying source files.",
