@@ -26,6 +26,10 @@ from energy_core.demo_walkthrough import (
     format_demo_walkthrough_markdown,
 )
 from energy_core.export_plan import build_export_plan, format_export_plan_markdown
+from energy_core.extraction_readiness import (
+    build_extraction_readiness,
+    format_extraction_readiness_markdown,
+)
 from energy_core.ledger_integrity import (
     build_ledger_integrity,
     format_ledger_integrity_markdown,
@@ -147,6 +151,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
     demo_walkthrough = build_demo_walkthrough(project_root)
     course_boundary = build_course_boundary_report(project_root)
     closeout_pack = build_closeout_pack(project_root)
+    extraction_readiness = build_extraction_readiness(project_root)
     critic_coverage = build_critic_coverage(project_root / DEFAULT_POLICY)
     ledger_integrity = build_ledger_integrity(project_root / DEFAULT_LEDGER)
     candidate_readiness = build_candidate_readiness_matrix(
@@ -201,6 +206,7 @@ def _render_artifacts(project_root: Path) -> dict[str, str]:
         "demo_walkthrough.md": format_demo_walkthrough_markdown(demo_walkthrough),
         "course_boundary.md": format_course_boundary_markdown(course_boundary),
         "closeout_pack.md": format_closeout_pack_markdown(closeout_pack),
+        "extraction_readiness.md": format_extraction_readiness_markdown(extraction_readiness),
     }
 
 
