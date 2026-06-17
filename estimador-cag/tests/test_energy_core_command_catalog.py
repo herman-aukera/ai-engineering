@@ -18,6 +18,7 @@ def test_command_catalog_lists_supported_surfaces() -> None:
     assert "audit_pack" in command_ids
     assert "course_boundary" in command_ids
     assert "demo_walkthrough" in command_ids
+    assert "extraction_readiness" in command_ids
     assert "ledger_integrity" in command_ids
     assert "nightly_status" in command_ids
     assert "candidate_readiness" in command_ids
@@ -44,6 +45,7 @@ def test_command_catalog_markdown_exposes_mutation_behavior() -> None:
     assert "### acceptance_trace" in markdown
     assert "### course_boundary" in markdown
     assert "### demo_walkthrough" in markdown
+    assert "### extraction_readiness" in markdown
     assert "### ledger_integrity" in markdown
     assert "### nightly_status" in markdown
     assert "Mutates ledger: True" in markdown
@@ -70,11 +72,12 @@ def test_command_catalog_cli_outputs_json() -> None:
     payload = json.loads(completed.stdout)
 
     assert payload["complete"] is True
-    assert payload["command_total"] >= 23
+    assert payload["command_total"] >= 24
     assert "evaluate" in payload["mutating_command_ids"]
     command_ids = {command["id"] for command in payload["commands"]}
     assert "course_boundary" in command_ids
     assert "demo_walkthrough" in command_ids
+    assert "extraction_readiness" in command_ids
     assert "ledger_integrity" in command_ids
     assert "nightly_status" in command_ids
     assert "candidate_readiness" in command_ids
