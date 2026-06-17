@@ -18,6 +18,7 @@ def test_reviewer_snapshot_is_complete_for_current_incubator_package() -> None:
         "release_readiness",
         "package_manifest",
         "export_plan",
+        "extraction_readiness",
         "nightly_status",
         "acceptance_trace",
         "course_boundary",
@@ -51,6 +52,7 @@ def test_reviewer_snapshot_text_and_markdown_are_human_readable() -> None:
     assert "Course boundary" in markdown
     assert "Critic coverage" in markdown
     assert "Candidate readiness" in markdown
+    assert "Extraction readiness" in markdown
     assert "Ledger integrity" in markdown
     assert "Nightly status" in markdown
     assert "does not execute shell actions" in markdown
