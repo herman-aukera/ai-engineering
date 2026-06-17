@@ -21,6 +21,7 @@ REQUIRED_REVIEW_PACK_FILES = [
     "demo_walkthrough.md",
     "course_boundary.md",
     "closeout_pack.md",
+    "extraction_readiness.md",
 ]
 
 
