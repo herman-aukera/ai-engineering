@@ -19,6 +19,7 @@ CRITICAL_SURFACES = {
     "critic_coverage": "critic_coverage.md",
     "demo_walkthrough": "demo_walkthrough.md",
     "export_plan": "export_plan.md",
+    "extraction_readiness": "extraction_readiness.md",
     "ledger_integrity": "ledger_integrity.md",
     "nightly_status": "nightly_status.md",
     "package_manifest": "package_manifest.md",
@@ -38,6 +39,7 @@ PACKAGE_MODULES = {
     "critic_coverage": "energy_core/critic_coverage.py",
     "demo_walkthrough": "energy_core/demo_walkthrough.py",
     "export_plan": "energy_core/export_plan.py",
+    "extraction_readiness": "energy_core/extraction_readiness.py",
     "ledger_integrity": "energy_core/ledger_integrity.py",
     "nightly_status": "energy_core/nightly_status.py",
     "package_manifest": "energy_core/package_manifest.py",
@@ -152,4 +154,4 @@ def _inline_list(items: list[str]) -> str:
 
 
 def _bullet_list(items: list[str]) -> list[str]:
-    return [f"- {item}" for item in items] if items else ["- none"]
+    return [f"- {item}" for item in items if item] or ["- none"]
