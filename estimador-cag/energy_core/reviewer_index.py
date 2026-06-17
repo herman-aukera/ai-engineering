@@ -26,6 +26,12 @@ REVIEWER_SECTIONS = [
         "purpose": "Lists future standalone extraction copy items and excluded incubator-only files.",
     },
     {
+        "id": "extraction_readiness",
+        "title": "Extraction readiness",
+        "command": "python -m energy_core.extraction_readiness_cli --format markdown --fail-on-incomplete",
+        "purpose": "Checks whether inventory, reviewer artifacts, consistency, gaps, and closeout handoff support future extraction review.",
+    },
+    {
         "id": "nightly_status",
         "title": "Nightly status",
         "command": "python -m energy_core.nightly_status_cli --format markdown --fail-on-incomplete",
@@ -148,6 +154,7 @@ def build_reviewer_snapshot(project_root: Path) -> dict[str, Any]:
         "reviewer_use": [
             "Show this snapshot before asking a human to inspect individual command outputs.",
             "Use closeout-pack as the last end-of-day handoff before stopping work.",
+            "Use extraction-readiness before planning a standalone repository cut.",
             "Use demo-walkthrough to decide the order of a portfolio or teacher demo.",
             "Use course-boundary before mixing EACODE with coursework or final-project branches.",
             "Use nightly-status as the first morning checkpoint after overnight work.",
