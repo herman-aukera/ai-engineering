@@ -18,6 +18,7 @@ EXPECTED_REVIEW_PACK_FILES = {
     "demo_walkthrough.md",
     "course_boundary.md",
     "closeout_pack.md",
+    "extraction_readiness.md",
 }
 
 
@@ -50,3 +51,4 @@ def test_review_pack_markdown_lists_outputs(tmp_path: Path) -> None:
     assert "demo_walkthrough.md" in markdown
     assert "course_boundary.md" in markdown
     assert "closeout_pack.md" in markdown
+    assert "extraction_readiness.md" in markdown
