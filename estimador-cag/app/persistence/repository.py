@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.persistence.models import Chunk, Document
@@ -31,6 +31,18 @@ class ChunkInsert:
     def __post_init__(self) -> None:
         if self.embedding is not None and len(self.embedding) != EMBEDDING_DIMENSION:
             raise ValueError(f"Embedding dimension must be {EMBEDDING_DIMENSION}")
+
+
+@dataclass(frozen=True)
+class ChunkLexicalSearchResult:
+    """One chunk returned by PostgreSQL full text search."""
+
+    chunk_id: int
+    document_id: int
+    chunk_type: str
+    content: str
+    rank: float
+    metadata: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -174,4 +186,54 @@ class DocumentRepository:
                 metadata=dict(row._mapping["metadata"] or {}),
             )
             for row in rows
+        ]
+
+    async def search_chunks_by_text(
+        self,
+        *,
+        query_text: str,
+        k: int,
+        metadata_filters: Mapping[str, Any] | None = None,
+    ) -> list[ChunkLexicalSearchResult]:
+        """Search chunks with PostgreSQL full text ranking.
+
+        This is the lexical branch for Session 10 hybrid retrieval. It uses the
+        same text search configuration as the generated ``content_tsv`` column:
+        ``english``.
+        """
+
+        normalized_filters = _normalize_metadata_filters(metadata_filters)
+        content_tsv = literal_column("content_tsv")
+        tsquery = func.plainto_tsquery(literal_column("'english'"), query_text)
+        rank = func.ts_rank_cd(content_tsv, tsquery)
+
+        statement = (
+            select(
+                Chunk.id.label("chunk_id"),
+                Chunk.document_id.label("document_id"),
+                Chunk.chunk_type.label("chunk_type"),
+                Chunk.content.label("content"),
+                rank.label("rank"),
+                Chunk.chunk_metadata.label("metadata"),
+            )
+            .where(content_tsv.op("@@")(tsquery))
+            .order_by(rank.desc(), Chunk.id.asc())
+            .limit(k)
+        )
+
+        if normalized_filters:
+            statement = statement.where(Chunk.chunk_metadata.contains(normalized_filters))
+
+        result = await self.session.execute(statement)
+
+        return [
+            ChunkLexicalSearchResult(
+                chunk_id=int(row._mapping["chunk_id"]),
+                document_id=int(row._mapping["document_id"]),
+                chunk_type=str(row._mapping["chunk_type"]),
+                content=str(row._mapping["content"]),
+                rank=float(row._mapping["rank"]),
+                metadata=dict(row._mapping["metadata"] or {}),
+            )
+            for row in result.all()
         ]
