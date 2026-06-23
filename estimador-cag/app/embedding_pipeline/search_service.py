@@ -20,6 +20,19 @@ LEXICAL_ONLY_DISTANCE = 999.0
 VALID_SEARCH_MODES = {"vector", "hybrid"}
 
 
+class SearchReranker(Protocol):
+    """Optional second-stage reranker for retrieved search candidates."""
+
+    def rerank(
+        self,
+        *,
+        query: str,
+        items: list[SearchResultItem],
+        top_n: int,
+    ) -> list[SearchResultItem]:
+        """Return items reordered by query-specific relevance."""
+
+
 class QueryEmbedder(Protocol):
     def embed_texts(self, texts: list[str]) -> list[list[float]]: ...
 
@@ -81,6 +94,8 @@ class SearchQueryCommand:
     search_mode: str = "vector"
     recall_k: int = 50
     rrf_k: int = DEFAULT_RRF_K
+    use_reranker: bool = False
+    rerank_top_n: int = 5
 
 
 @dataclass(frozen=True)
@@ -113,9 +128,11 @@ class SemanticSearchService:
         *,
         embedder: QueryEmbedder,
         repository: DocumentRepository,
+        reranker: SearchReranker | None = None,
     ) -> None:
         self.embedder = embedder
         self.repository = repository
+        self.reranker = reranker
 
     async def search(self, command: SearchQueryCommand) -> SearchQueryResult:
         """Embed the query once and return persisted chunks.
@@ -134,6 +151,10 @@ class SemanticSearchService:
             raise ValueError("recall_k must be positive")
         if command.search_mode not in VALID_SEARCH_MODES:
             raise ValueError("search_mode must be 'vector' or 'hybrid'")
+        if command.rerank_top_n <= 0:
+            raise ValueError("rerank_top_n must be positive")
+        if command.use_reranker and self.reranker is None:
+            raise ValueError("reranker is required when use_reranker is true")
 
         embeddings = self.embedder.embed_texts([query])
         if len(embeddings) != 1:
@@ -168,10 +189,17 @@ class SemanticSearchService:
                 rrf_k=command.rrf_k,
             )
 
+        if command.use_reranker:
+            results = self.reranker.rerank(
+                query=query,
+                items=results,
+                top_n=min(command.rerank_top_n, command.k),
+            )
+
         return SearchQueryResult(
             query=query,
             k=command.k,
-            results=results,
+            results=results[: command.k],
             filters_applied=command.metadata_filters.as_response_dict(),
         )
 
