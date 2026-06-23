@@ -8,7 +8,7 @@ WHY IT EXISTS: Search is the public retrieval API built on top of query embeddin
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Literal
 
 import structlog
 from fastapi import APIRouter, HTTPException
@@ -37,6 +37,8 @@ class SearchRequest(BaseModel):
 
     query: str = Field(min_length=1)
     k: int = Field(default=5, ge=1)
+    search_mode: Literal["vector", "hybrid"] = "vector"
+    recall_k: int = Field(default=50, ge=1, le=100)
     client_sector: str | None = None
     client_country: str | None = None
     main_technology: str | None = None
@@ -116,6 +118,8 @@ async def search_chunks(request: SearchRequest) -> SearchResponse:
                     query=query,
                     k=request.k,
                     metadata_filters=filters,
+                    search_mode=request.search_mode,
+                    recall_k=request.recall_k,
                 )
             )
     except ValueError as exc:
