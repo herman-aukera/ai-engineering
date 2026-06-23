@@ -9,7 +9,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from app.persistence.repository import ChunkSearchResult, DocumentRepository
+from app.embedding_pipeline.fusion import DEFAULT_RRF_K, reciprocal_rank_fusion
+from app.persistence.repository import (
+    ChunkLexicalSearchResult,
+    ChunkSearchResult,
+    DocumentRepository,
+)
+
+LEXICAL_ONLY_DISTANCE = 999.0
+VALID_SEARCH_MODES = {"vector", "hybrid"}
 
 
 class QueryEmbedder(Protocol):
@@ -65,11 +73,14 @@ class SearchMetadataFilters:
 
 @dataclass(frozen=True)
 class SearchQueryCommand:
-    """Input command for semantic chunk search."""
+    """Input command for semantic or hybrid chunk search."""
 
     query: str
     k: int = 5
     metadata_filters: SearchMetadataFilters = field(default_factory=SearchMetadataFilters)
+    search_mode: str = "vector"
+    recall_k: int = 50
+    rrf_k: int = DEFAULT_RRF_K
 
 
 @dataclass(frozen=True)
@@ -107,27 +118,60 @@ class SemanticSearchService:
         self.repository = repository
 
     async def search(self, command: SearchQueryCommand) -> SearchQueryResult:
-        """Embed the query once and return nearest persisted chunks."""
+        """Embed the query once and return persisted chunks.
+
+        ``search_mode="vector"`` preserves the Session 08 baseline.
+        ``search_mode="hybrid"`` recalls vector and lexical candidates, then
+        fuses both rankings with Reciprocal Rank Fusion.
+        """
+
         query = command.query.strip()
         if not query:
             raise ValueError("query must not be empty")
         if command.k <= 0:
             raise ValueError("k must be positive")
+        if command.recall_k <= 0:
+            raise ValueError("recall_k must be positive")
+        if command.search_mode not in VALID_SEARCH_MODES:
+            raise ValueError("search_mode must be 'vector' or 'hybrid'")
 
         embeddings = self.embedder.embed_texts([query])
         if len(embeddings) != 1:
             raise ValueError("Query embedding count mismatch")
 
-        rows = await self.repository.search_chunks_by_embedding(
-            query_embedding=embeddings[0],
-            k=command.k,
-            metadata_filters=command.metadata_filters.as_repository_filter(),
-        )
+        query_embedding = embeddings[0]
+        repository_filters = command.metadata_filters.as_repository_filter()
+
+        if command.search_mode == "vector":
+            rows = await self.repository.search_chunks_by_embedding(
+                query_embedding=query_embedding,
+                k=command.k,
+                metadata_filters=repository_filters,
+            )
+            results = [_to_search_result_item(row) for row in rows]
+        else:
+            recall_k = max(command.k, command.recall_k)
+            vector_rows = await self.repository.search_chunks_by_embedding(
+                query_embedding=query_embedding,
+                k=recall_k,
+                metadata_filters=repository_filters,
+            )
+            lexical_rows = await self.repository.search_chunks_by_text(
+                query_text=query,
+                k=recall_k,
+                metadata_filters=repository_filters,
+            )
+            results = _to_hybrid_search_result_items(
+                vector_rows=vector_rows,
+                lexical_rows=lexical_rows,
+                top_k=command.k,
+                rrf_k=command.rrf_k,
+            )
 
         return SearchQueryResult(
             query=query,
             k=command.k,
-            results=[_to_search_result_item(row) for row in rows],
+            results=results,
             filters_applied=command.metadata_filters.as_response_dict(),
         )
 
@@ -141,3 +185,45 @@ def _to_search_result_item(row: ChunkSearchResult) -> SearchResultItem:
         distance=row.distance,
         metadata=row.metadata,
     )
+
+
+def _to_hybrid_search_result_items(
+    *,
+    vector_rows: list[ChunkSearchResult],
+    lexical_rows: list[ChunkLexicalSearchResult],
+    top_k: int,
+    rrf_k: int,
+) -> list[SearchResultItem]:
+    vector_by_chunk_id = {row.chunk_id: row for row in vector_rows}
+    lexical_by_chunk_id = {row.chunk_id: row for row in lexical_rows}
+
+    fused = reciprocal_rank_fusion(
+        {
+            "vector": [row.chunk_id for row in vector_rows],
+            "lexical": [row.chunk_id for row in lexical_rows],
+        },
+        k=rrf_k,
+        limit=top_k,
+    )
+
+    results: list[SearchResultItem] = []
+    for fused_item in fused:
+        chunk_id = int(fused_item.document_id)
+
+        if chunk_id in vector_by_chunk_id:
+            results.append(_to_search_result_item(vector_by_chunk_id[chunk_id]))
+            continue
+
+        lexical_row = lexical_by_chunk_id[chunk_id]
+        results.append(
+            SearchResultItem(
+                chunk_id=lexical_row.chunk_id,
+                document_id=lexical_row.document_id,
+                chunk_type=lexical_row.chunk_type,
+                content=lexical_row.content,
+                distance=LEXICAL_ONLY_DISTANCE,
+                metadata=lexical_row.metadata,
+            )
+        )
+
+    return results
