@@ -1,0 +1,55 @@
+{
+  "annotation_criterion": "Relevant if the budget or component would serve as a direct effort reference for estimating the user query.",
+  "k": 5,
+  "queries": [
+    {
+      "query_id": "Q-AUTH-001",
+      "query": "OAuth JWT authentication token banking authorization flow",
+      "intent": "Find the authentication backend component in the fintech banking budget.",
+      "relevant_budget_ids": ["BUD-2024-014"],
+      "expected_component_ids": ["AUTH-001"]
+    },
+    {
+      "query_id": "Q-AUDIT-001",
+      "query": "immutable audit logging consent changes sensitive banking operations",
+      "intent": "Find the regulatory audit logging component.",
+      "relevant_budget_ids": ["BUD-2024-014"],
+      "expected_component_ids": ["AUDIT-001"]
+    },
+    {
+      "query_id": "Q-CHECKOUT-001",
+      "query": "checkout orchestration payment authorization discount rules order creation",
+      "intent": "Find the marketplace checkout orchestration API component.",
+      "relevant_budget_ids": ["BUD-2024-021"],
+      "expected_component_ids": ["CHECKOUT-001"]
+    },
+    {
+      "query_id": "Q-INVENTORY-001",
+      "query": "inventory synchronization worker merchant stock levels scheduled conflicts events",
+      "intent": "Find the inventory synchronization worker component.",
+      "relevant_budget_ids": ["BUD-2024-021"],
+      "expected_component_ids": ["INV-001"]
+    },
+    {
+      "query_id": "Q-DOCS-001",
+      "query": "clinical document upload referral lab results secure file validation metadata",
+      "intent": "Find the clinical document upload component.",
+      "relevant_budget_ids": ["BUD-2025-003"],
+      "expected_component_ids": ["DOCS-001"]
+    },
+    {
+      "query_id": "Q-TELEMETRY-001",
+      "query": "machine telemetry ingestion queue consumer equipment events industrial dashboard",
+      "intent": "Find the telemetry ingestion service component.",
+      "relevant_budget_ids": ["BUD-2025-011"],
+      "expected_component_ids": ["TELEM-001"]
+    },
+    {
+      "query_id": "Q-ALERTS-001",
+      "query": "maintenance alert rules threshold violations machine faults operations teams",
+      "intent": "Find the maintenance alert rules component.",
+      "relevant_budget_ids": ["BUD-2025-011"],
+      "expected_component_ids": ["ALERT-001"]
+    }
+  ]
+}
