@@ -458,6 +458,44 @@ def render_search_result_card(result: dict[str, Any], rank: int) -> None:
         st.json(result.get("metadata") or {})
 
 
+def render_search_metrics_dashboard(metrics: dict[str, Any] | None) -> None:
+    """Render the in-memory search metrics snapshot returned by /search/metrics."""
+
+    if not metrics:
+        st.caption("No search metrics loaded yet. Run a search or click Refresh search metrics.")
+        return
+
+    total = metrics.get("total_searches_recorded", 0)
+    success_count = metrics.get("success_count", 0)
+    failure_count = metrics.get("failure_count", 0)
+    last_search = metrics.get("last_search") or {}
+
+    metric_total, metric_success, metric_failure, metric_last_count = st.columns(4)
+
+    with metric_total:
+        st.metric("recorded searches", total)
+
+    with metric_success:
+        st.metric("successes", success_count)
+
+    with metric_failure:
+        st.metric("failures", failure_count)
+
+    with metric_last_count:
+        st.metric("last result count", last_search.get("result_count", "unknown"))
+
+    if last_search:
+        st.markdown("#### Last search")
+        st.json(last_search)
+
+    history = metrics.get("history") or []
+    if history:
+        st.markdown("#### Recent search history")
+        st.dataframe(history[-10:], use_container_width=True, hide_index=True)
+    else:
+        st.caption("No search history returned yet.")
+
+
 def render_session10_search_panel() -> None:
     """Render the Session 10 retrieval search UI backed by /search."""
 
@@ -543,18 +581,25 @@ def render_session10_search_panel() -> None:
             f"using {search_mode} search with recall_k={int(recall_k)}."
         )
 
+        try:
+            st.session_state["last_search_metrics"] = get_search_metrics()
+        except requests.RequestException as exc:
+            st.warning(f"Search succeeded, but metrics refresh failed: {exc}")
+
         with st.expander("filters_applied", expanded=True):
             st.json(search_result.get("filters_applied") or {})
 
         for index, result in enumerate(search_result.get("results") or [], start=1):
             render_search_result_card(result, index)
 
-    with st.expander("Search metrics dashboard"):
+    with st.expander("Search metrics dashboard", expanded=True):
         if st.button("Refresh search metrics"):
             try:
-                st.json(get_search_metrics())
+                st.session_state["last_search_metrics"] = get_search_metrics()
             except requests.RequestException as exc:
                 st.error(f"Could not load search metrics dashboard: {exc}")
+
+        render_search_metrics_dashboard(st.session_state.get("last_search_metrics"))
 
 
 def main() -> None:

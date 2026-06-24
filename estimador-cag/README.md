@@ -118,6 +118,8 @@ The panel exposes:
     recall_k: internal candidate pool
     client_sector, client_country, tech_stack, and scope filters
 
+The Streamlit retrieval panel refreshes `/search/metrics` automatically after each successful search and renders the latest in-memory search metrics, including recorded searches, successes, failures, last result count, last search, and recent history.
+
 The UI is a human review path for vector and hybrid retrieval. A/B/C/D evaluation remains runner based because reranking is intentionally measured at service level and is not exposed as a public API flag.
 
 ## Optional persisted API smoke

@@ -160,3 +160,5 @@ To run the live provider comparison manually, set a real key and opt in explicit
     DEEPSEEK_API_KEY=... DEEPSEEK_MODEL=deepseek-v4-flash uv run python -m evals.session10_retrieval.deepseek_live_comparison --live --max-cases 3
 
 The live output path is ignored by git. Do not commit provider responses unless intentionally preparing a reviewed report.
+
+The Streamlit retrieval panel refreshes `/search/metrics` automatically after each successful search and renders the latest in-memory search metrics, including recorded searches, successes, failures, last result count, last search, and recent history.
