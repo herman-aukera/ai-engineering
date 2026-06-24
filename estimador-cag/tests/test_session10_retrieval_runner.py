@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from evals.session10_retrieval.run import (
 from evals.session10_retrieval.evaluator import load_golden_cases
+from evals.session10_retrieval.run import (
     build_component_chunks,
     run_retrieval_measurement,
 )
@@ -54,7 +54,7 @@ def test_run_retrieval_measurement_writes_json_and_report(tmp_path):
     assert all(summary["case_count"] == len(golden_cases) for summary in payload["summaries"])
 
     for summary in payload["summaries"]:
-        assert summary["case_count"] == 7
+        assert summary["case_count"] == len(golden_cases)
         assert 0 <= summary["mean_precision_at_5"] <= 1
         assert 0 <= summary["budget_hit_rate_at_5"] <= 1
         assert 0 <= summary["component_hit_rate_at_5"] <= 1
