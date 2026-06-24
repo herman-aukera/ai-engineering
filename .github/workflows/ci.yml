@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - main
-      - "gg-*"
-      - "sesion-*"
-      - "session*"
+      - "gg-**"
+      - "sesion-**"
+      - "session**"
   pull_request:
   workflow_dispatch:
 
