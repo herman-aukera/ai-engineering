@@ -2,6 +2,62 @@
 
 This document preserves older coursework context without letting it masquerade as the current branch state.
 
+
+## Session 04 Live Plus product estimation workflow
+
+Session 04 Live Plus turned the estimator into a structured product estimation workflow.
+
+Key architecture notes preserved for historical tests and reviewer context:
+
+    Structured JSON output
+    DeepSeek flash → DeepSeek pro → Kimi 2.5 backup → Kimi 2.6 backup_pro
+    Exact Redis cache runs before semantic cache
+    Semantic cache shadow mode
+    requested_tier
+    served_tier
+    fallback_used
+    semantic_cache_mode
+    semantic_candidate_found
+
+The important design decision was that provider fallback, exact Redis cache metadata, semantic cache shadow observations, and structured Pydantic validation were visible and testable instead of hidden behind a generic text response.
+
+
+## Session 05 conversational memory and attachments
+
+Session 05 added session aware estimation and attachment handling.
+
+Backend endpoints:
+
+    POST /sessions
+    POST /sessions/{session_id}/estimate
+    multipart/form-data
+
+The session endpoint accepts a transcript plus optional PDF and DOCX attachments. The implementation keeps a sliding window of recent conversation turns and separates durable project metadata from raw chat history.
+
+Important preserved concepts:
+
+    Session 05
+    ConversationHistory
+    ProjectMetadata
+    SessionStore
+    sliding window
+    project_metadata
+    PDF
+    DOCX
+    pypdf
+    python-docx
+    session_id
+    New conversation
+    Project metadata
+    sidebar
+
+Streamlit usage preserved from Session 05:
+
+1. The UI creates a backend session automatically.
+2. The session_id is stored in Streamlit state.
+3. The user can press New conversation to reset the session.
+4. The sidebar shows Project metadata so memory state can be inspected during demos.
+
 ## Session 06 CAG stress baseline
 
 Artifacts:
