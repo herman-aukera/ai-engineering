@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from evals.session10_retrieval.run import (
+from evals.session10_retrieval.evaluator import load_golden_cases
     build_component_chunks,
     run_retrieval_measurement,
 )

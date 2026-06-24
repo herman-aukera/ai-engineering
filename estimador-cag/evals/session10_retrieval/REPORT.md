@@ -13,9 +13,9 @@ Scope:
 | Config | Search | Reranking | result-budget precision@5 | unique-budget precision@5 | budget hit@5 | component hit@5 | top1 budget | top1 component | median latency ms |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | A | Vector | No | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 1 |
-| B | Hybrid | No | 0.4167 | 0.2167 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 2 |
+| B | Hybrid | No | 0.4167 | 0.2167 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 1 |
 | C | Vector | Yes | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 1 |
-| D | Hybrid | Yes | 0.4167 | 0.2167 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 2 |
+| D | Hybrid | Yes | 0.4167 | 0.2167 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 1 |
 
 ## Case details
 
@@ -31,7 +31,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `A` / `Q-AUDIT-001`
   - query: immutable audit logging consent changes sensitive banking operations
   - relevant budgets: BUD-2024-014
@@ -122,7 +122,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `A` / `Q-CHECKOUT-INVENTORY-AMBIGUOUS`
   - query: marketplace order flow stock reservation payment state merchant consistency
   - relevant budgets: BUD-2024-021
@@ -135,7 +135,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `A` / `Q-INTAKE-DOCS-AMBIGUOUS`
   - query: patient onboarding consent secure submission files validation clinician review
   - relevant budgets: BUD-2025-003
@@ -148,7 +148,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `A` / `Q-TELEMETRY-ALERTS-AMBIGUOUS`
   - query: industrial equipment events thresholds machine faults operations maintenance dashboard
   - relevant budgets: BUD-2025-011
@@ -187,7 +187,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `B` / `Q-AUDIT-001`
   - query: immutable audit logging consent changes sensitive banking operations
   - relevant budgets: BUD-2024-014
@@ -200,7 +200,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `B` / `Q-CHECKOUT-001`
   - query: checkout orchestration payment authorization discount rules order creation
   - relevant budgets: BUD-2024-021
@@ -239,7 +239,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `B` / `Q-TELEMETRY-001`
   - query: machine telemetry ingestion queue consumer equipment events industrial dashboard
   - relevant budgets: BUD-2025-011
@@ -252,7 +252,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `B` / `Q-ALERTS-001`
   - query: maintenance alert rules threshold violations machine faults operations teams
   - relevant budgets: BUD-2025-011
@@ -265,7 +265,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `B` / `Q-AUTH-AUDIT-AMBIGUOUS`
   - query: banking access security consent traceability token sessions compliance evidence
   - relevant budgets: BUD-2024-014
@@ -278,7 +278,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `B` / `Q-CHECKOUT-INVENTORY-AMBIGUOUS`
   - query: marketplace order flow stock reservation payment state merchant consistency
   - relevant budgets: BUD-2024-021
@@ -291,7 +291,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `B` / `Q-INTAKE-DOCS-AMBIGUOUS`
   - query: patient onboarding consent secure submission files validation clinician review
   - relevant budgets: BUD-2025-003
@@ -304,7 +304,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `B` / `Q-TELEMETRY-ALERTS-AMBIGUOUS`
   - query: industrial equipment events thresholds machine faults operations maintenance dashboard
   - relevant budgets: BUD-2025-011
@@ -460,7 +460,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 1
+  - latency ms: 2
 - `C` / `Q-TELEMETRY-ALERTS-AMBIGUOUS`
   - query: industrial equipment events thresholds machine faults operations maintenance dashboard
   - relevant budgets: BUD-2025-011
@@ -473,7 +473,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 1
+  - latency ms: 2
 - `C` / `Q-LOW-SIGNAL-BACKEND-REFERENCE`
   - query: backend reference estimate for secure regulated workflow with operational tracking
   - relevant budgets: BUD-2024-014, BUD-2025-003
@@ -486,7 +486,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 1
+  - latency ms: 2
 - `D` / `Q-AUTH-001`
   - query: OAuth JWT authentication token banking authorization flow
   - relevant budgets: BUD-2024-014
@@ -499,7 +499,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 1
+  - latency ms: 3
 - `D` / `Q-AUDIT-001`
   - query: immutable audit logging consent changes sensitive banking operations
   - relevant budgets: BUD-2024-014
@@ -525,7 +525,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 4
+  - latency ms: 1
 - `D` / `Q-INVENTORY-001`
   - query: inventory synchronization worker merchant stock levels scheduled conflicts events
   - relevant budgets: BUD-2024-021
@@ -538,7 +538,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 3
+  - latency ms: 1
 - `D` / `Q-DOCS-001`
   - query: clinical document upload referral lab results secure file validation metadata
   - relevant budgets: BUD-2025-003
@@ -551,7 +551,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 3
+  - latency ms: 1
 - `D` / `Q-TELEMETRY-001`
   - query: machine telemetry ingestion queue consumer equipment events industrial dashboard
   - relevant budgets: BUD-2025-011
@@ -564,7 +564,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 1
 - `D` / `Q-ALERTS-001`
   - query: maintenance alert rules threshold violations machine faults operations teams
   - relevant budgets: BUD-2025-011
@@ -577,7 +577,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 3
+  - latency ms: 1
 - `D` / `Q-AUTH-AUDIT-AMBIGUOUS`
   - query: banking access security consent traceability token sessions compliance evidence
   - relevant budgets: BUD-2024-014
@@ -590,7 +590,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 3
+  - latency ms: 2
 - `D` / `Q-CHECKOUT-INVENTORY-AMBIGUOUS`
   - query: marketplace order flow stock reservation payment state merchant consistency
   - relevant budgets: BUD-2024-021
@@ -603,7 +603,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 2
+  - latency ms: 3
 - `D` / `Q-INTAKE-DOCS-AMBIGUOUS`
   - query: patient onboarding consent secure submission files validation clinician review
   - relevant budgets: BUD-2025-003
@@ -616,7 +616,7 @@ Scope:
   - top1 component accuracy: True
   - best budget rank: 1
   - best component rank: 1
-  - latency ms: 1
+  - latency ms: 2
 - `D` / `Q-TELEMETRY-ALERTS-AMBIGUOUS`
   - query: industrial equipment events thresholds machine faults operations maintenance dashboard
   - relevant budgets: BUD-2025-011
