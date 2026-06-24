@@ -11,14 +11,17 @@
       "expected_component_ids": [
         "AUTH-001"
       ],
-      "latency_ms": 2,
+      "latency_ms": 1,
       "precision_at_k": 0.4,
       "query": "OAuth JWT authentication token banking authorization flow",
       "query_id": "Q-AUTH-001",
       "relevant_budget_ids": [
         "BUD-2024-014"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-014",
         "BUD-2024-014",
@@ -32,7 +35,8 @@
         "DOCS-001",
         "CHECKOUT-001",
         "INV-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -50,7 +54,10 @@
       "relevant_budget_ids": [
         "BUD-2024-014"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-014",
         "BUD-2025-011",
@@ -64,7 +71,8 @@
         "INTAKE-001",
         "AUTH-001",
         "CHECKOUT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -75,14 +83,17 @@
       "expected_component_ids": [
         "CHECKOUT-001"
       ],
-      "latency_ms": 2,
+      "latency_ms": 1,
       "precision_at_k": 0.4,
       "query": "checkout orchestration payment authorization discount rules order creation",
       "query_id": "Q-CHECKOUT-001",
       "relevant_budget_ids": [
         "BUD-2024-021"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-021",
         "BUD-2024-021",
@@ -96,7 +107,8 @@
         "ALERT-001",
         "INTAKE-001",
         "DOCS-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -107,14 +119,17 @@
       "expected_component_ids": [
         "INV-001"
       ],
-      "latency_ms": 2,
+      "latency_ms": 1,
       "precision_at_k": 0.4,
       "query": "inventory synchronization worker merchant stock levels scheduled conflicts events",
       "query_id": "Q-INVENTORY-001",
       "relevant_budget_ids": [
         "BUD-2024-021"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-021",
         "BUD-2024-021",
@@ -128,7 +143,8 @@
         "TELEM-001",
         "INTAKE-001",
         "DOCS-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -146,7 +162,10 @@
       "relevant_budget_ids": [
         "BUD-2025-003"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-003",
         "BUD-2025-003",
@@ -160,7 +179,8 @@
         "CHECKOUT-001",
         "AUTH-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -171,14 +191,17 @@
       "expected_component_ids": [
         "TELEM-001"
       ],
-      "latency_ms": 2,
+      "latency_ms": 1,
       "precision_at_k": 0.4,
       "query": "machine telemetry ingestion queue consumer equipment events industrial dashboard",
       "query_id": "Q-TELEMETRY-001",
       "relevant_budget_ids": [
         "BUD-2025-011"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-011",
         "BUD-2025-011",
@@ -192,7 +215,8 @@
         "INV-001",
         "AUTH-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -203,14 +227,17 @@
       "expected_component_ids": [
         "ALERT-001"
       ],
-      "latency_ms": 2,
+      "latency_ms": 1,
       "precision_at_k": 0.4,
       "query": "maintenance alert rules threshold violations machine faults operations teams",
       "query_id": "Q-ALERTS-001",
       "relevant_budget_ids": [
         "BUD-2025-011"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-011",
         "BUD-2025-011",
@@ -224,7 +251,8 @@
         "INTAKE-001",
         "DOCS-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -235,14 +263,17 @@
       "expected_component_ids": [
         "AUTH-001"
       ],
-      "latency_ms": 2,
+      "latency_ms": 1,
       "precision_at_k": 0.4,
       "query": "OAuth JWT authentication token banking authorization flow",
       "query_id": "Q-AUTH-001",
       "relevant_budget_ids": [
         "BUD-2024-014"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-014",
         "BUD-2024-014",
@@ -256,7 +287,8 @@
         "CHECKOUT-001",
         "DOCS-001",
         "INV-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -267,14 +299,17 @@
       "expected_component_ids": [
         "AUDIT-001"
       ],
-      "latency_ms": 2,
+      "latency_ms": 1,
       "precision_at_k": 0.4,
       "query": "immutable audit logging consent changes sensitive banking operations",
       "query_id": "Q-AUDIT-001",
       "relevant_budget_ids": [
         "BUD-2024-014"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-014",
         "BUD-2024-014",
@@ -288,7 +323,8 @@
         "ALERT-001",
         "INTAKE-001",
         "CHECKOUT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -306,7 +342,10 @@
       "relevant_budget_ids": [
         "BUD-2024-021"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-021",
         "BUD-2024-021",
@@ -320,7 +359,8 @@
         "AUTH-001",
         "INTAKE-001",
         "ALERT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -338,7 +378,10 @@
       "relevant_budget_ids": [
         "BUD-2024-021"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-021",
         "BUD-2024-021",
@@ -352,7 +395,8 @@
         "TELEM-001",
         "INTAKE-001",
         "DOCS-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -370,7 +414,10 @@
       "relevant_budget_ids": [
         "BUD-2025-003"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-003",
         "BUD-2025-003",
@@ -384,7 +431,8 @@
         "CHECKOUT-001",
         "AUTH-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -402,7 +450,10 @@
       "relevant_budget_ids": [
         "BUD-2025-011"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-011",
         "BUD-2025-011",
@@ -416,7 +467,8 @@
         "INV-001",
         "AUTH-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -434,7 +486,10 @@
       "relevant_budget_ids": [
         "BUD-2025-011"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-011",
         "BUD-2025-011",
@@ -448,7 +503,8 @@
         "AUDIT-001",
         "INTAKE-001",
         "CHECKOUT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -466,7 +522,10 @@
       "relevant_budget_ids": [
         "BUD-2024-014"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-014",
         "BUD-2024-014",
@@ -480,7 +539,8 @@
         "DOCS-001",
         "CHECKOUT-001",
         "INV-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -498,7 +558,10 @@
       "relevant_budget_ids": [
         "BUD-2024-014"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-014",
         "BUD-2025-011",
@@ -512,7 +575,8 @@
         "INTAKE-001",
         "AUTH-001",
         "CHECKOUT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -530,7 +594,10 @@
       "relevant_budget_ids": [
         "BUD-2024-021"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-021",
         "BUD-2024-021",
@@ -544,7 +611,8 @@
         "ALERT-001",
         "INTAKE-001",
         "DOCS-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -562,7 +630,10 @@
       "relevant_budget_ids": [
         "BUD-2024-021"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-021",
         "BUD-2024-021",
@@ -576,7 +647,8 @@
         "TELEM-001",
         "INTAKE-001",
         "DOCS-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -594,7 +666,10 @@
       "relevant_budget_ids": [
         "BUD-2025-003"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-003",
         "BUD-2025-003",
@@ -608,7 +683,8 @@
         "CHECKOUT-001",
         "AUTH-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -626,7 +702,10 @@
       "relevant_budget_ids": [
         "BUD-2025-011"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-011",
         "BUD-2025-011",
@@ -640,7 +719,8 @@
         "INV-001",
         "AUTH-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -658,7 +738,10 @@
       "relevant_budget_ids": [
         "BUD-2025-011"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-011",
         "BUD-2025-011",
@@ -672,7 +755,8 @@
         "INTAKE-001",
         "DOCS-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -690,7 +774,10 @@
       "relevant_budget_ids": [
         "BUD-2024-014"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-014",
         "BUD-2024-014",
@@ -704,7 +791,8 @@
         "CHECKOUT-001",
         "DOCS-001",
         "INV-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -722,7 +810,10 @@
       "relevant_budget_ids": [
         "BUD-2024-014"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-014",
         "BUD-2024-014",
@@ -736,7 +827,8 @@
         "ALERT-001",
         "INTAKE-001",
         "CHECKOUT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -754,7 +846,10 @@
       "relevant_budget_ids": [
         "BUD-2024-021"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-021",
         "BUD-2024-021",
@@ -768,7 +863,8 @@
         "AUTH-001",
         "INTAKE-001",
         "ALERT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -786,7 +882,10 @@
       "relevant_budget_ids": [
         "BUD-2024-021"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2024-021",
         "BUD-2024-021",
@@ -800,7 +899,8 @@
         "TELEM-001",
         "INTAKE-001",
         "DOCS-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -818,7 +918,10 @@
       "relevant_budget_ids": [
         "BUD-2025-003"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-003",
         "BUD-2025-003",
@@ -832,7 +935,8 @@
         "CHECKOUT-001",
         "AUTH-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -850,7 +954,10 @@
       "relevant_budget_ids": [
         "BUD-2025-011"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-011",
         "BUD-2025-011",
@@ -864,7 +971,8 @@
         "INV-001",
         "AUTH-001",
         "AUDIT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     },
     {
       "best_budget_rank": 1,
@@ -882,7 +990,10 @@
       "relevant_budget_ids": [
         "BUD-2025-011"
       ],
+      "result_budget_precision_at_k": 0.4,
       "result_count": 5,
+      "top1_budget_accuracy": true,
+      "top1_component_accuracy": true,
       "top_budget_ids": [
         "BUD-2025-011",
         "BUD-2025-011",
@@ -896,7 +1007,8 @@
         "AUDIT-001",
         "INTAKE-001",
         "CHECKOUT-001"
-      ]
+      ],
+      "unique_budget_precision_at_k": 0.2
     }
   ],
   "k": 5,
@@ -910,7 +1022,11 @@
       "mean_best_budget_rank": 1.0,
       "mean_best_component_rank": 1.0,
       "mean_precision_at_5": 0.4,
-      "median_latency_ms": 2
+      "mean_result_budget_precision_at_5": 0.4,
+      "mean_unique_budget_precision_at_5": 0.2,
+      "median_latency_ms": 1,
+      "top1_budget_accuracy": 1.0,
+      "top1_component_accuracy": 1.0
     },
     {
       "budget_hit_rate_at_5": 1.0,
@@ -920,7 +1036,11 @@
       "mean_best_budget_rank": 1.0,
       "mean_best_component_rank": 1.0,
       "mean_precision_at_5": 0.4,
-      "median_latency_ms": 1
+      "mean_result_budget_precision_at_5": 0.4,
+      "mean_unique_budget_precision_at_5": 0.2,
+      "median_latency_ms": 1,
+      "top1_budget_accuracy": 1.0,
+      "top1_component_accuracy": 1.0
     },
     {
       "budget_hit_rate_at_5": 1.0,
@@ -930,7 +1050,11 @@
       "mean_best_budget_rank": 1.0,
       "mean_best_component_rank": 1.0,
       "mean_precision_at_5": 0.4,
-      "median_latency_ms": 1
+      "mean_result_budget_precision_at_5": 0.4,
+      "mean_unique_budget_precision_at_5": 0.2,
+      "median_latency_ms": 1,
+      "top1_budget_accuracy": 1.0,
+      "top1_component_accuracy": 1.0
     },
     {
       "budget_hit_rate_at_5": 1.0,
@@ -940,7 +1064,11 @@
       "mean_best_budget_rank": 1.0,
       "mean_best_component_rank": 1.0,
       "mean_precision_at_5": 0.4,
-      "median_latency_ms": 1
+      "mean_result_budget_precision_at_5": 0.4,
+      "mean_unique_budget_precision_at_5": 0.2,
+      "median_latency_ms": 1,
+      "top1_budget_accuracy": 1.0,
+      "top1_component_accuracy": 1.0
     }
   ]
 }

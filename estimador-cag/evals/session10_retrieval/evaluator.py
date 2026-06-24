@@ -118,8 +118,12 @@ class RetrievalCaseEvaluation:
     top_component_ids: tuple[str, ...]
     result_count: int
     precision_at_k: float
+    result_budget_precision_at_k: float
+    unique_budget_precision_at_k: float
     budget_hit_at_k: bool
     component_hit_at_k: bool
+    top1_budget_accuracy: bool
+    top1_component_accuracy: bool
     best_budget_rank: int | None
     best_component_rank: int | None
     latency_ms: int
@@ -177,10 +181,21 @@ def evaluate_case(
     relevant_budget_hits = sum(
         1 for budget_id in top_budget_ids if budget_id in relevant_budget_set
     )
-    precision_at_k = round(relevant_budget_hits / k, 4)
+    result_budget_precision_at_k = round(relevant_budget_hits / k, 4)
+
+    unique_retrieved_budget_ids = {
+        budget_id for budget_id in top_budget_ids if budget_id
+    }
+    unique_budget_hits = len(unique_retrieved_budget_ids & relevant_budget_set)
+    unique_budget_precision_at_k = round(unique_budget_hits / k, 4)
 
     best_budget_rank = _first_rank(top_budget_ids, relevant_budget_set)
     best_component_rank = _first_rank(top_component_ids, expected_component_set)
+
+    top1_budget_accuracy = bool(top_budget_ids) and top_budget_ids[0] in relevant_budget_set
+    top1_component_accuracy = (
+        bool(top_component_ids) and top_component_ids[0] in expected_component_set
+    )
 
     return RetrievalCaseEvaluation(
         config_id=config_id,
@@ -191,9 +206,13 @@ def evaluate_case(
         top_budget_ids=top_budget_ids,
         top_component_ids=top_component_ids,
         result_count=len(results),
-        precision_at_k=precision_at_k,
+        precision_at_k=result_budget_precision_at_k,
+        result_budget_precision_at_k=result_budget_precision_at_k,
+        unique_budget_precision_at_k=unique_budget_precision_at_k,
         budget_hit_at_k=best_budget_rank is not None,
         component_hit_at_k=best_component_rank is not None,
+        top1_budget_accuracy=top1_budget_accuracy,
+        top1_component_accuracy=top1_component_accuracy,
         best_budget_rank=best_budget_rank,
         best_component_rank=best_component_rank,
         latency_ms=latency_ms,
@@ -217,6 +236,16 @@ def summarize_variant_results(
             / len(evaluations),
             4,
         ),
+        "mean_result_budget_precision_at_5": round(
+            sum(evaluation.result_budget_precision_at_k for evaluation in evaluations)
+            / len(evaluations),
+            4,
+        ),
+        "mean_unique_budget_precision_at_5": round(
+            sum(evaluation.unique_budget_precision_at_k for evaluation in evaluations)
+            / len(evaluations),
+            4,
+        ),
         "budget_hit_rate_at_5": round(
             sum(1 for evaluation in evaluations if evaluation.budget_hit_at_k)
             / len(evaluations),
@@ -224,6 +253,16 @@ def summarize_variant_results(
         ),
         "component_hit_rate_at_5": round(
             sum(1 for evaluation in evaluations if evaluation.component_hit_at_k)
+            / len(evaluations),
+            4,
+        ),
+        "top1_budget_accuracy": round(
+            sum(1 for evaluation in evaluations if evaluation.top1_budget_accuracy)
+            / len(evaluations),
+            4,
+        ),
+        "top1_component_accuracy": round(
+            sum(1 for evaluation in evaluations if evaluation.top1_component_accuracy)
             / len(evaluations),
             4,
         ),
@@ -252,14 +291,14 @@ def render_markdown_report(
         "",
         "Scope:",
         "",
-        "- Metric focus: budget-level precision@5, budget hit@5, component hit@5, median latency.",
+        "- Metric focus: result-budget precision@5, unique-budget precision@5, hit@5, top-1 accuracy, and median latency.",
         "- Reranking in this branch uses the deterministic keyword-overlap reranker, not a live cross-encoder.",
         "- Results apply only to this small course corpus and golden set.",
         "",
         "## Comparison table",
         "",
-        "| Config | Search | Reranking | mean precision@5 | budget hit@5 | component hit@5 | median latency ms |",
-        "| --- | --- | --- | ---: | ---: | ---: | ---: |",
+        "| Config | Search | Reranking | result-budget precision@5 | unique-budget precision@5 | budget hit@5 | component hit@5 | top1 budget | top1 component | median latency ms |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
 
     for summary in summaries:
@@ -269,9 +308,12 @@ def render_markdown_report(
             f"{config.config_id} | "
             f"{config.search_label} | "
             f"{'Yes' if config.use_reranker else 'No'} | "
-            f"{summary['mean_precision_at_5']:.4f} | "
+            f"{summary['mean_result_budget_precision_at_5']:.4f} | "
+            f"{summary['mean_unique_budget_precision_at_5']:.4f} | "
             f"{summary['budget_hit_rate_at_5']:.4f} | "
             f"{summary['component_hit_rate_at_5']:.4f} | "
+            f"{summary['top1_budget_accuracy']:.4f} | "
+            f"{summary['top1_component_accuracy']:.4f} | "
             f"{summary['median_latency_ms']} |"
         )
 
@@ -292,7 +334,10 @@ def render_markdown_report(
                 f"  - expected components: {', '.join(evaluation.expected_component_ids)}",
                 f"  - top budgets: {', '.join(evaluation.top_budget_ids) or 'none'}",
                 f"  - top components: {', '.join(evaluation.top_component_ids) or 'none'}",
-                f"  - precision@{k}: {evaluation.precision_at_k:.4f}",
+                f"  - result-budget precision@{k}: {evaluation.result_budget_precision_at_k:.4f}",
+                f"  - unique-budget precision@{k}: {evaluation.unique_budget_precision_at_k:.4f}",
+                f"  - top1 budget accuracy: {evaluation.top1_budget_accuracy}",
+                f"  - top1 component accuracy: {evaluation.top1_component_accuracy}",
                 f"  - best budget rank: {evaluation.best_budget_rank or 'none'}",
                 f"  - best component rank: {evaluation.best_component_rank or 'none'}",
                 f"  - latency ms: {evaluation.latency_ms}",
@@ -305,8 +350,9 @@ def render_markdown_report(
             "## Limitations",
             "",
             "- The golden set is intentionally small.",
-            "- With one relevant budget per query, maximum budget-level precision@5 is 0.2000.",
-            "- Budget hit@5 and component hit@5 are included to make success easier to interpret.",
+            "- With one relevant budget per query, maximum unique-budget precision@5 is 0.2000.",
+            "- Result-budget precision@5 may be higher because multiple chunks from the same relevant budget can appear in top 5.",
+            "- Budget hit@5, component hit@5, and top-1 accuracy are included to make success easier to interpret.",
             "- The deterministic reranker is CI-safe and does not prove cross-encoder production latency.",
             "",
         ]

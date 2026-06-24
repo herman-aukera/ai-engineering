@@ -156,6 +156,80 @@ def test_render_markdown_report_contains_comparison_table():
     )
 
     assert "# Session 10 Retrieval A/B/C/D Evaluation" in report
-    assert "| Config | Search | Reranking | mean precision@5 | budget hit@5 | component hit@5 | median latency ms |" in report
-    assert "| A | Vector | No | 0.2000 | 1.0000 | 1.0000 | 20 |" in report
+    assert "| Config | Search | Reranking | result-budget precision@5 | unique-budget precision@5 | budget hit@5 | component hit@5 | top1 budget | top1 component | median latency ms |" in report
+    assert "| A | Vector | No | 0.2000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 20 |" in report
     assert "Limitations" in report
+
+
+
+def test_evaluate_case_reports_unique_budget_precision_and_top1_accuracy():
+    case = load_golden_cases(Path("evals/session10_retrieval/golden_retrieval.json"))[0]
+
+    result = evaluate_case(
+        case=case,
+        config_id="A",
+        results=[
+            {
+                "metadata": {
+                    "budget_id": "BUD-2024-014",
+                    "component_id": "AUDIT-001",
+                }
+            },
+            {
+                "metadata": {
+                    "budget_id": "BUD-2024-014",
+                    "component_id": "AUTH-001",
+                }
+            },
+            {
+                "metadata": {
+                    "budget_id": "BUD-2024-021",
+                    "component_id": "CHECKOUT-001",
+                }
+            },
+        ],
+        latency_ms=9,
+        k=5,
+    )
+
+    assert result.result_budget_precision_at_k == 0.4
+    assert result.precision_at_k == result.result_budget_precision_at_k
+    assert result.unique_budget_precision_at_k == 0.2
+    assert result.top1_budget_accuracy is True
+    assert result.top1_component_accuracy is False
+    assert result.best_budget_rank == 1
+    assert result.best_component_rank == 2
+
+
+def test_summary_includes_unique_precision_and_top1_rates():
+    case = load_golden_cases(Path("evals/session10_retrieval/golden_retrieval.json"))[0]
+
+    evaluations = [
+        evaluate_case(
+            case=case,
+            config_id="A",
+            results=[
+                {"metadata": {"budget_id": "BUD-2024-014", "component_id": "AUTH-001"}},
+                {"metadata": {"budget_id": "BUD-2024-014", "component_id": "AUDIT-001"}},
+            ],
+            latency_ms=1,
+            k=5,
+        ),
+        evaluate_case(
+            case=case,
+            config_id="A",
+            results=[
+                {"metadata": {"budget_id": "BUD-2024-014", "component_id": "AUDIT-001"}},
+                {"metadata": {"budget_id": "BUD-2024-014", "component_id": "AUTH-001"}},
+            ],
+            latency_ms=3,
+            k=5,
+        ),
+    ]
+
+    summary = summarize_variant_results(config_id="A", evaluations=evaluations)
+
+    assert summary["mean_result_budget_precision_at_5"] == 0.4
+    assert summary["mean_unique_budget_precision_at_5"] == 0.2
+    assert summary["top1_budget_accuracy"] == 1.0
+    assert summary["top1_component_accuracy"] == 0.5
