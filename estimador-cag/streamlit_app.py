@@ -69,13 +69,13 @@ def build_estimate_url() -> str:
 
 
 def build_search_url() -> str:
-    """Build the FastAPI Session 08 semantic search endpoint URL."""
+    """Build the FastAPI Session 10 retrieval search endpoint URL."""
 
     return f"{get_backend_url()}{SEARCH_PATH}"
 
 
 def build_search_metrics_url() -> str:
-    """Build the FastAPI Session 08 search metrics endpoint URL."""
+    """Build the FastAPI retrieval search metrics endpoint URL."""
 
     return f"{get_backend_url()}{SEARCH_METRICS_PATH}"
 
@@ -100,7 +100,7 @@ def _compact_optional_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def post_search_request(payload: dict[str, Any]) -> dict[str, Any]:
-    """Send a Session 08 semantic search request to the backend."""
+    """Send a Session 10 retrieval search request to the backend."""
 
     response = requests.post(
         build_search_url(),
@@ -112,7 +112,7 @@ def post_search_request(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def get_search_metrics() -> dict[str, Any]:
-    """Fetch the Session 08 in-memory semantic search metrics dashboard."""
+    """Fetch the in-memory retrieval search metrics dashboard."""
 
     response = requests.get(
         build_search_metrics_url(),
@@ -432,7 +432,7 @@ def render_structured_estimate(result: dict[str, Any]) -> None:
 
 
 def render_search_result_card(result: dict[str, Any], rank: int) -> None:
-    """Render one Session 08 semantic search result."""
+    """Render one retrieval search result."""
 
     distance = result.get("distance")
     distance_label = f"{distance:.4f}" if isinstance(distance, (int, float)) else "unknown"
@@ -458,25 +458,46 @@ def render_search_result_card(result: dict[str, Any], rank: int) -> None:
         st.json(result.get("metadata") or {})
 
 
-def render_session08_search_panel() -> None:
-    """Render a thin Session 08 semantic search UI backed by /search."""
+def render_session10_search_panel() -> None:
+    """Render the Session 10 retrieval search UI backed by /search."""
 
-    st.markdown("## Session 08 semantic search")
+    st.markdown("## Session 10 retrieval search")
     st.caption(
-        "Search historical budgets persisted in PostgreSQL plus pgvector. "
-        "Use filters to narrow JSONB metadata before vector distance ranking."
+        "Search historical budgets using the Session 10 retrieval stack. "
+        "Vector mode preserves the pgvector baseline; hybrid mode adds lexical search and RRF fusion."
     )
 
-    with st.form("session08_semantic_search_form"):
+    with st.form("session10_retrieval_search_form"):
         query = st.text_input(
             "Search historical budgets",
             value="REST API development with JWT authentication for financial sector",
         )
 
-        col_k, col_sector, col_country, col_stack, col_scope = st.columns(5)
+        col_mode, col_k, col_recall = st.columns(3)
+
+        with col_mode:
+            search_mode_label = st.selectbox(
+                "search_mode",
+                options=["Vector only", "Hybrid RRF"],
+                index=1,
+                help="Vector only uses the pgvector baseline. Hybrid RRF fuses vector and lexical retrieval.",
+            )
+            search_mode = "hybrid" if search_mode_label == "Hybrid RRF" else "vector"
 
         with col_k:
             k = st.number_input("k", min_value=1, max_value=20, value=5, step=1)
+
+        with col_recall:
+            recall_k = st.number_input(
+                "recall_k",
+                min_value=1,
+                max_value=100,
+                value=8,
+                step=1,
+                help="Internal candidate pool used by hybrid and reranking measurements.",
+            )
+
+        col_sector, col_country, col_stack, col_scope = st.columns(4)
 
         with col_sector:
             client_sector = st.text_input("client_sector", placeholder="finance")
@@ -496,6 +517,8 @@ def render_session08_search_panel() -> None:
         payload = {
             "query": query,
             "k": int(k),
+            "search_mode": search_mode,
+            "recall_k": int(recall_k),
             "client_sector": client_sector,
             "client_country": client_country,
             "tech_stack": tech_stack,
@@ -515,7 +538,10 @@ def render_session08_search_panel() -> None:
 
         result_count = len(search_result.get("results") or [])
         search_time_ms = search_result.get("search_time_ms", "unknown")
-        st.success(f"Returned {result_count} results in {search_time_ms} ms.")
+        st.success(
+            f"Returned {result_count} results in {search_time_ms} ms "
+            f"using {search_mode} search with recall_k={int(recall_k)}."
+        )
 
         with st.expander("filters_applied", expanded=True):
             st.json(search_result.get("filters_applied") or {})
@@ -543,10 +569,10 @@ def main() -> None:
     st.title("AI Software Estimator")
     st.caption(
         "Session 05 product interface with conversational memory, local attachment extraction, "
-        "typed controls, structured estimates, and Session 08 semantic search."
+        "typed controls, structured estimates, and Session 10 retrieval search."
     )
 
-    render_session08_search_panel()
+    render_session10_search_panel()
     st.divider()
 
     session_error: str | None = None

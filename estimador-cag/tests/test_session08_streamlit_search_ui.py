@@ -46,6 +46,8 @@ def test_streamlit_post_search_request_uses_backend_search_endpoint(monkeypatch)
         {
             "query": "OAuth backend",
             "k": 5,
+            "search_mode": "hybrid",
+            "recall_k": 8,
             "client_sector": "finance",
             "client_country": None,
             "tech_stack": "python",
@@ -59,6 +61,8 @@ def test_streamlit_post_search_request_uses_backend_search_endpoint(monkeypatch)
             "json": {
                 "query": "OAuth backend",
                 "k": 5,
+                "search_mode": "hybrid",
+                "recall_k": 8,
                 "client_sector": "finance",
                 "tech_stack": "python",
                 "scope": "backend",
@@ -104,12 +108,16 @@ def test_streamlit_get_search_metrics_uses_backend_metrics_endpoint(monkeypatch)
     assert result["total_searches_recorded"] == 1
 
 
-def test_streamlit_source_contains_session08_search_ui() -> None:
+def test_streamlit_source_contains_session10_retrieval_ui() -> None:
     source = Path("streamlit_app.py").read_text(encoding="utf-8")
 
     for required in [
-        "Session 08 semantic search",
+        "Session 10 retrieval search",
         "Search historical budgets",
+        "search_mode",
+        "recall_k",
+        "Vector only",
+        "Hybrid RRF",
         "client_sector",
         "client_country",
         "tech_stack",
@@ -122,3 +130,5 @@ def test_streamlit_source_contains_session08_search_ui() -> None:
         "get_search_metrics",
     ]:
         assert required in source
+
+    assert "Session 08 semantic search" not in source

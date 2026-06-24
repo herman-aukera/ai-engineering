@@ -107,6 +107,19 @@ uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 
 OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
 ```
 
+## Streamlit retrieval UI
+
+The Streamlit app includes a Session 10 retrieval search panel backed by `/search`.
+
+The panel exposes:
+
+    search_mode: Vector only or Hybrid RRF
+    k: final result count
+    recall_k: internal candidate pool
+    client_sector, client_country, tech_stack, and scope filters
+
+The UI is a human review path for vector and hybrid retrieval. A/B/C/D evaluation remains runner based because reranking is intentionally measured at service level and is not exposed as a public API flag.
+
 ## Optional persisted API smoke
 
 ```bash
