@@ -156,3 +156,52 @@ def test_hybrid_search_rejects_unknown_search_mode():
                 )
             )
         )
+
+
+class CapturingReranker:
+    def __init__(self):
+        self.calls = []
+
+    def rerank(self, *, query, items, top_n):
+        self.calls.append(
+            {
+                "query": query,
+                "chunk_ids": [item.chunk_id for item in items],
+                "top_n": top_n,
+            }
+        )
+        return items[:top_n]
+
+
+def test_hybrid_reranker_receives_recall_width_fused_candidates():
+    repository = HybridRepository()
+    reranker = CapturingReranker()
+    service = SemanticSearchService(
+        embedder=FakeEmbedder(),
+        repository=repository,
+        reranker=reranker,
+    )
+
+    result = asyncio.run(
+        service.search(
+            SearchQueryCommand(
+                query="OAuth banking authentication",
+                k=2,
+                search_mode="hybrid",
+                recall_k=7,
+                use_reranker=True,
+                rerank_top_n=2,
+            )
+        )
+    )
+
+    assert repository.vector_calls[0]["k"] == 7
+    assert repository.lexical_calls[0]["k"] == 7
+    assert reranker.calls == [
+        {
+            "query": "OAuth banking authentication",
+            "chunk_ids": [2, 1, 3],
+            "top_n": 2,
+        }
+    ]
+    assert [item.chunk_id for item in result.results] == [2, 1]

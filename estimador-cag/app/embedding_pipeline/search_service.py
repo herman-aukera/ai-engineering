@@ -185,10 +185,11 @@ class SemanticSearchService:
                 k=recall_k,
                 metadata_filters=repository_filters,
             )
+            fusion_top_k = recall_k if command.use_reranker else command.k
             results = _to_hybrid_search_result_items(
                 vector_rows=vector_rows,
                 lexical_rows=lexical_rows,
-                top_k=command.k,
+                top_k=fusion_top_k,
                 rrf_k=command.rrf_k,
             )
 
