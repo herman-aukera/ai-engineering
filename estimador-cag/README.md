@@ -83,7 +83,7 @@ All variants currently solve the small deterministic golden set:
 
 Interpretation:
 
-This confirms that all retrieval branches are wired and measurable. It does not prove hybrid retrieval or reranking superiority because the corpus has only four budgets, eight component chunks, and seven clean queries.
+This confirms that all retrieval branches are wired and measurable. It does not prove hybrid retrieval or reranking superiority because the corpus has only four budgets, eight component chunks, and seven clean queries plus five challenge queries.
 
 ## Metric interpretation
 

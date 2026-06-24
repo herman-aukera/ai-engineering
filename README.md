@@ -53,7 +53,7 @@ The latest committed Session 10 retrieval report is:
 estimador-cag/evals/session10_retrieval/REPORT.md
 ```
 
-Summary on the 7 case golden set:
+Summary on the 12 case golden set:
 
 | Config | result budget precision@5 | unique budget precision@5 | budget hit@5 | component hit@5 | top1 budget | top1 component |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |

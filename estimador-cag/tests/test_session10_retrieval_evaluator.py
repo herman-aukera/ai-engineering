@@ -233,3 +233,34 @@ def test_summary_includes_unique_precision_and_top1_rates():
     assert summary["mean_unique_budget_precision_at_5"] == 0.2
     assert summary["top1_budget_accuracy"] == 1.0
     assert summary["top1_component_accuracy"] == 0.5
+
+
+
+def test_golden_cases_include_harder_ambiguous_queries():
+    cases = load_golden_cases(Path("evals/session10_retrieval/golden_retrieval.json"))
+    case_ids = {case.query_id for case in cases}
+
+    assert len(cases) >= 12
+    assert {
+        "Q-AUTH-AUDIT-AMBIGUOUS",
+        "Q-CHECKOUT-INVENTORY-AMBIGUOUS",
+        "Q-INTAKE-DOCS-AMBIGUOUS",
+        "Q-TELEMETRY-ALERTS-AMBIGUOUS",
+        "Q-LOW-SIGNAL-BACKEND-REFERENCE",
+    } <= case_ids
+
+    challenge_cases = [
+        case
+        for case in cases
+        if case.query_id
+        in {
+            "Q-AUTH-AUDIT-AMBIGUOUS",
+            "Q-CHECKOUT-INVENTORY-AMBIGUOUS",
+            "Q-INTAKE-DOCS-AMBIGUOUS",
+            "Q-TELEMETRY-ALERTS-AMBIGUOUS",
+            "Q-LOW-SIGNAL-BACKEND-REFERENCE",
+        }
+    ]
+
+    assert all(len(case.expected_component_ids) >= 1 for case in challenge_cases)
+    assert any(len(case.expected_component_ids) > 1 for case in challenge_cases)

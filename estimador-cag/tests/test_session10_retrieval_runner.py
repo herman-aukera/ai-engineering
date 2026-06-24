@@ -48,7 +48,9 @@ def test_run_retrieval_measurement_writes_json_and_report(tmp_path):
         "C",
         "D",
     ]
-    assert len(payload["evaluations"]) == 28
+    golden_cases = load_golden_cases(Path("evals/session10_retrieval/golden_retrieval.json"))
+    assert len(payload["evaluations"]) == len(golden_cases) * 4
+    assert all(summary["case_count"] == len(golden_cases) for summary in payload["summaries"])
 
     for summary in payload["summaries"]:
         assert summary["case_count"] == 7
@@ -122,3 +124,12 @@ def test_hashing_vectorizer_is_stable_across_python_hash_seeds():
     ).strip()
 
     assert first == second
+
+
+
+def test_committed_report_describes_challenge_queries():
+    report = Path("evals/session10_retrieval/REPORT.md").read_text(encoding="utf-8")
+
+    assert "challenge queries" in report
+    assert "ambiguous and low-signal" in report
+    assert "small course corpus" in report
