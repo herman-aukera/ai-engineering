@@ -164,9 +164,12 @@ class SemanticSearchService:
         repository_filters = command.metadata_filters.as_repository_filter()
 
         if command.search_mode == "vector":
+            retrieval_k = (
+                max(command.k, command.recall_k) if command.use_reranker else command.k
+            )
             rows = await self.repository.search_chunks_by_embedding(
                 query_embedding=query_embedding,
-                k=command.k,
+                k=retrieval_k,
                 metadata_filters=repository_filters,
             )
             results = [_to_search_result_item(row) for row in rows]

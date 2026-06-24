@@ -130,3 +130,51 @@ def test_reranker_requires_reranker_when_enabled():
         assert "reranker" in str(exc)
     else:
         raise AssertionError("Expected ValueError when reranker is enabled but missing")
+
+
+class CapturingVectorRepository(VectorRepository):
+    def __init__(self):
+        self.calls = []
+
+    async def search_chunks_by_embedding(self, *, query_embedding, k, metadata_filters=None):
+        self.calls.append(
+            {
+                "k": k,
+                "metadata_filters": metadata_filters,
+            }
+        )
+        return await super().search_chunks_by_embedding(
+            query_embedding=query_embedding,
+            k=k,
+            metadata_filters=metadata_filters,
+        )
+
+
+def test_vector_reranker_uses_recall_width_before_top_k():
+    repository = CapturingVectorRepository()
+    reranker = FakeReranker()
+    service = SemanticSearchService(
+        embedder=FakeEmbedder(),
+        repository=repository,
+        reranker=reranker,
+    )
+
+    result = asyncio.run(
+        service.search(
+            SearchQueryCommand(
+                query="OAuth banking authentication",
+                k=2,
+                recall_k=7,
+                use_reranker=True,
+                rerank_top_n=2,
+            )
+        )
+    )
+
+    assert repository.calls == [
+        {
+            "k": 7,
+            "metadata_filters": {},
+        }
+    ]
+    assert [item.chunk_id for item in result.results] == [2, 1]
