@@ -13,155 +13,103 @@ estimador-cag/
 Current branch:
 
 ```text
-gg-session-08-pgvector-search
+gg-session-10/pre-work
 ```
 
 Current deliverable:
 
 ```text
-Session 08 — pgvector semantic search baseline
+Session 10 — advanced retrieval compass and A/B/C/D retrieval evaluation
 ```
 
 ## What this branch delivers
 
-This branch upgrades the historical-budget embedding pipeline into a persisted semantic search baseline.
+This branch upgrades the existing pgvector retrieval baseline with advanced retrieval experiments:
 
-It uses PostgreSQL plus pgvector to store budget documents and structural chunks, embeds those chunks with OpenAI, and exposes retrieval through a public `/search` endpoint.
+1. PostgreSQL full text search support for lexical retrieval.
+2. Hybrid vector plus lexical retrieval using Reciprocal Rank Fusion.
+3. Optional service level reranking.
+4. A deterministic keyword overlap reranker for CI safe measurement.
+5. A golden retrieval set.
+6. An A/B/C/D measurement runner.
+7. Hardened retrieval metrics that distinguish repeated chunk relevance from unique budget relevance.
 
-The goal is not to tune vector indexes yet. The goal is to create a measurable, reproducible retrieval baseline before adding HNSW, IVFFlat, metadata filters, Streamlit search UI, or search metrics dashboards.
+The current evidence is intentionally bounded. It proves that the retrieval paths are wired, testable, and measurable on the small course corpus. It does not claim benchmark superiority.
 
-## Required deliverables
+## A/B/C/D retrieval variants
+
+| Config | Meaning |
+| --- | --- |
+| A | Vector retrieval baseline |
+| B | Hybrid retrieval with vector plus lexical search fused by RRF |
+| C | Vector retrieval with wider recall followed by deterministic reranking |
+| D | Hybrid retrieval with wider RRF pool followed by deterministic reranking |
+
+## Latest deterministic retrieval result
+
+The latest committed Session 10 retrieval report is:
 
 ```text
-docker-compose.yml
-estimador-cag/alembic.ini
-estimador-cag/alembic/
-estimador-cag/app/persistence/
-estimador-cag/app/embedding_pipeline/ingestion_service.py
+estimador-cag/evals/session10_retrieval/REPORT.md
+```
+
+Summary on the 7 case golden set:
+
+| Config | result budget precision@5 | unique budget precision@5 | budget hit@5 | component hit@5 | top1 budget | top1 component |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| A | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| B | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| C | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| D | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+
+Interpretation:
+
+The current corpus is very small and clean, so all variants solve the golden cases. This is wiring and smoke evidence, not proof that hybrid search or reranking improves quality in production.
+
+## Main files
+
+```text
+estimador-cag/app/embedding_pipeline/fusion.py
+estimador-cag/app/embedding_pipeline/reranker.py
 estimador-cag/app/embedding_pipeline/search_service.py
+estimador-cag/app/persistence/repository.py
 estimador-cag/app/routers/search.py
-estimador-cag/query_examples.py
-estimador-cag/output_examples.txt
+estimador-cag/alembic/versions/0003_session10_full_text_search.py
+estimador-cag/evals/session10_retrieval/golden_retrieval.json
+estimador-cag/evals/session10_retrieval/evaluator.py
+estimador-cag/evals/session10_retrieval/run.py
+estimador-cag/evals/session10_retrieval/results.json
+estimador-cag/evals/session10_retrieval/REPORT.md
 ```
 
-The committed `output_examples.txt` was generated from a real Docker Compose run with the FastAPI service, PostgreSQL, pgvector, Alembic migration, OpenAI embeddings, one example corpus ingest, and five `/search` calls.
-
-## Main Session 08 additions
-
-```text
-documents table
-chunks table
-pgvector extension
-async SQLAlchemy persistence
-async Alembic migration baseline
-persistent /embeddings/ingest endpoint
-semantic /search endpoint
-Docker Compose ai_service
-query_examples.py
-output_examples.txt
-DB-backed opt-in integration tests
-```
-
-## Repository map
-
-```text
-.
-├── estimador-cag/      Active estimator project
-├── docs/               Shared notes and sample files
-├── scripts/            Helper scripts
-├── docker-compose.yml  Root compose file with postgres, redis, and ai_service
-└── README.md           Current repository review guide
-```
-
-## Run the active project with Docker Compose
+## Run deterministic Session 10 retrieval measurement
 
 ```bash
-cd /workspaces/ai-engineering
+cd /workspaces/ai-engineering/estimador-cag
 
-docker compose up -d postgres redis ai_service
-docker compose exec -T ai_service uv run alembic upgrade head
+uv run python -m evals.session10_retrieval.run \
+  --output evals/session10_retrieval/results.json \
+  --report evals/session10_retrieval/REPORT.md \
+  --k 5 \
+  --recall-k 8
 ```
 
-Health check:
-
-```bash
-docker compose exec -T ai_service python -c "import json, urllib.request; print(json.dumps(json.loads(urllib.request.urlopen('http://localhost:8000/health', timeout=10).read().decode('utf-8')), indent=2))"
-```
-
-Dry-run the required queries:
-
-```bash
-docker compose run --rm ai_service uv run python query_examples.py --dry-run
-```
-
-Run the real workflow after configuring `OPENAI_API_KEY`:
-
-```bash
-docker compose run --rm ai_service uv run python query_examples.py --ingest-example-corpus
-```
-
-## API endpoints added or upgraded
-
-```text
-POST /embeddings/ingest
-POST /search
-```
-
-`POST /embeddings/ingest` persists one source document and its embedded chunks. Duplicate source paths return `409` with the existing `document_id`.
-
-`POST /search` embeds a query once and returns the nearest persisted chunks by pgvector cosine distance.
-
-## Why this schema
-
-The implementation uses two tables:
-
-```text
-documents
-chunks
-```
-
-`documents` stores source-level identity and document metadata.
-
-`chunks` stores the searchable units, their text, embeddings, metadata, and the foreign key to the source document.
-
-Chunk metadata is stored as JSONB because chunk fields evolve quickly across experiments. JSONB lets the project add retrieval metadata such as sector, country, tech stack, complexity, year, and token count without a migration for every new key.
-
-## Why no vector index yet
-
-The first Session 08 baseline intentionally uses sequential pgvector search without HNSW or IVFFlat.
-
-That keeps behavior easy to explain and measure before adding index-specific tuning. A vector index should be added later only after observing corpus size, latency, recall needs, write patterns, metadata filter needs, and chosen operator class.
-
-## Known limitations
-
-Out-of-domain queries still return nearest neighbors because the current `/search` endpoint does not apply a similarity threshold.
-
-This is visible in `output_examples.txt` and is useful baseline evidence. A later slice can add a maximum distance threshold or confidence label.
-
-## Extra-mile roadmap
-
-```text
-E0 Fix /api/v1/estimate 503 in the Compose demo path
-E1 Add metadata filters for /search
-E2 Add search metrics dashboard
-E3 Add measured HNSW vector_cosine_ops index migration
-E4 Add Streamlit search UI
-E5 Add DevEx cleanup: pager defaults and lighter optional dependencies
-```
+This runner is local and deterministic. It does not call FastAPI, PostgreSQL, OpenAI, DeepSeek, Kimi, or a live reranker model.
 
 ## Run local gates
 
 ```bash
 cd /workspaces/ai-engineering/estimador-cag
 
-uv run ruff check --fix app evals tests scripts query_examples.py
-uv run ruff check app evals tests scripts query_examples.py
+uv run ruff check --fix app evals tests scripts query_examples.py streamlit_app.py
+uv run ruff check app evals tests scripts query_examples.py streamlit_app.py
 uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null) streamlit_app.py query_examples.py
 OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
-env -u OPENAI_API_KEY DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
 ```
 
-## Run opt-in DB integration tests
+## Optional DB integration smoke
+
+The persisted retrieval stack still uses PostgreSQL plus pgvector for the API path.
 
 ```bash
 cd /workspaces/ai-engineering
@@ -169,14 +117,30 @@ cd /workspaces/ai-engineering
 docker compose up -d postgres redis
 
 cd /workspaces/ai-engineering/estimador-cag
-
 DATABASE_URL=postgresql+asyncpg://estimator:estimator@localhost:5432/estimator uv run alembic upgrade head
+SESSION08_DB_INTEGRATION=1 DATABASE_URL=postgresql+asyncpg://estimator:estimator@localhost:5432/estimator uv run pytest tests/test_session08_db_search_integration.py -q
+```
 
-SESSION08_DB_INTEGRATION=1 DATABASE_URL=postgresql+asyncpg://estimator:estimator@localhost:5432/estimator uv run pytest tests/test_session08_db_ingest_integration.py tests/test_session08_db_search_integration.py -q
+## Real provider policy
+
+Normal tests and committed reports must stay deterministic.
+
+If a real provider smoke is needed, prefer DeepSeek first. Use Kimi only as fallback or comparison. Keep real provider checks separate from deterministic CI gates.
+
+## Historical coursework notes
+
+Historical Session 06, 07, and 08 material is preserved in:
+
+```text
+estimador-cag/docs/HISTORICAL_SESSIONS.md
+estimador-cag/evals/stress/
+estimador-cag/evals/session08_search_quality/
+estimador-cag/query_examples.py
+estimador-cag/output_examples.txt
 ```
 
 ## Security notes
 
-Do not commit `.env`, real API keys, screenshots with secrets, or copied terminal output containing secrets.
+Do not commit `.env`, real API keys, screenshots with secrets, copied terminal output containing secrets, or generated cache files.
 
 Normal CI uses dummy provider keys for deterministic test execution.

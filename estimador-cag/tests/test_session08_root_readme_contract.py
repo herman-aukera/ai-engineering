@@ -8,39 +8,36 @@ def _readme() -> str:
     return ROOT_README.read_text(encoding="utf-8")
 
 
-def test_root_readme_documents_session08_current_submission() -> None:
+def test_root_readme_documents_current_session10_submission() -> None:
     text = _readme()
 
-    assert "gg-session-08-pgvector-search" in text
-    assert "Session 08 — pgvector semantic search baseline" in text
+    assert "gg-session-10/pre-work" in text
+    assert "Session 10 — advanced retrieval compass and A/B/C/D retrieval evaluation" in text
     assert "estimador-cag/" in text
+    assert "gg-session-08-pgvector-search" not in text
 
 
-def test_root_readme_documents_session08_runtime_and_outputs() -> None:
+def test_root_readme_documents_session10_measurement_runner() -> None:
     text = _readme()
 
-    assert "docker compose up -d postgres redis ai_service" in text
-    assert "query_examples.py --dry-run" in text
-    assert "query_examples.py --ingest-example-corpus" in text
-    assert "output_examples.txt" in text
+    assert "uv run python -m evals.session10_retrieval.run" in text
+    assert "evals/session10_retrieval/results.json" in text
+    assert "evals/session10_retrieval/REPORT.md" in text
+    assert "A/B/C/D retrieval variants" in text
 
 
-def test_root_readme_documents_schema_and_limitations() -> None:
+def test_root_readme_documents_bounded_interpretation() -> None:
     text = _readme()
 
-    assert "documents" in text
-    assert "chunks" in text
-    assert "JSONB" in text
-    assert "cosine distance" in text
-    assert "without HNSW or IVFFlat" in text
-    assert "Out-of-domain queries still return nearest neighbors" in text
+    assert "wiring and smoke evidence" in text
+    assert "not proof that hybrid search or reranking improves quality in production" in text
+    assert "result budget precision@5" in text
+    assert "unique budget precision@5" in text
 
 
-def test_root_readme_documents_extra_mile_plan() -> None:
+def test_root_readme_documents_provider_policy_and_security() -> None:
     text = _readme()
 
-    assert "Fix /api/v1/estimate 503" in text
-    assert "metadata filters" in text
-    assert "search metrics dashboard" in text
-    assert "HNSW vector_cosine_ops index" in text
-    assert "Streamlit search UI" in text
+    assert "prefer DeepSeek first" in text
+    assert "Kimi only as fallback or comparison" in text
+    assert "Do not commit `.env`, real API keys" in text

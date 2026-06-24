@@ -8,42 +8,39 @@ def _readme() -> str:
     return README.read_text(encoding="utf-8")
 
 
-def test_session08_readme_documents_current_branch_and_stack() -> None:
+def test_project_readme_documents_current_session10_branch_and_stack() -> None:
     text = _readme()
 
-    assert "## Session 08: pgvector semantic search" in text
-    assert "gg-session-08-pgvector-search" in text
-    assert "PostgreSQL plus pgvector" in text
-    assert "POST /embeddings/ingest" in text
+    assert "gg-session-10/pre-work" in text
+    assert "Session 10 — advanced retrieval compass" in text
+    assert "app/embedding_pipeline/fusion.py" in text
+    assert "app/embedding_pipeline/reranker.py" in text
     assert "POST /search" in text
 
 
-def test_session08_readme_documents_reproducible_compose_workflow() -> None:
+def test_project_readme_documents_abcd_retrieval_evaluation() -> None:
     text = _readme()
 
-    assert "docker compose up -d postgres redis ai_service" in text
-    assert "docker compose exec -T ai_service uv run alembic upgrade head" in text
-    assert "query_examples.py --dry-run" in text
-    assert "query_examples.py --ingest-example-corpus" in text
-    assert "output_examples.txt" in text
+    assert "| A | Vector | No |" in text
+    assert "| B | Hybrid | No |" in text
+    assert "| C | Vector | Yes |" in text
+    assert "| D | Hybrid | Yes |" in text
+    assert "uv run python -m evals.session10_retrieval.run" in text
 
 
-def test_session08_readme_explains_schema_and_retrieval_choices() -> None:
+def test_project_readme_explains_metric_interpretation_and_limitations() -> None:
     text = _readme()
 
-    for required in [
-        "Why two tables",
-        "Why JSONB metadata",
-        "Why cosine distance",
-        "Why no vector index yet",
-        "Out-of-domain queries still return nearest neighbors",
-    ]:
-        assert required in text
+    assert "result budget precision@5" in text
+    assert "unique budget precision@5" in text
+    assert "corpus has only four budgets, eight component chunks, and seven clean queries" in text
+    assert "does not prove hybrid retrieval or reranking superiority" in text
 
 
-def test_session08_readme_documents_validation_and_security() -> None:
+def test_project_readme_documents_validation_provider_policy_and_history() -> None:
     text = _readme()
 
     assert "OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q" in text
-    assert "SESSION08_DB_INTEGRATION=1" in text
-    assert "Never commit `.env`, real API keys" in text
+    assert "prefer DeepSeek first" in text
+    assert "Kimi only as fallback or comparison" in text
+    assert "docs/HISTORICAL_SESSIONS.md" in text
