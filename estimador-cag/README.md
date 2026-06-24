@@ -178,3 +178,23 @@ Live mode requires an explicit key and flag:
     DEEPSEEK_API_KEY=... DEEPSEEK_MODEL=deepseek-v4-flash uv run python -m evals.session10_retrieval.deepseek_live_comparison --live --max-cases 3
 
 This keeps normal CI deterministic while still providing a real provider comparison path for manual evidence.
+
+## Reproducible Session 10 UI demo seed
+
+The retrieval UI reads from the persisted PostgreSQL chunk store. From a clean Codespace, seed the Session 10 sample budgets before opening Streamlit:
+
+    docker compose up -d postgres redis ai_service
+    docker compose exec -T ai_service uv run alembic upgrade head
+    docker compose exec -T ai_service uv run python scripts/seed_session10_demo_data.py
+
+Dry-run mode verifies the planned sample corpus without touching the database:
+
+    uv run python scripts/seed_session10_demo_data.py --dry-run
+
+The script inserts one document per budget from data/budgets_sample.json and is idempotent. Re-running it skips already seeded source paths.
+
+Browser smoke query:
+
+    JWT authentication financial backend
+
+Use Hybrid RRF, k=5, recall_k=8, client_country=ES, client_sector=finance, and leave tech_stack and scope empty. The expected results are BUD-2024-014 with AUTH-001 and AUDIT-001.

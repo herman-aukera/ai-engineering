@@ -162,3 +162,39 @@ To run the live provider comparison manually, set a real key and opt in explicit
 The live output path is ignored by git. Do not commit provider responses unless intentionally preparing a reviewed report.
 
 The Streamlit retrieval panel refreshes `/search/metrics` automatically after each successful search and renders the latest in-memory search metrics, including recorded searches, successes, failures, last result count, last search, and recent history.
+
+## Session 10 reproducible UI demo seed
+
+The Streamlit retrieval demo needs persisted chunks in PostgreSQL. To reproduce the browser demo from a clean Codespace:
+
+    cd /workspaces/ai-engineering
+    docker compose up -d postgres redis ai_service
+    docker compose exec -T ai_service uv run alembic upgrade head
+    docker compose exec -T ai_service uv run python scripts/seed_session10_demo_data.py
+
+Then start Streamlit:
+
+    cd /workspaces/ai-engineering/estimador-cag
+    ESTIMADOR_BACKEND_URL=http://localhost:8000 uv run streamlit run streamlit_app.py --server.address 0.0.0.0 --server.port 8501
+
+Use this demo query:
+
+    JWT authentication financial backend
+
+Recommended UI values:
+
+    search_mode: Hybrid RRF
+    k: 5
+    recall_k: 8
+    client_country: ES
+    client_sector: finance
+    tech_stack: leave empty
+    scope: leave empty
+
+Expected result:
+
+    BUD-2024-014
+    AUTH-001
+    AUDIT-001
+
+The seed script is idempotent and skips sample budgets that already exist.
