@@ -144,3 +144,19 @@ estimador-cag/output_examples.txt
 Do not commit `.env`, real API keys, screenshots with secrets, copied terminal output containing secrets, or generated cache files.
 
 Normal CI uses dummy provider keys for deterministic test execution.
+
+## Optional DeepSeek live comparison
+
+Session 10 includes a CI-safe DeepSeek comparison path.
+
+The default mode is dry-run and writes the exact DeepSeek baseline and retrieval-grounded prompts without making network calls.
+
+    cd estimador-cag
+    uv run python -m evals.session10_retrieval.deepseek_live_comparison --max-cases 3
+
+To run the live provider comparison manually, set a real key and opt in explicitly:
+
+    cd estimador-cag
+    DEEPSEEK_API_KEY=... DEEPSEEK_MODEL=deepseek-v4-flash uv run python -m evals.session10_retrieval.deepseek_live_comparison --live --max-cases 3
+
+The live output path is ignored by git. Do not commit provider responses unless intentionally preparing a reviewed report.

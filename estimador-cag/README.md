@@ -157,3 +157,22 @@ docs/session07_*
 ## Security notes
 
 Never commit `.env`, real API keys, screenshots with secrets, copied terminal output containing secrets, or generated cache files.
+
+## Optional DeepSeek live comparison
+
+The optional DeepSeek comparison is intentionally outside normal CI.
+
+It compares:
+
+    DeepSeek baseline prompt without retrieved context
+    DeepSeek retrieval-grounded prompt using Session 10 hybrid plus reranking context
+
+Dry-run mode is safe and makes no network calls:
+
+    uv run python -m evals.session10_retrieval.deepseek_live_comparison --max-cases 3
+
+Live mode requires an explicit key and flag:
+
+    DEEPSEEK_API_KEY=... DEEPSEEK_MODEL=deepseek-v4-flash uv run python -m evals.session10_retrieval.deepseek_live_comparison --live --max-cases 3
+
+This keeps normal CI deterministic while still providing a real provider comparison path for manual evidence.
