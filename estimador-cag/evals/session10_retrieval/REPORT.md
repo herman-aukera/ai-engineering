@@ -1,0 +1,308 @@
+# Session 10 Retrieval A/B/C/D Evaluation
+
+This report compares retrieval configurations against the same golden set.
+
+Scope:
+
+- Metric focus: budget-level precision@5, budget hit@5, component hit@5, median latency.
+- Reranking in this branch uses the deterministic keyword-overlap reranker, not a live cross-encoder.
+- Results apply only to this small course corpus and golden set.
+
+## Comparison table
+
+| Config | Search | Reranking | mean precision@5 | budget hit@5 | component hit@5 | median latency ms |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| A | Vector | No | 0.4000 | 1.0000 | 1.0000 | 2 |
+| B | Hybrid | No | 0.4000 | 1.0000 | 1.0000 | 1 |
+| C | Vector | Yes | 0.4000 | 1.0000 | 1.0000 | 1 |
+| D | Hybrid | Yes | 0.4000 | 1.0000 | 1.0000 | 1 |
+
+## Case details
+
+- `A` / `Q-AUTH-001`
+  - query: OAuth JWT authentication token banking authorization flow
+  - relevant budgets: BUD-2024-014
+  - expected components: AUTH-001
+  - top budgets: BUD-2024-014, BUD-2024-014, BUD-2025-003, BUD-2024-021, BUD-2024-021
+  - top components: AUTH-001, AUDIT-001, DOCS-001, CHECKOUT-001, INV-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 2
+- `A` / `Q-AUDIT-001`
+  - query: immutable audit logging consent changes sensitive banking operations
+  - relevant budgets: BUD-2024-014
+  - expected components: AUDIT-001
+  - top budgets: BUD-2024-014, BUD-2025-011, BUD-2025-003, BUD-2024-014, BUD-2024-021
+  - top components: AUDIT-001, ALERT-001, INTAKE-001, AUTH-001, CHECKOUT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `A` / `Q-CHECKOUT-001`
+  - query: checkout orchestration payment authorization discount rules order creation
+  - relevant budgets: BUD-2024-021
+  - expected components: CHECKOUT-001
+  - top budgets: BUD-2024-021, BUD-2024-021, BUD-2025-011, BUD-2025-003, BUD-2025-003
+  - top components: CHECKOUT-001, INV-001, ALERT-001, INTAKE-001, DOCS-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 2
+- `A` / `Q-INVENTORY-001`
+  - query: inventory synchronization worker merchant stock levels scheduled conflicts events
+  - relevant budgets: BUD-2024-021
+  - expected components: INV-001
+  - top budgets: BUD-2024-021, BUD-2024-021, BUD-2025-011, BUD-2025-003, BUD-2025-003
+  - top components: INV-001, CHECKOUT-001, TELEM-001, INTAKE-001, DOCS-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 2
+- `A` / `Q-DOCS-001`
+  - query: clinical document upload referral lab results secure file validation metadata
+  - relevant budgets: BUD-2025-003
+  - expected components: DOCS-001
+  - top budgets: BUD-2025-003, BUD-2025-003, BUD-2024-021, BUD-2024-014, BUD-2024-014
+  - top components: DOCS-001, INTAKE-001, CHECKOUT-001, AUTH-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `A` / `Q-TELEMETRY-001`
+  - query: machine telemetry ingestion queue consumer equipment events industrial dashboard
+  - relevant budgets: BUD-2025-011
+  - expected components: TELEM-001
+  - top budgets: BUD-2025-011, BUD-2025-011, BUD-2024-021, BUD-2024-014, BUD-2024-014
+  - top components: TELEM-001, ALERT-001, INV-001, AUTH-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 2
+- `A` / `Q-ALERTS-001`
+  - query: maintenance alert rules threshold violations machine faults operations teams
+  - relevant budgets: BUD-2025-011
+  - expected components: ALERT-001
+  - top budgets: BUD-2025-011, BUD-2025-011, BUD-2025-003, BUD-2025-003, BUD-2024-014
+  - top components: ALERT-001, TELEM-001, INTAKE-001, DOCS-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 2
+- `B` / `Q-AUTH-001`
+  - query: OAuth JWT authentication token banking authorization flow
+  - relevant budgets: BUD-2024-014
+  - expected components: AUTH-001
+  - top budgets: BUD-2024-014, BUD-2024-014, BUD-2024-021, BUD-2025-003, BUD-2024-021
+  - top components: AUTH-001, AUDIT-001, CHECKOUT-001, DOCS-001, INV-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 2
+- `B` / `Q-AUDIT-001`
+  - query: immutable audit logging consent changes sensitive banking operations
+  - relevant budgets: BUD-2024-014
+  - expected components: AUDIT-001
+  - top budgets: BUD-2024-014, BUD-2024-014, BUD-2025-011, BUD-2025-003, BUD-2024-021
+  - top components: AUDIT-001, AUTH-001, ALERT-001, INTAKE-001, CHECKOUT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 2
+- `B` / `Q-CHECKOUT-001`
+  - query: checkout orchestration payment authorization discount rules order creation
+  - relevant budgets: BUD-2024-021
+  - expected components: CHECKOUT-001
+  - top budgets: BUD-2024-021, BUD-2024-021, BUD-2024-014, BUD-2025-003, BUD-2025-011
+  - top components: CHECKOUT-001, INV-001, AUTH-001, INTAKE-001, ALERT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `B` / `Q-INVENTORY-001`
+  - query: inventory synchronization worker merchant stock levels scheduled conflicts events
+  - relevant budgets: BUD-2024-021
+  - expected components: INV-001
+  - top budgets: BUD-2024-021, BUD-2024-021, BUD-2025-011, BUD-2025-003, BUD-2025-003
+  - top components: INV-001, CHECKOUT-001, TELEM-001, INTAKE-001, DOCS-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `B` / `Q-DOCS-001`
+  - query: clinical document upload referral lab results secure file validation metadata
+  - relevant budgets: BUD-2025-003
+  - expected components: DOCS-001
+  - top budgets: BUD-2025-003, BUD-2025-003, BUD-2024-021, BUD-2024-014, BUD-2024-014
+  - top components: DOCS-001, INTAKE-001, CHECKOUT-001, AUTH-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `B` / `Q-TELEMETRY-001`
+  - query: machine telemetry ingestion queue consumer equipment events industrial dashboard
+  - relevant budgets: BUD-2025-011
+  - expected components: TELEM-001
+  - top budgets: BUD-2025-011, BUD-2025-011, BUD-2024-021, BUD-2024-014, BUD-2024-014
+  - top components: TELEM-001, ALERT-001, INV-001, AUTH-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `B` / `Q-ALERTS-001`
+  - query: maintenance alert rules threshold violations machine faults operations teams
+  - relevant budgets: BUD-2025-011
+  - expected components: ALERT-001
+  - top budgets: BUD-2025-011, BUD-2025-011, BUD-2024-014, BUD-2025-003, BUD-2024-021
+  - top components: ALERT-001, TELEM-001, AUDIT-001, INTAKE-001, CHECKOUT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `C` / `Q-AUTH-001`
+  - query: OAuth JWT authentication token banking authorization flow
+  - relevant budgets: BUD-2024-014
+  - expected components: AUTH-001
+  - top budgets: BUD-2024-014, BUD-2024-014, BUD-2025-003, BUD-2024-021, BUD-2024-021
+  - top components: AUTH-001, AUDIT-001, DOCS-001, CHECKOUT-001, INV-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `C` / `Q-AUDIT-001`
+  - query: immutable audit logging consent changes sensitive banking operations
+  - relevant budgets: BUD-2024-014
+  - expected components: AUDIT-001
+  - top budgets: BUD-2024-014, BUD-2025-011, BUD-2025-003, BUD-2024-014, BUD-2024-021
+  - top components: AUDIT-001, ALERT-001, INTAKE-001, AUTH-001, CHECKOUT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `C` / `Q-CHECKOUT-001`
+  - query: checkout orchestration payment authorization discount rules order creation
+  - relevant budgets: BUD-2024-021
+  - expected components: CHECKOUT-001
+  - top budgets: BUD-2024-021, BUD-2024-021, BUD-2025-011, BUD-2025-003, BUD-2025-003
+  - top components: CHECKOUT-001, INV-001, ALERT-001, INTAKE-001, DOCS-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `C` / `Q-INVENTORY-001`
+  - query: inventory synchronization worker merchant stock levels scheduled conflicts events
+  - relevant budgets: BUD-2024-021
+  - expected components: INV-001
+  - top budgets: BUD-2024-021, BUD-2024-021, BUD-2025-011, BUD-2025-003, BUD-2025-003
+  - top components: INV-001, CHECKOUT-001, TELEM-001, INTAKE-001, DOCS-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `C` / `Q-DOCS-001`
+  - query: clinical document upload referral lab results secure file validation metadata
+  - relevant budgets: BUD-2025-003
+  - expected components: DOCS-001
+  - top budgets: BUD-2025-003, BUD-2025-003, BUD-2024-021, BUD-2024-014, BUD-2024-014
+  - top components: DOCS-001, INTAKE-001, CHECKOUT-001, AUTH-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `C` / `Q-TELEMETRY-001`
+  - query: machine telemetry ingestion queue consumer equipment events industrial dashboard
+  - relevant budgets: BUD-2025-011
+  - expected components: TELEM-001
+  - top budgets: BUD-2025-011, BUD-2025-011, BUD-2024-021, BUD-2024-014, BUD-2024-014
+  - top components: TELEM-001, ALERT-001, INV-001, AUTH-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `C` / `Q-ALERTS-001`
+  - query: maintenance alert rules threshold violations machine faults operations teams
+  - relevant budgets: BUD-2025-011
+  - expected components: ALERT-001
+  - top budgets: BUD-2025-011, BUD-2025-011, BUD-2025-003, BUD-2025-003, BUD-2024-014
+  - top components: ALERT-001, TELEM-001, INTAKE-001, DOCS-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `D` / `Q-AUTH-001`
+  - query: OAuth JWT authentication token banking authorization flow
+  - relevant budgets: BUD-2024-014
+  - expected components: AUTH-001
+  - top budgets: BUD-2024-014, BUD-2024-014, BUD-2024-021, BUD-2025-003, BUD-2024-021
+  - top components: AUTH-001, AUDIT-001, CHECKOUT-001, DOCS-001, INV-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `D` / `Q-AUDIT-001`
+  - query: immutable audit logging consent changes sensitive banking operations
+  - relevant budgets: BUD-2024-014
+  - expected components: AUDIT-001
+  - top budgets: BUD-2024-014, BUD-2024-014, BUD-2025-011, BUD-2025-003, BUD-2024-021
+  - top components: AUDIT-001, AUTH-001, ALERT-001, INTAKE-001, CHECKOUT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `D` / `Q-CHECKOUT-001`
+  - query: checkout orchestration payment authorization discount rules order creation
+  - relevant budgets: BUD-2024-021
+  - expected components: CHECKOUT-001
+  - top budgets: BUD-2024-021, BUD-2024-021, BUD-2024-014, BUD-2025-003, BUD-2025-011
+  - top components: CHECKOUT-001, INV-001, AUTH-001, INTAKE-001, ALERT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `D` / `Q-INVENTORY-001`
+  - query: inventory synchronization worker merchant stock levels scheduled conflicts events
+  - relevant budgets: BUD-2024-021
+  - expected components: INV-001
+  - top budgets: BUD-2024-021, BUD-2024-021, BUD-2025-011, BUD-2025-003, BUD-2025-003
+  - top components: INV-001, CHECKOUT-001, TELEM-001, INTAKE-001, DOCS-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `D` / `Q-DOCS-001`
+  - query: clinical document upload referral lab results secure file validation metadata
+  - relevant budgets: BUD-2025-003
+  - expected components: DOCS-001
+  - top budgets: BUD-2025-003, BUD-2025-003, BUD-2024-021, BUD-2024-014, BUD-2024-014
+  - top components: DOCS-001, INTAKE-001, CHECKOUT-001, AUTH-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `D` / `Q-TELEMETRY-001`
+  - query: machine telemetry ingestion queue consumer equipment events industrial dashboard
+  - relevant budgets: BUD-2025-011
+  - expected components: TELEM-001
+  - top budgets: BUD-2025-011, BUD-2025-011, BUD-2024-021, BUD-2024-014, BUD-2024-014
+  - top components: TELEM-001, ALERT-001, INV-001, AUTH-001, AUDIT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+- `D` / `Q-ALERTS-001`
+  - query: maintenance alert rules threshold violations machine faults operations teams
+  - relevant budgets: BUD-2025-011
+  - expected components: ALERT-001
+  - top budgets: BUD-2025-011, BUD-2025-011, BUD-2024-014, BUD-2025-003, BUD-2024-021
+  - top components: ALERT-001, TELEM-001, AUDIT-001, INTAKE-001, CHECKOUT-001
+  - precision@5: 0.4000
+  - best budget rank: 1
+  - best component rank: 1
+  - latency ms: 1
+
+## Limitations
+
+- The golden set is intentionally small.
+- With one relevant budget per query, maximum budget-level precision@5 is 0.2000.
+- Budget hit@5 and component hit@5 are included to make success easier to interpret.
+- The deterministic reranker is CI-safe and does not prove cross-encoder production latency.
