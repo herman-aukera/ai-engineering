@@ -1,0 +1,88 @@
+{
+  "metrics": [
+    "faithfulness",
+    "answer_relevancy",
+    "context_precision",
+    "context_recall"
+  ],
+  "purpose": "Session 11 generation-quality golden set for RAGAS sample collection and scoring.",
+  "queries": [
+    {
+      "answer": null,
+      "contexts": [],
+      "expected_component_ids": [
+        "AUTH-001"
+      ],
+      "ground_truth": "Reference estimate in hours: implement OAuth/JWT authentication and banking authorization flow as one backend component. Expected component AUTH-001 from source budget BUD-2024-014. The answer should cite the authentication source context, describe token/session handling, authorization checks, security validation, and avoid adding unrelated audit or checkout effort.",
+      "intent": "Find the authentication backend component in the fintech banking budget.",
+      "query_id": "Q-AUTH-001",
+      "question": "OAuth JWT authentication token banking authorization flow",
+      "ragas_scores": null,
+      "relevant_budget_ids": [
+        "BUD-2024-014"
+      ]
+    },
+    {
+      "answer": null,
+      "contexts": [],
+      "expected_component_ids": [
+        "AUDIT-001"
+      ],
+      "ground_truth": "Reference estimate in hours: implement immutable audit logging for consent changes and sensitive banking operations as one regulatory backend component. Expected component AUDIT-001 from source budget BUD-2024-014. The answer should cite the audit logging source context, include traceability and compliance evidence, and not merge it with authentication unless the context explicitly supports it.",
+      "intent": "Find the regulatory audit logging component.",
+      "query_id": "Q-AUDIT-001",
+      "question": "immutable audit logging consent changes sensitive banking operations",
+      "ragas_scores": null,
+      "relevant_budget_ids": [
+        "BUD-2024-014"
+      ]
+    },
+    {
+      "answer": null,
+      "contexts": [],
+      "expected_component_ids": [
+        "CHECKOUT-001"
+      ],
+      "ground_truth": "Reference estimate in hours: implement checkout orchestration for payment authorization, discount rules, and order creation as one marketplace API component. Expected component CHECKOUT-001 from source budget BUD-2024-021. The answer should cite checkout source context and separate checkout workflow effort from inventory synchronization.",
+      "intent": "Find the marketplace checkout orchestration API component.",
+      "query_id": "Q-CHECKOUT-001",
+      "question": "checkout orchestration payment authorization discount rules order creation",
+      "ragas_scores": null,
+      "relevant_budget_ids": [
+        "BUD-2024-021"
+      ]
+    },
+    {
+      "answer": null,
+      "contexts": [],
+      "expected_component_ids": [
+        "INV-001"
+      ],
+      "ground_truth": "Reference estimate in hours: implement inventory synchronization worker for merchant stock levels, scheduled conflict handling, and stock events as one backend worker component. Expected component INV-001 from source budget BUD-2024-021. The answer should cite inventory source context and avoid inventing checkout or payment hours.",
+      "intent": "Find the inventory synchronization worker component.",
+      "query_id": "Q-INVENTORY-001",
+      "question": "inventory synchronization worker merchant stock levels scheduled conflicts events",
+      "ragas_scores": null,
+      "relevant_budget_ids": [
+        "BUD-2024-021"
+      ]
+    },
+    {
+      "answer": null,
+      "contexts": [],
+      "expected_component_ids": [
+        "DOCS-001"
+      ],
+      "ground_truth": "Reference estimate in hours: implement clinical document upload for referrals, lab results, secure file validation, and metadata handling as one healthcare document component. Expected component DOCS-001 from source budget BUD-2025-003. The answer should cite clinical document source context and avoid unsupported patient intake scope.",
+      "intent": "Find the clinical document upload component.",
+      "query_id": "Q-DOCS-001",
+      "question": "clinical document upload referral lab results secure file validation metadata",
+      "ragas_scores": null,
+      "relevant_budget_ids": [
+        "BUD-2025-003"
+      ]
+    }
+  ],
+  "source": "session10_retrieval/golden_retrieval.json",
+  "unit": "hours"
+}
