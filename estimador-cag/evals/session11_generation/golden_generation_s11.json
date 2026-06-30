@@ -1,4 +1,5 @@
 {
+  "ground_truth_policy": "Ground truth answers are derived from actual budget component evidence in the current repository corpus.",
   "metrics": [
     "faithfulness",
     "answer_relevancy",
@@ -13,7 +14,24 @@
       "expected_component_ids": [
         "AUTH-001"
       ],
-      "ground_truth": "Reference estimate in hours: implement OAuth/JWT authentication and banking authorization flow as one backend component. Expected component AUTH-001 from source budget BUD-2024-014. The answer should cite the authentication source context, describe token/session handling, authorization checks, security validation, and avoid adding unrelated audit or checkout effort.",
+      "ground_truth": "AUTH-001 (OAuth 2.0 authentication backend) is supported by source BUD-2024-014 / BUD-2024-014::AUTH-001. It is estimated at 120 hours, complexity high, with stack ruby_on_rails, postgresql, redis. Evidence: Implementation of OAuth 2.0 authorization code and refresh token flows with JWT-based session management, multi-tenant token isolation, and rate limiting per client.",
+      "ground_truth_sources": [
+        {
+          "budget_id": "BUD-2024-014",
+          "chunk_id": "BUD-2024-014::AUTH-001",
+          "complexity": "high",
+          "component_id": "AUTH-001",
+          "component_name": "OAuth 2.0 authentication backend",
+          "evidence": "Implementation of OAuth 2.0 authorization code and refresh token flows with JWT-based session management, multi-tenant token isolation, and rate limiting per client.",
+          "hours": 120,
+          "source_file": "data/budgets_sample.json",
+          "tech_stack": [
+            "ruby_on_rails",
+            "postgresql",
+            "redis"
+          ]
+        }
+      ],
       "intent": "Find the authentication backend component in the fintech banking budget.",
       "query_id": "Q-AUTH-001",
       "question": "OAuth JWT authentication token banking authorization flow",
@@ -28,7 +46,23 @@
       "expected_component_ids": [
         "AUDIT-001"
       ],
-      "ground_truth": "Reference estimate in hours: implement immutable audit logging for consent changes and sensitive banking operations as one regulatory backend component. Expected component AUDIT-001 from source budget BUD-2024-014. The answer should cite the audit logging source context, include traceability and compliance evidence, and not merge it with authentication unless the context explicitly supports it.",
+      "ground_truth": "AUDIT-001 (Regulatory audit logging) is supported by source BUD-2024-014 / BUD-2024-014::AUDIT-001. It is estimated at 80 hours, complexity medium, with stack ruby_on_rails, postgresql. Evidence: Immutable audit trail for authentication, consent changes, account access, and sensitive banking operations.",
+      "ground_truth_sources": [
+        {
+          "budget_id": "BUD-2024-014",
+          "chunk_id": "BUD-2024-014::AUDIT-001",
+          "complexity": "medium",
+          "component_id": "AUDIT-001",
+          "component_name": "Regulatory audit logging",
+          "evidence": "Immutable audit trail for authentication, consent changes, account access, and sensitive banking operations.",
+          "hours": 80,
+          "source_file": "data/budgets_sample.json",
+          "tech_stack": [
+            "ruby_on_rails",
+            "postgresql"
+          ]
+        }
+      ],
       "intent": "Find the regulatory audit logging component.",
       "query_id": "Q-AUDIT-001",
       "question": "immutable audit logging consent changes sensitive banking operations",
@@ -43,7 +77,24 @@
       "expected_component_ids": [
         "CHECKOUT-001"
       ],
-      "ground_truth": "Reference estimate in hours: implement checkout orchestration for payment authorization, discount rules, and order creation as one marketplace API component. Expected component CHECKOUT-001 from source budget BUD-2024-021. The answer should cite checkout source context and separate checkout workflow effort from inventory synchronization.",
+      "ground_truth": "CHECKOUT-001 (Checkout orchestration API) is supported by source BUD-2024-021 / BUD-2024-021::CHECKOUT-001. It is estimated at 140 hours, complexity high, with stack python_fastapi, postgresql, redis. Evidence: Backend service coordinating cart validation, payment authorization, discount rules, and order creation for marketplace purchases.",
+      "ground_truth_sources": [
+        {
+          "budget_id": "BUD-2024-021",
+          "chunk_id": "BUD-2024-021::CHECKOUT-001",
+          "complexity": "high",
+          "component_id": "CHECKOUT-001",
+          "component_name": "Checkout orchestration API",
+          "evidence": "Backend service coordinating cart validation, payment authorization, discount rules, and order creation for marketplace purchases.",
+          "hours": 140,
+          "source_file": "data/budgets_sample.json",
+          "tech_stack": [
+            "python_fastapi",
+            "postgresql",
+            "redis"
+          ]
+        }
+      ],
       "intent": "Find the marketplace checkout orchestration API component.",
       "query_id": "Q-CHECKOUT-001",
       "question": "checkout orchestration payment authorization discount rules order creation",
@@ -58,7 +109,24 @@
       "expected_component_ids": [
         "INV-001"
       ],
-      "ground_truth": "Reference estimate in hours: implement inventory synchronization worker for merchant stock levels, scheduled conflict handling, and stock events as one backend worker component. Expected component INV-001 from source budget BUD-2024-021. The answer should cite inventory source context and avoid inventing checkout or payment hours.",
+      "ground_truth": "INV-001 (Inventory synchronization worker) is supported by source BUD-2024-021 / BUD-2024-021::INV-001. It is estimated at 90 hours, complexity medium, with stack python_fastapi, postgresql, celery. Evidence: Scheduled worker that synchronizes merchant stock levels, detects conflicts, and emits inventory update events.",
+      "ground_truth_sources": [
+        {
+          "budget_id": "BUD-2024-021",
+          "chunk_id": "BUD-2024-021::INV-001",
+          "complexity": "medium",
+          "component_id": "INV-001",
+          "component_name": "Inventory synchronization worker",
+          "evidence": "Scheduled worker that synchronizes merchant stock levels, detects conflicts, and emits inventory update events.",
+          "hours": 90,
+          "source_file": "data/budgets_sample.json",
+          "tech_stack": [
+            "python_fastapi",
+            "postgresql",
+            "celery"
+          ]
+        }
+      ],
       "intent": "Find the inventory synchronization worker component.",
       "query_id": "Q-INVENTORY-001",
       "question": "inventory synchronization worker merchant stock levels scheduled conflicts events",
@@ -73,7 +141,24 @@
       "expected_component_ids": [
         "DOCS-001"
       ],
-      "ground_truth": "Reference estimate in hours: implement clinical document upload for referrals, lab results, secure file validation, and metadata handling as one healthcare document component. Expected component DOCS-001 from source budget BUD-2025-003. The answer should cite clinical document source context and avoid unsupported patient intake scope.",
+      "ground_truth": "DOCS-001 (Clinical document upload) is supported by source BUD-2025-003 / BUD-2025-003::DOCS-001. It is estimated at 110 hours, complexity medium, with stack java_spring_boot, postgresql, s3. Evidence: Secure upload flow for referral documents and lab results with file type validation and metadata extraction.",
+      "ground_truth_sources": [
+        {
+          "budget_id": "BUD-2025-003",
+          "chunk_id": "BUD-2025-003::DOCS-001",
+          "complexity": "medium",
+          "component_id": "DOCS-001",
+          "component_name": "Clinical document upload",
+          "evidence": "Secure upload flow for referral documents and lab results with file type validation and metadata extraction.",
+          "hours": 110,
+          "source_file": "data/budgets_sample.json",
+          "tech_stack": [
+            "java_spring_boot",
+            "postgresql",
+            "s3"
+          ]
+        }
+      ],
       "intent": "Find the clinical document upload component.",
       "query_id": "Q-DOCS-001",
       "question": "clinical document upload referral lab results secure file validation metadata",
