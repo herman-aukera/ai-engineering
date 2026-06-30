@@ -128,6 +128,56 @@ def build_dry_run_summary(
     }
 
 
+def to_jsonable(value: Any) -> Any:
+    """
+    Convert common scientific/Pydantic result objects into JSON-safe values.
+
+    RAGAS 0.1.x may return pandas/numpy-backed objects such as ndarray,
+    numpy scalar values, or NaN-like values. The report artifact must remain
+    plain JSON.
+    """
+
+    if value is None or isinstance(value, str | int | bool):
+        return value
+
+    if isinstance(value, float):
+        if value != value or value in {float("inf"), float("-inf")}:
+            return None
+        return value
+
+    if isinstance(value, dict):
+        return {
+            str(key): to_jsonable(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list | tuple | set):
+        return [
+            to_jsonable(item)
+            for item in value
+        ]
+
+    if hasattr(value, "model_dump"):
+        return to_jsonable(value.model_dump(mode="json"))
+
+    if hasattr(value, "to_dict"):
+        try:
+            return to_jsonable(value.to_dict())
+        except TypeError:
+            pass
+
+    if hasattr(value, "tolist"):
+        return to_jsonable(value.tolist())
+
+    if hasattr(value, "item"):
+        try:
+            return to_jsonable(value.item())
+        except ValueError:
+            pass
+
+    return str(value)
+
+
 def _result_to_records(result: Any) -> list[dict[str, Any]]:
     """Convert common RAGAS result shapes to JSON-serializable records."""
 
@@ -218,7 +268,7 @@ def run_live_ragas(
         embeddings=evaluator_embeddings,
     )
 
-    records = _result_to_records(result)
+    records = to_jsonable(_result_to_records(result))
 
     payload = {
         "mode": "live",
@@ -231,6 +281,7 @@ def run_live_ragas(
         "records": records,
     }
 
+    payload = to_jsonable(payload)
     output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return payload
 
