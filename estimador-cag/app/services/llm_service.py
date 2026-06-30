@@ -19,6 +19,7 @@ from app.services.cache import RedisEstimationCache
 from app.services.conversation import ConversationTurn
 from app.services.litellm_provider import LiteLLMProvider
 from app.services.semantic_cache import build_semantic_bucket, get_global_semantic_shadow_cache
+from app.services.source_context import RetrievedSourceChunk, build_line_citation_prompt_rules
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +162,11 @@ def estimate(
 
 
 
-def _build_structured_product_system_prompt(prompt_version: str, project_metadata: object | None = None) -> str:
+def _build_structured_product_system_prompt(
+    prompt_version: str,
+    project_metadata: object | None = None,
+    include_line_citation_rules: bool = False,
+) -> str:
     """
     Build the system prompt for structured product estimates.
 
@@ -184,6 +189,12 @@ def _build_structured_product_system_prompt(prompt_version: str, project_metadat
     detail_level_values = ", ".join(value.value for value in DetailLevel)
     output_format_values = ", ".join(value.value for value in OutputFormat)
 
+    line_citation_rules = (
+        f"{build_line_citation_prompt_rules()} "
+        if include_line_citation_rules
+        else ""
+    )
+
     return (
         "You are a senior software estimation engine. "
         f"Prompt version: {prompt_version}. "
@@ -192,6 +203,7 @@ def _build_structured_product_system_prompt(prompt_version: str, project_metadat
         "Do not use code fences. "
         "Do not add prose before or after the JSON. "
         "Return a single JSON object compatible with EstimationResult. "
+        f"{line_citation_rules}"
         "Use these enum values exactly: "
         f"project_type must be one of {project_type_values}; "
         f"detail_level must be one of {detail_level_values}; "
@@ -274,6 +286,7 @@ def estimate_product(
     project_metadata: object | None = None,
     attachments_text: str | None = None,
     conversation_history: list[dict[str, str]] | None = None,
+    source_chunks: list[RetrievedSourceChunk] | None = None,
 ) -> dict:
     """
     Estimate a typed product request using structured output.
@@ -291,11 +304,14 @@ def estimate_product(
         render_kwargs["project_metadata"] = project_metadata
     if attachments_text:
         render_kwargs["attachments_text"] = attachments_text
+    if source_chunks is not None:
+        render_kwargs["source_chunks"] = source_chunks
 
     template_system_prompt, user_prompt = render_estimation_prompt(request, **render_kwargs)
     system_prompt = _build_structured_product_system_prompt(
         prompt_version,
         project_metadata=project_metadata,
+        include_line_citation_rules=source_chunks is not None,
     )
     history_messages = conversation_history or []
     messages = [
@@ -309,7 +325,12 @@ def estimate_product(
     resolved = provider.resolve_model(effective_tier)
     cache = build_redis_cache()
 
-    if project_metadata is None and not attachments_text and not conversation_history:
+    if (
+        project_metadata is None
+        and not attachments_text
+        and not conversation_history
+        and source_chunks is None
+    ):
         cache_identity = request.model_dump_json()
     else:
         cache_identity = json.dumps(
@@ -322,6 +343,11 @@ def estimate_product(
                 else project_metadata,
                 "attachments_text": attachments_text or "",
                 "conversation_history": conversation_history or [],
+                                "source_chunks": [
+                    chunk.model_dump(mode="json") for chunk in source_chunks
+                ]
+                if source_chunks is not None
+                else None,
             },
             sort_keys=True,
         )
