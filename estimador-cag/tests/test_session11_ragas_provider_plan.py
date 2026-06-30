@@ -51,7 +51,11 @@ def test_ragas_runner_dry_run_can_select_each_provider():
         assert payload["judge_provider"] == provider
         assert payload["official_baseline"] is (provider == "openai")
         assert payload["sample_count"] == 5
-        assert payload["requires_env"] == [PROVIDERS[provider]["env_key"]]
+        expected_env = [PROVIDERS[provider]["env_key"]]
+        if provider != "openai":
+            expected_env.append("OPENAI_API_KEY")
+
+        assert payload["requires_env"] == expected_env
 
 
 def test_ragas_runner_live_mode_requires_selected_provider_key():

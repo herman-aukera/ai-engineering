@@ -47,6 +47,7 @@ PROVIDERS = {
 }
 CHAT_JUDGE_MODEL = PROVIDERS[OFFICIAL_PROVIDER]["default_model"]
 EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_ENV_KEY = "OPENAI_API_KEY"
 METRICS = [
     "faithfulness",
     "answer_relevancy",
@@ -87,6 +88,20 @@ def build_ragas_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def required_env_keys(judge_provider: str) -> list[str]:
+    """Return env vars needed for the selected judge plus OpenAI embeddings."""
+
+    provider_env_key = PROVIDERS[judge_provider]["env_key"]
+    keys = [provider_env_key, EMBEDDING_ENV_KEY]
+
+    deduped = []
+    for key in keys:
+        if key not in deduped:
+            deduped.append(key)
+
+    return deduped
+
+
 def build_dry_run_summary(
     rows: list[dict[str, Any]],
     output_path: Path,
@@ -109,7 +124,7 @@ def build_dry_run_summary(
         "chat_judge_model": chat_judge_model,
         "embedding_model": EMBEDDING_MODEL,
         "output_path": str(output_path),
-        "requires_env": [provider_config["env_key"]],
+        "requires_env": required_env_keys(judge_provider),
     }
 
 
@@ -142,6 +157,12 @@ def run_live_ragas(
     if not provider_api_key:
         raise RuntimeError(
             f'{provider_config["env_key"]} is required for --live RAGAS scoring.'
+        )
+
+    embedding_api_key = os.environ.get(EMBEDDING_ENV_KEY)
+    if not embedding_api_key:
+        raise RuntimeError(
+            f'{EMBEDDING_ENV_KEY} is required for embeddings in --live RAGAS scoring.'
         )
 
     chat_judge_model = os.environ.get(
@@ -180,7 +201,10 @@ def run_live_ragas(
         chat_kwargs["base_url"] = base_url
 
     evaluator_llm = LangchainLLMWrapper(ChatOpenAI(**chat_kwargs))
-    evaluator_embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
+    evaluator_embeddings = OpenAIEmbeddings(
+        model=EMBEDDING_MODEL,
+        api_key=embedding_api_key,
+    )
 
     result = evaluate(
         dataset=dataset,
