@@ -8,20 +8,23 @@ DEPENDS ON: app.config (Settings, tier routing), app.context.examples (CAG data)
 import json
 import logging
 
+import structlog
 from redis import Redis
 
 from app.config import TierName, settings
 from app.context.examples import ESTIMATION_EXAMPLES
 from app.guardrails.output import evaluate_output_guardrails
 from app.prompts.loader import render_estimation_prompt
-from app.schemas.estimation import EstimationRequest, EstimationResult
+from app.schemas.estimation import CitationReport, EstimationRequest, EstimationResult
 from app.services.cache import RedisEstimationCache
+from app.services.citation_verification import verify_citations
 from app.services.conversation import ConversationTurn
 from app.services.litellm_provider import LiteLLMProvider
 from app.services.semantic_cache import build_semantic_bucket, get_global_semantic_shadow_cache
 from app.services.source_context import RetrievedSourceChunk, build_line_citation_prompt_rules
 
 logger = logging.getLogger(__name__)
+citation_logger = structlog.get_logger(__name__)
 
 
 def _get_provider(tier: str) -> str:
@@ -287,6 +290,7 @@ def estimate_product(
     attachments_text: str | None = None,
     conversation_history: list[dict[str, str]] | None = None,
     source_chunks: list[RetrievedSourceChunk] | None = None,
+    request_id: str | None = None,
 ) -> dict:
     """
     Estimate a typed product request using structured output.
@@ -415,8 +419,29 @@ def estimate_product(
             )
             raise RuntimeError(output_guardrail_decision.message)
 
+        citation_report = None
+        if source_chunks is not None:
+            retrieved_chunk_ids = {chunk.chunk_id for chunk in source_chunks}
+            citation_report = verify_citations(
+                structured_result.line_items,
+                retrieved_chunk_ids,
+            )
+            citation_logger.info(
+                "citation_verification_completed",
+                request_id=request_id,
+                total_lines=citation_report.total_lines,
+                grounded_lines=citation_report.grounded_lines,
+                dangling_lines=citation_report.dangling_lines,
+                insufficient_lines=citation_report.insufficient_lines,
+                verified_citations=citation_report.verified_citations,
+                dangling_citations=citation_report.dangling_citations,
+            )
+
         response_payload = {
             "result": structured_result.model_dump(mode="json"),
+            "citation_report": citation_report.model_dump(mode="json")
+            if citation_report is not None
+            else None,
             "text": _estimation_result_to_text(structured_result),
             "model": provider_result.get("model"),
             "tier": served_tier,
@@ -458,12 +483,19 @@ def estimate_product(
 
     structured_result = EstimationResult.model_validate(cached_or_fresh["result"])
     text = cached_or_fresh.get("text") or _estimation_result_to_text(structured_result)
+    citation_report_payload = cached_or_fresh.get("citation_report")
+    citation_report = (
+        CitationReport.model_validate(citation_report_payload)
+        if citation_report_payload is not None
+        else None
+    )
 
     served_tier = cached_or_fresh.get("served_tier", cached_or_fresh.get("tier"))
 
     return {
         "prompt_version": prompt_version,
         "result": structured_result,
+        "citation_report": citation_report,
         "text": text,
         "cached": cached_or_fresh.get("cached"),
         "cache_backend": cached_or_fresh.get("cache_backend"),
