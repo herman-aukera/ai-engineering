@@ -15,7 +15,11 @@ from pathlib import Path
 from typing import Any
 
 from app.embedding_pipeline.reranker import DEFAULT_CROSS_ENCODER_MODEL, CrossEncoderReranker
-from app.embedding_pipeline.search_service import SearchQueryCommand, SearchResultItem, SemanticSearchService
+from app.embedding_pipeline.search_service import (
+    SearchQueryCommand,
+    SearchResultItem,
+    SemanticSearchService,
+)
 from evals.session10_retrieval.evaluator import (
     DEFAULT_GOLDEN_PATH,
     DEFAULT_K,
