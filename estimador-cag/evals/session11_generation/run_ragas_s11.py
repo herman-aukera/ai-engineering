@@ -18,7 +18,34 @@ import sys
 from pathlib import Path
 from typing import Any
 
-CHAT_JUDGE_MODEL = "gpt-4o-mini"
+OFFICIAL_PROVIDER = "openai"
+PROVIDERS = {
+    "openai": {
+        "env_key": "OPENAI_API_KEY",
+        "model_env": "OPENAI_RAGAS_JUDGE_MODEL",
+        "default_model": "gpt-4o-mini",
+        "base_url_env": "OPENAI_BASE_URL",
+        "default_base_url": None,
+        "official": True,
+    },
+    "deepseek": {
+        "env_key": "DEEPSEEK_API_KEY",
+        "model_env": "DEEPSEEK_RAGAS_JUDGE_MODEL",
+        "default_model": "deepseek-chat",
+        "base_url_env": "DEEPSEEK_BASE_URL",
+        "default_base_url": "https://api.deepseek.com",
+        "official": False,
+    },
+    "kimi": {
+        "env_key": "KIMI_API_KEY",
+        "model_env": "KIMI_RAGAS_JUDGE_MODEL",
+        "default_model": "moonshot-v1-8k",
+        "base_url_env": "KIMI_BASE_URL",
+        "default_base_url": "https://api.moonshot.ai/v1",
+        "official": False,
+    },
+}
+CHAT_JUDGE_MODEL = PROVIDERS[OFFICIAL_PROVIDER]["default_model"]
 EMBEDDING_MODEL = "text-embedding-3-small"
 METRICS = [
     "faithfulness",
@@ -63,17 +90,26 @@ def build_ragas_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
 def build_dry_run_summary(
     rows: list[dict[str, Any]],
     output_path: Path,
+    judge_provider: str = OFFICIAL_PROVIDER,
 ) -> dict[str, Any]:
     """Return a deterministic summary without importing or calling RAGAS."""
+
+    provider_config = PROVIDERS[judge_provider]
+    chat_judge_model = os.environ.get(
+        provider_config["model_env"],
+        provider_config["default_model"],
+    )
 
     return {
         "mode": "dry_run",
         "sample_count": len(rows),
         "metrics": METRICS,
-        "chat_judge_model": CHAT_JUDGE_MODEL,
+        "judge_provider": judge_provider,
+        "official_baseline": provider_config["official"],
+        "chat_judge_model": chat_judge_model,
         "embedding_model": EMBEDDING_MODEL,
         "output_path": str(output_path),
-        "requires_env": ["OPENAI_API_KEY"],
+        "requires_env": [provider_config["env_key"]],
     }
 
 
@@ -97,11 +133,25 @@ def _result_to_records(result: Any) -> list[dict[str, Any]]:
 def run_live_ragas(
     rows: list[dict[str, Any]],
     output_path: Path,
+    judge_provider: str = OFFICIAL_PROVIDER,
 ) -> dict[str, Any]:
     """Run live RAGAS scoring with OpenAI-backed judge and embeddings."""
 
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise RuntimeError("OPENAI_API_KEY is required for --live RAGAS scoring.")
+    provider_config = PROVIDERS[judge_provider]
+    provider_api_key = os.environ.get(provider_config["env_key"])
+    if not provider_api_key:
+        raise RuntimeError(
+            f'{provider_config["env_key"]} is required for --live RAGAS scoring.'
+        )
+
+    chat_judge_model = os.environ.get(
+        provider_config["model_env"],
+        provider_config["default_model"],
+    )
+    base_url = os.environ.get(
+        provider_config["base_url_env"],
+        provider_config["default_base_url"],
+    )
 
     try:
         from datasets import Dataset
@@ -116,12 +166,20 @@ def run_live_ragas(
         )
     except ImportError as exc:
         raise RuntimeError(
-            "Missing optional RAGAS dependencies. Install them manually, for example: "
-            "uv add ragas datasets langchain-openai"
+            "Missing or incompatible optional RAGAS dependencies. Install or repair manually, for example: "
+            "uv add ragas datasets langchain-openai. Original import error: "
+            f"{exc!r}"
         ) from exc
 
     dataset = Dataset.from_list(rows)
-    evaluator_llm = LangchainLLMWrapper(ChatOpenAI(model=CHAT_JUDGE_MODEL))
+    chat_kwargs = {
+        "model": chat_judge_model,
+        "api_key": provider_api_key,
+    }
+    if base_url:
+        chat_kwargs["base_url"] = base_url
+
+    evaluator_llm = LangchainLLMWrapper(ChatOpenAI(**chat_kwargs))
     evaluator_embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
 
     result = evaluate(
@@ -142,7 +200,9 @@ def run_live_ragas(
         "mode": "live",
         "sample_count": len(rows),
         "metrics": METRICS,
-        "chat_judge_model": CHAT_JUDGE_MODEL,
+        "judge_provider": judge_provider,
+        "official_baseline": provider_config["official"],
+        "chat_judge_model": chat_judge_model,
         "embedding_model": EMBEDDING_MODEL,
         "records": records,
     }
@@ -164,6 +224,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_OUTPUT_PATH,
         help="Path where live RAGAS result JSON should be written.",
+    )
+    parser.add_argument(
+        "--judge-provider",
+        choices=sorted(PROVIDERS),
+        default=OFFICIAL_PROVIDER,
+        help="Judge provider for live RAGAS scoring or dry-run summary.",
     )
     parser.add_argument(
         "--dry-run",
@@ -190,7 +256,11 @@ def main() -> int:
 
     if args.live:
         try:
-            live_payload = run_live_ragas(rows, args.output_path)
+            live_payload = run_live_ragas(
+                rows,
+                args.output_path,
+                judge_provider=args.judge_provider,
+            )
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 1
@@ -198,7 +268,11 @@ def main() -> int:
         print(json.dumps(live_payload, indent=2, sort_keys=True))
         return 0
 
-    summary = build_dry_run_summary(rows, args.output_path)
+    summary = build_dry_run_summary(
+        rows,
+        args.output_path,
+        judge_provider=args.judge_provider,
+    )
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
 
