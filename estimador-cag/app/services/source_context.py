@@ -5,7 +5,9 @@ The generation prompt must expose exact chunk ids and document ids so the model
 can cite only sources that were actually retrieved.
 """
 
+from collections.abc import Iterable
 from html import escape
+from typing import Protocol
 
 from pydantic import BaseModel, Field
 
@@ -17,6 +19,31 @@ class RetrievedSourceChunk(BaseModel):
     document_id: str = Field(min_length=1)
     content: str = Field(min_length=1)
 
+class RetrievalResultWithSourceIdentity(Protocol):
+    """Minimal retrieval result shape needed for source-grounded generation."""
+
+    chunk_id: int | str
+    document_id: int | str
+    content: str
+
+def source_chunks_from_retrieval_results(
+    results: Iterable[RetrievalResultWithSourceIdentity],
+) -> list[RetrievedSourceChunk]:
+    """
+    Convert Session 10 retrieval results into Session 11 source chunks.
+
+    This adapter preserves the exact chunk and document identity that the
+    citation verifier later checks against model-generated source references.
+    """
+
+    return [
+        RetrievedSourceChunk(
+            chunk_id=str(result.chunk_id),
+            document_id=str(result.document_id),
+            content=result.content,
+        )
+        for result in results
+    ]
 
 def render_source_context(chunks: list[RetrievedSourceChunk]) -> str:
     """
