@@ -7,7 +7,6 @@ from evals.session11_generation.quality_lab_helpers_s11 import (
     compute_metric_averages,
 )
 
-
 RESULTS_PATH = Path("evals/session11_generation/ragas_results_openai_s11.json")
 
 
