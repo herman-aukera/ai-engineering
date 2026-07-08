@@ -1,0 +1,12 @@
+Client: We need a web SaaS for our financial back-office team.
+Scope:
+- JWT authentication with role-based access for admins and analysts.
+- Audit logging for sensitive actions and exports.
+- Admin dashboard for reviewing uploaded records and failed validations.
+- CSV import for monthly reconciliation files.
+- Basic deployment documentation and handoff notes.
+
+Constraints:
+- First usable version in four weeks.
+- Prefer simple architecture over microservices.
+- We need a clear estimate with assumptions and risks.
