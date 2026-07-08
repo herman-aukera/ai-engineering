@@ -7,6 +7,7 @@ adapters are introduced.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from app.generation.agentic.agent_schemas import (
@@ -19,6 +20,7 @@ from app.generation.agentic.agent_schemas import (
     ValidateEstimateInput,
 )
 from app.generation.agentic.agent_tools import calculate_estimate, search_budgets, validate_estimate
+from app.generation.agentic.retrieval_bridge import SemanticSearchLike, search_budgets_with_service
 
 
 def _fake_plan(transcript: str) -> list[dict[str, Any]]:
@@ -133,11 +135,38 @@ def _append_tool_output(
     )
 
 
-def run_agent_loop(request: AgentRunRequest) -> AgentRunResult:
-    """
-    Run a deterministic fake-provider manual loop.
+async def _execute_search_budgets(
+    arguments: dict[str, Any],
+    *,
+    search_service: SemanticSearchLike | None,
+    search_k: int,
+) -> dict[str, Any]:
+    """Execute search_budgets with retrieval service when injected."""
 
-    Live providers will be added behind the same contract in a later slice.
+    payload = SearchBudgetsInput(**arguments)
+    if search_service is None:
+        return search_budgets(payload).model_dump()
+
+    return (
+        await search_budgets_with_service(
+            payload,
+            service=search_service,
+            k=search_k,
+        )
+    ).model_dump()
+
+
+async def run_agent_loop_with_retrieval(
+    request: AgentRunRequest,
+    *,
+    search_service: SemanticSearchLike | None = None,
+    search_k: int = 5,
+) -> AgentRunResult:
+    """
+    Run the manual agent loop with optional injected retrieval.
+
+    With no search_service, this preserves the deterministic fake shell behavior.
+    With search_service, search_budgets observations contain semantic hits.
     """
 
     if request.provider != "fake":
@@ -180,8 +209,12 @@ def run_agent_loop(request: AgentRunRequest) -> AgentRunResult:
             )
 
             if tool_name == "search_budgets":
-                output = search_budgets(SearchBudgetsInput(**arguments))
-                _append_tool_output(trace, call_id, output.model_dump())
+                output = await _execute_search_budgets(
+                    arguments,
+                    search_service=search_service,
+                    search_k=search_k,
+                )
+                _append_tool_output(trace, call_id, output)
                 continue
 
             if tool_name == "calculate_estimate":
@@ -221,3 +254,14 @@ def run_agent_loop(request: AgentRunRequest) -> AgentRunResult:
         model=request.model,
         terminated=bool(trace and trace[-1].role == "final"),
     )
+
+
+def run_agent_loop(request: AgentRunRequest) -> AgentRunResult:
+    """
+    Run the deterministic fake-provider manual loop.
+
+    This synchronous compatibility wrapper intentionally uses no retrieval
+    service, so existing CI and trace artifacts stay stable.
+    """
+
+    return asyncio.run(run_agent_loop_with_retrieval(request))
