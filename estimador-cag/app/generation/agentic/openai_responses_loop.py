@@ -58,12 +58,34 @@ def build_responses_tool_schemas() -> list[dict[str, Any]]:
                         "description": "Search query for one component or requirement.",
                     },
                     "filters": {
-                        "type": "object",
-                        "description": "Optional metadata filters such as component_type, sector, or country.",
-                        "additionalProperties": True,
+                        "type": ["object", "null"],
+                        "description": "Optional metadata filters for the retrieval pipeline.",
+                        "properties": {
+                            "component_type": {"type": ["string", "null"]},
+                            "date_range": {"type": ["string", "null"]},
+                            "client_sector": {"type": ["string", "null"]},
+                            "client_country": {"type": ["string", "null"]},
+                            "main_technology": {"type": ["string", "null"]},
+                            "complexity": {"type": ["string", "null"]},
+                            "year": {"type": ["number", "null"]},
+                            "budget_id": {"type": ["string", "null"]},
+                            "component_id": {"type": ["string", "null"]},
+                        },
+                        "required": [
+                            "component_type",
+                            "date_range",
+                            "client_sector",
+                            "client_country",
+                            "main_technology",
+                            "complexity",
+                            "year",
+                            "budget_id",
+                            "component_id",
+                        ],
+                        "additionalProperties": False,
                     },
                 },
-                "required": ["query"],
+                "required": ["query", "filters"],
                 "additionalProperties": False,
             },
             "strict": True,
@@ -90,14 +112,14 @@ def build_responses_tool_schemas() -> list[dict[str, Any]]:
                                 },
                                 "reference_hours": {"type": "number"},
                             },
-                            "required": ["name"],
+                            "required": ["name", "complexity", "reference_hours"],
                             "additionalProperties": False,
                         },
                     },
                     "hourly_rate_eur": {"type": "number"},
                     "contingency_pct": {"type": "number"},
                 },
-                "required": ["components"],
+                "required": ["components", "hourly_rate_eur", "contingency_pct"],
                 "additionalProperties": False,
             },
             "strict": True,
@@ -179,6 +201,17 @@ def _parse_arguments(raw_arguments: Any) -> dict[str, Any]:
     raise ValueError("function_call arguments must be a JSON string or object")
 
 
+def _normalize_search_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Remove nullable strict-schema filter placeholders before Pydantic validation."""
+
+    normalized = dict(arguments)
+    filters = normalized.get("filters")
+    if isinstance(filters, dict):
+        compact_filters = {key: value for key, value in filters.items() if value is not None}
+        normalized["filters"] = compact_filters or None
+    return normalized
+
+
 def _reasoning_summary(item: Any) -> str:
     summary = _get(item, "summary")
     if isinstance(summary, Sequence) and not isinstance(summary, str):
@@ -221,7 +254,7 @@ async def _execute_tool(
     estimate: CalculateEstimateOutput | None,
 ) -> tuple[dict[str, Any], CalculateEstimateOutput | None, ValidateEstimateOutput | None]:
     if tool_name == "search_budgets":
-        payload = SearchBudgetsInput(**arguments)
+        payload = SearchBudgetsInput(**_normalize_search_arguments(arguments))
         if retrieval_service is None:
             output = search_budgets(payload)
         else:

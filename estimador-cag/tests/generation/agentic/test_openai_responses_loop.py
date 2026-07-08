@@ -157,6 +157,19 @@ def test_responses_tool_schemas_are_flat_and_strict():
     names = {tool["name"] for tool in tools}
     assert names == {"search_budgets", "calculate_estimate", "validate_estimate"}
 
+    def assert_strict_objects(schema):
+        if isinstance(schema, dict):
+            if schema.get("type") == "object" or schema.get("type") == ["object", "null"]:
+                assert schema.get("additionalProperties") is False
+                property_names = set(schema.get("properties", {}))
+                if property_names:
+                    assert set(schema.get("required", [])) == property_names
+            for value in schema.values():
+                assert_strict_objects(value)
+        elif isinstance(schema, list):
+            for value in schema:
+                assert_strict_objects(value)
+
     for tool in tools:
         assert tool["type"] == "function"
         assert "name" in tool
@@ -164,3 +177,4 @@ def test_responses_tool_schemas_are_flat_and_strict():
         assert "parameters" in tool
         assert tool["strict"] is True
         assert "function" not in tool
+        assert_strict_objects(tool["parameters"])
