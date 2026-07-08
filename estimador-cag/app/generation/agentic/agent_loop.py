@@ -8,6 +8,7 @@ and optional injected retrieval.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from typing import Any
 
 from app.generation.agentic.agent_schemas import (
@@ -20,6 +21,7 @@ from app.generation.agentic.agent_schemas import (
 )
 from app.generation.agentic.agent_tools import calculate_estimate, search_budgets, validate_estimate
 from app.generation.agentic.provider_adapters import (
+    AgentPlannedStep,
     ProviderAdapterRequest,
     build_provider_adapter,
 )
@@ -62,27 +64,19 @@ async def _execute_search_budgets(
     ).model_dump()
 
 
-async def run_agent_loop_with_retrieval(
+async def execute_planned_steps_with_retrieval(
     request: AgentRunRequest,
+    planned_steps: Sequence[AgentPlannedStep],
     *,
     search_service: SemanticSearchLike | None = None,
     search_k: int = 5,
 ) -> AgentRunResult:
     """
-    Run the manual agent loop with optional injected retrieval.
+    Execute normalized planned steps with deterministic local tools.
 
-    Provider adapters plan normalized steps. The loop validates and executes
-    tools, preserving the trace contract.
+    This is the bridge between provider planning and the actual tool loop. It is
+    deterministic except for an optional injected retrieval service.
     """
-
-    adapter = build_provider_adapter(request.provider)
-    planned_steps = adapter.plan(
-        ProviderAdapterRequest(
-            transcript=request.transcript,
-            provider=request.provider,
-            model=request.model,
-        )
-    )
 
     trace: list[AgentTraceItem] = []
     estimate = None
@@ -163,6 +157,36 @@ async def run_agent_loop_with_retrieval(
         provider=request.provider,
         model=request.model,
         terminated=bool(trace and trace[-1].role == "final"),
+    )
+
+
+async def run_agent_loop_with_retrieval(
+    request: AgentRunRequest,
+    *,
+    search_service: SemanticSearchLike | None = None,
+    search_k: int = 5,
+) -> AgentRunResult:
+    """
+    Run the manual agent loop with optional injected retrieval.
+
+    Provider adapters plan normalized steps. The loop validates and executes
+    tools, preserving the trace contract.
+    """
+
+    adapter = build_provider_adapter(request.provider)
+    planned_steps = adapter.plan(
+        ProviderAdapterRequest(
+            transcript=request.transcript,
+            provider=request.provider,
+            model=request.model,
+        )
+    )
+
+    return await execute_planned_steps_with_retrieval(
+        request,
+        planned_steps,
+        search_service=search_service,
+        search_k=search_k,
     )
 
 
