@@ -18,11 +18,11 @@ It separates proven evidence from remaining gaps. It also explains why live-prov
 | Each function_call_output references call_id | Tool output trace records call_id from the matching function call. | Covered |
 | Max iteration safety exists | AgentRunRequest.max_iterations is enforced by the executor. | Covered |
 | Agent returns structured estimate plus trace | AgentRunResult includes estimate, validation, trace, provider, model, and terminated. | Covered |
-| sample_transcript_complex.txt identifies more than one component | Current deterministic fake trace and tests show multiple components; final audit should verify against the actual sample_transcript_complex.txt artifact. | Needs audit |
-| sample_transcript_complex.txt makes more than one search_budgets call | Current tests assert at least two search_budgets calls; final audit should verify the committed artifact against the actual sample_transcript_complex.txt. | Needs audit |
+| sample_transcript_complex.txt identifies more than one component | The committed sample_transcript_complex trace has four components: JWT authentication, Audit logging, Admin dashboard, and CSV import. | Covered |
+| sample_transcript_complex.txt makes more than one search_budgets call | The committed sample_transcript_complex trace has two search_budgets calls: call_search_auth and call_search_audit. | Covered |
 | Trace shows reasoning, action, and observation | JSON trace artifacts contain reasoning, function_call, function_call_output, and final roles. | Likely covered |
-| search_budgets wraps S9-S10 retrieval, not a separate retrieval reimplementation | retrieval_bridge.py exists and supports injected retrieval service; fallback shell remains deterministic. | Needs audit |
-| Uses OpenAI Responses API with gpt-5 reasoning medium | Current implementation includes an OpenAI-compatible planning adapter. Verify whether it is the exact Responses API loop required by the official task. | Possible gap |
+| search_budgets wraps S9-S10 retrieval, not a separate retrieval reimplementation | Retrieval bridge is covered with injected service; deterministic fallback remains for CI safety. | Covered with caveat |
+| Uses OpenAI Responses API with gpt-5 reasoning medium | Current implementation uses an OpenAI-compatible chat-completions planning adapter. Exact OpenAI Responses API loop remains not implemented. | Not covered |
 | Optional validate_estimate tool | validate_estimate exists and is called in executed provider-plan smokes. | Extra covered |
 | Delivery branch is session-12/pre-work | Current working branch is gg-session-12/pre-work. Mirror to session-12/pre-work after final gates if required. | Delivery gap |
 
@@ -69,7 +69,7 @@ A fair model-quality comparison would need a fixed rubric, expected reference es
 2. Verify whether the OpenAI path uses the exact Responses API loop requested by the official task or an OpenAI-compatible planning adapter.
 3. Verify search_budgets wraps the S9-S10 retrieval path and does not silently rely only on a fake fallback.
 4. Mirror or create session-12/pre-work after final green gates if the teacher requires that exact branch.
-5. Verify remote CI if GitHub Actions is expected. Remote CI green is not proven yet.
+5. Remote CI green observed for 97c0630 in GitHub Actions. Devcontainer validation observed green. Live provider smoke observed green.
 6. Prepare the final email with repository branch URL and trace artifact reference.
 
 ## Current claim allowed
@@ -84,8 +84,40 @@ The task is fully delivered with no remaining gaps.
 
 Not allowed yet:
 
-The model comparison proves quality superiority.
+Model variance is integration evidence, not benchmark evidence.
 
 Not allowed yet:
 
 remote CI green is not proven.
+
+## Final compliance closure
+
+Complex transcript evidence is covered.
+
+The committed `sample_transcript_complex` trace contains four components and two search_budgets calls. It then calls calculate_estimate and validate_estimate, and validation returns valid true.
+
+Retrieval bridge is covered with injected service.
+
+The bridge adapts the existing Session 08-10 search-service boundary into the Session 12 search_budgets contract. The deterministic fallback remains intentionally available for CI safety.
+
+Task 12 validate_estimate extra is covered.
+
+The validate_estimate tool is implemented and appears in deterministic traces, executed provider-plan evidence, and live provider plan summaries.
+
+Remote validation status:
+
+- Remote CI green observed for 97c0630.
+- Devcontainer validation observed green.
+- Live provider smoke observed green.
+
+Session 11 live Quality Lab UI diagnostics remain optional.
+
+The Session 11 live extras and the draft quality-lab branch are useful inspiration, but they are not mandatory Task 12 core delivery. They were not merged into Session 12 as a UI path because UI changes would require browser smoke evidence.
+
+Exact OpenAI Responses API loop remains not implemented.
+
+The current implementation supports OpenAI-compatible live planning through chat completions. It does not implement the exact Responses API continuation loop with previous_response_id. Submit with this caveat or implement it as a separate slice.
+
+Model variance is integration evidence, not benchmark evidence.
+
+The spread between provider estimates shows that the plans are executable but not calibrated. It must not be described as model quality, accuracy, superiority, or benchmark evidence.
