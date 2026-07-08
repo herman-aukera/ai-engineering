@@ -88,4 +88,4 @@ The model comparison proves quality superiority.
 
 Not allowed yet:
 
-Remote CI green is proven.
+remote CI green is not proven.
