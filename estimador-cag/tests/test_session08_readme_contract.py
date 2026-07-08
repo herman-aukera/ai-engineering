@@ -8,14 +8,20 @@ def _readme() -> str:
     return README.read_text(encoding="utf-8")
 
 
-def test_project_readme_documents_current_session10_branch_and_stack() -> None:
+def test_project_readme_documents_current_session12_and_historical_session10_stack() -> None:
     text = _readme()
+    front_door = text.split("## Historical Session 10 retrieval background", 1)[0]
+    historical = text.split("## Historical Session 10 retrieval background", 1)[1]
 
-    assert "gg-session-10/pre-work" in text
-    assert "Session 10 — advanced retrieval compass" in text
-    assert "app/embedding_pipeline/fusion.py" in text
-    assert "app/embedding_pipeline/reranker.py" in text
-    assert "POST /search" in text
+    assert "gg-session-12/pre-work" in front_door
+    assert "Session 12 — hand-written agent loop" in front_door
+    assert "docs/session12_agentic_handoff.md" in front_door
+    assert "docs/session12_task12_compliance.md" in front_door
+    assert "gg-session-10/pre-work" not in front_door
+
+    assert "app/embedding_pipeline/fusion.py" in historical
+    assert "app/embedding_pipeline/reranker.py" in historical
+    assert "POST /search" in historical
 
 
 def test_project_readme_documents_abcd_retrieval_evaluation() -> None:
