@@ -1,8 +1,8 @@
 """
-Session 12 hand-written fake-provider agent loop.
+Session 12 hand-written agent loop.
 
-This module proves the reason-act-observe mechanics before live provider
-adapters are introduced.
+This module executes normalized provider-planned steps with deterministic tools
+and optional injected retrieval.
 """
 
 from __future__ import annotations
@@ -15,109 +15,15 @@ from app.generation.agentic.agent_schemas import (
     AgentRunResult,
     AgentTraceItem,
     CalculateEstimateInput,
-    EstimateComponentInput,
     SearchBudgetsInput,
     ValidateEstimateInput,
 )
 from app.generation.agentic.agent_tools import calculate_estimate, search_budgets, validate_estimate
+from app.generation.agentic.provider_adapters import (
+    ProviderAdapterRequest,
+    build_provider_adapter,
+)
 from app.generation.agentic.retrieval_bridge import SemanticSearchLike, search_budgets_with_service
-
-
-def _fake_plan(transcript: str) -> list[dict[str, Any]]:
-    """Return a deterministic fake provider plan for Session 12 loop tests."""
-
-    lowered = transcript.lower()
-    components = []
-
-    if "jwt" in lowered or "authentication" in lowered:
-        components.append(
-            EstimateComponentInput(
-                name="JWT authentication",
-                complexity="medium",
-                reference_hours=40,
-            )
-        )
-
-    if "audit" in lowered:
-        components.append(
-            EstimateComponentInput(
-                name="Audit logging",
-                complexity="low",
-                reference_hours=24,
-            )
-        )
-
-    if "dashboard" in lowered or "admin" in lowered:
-        components.append(
-            EstimateComponentInput(
-                name="Admin dashboard",
-                complexity="medium",
-                reference_hours=56,
-            )
-        )
-
-    if "csv" in lowered or "import" in lowered:
-        components.append(
-            EstimateComponentInput(
-                name="CSV import",
-                complexity="medium",
-                reference_hours=32,
-            )
-        )
-
-    if not components:
-        components.append(
-            EstimateComponentInput(
-                name="General implementation",
-                complexity="medium",
-                reference_hours=40,
-            )
-        )
-
-    return [
-        {
-            "kind": "reasoning",
-            "content": "Identify likely components from the transcript before estimating.",
-        },
-        {
-            "kind": "function_call",
-            "tool_name": "search_budgets",
-            "call_id": "call_search_auth",
-            "arguments": {"query": "JWT authentication financial backend"},
-        },
-        {
-            "kind": "function_call",
-            "tool_name": "search_budgets",
-            "call_id": "call_search_audit",
-            "arguments": {"query": "audit logging admin dashboard CSV import"},
-        },
-        {
-            "kind": "reasoning",
-            "content": "Use retrieved budget context plus transcript components to calculate effort.",
-        },
-        {
-            "kind": "function_call",
-            "tool_name": "calculate_estimate",
-            "call_id": "call_calculate_estimate",
-            "arguments": {
-                "components": [component.model_dump() for component in components],
-                "hourly_rate_eur": 75,
-                "contingency_pct": 0.2,
-            },
-        },
-        {
-            "kind": "function_call",
-            "tool_name": "validate_estimate",
-            "call_id": "call_validate_estimate",
-            "arguments": {
-                "required_component_names": [component.name for component in components],
-            },
-        },
-        {
-            "kind": "final",
-            "content": "Return the structured estimate and readable trace.",
-        },
-    ]
 
 
 def _append_tool_output(
@@ -165,43 +71,47 @@ async def run_agent_loop_with_retrieval(
     """
     Run the manual agent loop with optional injected retrieval.
 
-    With no search_service, this preserves the deterministic fake shell behavior.
-    With search_service, search_budgets observations contain semantic hits.
+    Provider adapters plan normalized steps. The loop validates and executes
+    tools, preserving the trace contract.
     """
 
-    if request.provider != "fake":
-        raise ValueError("Only fake provider is supported in this slice.")
+    adapter = build_provider_adapter(request.provider)
+    planned_steps = adapter.plan(
+        ProviderAdapterRequest(
+            transcript=request.transcript,
+            provider=request.provider,
+            model=request.model,
+        )
+    )
 
     trace: list[AgentTraceItem] = []
     estimate = None
     validation = None
     iterations = 0
 
-    for step in _fake_plan(request.transcript):
+    for step in planned_steps:
         iterations += 1
         if iterations > request.max_iterations:
             break
 
-        kind = step["kind"]
-
-        if kind == "reasoning":
+        if step.kind == "reasoning":
             trace.append(
                 AgentTraceItem(
                     role="reasoning",
-                    content=step["content"],
+                    content=step.content,
                 )
             )
             continue
 
-        if kind == "function_call":
-            tool_name = step["tool_name"]
-            call_id = step["call_id"]
-            arguments = step["arguments"]
+        if step.kind == "function_call":
+            tool_name = step.tool_name
+            call_id = step.call_id
+            arguments = step.arguments
 
             trace.append(
                 AgentTraceItem(
                     role="function_call",
-                    content=f"Call {tool_name}.",
+                    content=step.content,
                     tool_name=tool_name,
                     call_id=call_id,
                     arguments=arguments,
@@ -234,11 +144,11 @@ async def run_agent_loop_with_retrieval(
 
             raise ValueError(f"Unsupported tool: {tool_name}")
 
-        if kind == "final":
+        if step.kind == "final":
             trace.append(
                 AgentTraceItem(
                     role="final",
-                    content=step["content"],
+                    content=step.content,
                 )
             )
             break
