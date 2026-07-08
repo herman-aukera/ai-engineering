@@ -117,7 +117,7 @@ def build_responses_tool_schemas() -> list[dict[str, Any]]:
                         },
                     },
                     "hourly_rate_eur": {"type": "number"},
-                    "contingency_pct": {"type": "number"},
+                    "contingency_pct": {"type": "number", "description": "Contingency as a fraction between 0 and 1. Use 0.20 for 20 percent.", "minimum": 0, "maximum": 1},
                 },
                 "required": ["components", "hourly_rate_eur", "contingency_pct"],
                 "additionalProperties": False,
@@ -212,6 +212,21 @@ def _normalize_search_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _normalize_calculate_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Normalize model-friendly estimate arguments before strict validation."""
+
+    normalized = dict(arguments)
+    contingency_pct = normalized.get("contingency_pct")
+
+    if isinstance(contingency_pct, int | float) and contingency_pct > 1:
+        if contingency_pct <= 100:
+            normalized["contingency_pct"] = contingency_pct / 100
+        else:
+            raise ValueError("contingency_pct cannot be greater than 100 percent")
+
+    return normalized
+
+
 def _reasoning_summary(item: Any) -> str:
     summary = _get(item, "summary")
     if isinstance(summary, Sequence) and not isinstance(summary, str):
@@ -262,7 +277,9 @@ async def _execute_tool(
         return output.model_dump(), estimate, None
 
     if tool_name == "calculate_estimate":
-        calculated = calculate_estimate(CalculateEstimateInput(**arguments))
+        calculated = calculate_estimate(
+            CalculateEstimateInput(**_normalize_calculate_arguments(arguments))
+        )
         return calculated.model_dump(), calculated, None
 
     if tool_name == "validate_estimate":

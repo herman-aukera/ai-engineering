@@ -55,7 +55,7 @@ class FakeResponsesClient:
                                     {"name": "CSV import", "complexity": "medium", "reference_hours": 32.0},
                                 ],
                                 "hourly_rate_eur": 75,
-                                "contingency_pct": 0.2,
+                                "contingency_pct": 20,
                             }
                         ),
                     ),
