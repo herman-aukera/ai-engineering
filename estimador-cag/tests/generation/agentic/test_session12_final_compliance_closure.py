@@ -11,7 +11,7 @@ def test_session12_compliance_doc_records_final_closure_status():
         "four components",
         "two search_budgets calls",
         "Retrieval bridge is covered with injected service",
-        "Exact OpenAI Responses API loop remains not implemented",
+        "Exact OpenAI Responses API manual loop is implemented",
         "Session 11 live Quality Lab UI diagnostics remain optional",
         "Task 12 validate_estimate extra is covered",
         "Remote CI green observed for 97c0630",
@@ -29,7 +29,6 @@ def test_session12_final_closure_does_not_overclaim_model_quality():
 
     forbidden_claims = [
         "model comparison proves quality superiority",
-        "OpenAI Responses API loop is implemented",
         "Quality Lab UI diagnostics are implemented",
     ]
 

@@ -22,7 +22,7 @@ It separates proven evidence from remaining gaps. It also explains why live-prov
 | sample_transcript_complex.txt makes more than one search_budgets call | The committed sample_transcript_complex trace has two search_budgets calls: call_search_auth and call_search_audit. | Covered |
 | Trace shows reasoning, action, and observation | JSON trace artifacts contain reasoning, function_call, function_call_output, and final roles. | Likely covered |
 | search_budgets wraps S9-S10 retrieval, not a separate retrieval reimplementation | Retrieval bridge is covered with injected service; deterministic fallback remains for CI safety. | Covered with caveat |
-| Uses OpenAI Responses API with gpt-5 reasoning medium | Current implementation uses an OpenAI-compatible chat-completions planning adapter. Exact OpenAI Responses API loop remains not implemented. | Not covered |
+| Uses OpenAI Responses API with gpt-5 reasoning medium | Exact OpenAI Responses API manual loop is implemented in openai_responses_loop.py and uses client.responses.create, reasoning effort medium, function_call_output, and previous_response_id. | Covered |
 | Optional validate_estimate tool | validate_estimate exists and is called in executed provider-plan smokes. | Extra covered |
 | Delivery branch is session-12/pre-work | Current working branch is gg-session-12/pre-work. Mirror to session-12/pre-work after final gates if required. | Delivery gap |
 
@@ -114,9 +114,9 @@ Session 11 live Quality Lab UI diagnostics remain optional.
 
 The Session 11 live extras and the draft quality-lab branch are useful inspiration, but they are not mandatory Task 12 core delivery. They were not merged into Session 12 as a UI path because UI changes would require browser smoke evidence.
 
-Exact OpenAI Responses API loop remains not implemented.
+Exact OpenAI Responses API manual loop is implemented.
 
-The current implementation supports OpenAI-compatible live planning through chat completions. It does not implement the exact Responses API continuation loop with previous_response_id. Submit with this caveat or implement it as a separate slice.
+The branch now contains a dedicated exact Responses API loop using client.responses.create, reasoning effort medium, function_call_output items, and previous_response_id continuation. The earlier OpenAI-compatible chat-completions adapter remains as extra provider-planning infrastructure, not as the mandatory path.
 
 Model variance is integration evidence, not benchmark evidence.
 
