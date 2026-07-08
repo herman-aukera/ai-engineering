@@ -1,20 +1,26 @@
 # Estimador CAG
 
+## Current Session 12 status
+
+Current branch:
+
+    gg-session-12/pre-work
+
+Current focus:
+
+    Session 12 — hand-written agent loop for transcript estimation, tool calls, trace evidence, and live-provider smoke
+
+Key Session 12 docs:
+
+- docs/session12_agentic_handoff.md
+- docs/session12_task12_compliance.md
+
 ## Session 12 agentic handoff
 
 Latest Session 12 agentic implementation, commands, evidence files, and limitations are summarized in docs/session12_agentic_handoff.md.
 
-Current branch:
 
-```text
-gg-session-10/pre-work
-```
-
-Current focus:
-
-```text
-Session 10 — advanced retrieval compass, hybrid retrieval, reranking, and A/B/C/D evaluation
-```
+## Historical Session 10 retrieval background
 
 ## Current retrieval stack
 
