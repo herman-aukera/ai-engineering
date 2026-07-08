@@ -236,16 +236,56 @@ Rules:
 """.strip()
 
 
-def parse_provider_plan_json(raw_content: str) -> list[AgentPlannedStep]:
-    """Parse provider JSON into normalized planned steps."""
+def _strip_markdown_json_fence(raw_content: str) -> str:
+    """Remove a single Markdown code fence wrapper if a provider adds one."""
+
+    stripped = raw_content.strip()
+    if not stripped.startswith("```"):
+        return stripped
+
+    lines = stripped.splitlines()
+    if lines and lines[0].startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+
+    return "\n".join(lines).strip()
+
+
+def _load_provider_json_object(raw_content: str) -> dict:
+    """Load the first JSON object from provider content.
+
+    Some live providers obey the planning prompt semantically but append
+    extra prose or formatting. For the smoke runner, the normalized first
+    JSON object is the contract boundary; shape validation still happens
+    after parsing.
+    """
+
+    candidate = _strip_markdown_json_fence(raw_content)
 
     try:
-        payload = json.loads(raw_content)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Provider plan is not valid JSON: {exc}") from exc
+        payload = json.loads(candidate)
+    except json.JSONDecodeError:
+        first_object_index = candidate.find("{")
+        if first_object_index < 0:
+            raise ValueError("Provider plan is not valid JSON: no JSON object found")
+
+        decoder = json.JSONDecoder()
+        try:
+            payload, _end_index = decoder.raw_decode(candidate[first_object_index:])
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Provider plan is not valid JSON: {exc}") from exc
 
     if not isinstance(payload, dict):
         raise ValueError("Provider plan must be a JSON object")
+
+    return payload
+
+
+def parse_provider_plan_json(raw_content: str) -> list[AgentPlannedStep]:
+    """Parse provider JSON into normalized planned steps."""
+
+    payload = _load_provider_json_object(raw_content)
 
     raw_steps = payload.get("steps")
     if not isinstance(raw_steps, list) or not raw_steps:

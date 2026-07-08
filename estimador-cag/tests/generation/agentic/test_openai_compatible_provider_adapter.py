@@ -180,3 +180,63 @@ def test_openai_compatible_provider_adapter_allows_temperature_override():
 
     call = client.chat.completions.calls[0]
     assert call["temperature"] == 1
+
+
+def test_parse_provider_plan_json_accepts_trailing_provider_text():
+    raw_content = """
+    {
+      "steps": [
+        {"kind": "reasoning", "content": "Think."},
+        {
+          "kind": "function_call",
+          "content": "Call calculate.",
+          "tool_name": "calculate_estimate",
+          "call_id": "call_calculate",
+          "arguments": {
+            "components": [
+              {
+                "name": "JWT authentication",
+                "complexity": "medium",
+                "reference_hours": 40
+              }
+            ],
+            "hourly_rate_eur": 75,
+            "contingency_pct": 0.2
+          }
+        },
+        {"kind": "final", "content": "Done."}
+      ]
+    }
+    This trailing provider note should not break the smoke parser.
+    """
+
+    steps = parse_provider_plan_json(raw_content)
+
+    assert [step.kind for step in steps] == [
+        "reasoning",
+        "function_call",
+        "final",
+    ]
+    assert steps[1].tool_name == "calculate_estimate"
+
+
+def test_parse_provider_plan_json_accepts_markdown_json_fence():
+    fence = chr(96) * 3
+    raw_content = (
+        fence
+        + "json\n"
+        + """
+        {
+          "steps": [
+            {"kind": "reasoning", "content": "Think."},
+            {"kind": "final", "content": "Done."}
+          ]
+        }
+        """
+        + "\n"
+        + fence
+    )
+
+    steps = parse_provider_plan_json(raw_content)
+
+    assert [step.kind for step in steps] == ["reasoning", "final"]
