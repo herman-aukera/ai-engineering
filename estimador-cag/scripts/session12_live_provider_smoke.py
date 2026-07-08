@@ -44,6 +44,22 @@ DEFAULT_MODEL_MATRIX: dict[ProviderName, dict[TierName, str]] = {
     },
 }
 
+DEFAULT_TEMPERATURE_MATRIX: dict[ProviderName, dict[TierName, float]] = {
+    "deepseek": {
+        "cheap": 0.0,
+        "final": 0.0,
+    },
+    "kimi": {
+        "cheap": 1.0,
+        "final": 1.0,
+    },
+    "openai": {
+        "cheap": 0.0,
+        "final": 0.0,
+    },
+}
+
+
 MODEL_ENV_MATRIX: dict[ProviderName, dict[TierName, str]] = {
     "deepseek": {
         "cheap": "DEEPSEEK_MODEL_CHEAP",
@@ -88,6 +104,7 @@ class ProviderSpec:
     base_url: str | None
     api_key_env_names: tuple[str, ...]
     api_key: str | None = None
+    temperature: float = 0.0
 
 
 def _first_env_value(
@@ -113,6 +130,7 @@ def resolve_provider_specs(
     tier: TierName,
     model_override: str | None,
     env: Mapping[str, str],
+    temperature_override: float | None = None,
 ) -> list[ProviderSpec]:
     """Resolve provider/model/base-url/key matrix without printing secrets."""
 
@@ -133,6 +151,10 @@ def resolve_provider_specs(
         base_url_env_name = BASE_URL_ENV_NAMES[provider_name]
         base_url = env.get(base_url_env_name) or DEFAULT_BASE_URLS[provider_name]
 
+        temperature = temperature_override
+        if temperature is None:
+            temperature = DEFAULT_TEMPERATURE_MATRIX[provider_name][tier]
+
         api_key_env_names = API_KEY_ENV_NAMES[provider_name]
         api_key = _first_env_value(env, api_key_env_names)
 
@@ -144,6 +166,7 @@ def resolve_provider_specs(
                 base_url=base_url,
                 api_key_env_names=api_key_env_names,
                 api_key=api_key,
+                temperature=temperature,
             )
         )
 
@@ -158,6 +181,7 @@ def safe_spec_summary(spec: ProviderSpec) -> dict[str, object]:
         "tier": spec.tier,
         "model": spec.model,
         "base_url": spec.base_url,
+        "temperature": spec.temperature,
         "api_key_present": bool(spec.api_key),
         "api_key_env_names": list(spec.api_key_env_names),
     }
@@ -180,6 +204,7 @@ def build_live_smoke_artifact(
         "tier": spec.tier,
         "model": spec.model,
         "base_url": spec.base_url,
+        "temperature": spec.temperature,
         "transcript_sha256": transcript_digest,
         "step_count": len(steps),
         "steps": [step.model_dump() for step in steps],
@@ -214,6 +239,7 @@ def run_live_provider_smoke(
         client=client,
         model=spec.model,
         provider=spec.provider,
+        temperature=spec.temperature,
     )
 
     steps = adapter.plan(
@@ -258,6 +284,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override model for a single selected provider.",
     )
     parser.add_argument(
+        "--temperature",
+        type=float,
+        help="Override temperature for selected provider runs.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print resolved matrix without making live calls.",
@@ -293,6 +324,7 @@ def main(
             tier=args.tier,
             model_override=args.model,
             env=resolved_env,
+            temperature_override=args.temperature,
         )
     except ValueError as exc:
         print(f"Configuration error: {exc}")

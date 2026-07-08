@@ -32,6 +32,7 @@ def test_resolve_provider_specs_cheap_matrix_uses_current_low_cost_models():
         ("kimi", "kimi-k2.6"),
         ("openai", "gpt-5.4-mini"),
     ]
+    assert [spec.temperature for spec in specs] == [0.0, 1.0, 0.0]
 
 
 def test_resolve_provider_specs_final_matrix_uses_current_final_models():
@@ -49,6 +50,7 @@ def test_resolve_provider_specs_final_matrix_uses_current_final_models():
         ("kimi", "kimi-k2.7-code"),
         ("openai", "gpt-5.5"),
     ]
+    assert [spec.temperature for spec in specs] == [0.0, 1.0, 0.0]
 
 
 def test_dry_run_prints_matrix_without_creating_artifacts(tmp_path, capsys):
@@ -151,3 +153,19 @@ def test_script_can_run_as_direct_file_in_dry_run():
     assert "Resolved provider matrix:" in completed.stdout
     assert "No live calls executed." in completed.stdout
     assert "ModuleNotFoundError" not in completed.stderr
+
+
+def test_resolve_provider_specs_temperature_override_for_single_provider():
+    module = load_smoke_script()
+
+    specs = module.resolve_provider_specs(
+        provider="kimi",
+        tier="cheap",
+        model_override=None,
+        env={},
+        temperature_override=0.7,
+    )
+
+    assert len(specs) == 1
+    assert specs[0].provider == "kimi"
+    assert specs[0].temperature == 0.7

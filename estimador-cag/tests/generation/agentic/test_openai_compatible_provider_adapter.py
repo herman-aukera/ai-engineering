@@ -157,3 +157,26 @@ def test_parse_provider_plan_json_rejects_invalid_json_shape():
         assert "steps" in str(exc)
     else:
         raise AssertionError("provider plan without steps must fail")
+
+
+def test_openai_compatible_provider_adapter_allows_temperature_override():
+    client = FakeClient()
+    adapter = OpenAICompatibleProviderAdapter(
+        client=client,
+        model="provider-test-model",
+        provider="kimi",
+        temperature=1,
+    )
+
+    adapter.plan(
+        ProviderAdapterRequest(
+            transcript=(
+                "Client needs JWT authentication and audit logging for a financial app."
+            ),
+            provider="kimi",
+            model="provider-test-model",
+        )
+    )
+
+    call = client.chat.completions.calls[0]
+    assert call["temperature"] == 1

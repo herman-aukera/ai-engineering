@@ -263,15 +263,17 @@ class OpenAICompatibleProviderAdapter:
         client: OpenAICompatibleClientLike,
         model: str,
         provider: AgentProviderName,
+        temperature: float = 0,
     ) -> None:
         self.client = client
         self.model = model
         self.provider = provider
+        self.temperature = temperature
 
     def plan(self, request: ProviderAdapterRequest) -> list[AgentPlannedStep]:
         completion = self.client.chat.completions.create(
             model=request.model or self.model,
-            temperature=0,
+            temperature=self.temperature,
             messages=[
                 {
                     "role": "system",
