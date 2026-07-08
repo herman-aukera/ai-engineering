@@ -8,6 +8,7 @@ tools.
 
 from __future__ import annotations
 
+import json
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field, model_validator
@@ -50,6 +51,25 @@ class ProviderAdapter(Protocol):
 
     def plan(self, request: ProviderAdapterRequest) -> list[AgentPlannedStep]:
         """Return normalized planned steps."""
+
+
+class ChatCompletionsLike(Protocol):
+    """Minimal OpenAI-compatible chat completions protocol."""
+
+    def create(self, **kwargs: Any) -> Any:
+        """Create a chat completion."""
+
+
+class ChatLike(Protocol):
+    """Minimal client.chat protocol."""
+
+    completions: ChatCompletionsLike
+
+
+class OpenAICompatibleClientLike(Protocol):
+    """Minimal OpenAI-compatible client protocol."""
+
+    chat: ChatLike
 
 
 def _components_from_transcript(transcript: str) -> list[EstimateComponentInput]:
@@ -160,6 +180,111 @@ class FakeProviderAdapter:
                 content="Return the structured estimate and readable trace.",
             ),
         ]
+
+
+def build_agent_planning_system_prompt() -> str:
+    """Return strict JSON-only planning instructions for live adapters."""
+
+    return """
+Return only JSON with this exact shape:
+{
+  "steps": [
+    {
+      "kind": "reasoning",
+      "content": "short private-free reasoning summary"
+    },
+    {
+      "kind": "function_call",
+      "content": "Call search_budgets.",
+      "tool_name": "search_budgets",
+      "call_id": "stable_unique_call_id",
+      "arguments": {"query": "search query"}
+    },
+    {
+      "kind": "function_call",
+      "content": "Call calculate_estimate.",
+      "tool_name": "calculate_estimate",
+      "call_id": "stable_unique_call_id",
+      "arguments": {
+        "components": [
+          {"name": "Component name", "complexity": "low|medium|high", "reference_hours": 40}
+        ],
+        "hourly_rate_eur": 75,
+        "contingency_pct": 0.2
+      }
+    },
+    {
+      "kind": "function_call",
+      "content": "Call validate_estimate.",
+      "tool_name": "validate_estimate",
+      "call_id": "stable_unique_call_id",
+      "arguments": {"required_component_names": ["Component name"]}
+    },
+    {
+      "kind": "final",
+      "content": "Return the structured estimate."
+    }
+  ]
+}
+
+Rules:
+- Return only JSON. No Markdown.
+- Use only these tool names: search_budgets, calculate_estimate, validate_estimate.
+- Every function_call must include tool_name, call_id, and arguments.
+- Include at least one calculate_estimate call and one validate_estimate call.
+- Keep call_id values stable and unique.
+""".strip()
+
+
+def parse_provider_plan_json(raw_content: str) -> list[AgentPlannedStep]:
+    """Parse provider JSON into normalized planned steps."""
+
+    try:
+        payload = json.loads(raw_content)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Provider plan is not valid JSON: {exc}") from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("Provider plan must be a JSON object")
+
+    raw_steps = payload.get("steps")
+    if not isinstance(raw_steps, list) or not raw_steps:
+        raise ValueError("Provider plan must include a non-empty steps list")
+
+    return [AgentPlannedStep(**step) for step in raw_steps]
+
+
+class OpenAICompatibleProviderAdapter:
+    """Adapter for OpenAI-compatible chat completion providers."""
+
+    def __init__(
+        self,
+        *,
+        client: OpenAICompatibleClientLike,
+        model: str,
+        provider: AgentProviderName,
+    ) -> None:
+        self.client = client
+        self.model = model
+        self.provider = provider
+
+    def plan(self, request: ProviderAdapterRequest) -> list[AgentPlannedStep]:
+        completion = self.client.chat.completions.create(
+            model=request.model or self.model,
+            temperature=0,
+            messages=[
+                {
+                    "role": "system",
+                    "content": build_agent_planning_system_prompt(),
+                },
+                {
+                    "role": "user",
+                    "content": request.transcript,
+                },
+            ],
+        )
+        content = completion.choices[0].message.content
+        return parse_provider_plan_json(content)
 
 
 def build_provider_adapter(provider: AgentProviderName) -> ProviderAdapter:
