@@ -1,5 +1,9 @@
 # Estimador CAG
 
+## Session 12 agentic handoff
+
+Latest Session 12 agentic implementation, commands, evidence files, and limitations are summarized in docs/session12_agentic_handoff.md.
+
 Current branch:
 
 ```text
