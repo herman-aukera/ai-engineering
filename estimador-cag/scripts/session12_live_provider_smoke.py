@@ -44,7 +44,7 @@ DEFAULT_MODEL_MATRIX: dict[ProviderName, dict[TierName, str]] = {
     },
 }
 
-DEFAULT_TEMPERATURE_MATRIX: dict[ProviderName, dict[TierName, float]] = {
+DEFAULT_TEMPERATURE_MATRIX: dict[ProviderName, dict[TierName, float | None]] = {
     "deepseek": {
         "cheap": 0.0,
         "final": 0.0,
@@ -55,7 +55,7 @@ DEFAULT_TEMPERATURE_MATRIX: dict[ProviderName, dict[TierName, float]] = {
     },
     "openai": {
         "cheap": 0.0,
-        "final": 0.0,
+        "final": None,
     },
 }
 
@@ -104,7 +104,7 @@ class ProviderSpec:
     base_url: str | None
     api_key_env_names: tuple[str, ...]
     api_key: str | None = None
-    temperature: float = 0.0
+    temperature: float | None = 0.0
 
 
 def _first_env_value(

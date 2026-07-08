@@ -240,3 +240,27 @@ def test_parse_provider_plan_json_accepts_markdown_json_fence():
     steps = parse_provider_plan_json(raw_content)
 
     assert [step.kind for step in steps] == ["reasoning", "final"]
+
+
+def test_openai_compatible_provider_adapter_omits_temperature_when_none():
+    client = FakeClient()
+    adapter = OpenAICompatibleProviderAdapter(
+        client=client,
+        model="provider-test-model",
+        provider="openai",
+        temperature=None,
+    )
+
+    adapter.plan(
+        ProviderAdapterRequest(
+            transcript=(
+                "Client needs JWT authentication and audit logging for a financial app."
+            ),
+            provider="openai",
+            model="provider-test-model",
+        )
+    )
+
+    call = client.chat.completions.calls[0]
+    assert call["model"] == "provider-test-model"
+    assert "temperature" not in call

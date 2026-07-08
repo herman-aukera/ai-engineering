@@ -50,7 +50,7 @@ def test_resolve_provider_specs_final_matrix_uses_current_final_models():
         ("kimi", "kimi-k2.7-code"),
         ("openai", "gpt-5.5"),
     ]
-    assert [spec.temperature for spec in specs] == [0.0, 1.0, 0.0]
+    assert [spec.temperature for spec in specs] == [0.0, 1.0, None]
 
 
 def test_dry_run_prints_matrix_without_creating_artifacts(tmp_path, capsys):

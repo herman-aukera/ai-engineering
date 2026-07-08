@@ -303,7 +303,7 @@ class OpenAICompatibleProviderAdapter:
         client: OpenAICompatibleClientLike,
         model: str,
         provider: AgentProviderName,
-        temperature: float = 0,
+        temperature: float | None = 0,
     ) -> None:
         self.client = client
         self.model = model
@@ -311,10 +311,9 @@ class OpenAICompatibleProviderAdapter:
         self.temperature = temperature
 
     def plan(self, request: ProviderAdapterRequest) -> list[AgentPlannedStep]:
-        completion = self.client.chat.completions.create(
-            model=request.model or self.model,
-            temperature=self.temperature,
-            messages=[
+        completion_kwargs = {
+            "model": request.model or self.model,
+            "messages": [
                 {
                     "role": "system",
                     "content": build_agent_planning_system_prompt(),
@@ -324,7 +323,11 @@ class OpenAICompatibleProviderAdapter:
                     "content": request.transcript,
                 },
             ],
-        )
+        }
+        if self.temperature is not None:
+            completion_kwargs["temperature"] = self.temperature
+
+        completion = self.client.chat.completions.create(**completion_kwargs)
         content = completion.choices[0].message.content
         return parse_provider_plan_json(content)
 
