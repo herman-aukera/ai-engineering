@@ -16,14 +16,20 @@ from app.generation.graph.nodes.search_budgets import (
     SearchBudgetsNode,
     build_search_budgets_node,
 )
+from app.generation.graph.nodes.validate_and_consolidate import (
+    ValidateAndConsolidateNode,
+    build_validate_and_consolidate_node,
+)
 
 __all__ = [
     "ClassifyComponentsNode",
     "ExtractRequirementsNode",
     "GenerateEstimateNode",
     "SearchBudgetsNode",
+    "ValidateAndConsolidateNode",
     "build_classify_components_node",
     "build_extract_requirements_node",
     "build_generate_estimate_node",
     "build_search_budgets_node",
+    "build_validate_and_consolidate_node",
 ]
