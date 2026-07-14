@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse
 from app.embedding_pipeline.router import router as embedding_router
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
+from app.routers.graph_estimations import router as graph_estimations_router
 from app.routers.search import router as search_router
 from app.routers.sessions import router as sessions_router
 from app.services.litellm_timeout import install_litellm_request_timeout
@@ -40,6 +41,7 @@ setup_logging(app)
 
 # Transport layer
 app.include_router(estimations_router)
+app.include_router(graph_estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
 app.include_router(search_router, tags=["search"])
