@@ -3,6 +3,7 @@
 from app.generation.graph.ports import (
     BudgetSearcher,
     ComponentClassifier,
+    EstimationPolicy,
     GraphNodeDependencies,
     RequirementExtractor,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "ComponentItem",
     "DomainTraceEvent",
     "EstimationGraphState",
+    "EstimationPolicy",
     "GraphEstimate",
     "GraphIssue",
     "GraphNodeDependencies",

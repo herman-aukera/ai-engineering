@@ -113,6 +113,7 @@ class ExecutionMetadata(TypedDict, total=False):
     requirement_count: int
     component_count: int
     budget_match_count: int
+    component_estimate_count: int
     graph_version: str
 
 
