@@ -1,5 +1,10 @@
 """Session 13 explicit graph orchestration package."""
 
+from app.generation.graph.build import (
+    GRAPH_NAME,
+    REQUIRED_NODE_NAMES,
+    build_estimation_graph,
+)
 from app.generation.graph.ports import (
     BudgetSearcher,
     ComponentClassifier,
@@ -29,9 +34,12 @@ __all__ = [
     "EstimationGraphState",
     "EstimationPolicy",
     "GraphEstimate",
+    "GRAPH_NAME",
     "GraphIssue",
     "GraphNodeDependencies",
+    "REQUIRED_NODE_NAMES",
     "RequirementExtractor",
     "RequirementItem",
+    "build_estimation_graph",
     "new_estimation_graph_state",
 ]
