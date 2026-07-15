@@ -1,0 +1,42 @@
+{
+  "github_artifact": {
+    "artifact_id": 8352959841,
+    "created_at_utc": "2026-07-15T18:16:44Z",
+    "expires_at_utc": "2026-10-13T18:12:21Z",
+    "name": "live-smoke-results",
+    "sha256": "0dc7b9d88cb734280a760078fc7ea03c5725981e8fadb27385c26096e1db4dfe"
+  },
+  "interpretation": "The manual workflow and provider requests completed successfully, but the historical Session 06 latency and memory-drift thresholds were not met. This is auxiliary diagnostic evidence and is not a mandatory Session 13 graph acceptance gate.",
+  "operational_gate": {
+    "artifact_uploaded": true,
+    "rows_written": 18,
+    "status": "passed"
+  },
+  "privacy": {
+    "logfire_token_committed": false,
+    "provider_credentials_committed": false,
+    "raw_provider_responses_committed": false
+  },
+  "quality_observation": {
+    "cache_hit_rows": 0,
+    "cost_budget_passed_rows": 18,
+    "flash_rows": 17,
+    "latency_budget_passed_rows": 0,
+    "maximum_latency_ms": 44457.0,
+    "median_latency_ms": 9811.5,
+    "memory_drift_passed_rows": 0,
+    "pro_rows": 1,
+    "status": "failed_observed_thresholds",
+    "total_cost_usd": 0.038857
+  },
+  "schema_version": "session13.live_provider_smoke.v1",
+  "scope": "auxiliary_session06_cag_stress",
+  "session13_mandatory_gate_blocking": false,
+  "workflow": {
+    "conclusion": "success",
+    "name": "Live provider smoke - Estimador CAG",
+    "run_id": 29439589612,
+    "run_url": "https://github.com/herman-aukera/ai-engineering/actions/runs/29439589612",
+    "source_commit": "720d9f034d60cbfc926974403a58056708a002e2"
+  }
+}
