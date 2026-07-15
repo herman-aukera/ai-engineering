@@ -31,12 +31,14 @@ pytestmark = pytest.mark.skipif(
 )
 
 DATABASE_URL = os.getenv(
-    "SESSION13_POSTGRES_DATABASE_URL",
-    (
-        "postgresql+asyncpg://estimator:estimator@"
-        "localhost:5432/estimator"
-    ),
+    "SESSION13_POSTGRES_DATABASE_URL"
 )
+
+if RUN_POSTGRES_INTEGRATION and not DATABASE_URL:
+    raise RuntimeError(
+        "SESSION13_POSTGRES_DATABASE_URL is required "
+        "when RUN_POSTGRES_INTEGRATION=1"
+    )
 
 TRANSCRIPT = (
     "The client requires JWT authentication and auditable "
