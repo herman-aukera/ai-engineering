@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass
 from uuid import UUID
 
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
 
+from app.generation.graph.build import build_estimation_graph
+from app.generation.graph.fakes import (
+    FakeBudgetSearcher,
+    FakeComponentClassifier,
+    FakeRequirementExtractor,
+)
+from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.state import new_estimation_graph_state
 from app.services.graph_estimation import (
     GraphEstimationService,
@@ -42,14 +51,37 @@ def _terminal_state(
     return state
 
 
+@dataclass(frozen=True)
+class Snapshot:
+    values: dict[str, object]
+    next: tuple[str, ...]
+
+
 class RecordingGraph:
-    def __init__(self, result: object) -> None:
+    def __init__(
+        self,
+        result: object,
+        *,
+        snapshot: Snapshot | None = None,
+    ) -> None:
         self.result = result
+        self.snapshot = snapshot or Snapshot(
+            values={},
+            next=(),
+        )
         self.calls: list[dict[str, object]] = []
+        self.state_calls: list[dict[str, object]] = []
+
+    async def aget_state(
+        self,
+        config: dict[str, object],
+    ) -> Snapshot:
+        self.state_calls.append(deepcopy(config))
+        return deepcopy(self.snapshot)
 
     async def ainvoke(
         self,
-        input: dict[str, object],
+        input: dict[str, object] | None,
         config: dict[str, object] | None = None,
     ) -> object:
         self.calls.append(
@@ -204,3 +236,200 @@ async def test_service_rejects_mismatched_estimation_id() -> None:
             transcript=TRANSCRIPT,
             estimation_id=requested_id,
         )
+
+
+
+@pytest.mark.asyncio
+async def test_completed_thread_returns_stored_state_without_reinvocation() -> None:
+    estimation_id = UUID(
+        "f5317c82-05ad-4df5-bf43-f9b286f70e82"
+    )
+    stored_state = _terminal_state(str(estimation_id))
+    graph = RecordingGraph(
+        result=None,
+        snapshot=Snapshot(
+            values=stored_state,
+            next=(),
+        ),
+    )
+    service = GraphEstimationService(graph=graph)
+
+    run = await service.estimate(
+        transcript=TRANSCRIPT,
+        estimation_id=estimation_id,
+    )
+
+    assert run.state == stored_state
+    assert graph.calls == []
+    assert graph.state_calls == [
+        {
+            "configurable": {
+                "thread_id": run.thread_id,
+            }
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_incomplete_thread_resumes_without_fresh_input() -> None:
+    estimation_id = UUID(
+        "f5317c82-05ad-4df5-bf43-f9b286f70e82"
+    )
+    incomplete_state = new_estimation_graph_state(
+        transcript=TRANSCRIPT,
+        estimation_id=str(estimation_id),
+    )
+    incomplete_state["requirements"] = [
+        {
+            "requirement_id": "REQ-001",
+            "text": "Users authenticate with JWT.",
+        }
+    ]
+
+    graph = RecordingGraph(
+        result=_terminal_state(str(estimation_id)),
+        snapshot=Snapshot(
+            values=incomplete_state,
+            next=("classify_components",),
+        ),
+    )
+    service = GraphEstimationService(graph=graph)
+
+    run = await service.estimate(
+        transcript=TRANSCRIPT,
+        estimation_id=estimation_id,
+    )
+
+    assert run.state["status"] == "validated"
+    assert graph.calls == [
+        {
+            "input": None,
+            "config": {
+                "configurable": {
+                    "thread_id": run.thread_id,
+                }
+            },
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_existing_thread_rejects_different_transcript() -> None:
+    estimation_id = UUID(
+        "f5317c82-05ad-4df5-bf43-f9b286f70e82"
+    )
+    stored_state = _terminal_state(str(estimation_id))
+    stored_state["transcript"] = (
+        "A completely different estimation transcript."
+    )
+
+    graph = RecordingGraph(
+        result=None,
+        snapshot=Snapshot(
+            values=stored_state,
+            next=(),
+        ),
+    )
+    service = GraphEstimationService(graph=graph)
+
+    with pytest.raises(
+        GraphResultContractError,
+        match="transcript",
+    ):
+        await service.estimate(
+            transcript=TRANSCRIPT,
+            estimation_id=estimation_id,
+        )
+
+    assert graph.calls == []
+
+
+@pytest.mark.asyncio
+async def test_completed_real_graph_is_idempotent_with_reducers() -> None:
+    requirement = {
+        "requirement_id": "REQ-001",
+        "text": "Users authenticate with JWT.",
+    }
+    component = {
+        "component_id": "CMP-001",
+        "name": "JWT authentication",
+        "category": "backend",
+        "requirement_ids": ["REQ-001"],
+    }
+    matches = [
+        {
+            "component_id": "CMP-001",
+            "budget_id": "BUD-101",
+            "reference_component_id": "AUTH-01",
+            "source_document_id": "DOC-10",
+            "source_chunk_id": "CH-101",
+            "recorded_hours": 32.0,
+            "distance": 0.1,
+            "score": 0.9,
+            "retrieval_method": "hybrid",
+        },
+        {
+            "component_id": "CMP-001",
+            "budget_id": "BUD-102",
+            "reference_component_id": "AUTH-02",
+            "source_document_id": "DOC-11",
+            "source_chunk_id": "CH-102",
+            "recorded_hours": 40.0,
+            "distance": 0.1,
+            "score": 0.9,
+            "retrieval_method": "hybrid",
+        },
+        {
+            "component_id": "CMP-001",
+            "budget_id": "BUD-103",
+            "reference_component_id": "AUTH-03",
+            "source_document_id": "DOC-12",
+            "source_chunk_id": "CH-103",
+            "recorded_hours": 48.0,
+            "distance": 0.1,
+            "score": 0.9,
+            "retrieval_method": "hybrid",
+        },
+    ]
+
+    extractor = FakeRequirementExtractor([requirement])
+    classifier = FakeComponentClassifier([component])
+    searcher = FakeBudgetSearcher(
+        {"CMP-001": matches}
+    )
+
+    graph = build_estimation_graph(
+        GraphNodeDependencies(
+            requirement_extractor=extractor,
+            component_classifier=classifier,
+            budget_searcher=searcher,
+        ),
+        checkpointer=InMemorySaver(),
+    )
+    service = GraphEstimationService(graph=graph)
+
+    estimation_id = UUID(
+        "f5317c82-05ad-4df5-bf43-f9b286f70e82"
+    )
+
+    first = await service.estimate(
+        transcript=TRANSCRIPT,
+        estimation_id=estimation_id,
+    )
+    second = await service.estimate(
+        transcript=TRANSCRIPT,
+        estimation_id=estimation_id,
+    )
+
+    assert second.state == first.state
+    assert len(second.state["budget_matches"]) == 3
+    assert len(second.state["trace_events"]) == 5
+
+    assert extractor.calls == [TRANSCRIPT]
+    assert classifier.calls == [[requirement]]
+    assert searcher.calls == [
+        {
+            "component_id": "CMP-001",
+            "k": 5,
+        }
+    ]

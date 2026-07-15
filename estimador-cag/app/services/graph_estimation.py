@@ -1,10 +1,10 @@
-"""Application service that invokes the compiled estimation graph."""
+"""Application service that safely invokes a checkpointed estimation graph."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import Protocol
 from uuid import UUID, uuid4
 
 from app.generation.graph.state import (
@@ -16,19 +16,32 @@ THREAD_ID_PREFIX = "estimate:"
 MAX_THREAD_ID_LENGTH = 128
 
 
+class GraphStateSnapshot(Protocol):
+    """Latest checkpoint state required for execution routing."""
+
+    values: Mapping[str, object]
+    next: tuple[str, ...]
+
+
 class GraphRunner(Protocol):
-    """Minimal compiled-graph interface required by the service."""
+    """Minimal checkpointed-graph interface required by the service."""
+
+    async def aget_state(
+        self,
+        config: dict[str, object],
+    ) -> GraphStateSnapshot:
+        """Return the latest state snapshot for one thread."""
 
     async def ainvoke(
         self,
-        input: EstimationGraphState,
+        input: EstimationGraphState | None,
         config: dict[str, object] | None = None,
     ) -> Mapping[str, object]:
-        """Execute one graph run and return its terminal state."""
+        """Start or resume one graph execution."""
 
 
 class GraphResultContractError(RuntimeError):
-    """Raised when a graph returns a malformed or nonterminal state."""
+    """Raised when graph state violates the application contract."""
 
 
 @dataclass(frozen=True)
@@ -49,7 +62,7 @@ class GraphEstimationApplication(Protocol):
         transcript: str,
         estimation_id: UUID | None = None,
     ) -> GraphEstimationRun:
-        """Run or resume the graph thread identified by estimation_id."""
+        """Create, resume, or return one estimation thread."""
 
 
 def thread_id_from_estimation_id(
@@ -72,9 +85,91 @@ def thread_id_from_estimation_id(
     return thread_id
 
 
+def _state_from_mapping(
+    value: object,
+    *,
+    context: str,
+) -> EstimationGraphState:
+    if not isinstance(value, Mapping):
+        raise GraphResultContractError(
+            f"{context} must be a mapping"
+        )
+
+    return EstimationGraphState(**dict(value))
+
+
+def _validate_state_identity(
+    state: EstimationGraphState,
+    *,
+    estimation_id: str,
+    transcript: str,
+    graph_version: str,
+) -> None:
+    if state.get("estimation_id") != estimation_id:
+        raise GraphResultContractError(
+            "graph state estimation_id does not match the request"
+        )
+
+    if state.get("graph_version") != graph_version:
+        raise GraphResultContractError(
+            "graph state graph_version does not match the service"
+        )
+
+    if state.get("transcript") != transcript:
+        raise GraphResultContractError(
+            "graph state transcript does not match the request"
+        )
+
+
+def _validate_terminal_state(
+    value: object,
+    *,
+    estimation_id: str,
+    transcript: str,
+    graph_version: str,
+) -> EstimationGraphState:
+    state = _state_from_mapping(
+        value,
+        context="graph result",
+    )
+
+    _validate_state_identity(
+        state,
+        estimation_id=estimation_id,
+        transcript=transcript,
+        graph_version=graph_version,
+    )
+
+    if state.get("status") not in {
+        "validated",
+        "needs_review",
+    }:
+        raise GraphResultContractError(
+            "graph result is not terminal"
+        )
+
+    if not isinstance(
+        state.get("review_required"),
+        bool,
+    ):
+        raise GraphResultContractError(
+            "graph result review_required must be boolean"
+        )
+
+    if not isinstance(
+        state.get("estimate"),
+        Mapping,
+    ):
+        raise GraphResultContractError(
+            "graph result does not contain an estimate"
+        )
+
+    return state
+
+
 @dataclass(frozen=True)
 class GraphEstimationService:
-    """Invoke a compiled graph behind a stable application boundary."""
+    """Run checkpointed graph threads without duplicating completed work."""
 
     graph: GraphRunner
     graph_version: str = "session13.v1"
@@ -91,68 +186,69 @@ class GraphEstimationService:
         thread_id = thread_id_from_estimation_id(
             resolved_estimation_id
         )
-
-        initial_state = new_estimation_graph_state(
-            transcript=transcript,
-            estimation_id=resolved_estimation_id,
-            graph_version=self.graph_version,
-        )
         config: dict[str, object] = {
             "configurable": {
                 "thread_id": thread_id,
             }
         }
 
-        result = await self.graph.ainvoke(
-            initial_state,
-            config=config,
-        )
+        snapshot = await self.graph.aget_state(config)
 
-        if not isinstance(result, Mapping):
+        if not isinstance(snapshot.values, Mapping):
             raise GraphResultContractError(
-                "graph result must be a mapping"
+                "graph snapshot values must be a mapping"
             )
 
-        final_state = cast(
-            EstimationGraphState,
-            dict(result),
-        )
+        next_nodes = tuple(snapshot.next)
+        saved_state: EstimationGraphState | None = None
 
-        if (
-            final_state.get("estimation_id")
-            != resolved_estimation_id
-        ):
+        if snapshot.values:
+            saved_state = _state_from_mapping(
+                snapshot.values,
+                context="graph snapshot",
+            )
+            _validate_state_identity(
+                saved_state,
+                estimation_id=resolved_estimation_id,
+                transcript=transcript,
+                graph_version=self.graph_version,
+            )
+        elif next_nodes:
             raise GraphResultContractError(
-                "graph result estimation_id does not match the request"
+                "empty graph snapshot cannot have pending nodes"
             )
 
-        if final_state.get("graph_version") != self.graph_version:
-            raise GraphResultContractError(
-                "graph result graph_version does not match the service"
+        if saved_state is not None and not next_nodes:
+            final_state = _validate_terminal_state(
+                saved_state,
+                estimation_id=resolved_estimation_id,
+                transcript=transcript,
+                graph_version=self.graph_version,
+            )
+        else:
+            if saved_state is None:
+                graph_input: EstimationGraphState | None = (
+                    new_estimation_graph_state(
+                        transcript=transcript,
+                        estimation_id=resolved_estimation_id,
+                        graph_version=self.graph_version,
+                    )
+                )
+            else:
+                # Resume the checkpointed pending nodes. Supplying a fresh
+                # state here would start another run and replay reducers.
+                graph_input = None
+
+            result = await self.graph.ainvoke(
+                graph_input,
+                config=config,
             )
 
-        if final_state.get("status") not in {
-            "validated",
-            "needs_review",
-        }:
-            raise GraphResultContractError(
-                "graph result is not terminal"
-            )
-
-        if not isinstance(
-            final_state.get("review_required"),
-            bool,
-        ):
-            raise GraphResultContractError(
-                "graph result review_required must be boolean"
-            )
-
-        if not isinstance(
-            final_state.get("estimate"),
-            Mapping,
-        ):
-            raise GraphResultContractError(
-                "graph result does not contain an estimate"
+            final_state = _validate_terminal_state(
+                result,
+                estimation_id=resolved_estimation_id,
+                transcript=transcript,
+                graph_version=self.graph_version,
             )
 
         return GraphEstimationRun(
