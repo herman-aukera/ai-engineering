@@ -1,5 +1,11 @@
 """Session 13 explicit graph orchestration package."""
 
+from app.generation.graph.adapters import (
+    LiteLLMComponentClassifier,
+    LiteLLMRequirementExtractor,
+    PgVectorBudgetSearcher,
+    build_graph_node_dependencies,
+)
 from app.generation.graph.build import (
     GRAPH_NAME,
     REQUIRED_NODE_NAMES,
@@ -41,5 +47,9 @@ __all__ = [
     "RequirementExtractor",
     "RequirementItem",
     "build_estimation_graph",
+    "LiteLLMComponentClassifier",
+    "LiteLLMRequirementExtractor",
+    "PgVectorBudgetSearcher",
+    "build_graph_node_dependencies",
     "new_estimation_graph_state",
 ]
