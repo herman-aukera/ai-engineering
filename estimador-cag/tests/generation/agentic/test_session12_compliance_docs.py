@@ -28,11 +28,17 @@ def test_session12_task12_compliance_doc_exists():
         assert fragment in content
 
 
-def test_readme_front_door_names_session12():
+def test_readme_names_session13_and_preserves_session12_history():
     readme = Path("README.md").read_text(encoding="utf-8")
+    front_door, history = readme.split(
+        "## Historical Session 12 agentic work",
+        1,
+    )
 
-    assert "Current branch:" in readme
-    assert "gg-session-12/pre-work" in readme
-    assert "Session 12 — hand-written agent loop" in readme
-    assert "docs/session12_task12_compliance.md" in readme
-    assert "gg-session-10/pre-work" not in readme.split("## Historical Session 10", 1)[0]
+    assert "Current branch:" in front_door
+    assert "gg-session-13/pre-work" in front_door
+    assert "POST /api/v1/estimate/graph" in front_door
+
+    assert "gg-session-12/pre-work" in history
+    assert "Session 12 — hand-written agent loop" in history
+    assert "docs/session12_task12_compliance.md" in history

@@ -25,9 +25,12 @@ def test_session12_handoff_doc_exists_and_names_evidence_files():
         assert fragment in content
 
 
-def test_readme_points_to_session12_handoff_doc():
-    readme = Path("README.md")
-    content = readme.read_text(encoding="utf-8")
+def test_readme_preserves_session12_handoff_as_history():
+    content = Path("README.md").read_text(encoding="utf-8")
+    history = content.split(
+        "## Historical Session 12 agentic work",
+        1,
+    )[1]
 
-    assert "Session 12 agentic handoff" in content
-    assert "docs/session12_agentic_handoff.md" in content
+    assert "Session 12 agentic handoff" in history
+    assert "docs/session12_agentic_handoff.md" in history

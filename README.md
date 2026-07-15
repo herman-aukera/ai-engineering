@@ -4,197 +4,114 @@ This repository contains the LIDR AI Engineering coursework.
 
 ## Current submission
 
-Active project:
+- Active project: `estimador-cag/`
+- Current branch: `gg-session-13/pre-work`
+- Teacher-facing branch: `session-13/pre-work`
+- Deliverable: **Session 13 — agent orchestration with LangGraph**
+
+Teacher-facing branch:
+
+https://github.com/herman-aukera/ai-engineering/tree/session-13/pre-work
+
+## What Session 13 delivers
+
+The Session 12 hand-written estimation loop has been re-expressed as an
+explicit LangGraph workflow inside the AI service:
 
 ```text
-estimador-cag/
+START
+  -> extract_requirements
+  -> classify_components
+  -> search_budgets
+  -> generate_estimate
+  -> validate_and_consolidate
+  -> END
 ```
 
-Current branch:
+The mandatory pre-session implementation includes:
+
+1. Typed shared graph state.
+2. Accumulator reducers using `Annotated[..., operator.add]`.
+3. Five sequential nodes that return partial state updates.
+4. An additive graph endpoint at `POST /api/v1/estimate/graph`.
+5. PostgreSQL persistence through `AsyncPostgresSaver`.
+6. Stable thread identity derived from the estimation identifier.
+7. A Logfire root span and one child span per graph node.
+8. A complete execution trace for the complex sample transcript.
+9. Deterministic fake adapters for CI.
+10. Separate live PostgreSQL, Logfire, and provider evidence.
+
+## Evidence
+
+- Deterministic execution:
+  `estimador-cag/artifacts/session13/complex_graph_execution_deterministic.json`
+- PostgreSQL persistence:
+  `estimador-cag/artifacts/session13/postgres_persistence_proof.json`
+- Live PostgreSQL and Logfire trace:
+  `estimador-cag/artifacts/session13/live_postgres_logfire_trace_summary.json`
+- Auxiliary live-provider smoke:
+  `estimador-cag/artifacts/session13/live_provider_smoke/`
+- Mandatory compliance:
+  `estimador-cag/docs/session13_task13_compliance.md`
+- Non-mandatory Plus roadmap:
+  `estimador-cag/docs/session13_plus_roadmap.md`
+- Spanish presentation guide:
+  `estimador-cag/docs/session13_presentation_guide_es.md`
+
+## Validation snapshot
+
+The latest implementation checkpoint passed:
 
 ```text
-gg-session-10/pre-work
+667 passed, 9 skipped
+Ruff passed
+Python compilation passed
+Secret scan passed
+Remote CI passed
 ```
 
-Current deliverable:
+Normal CI remains deterministic. Real-provider and hosted observability checks
+are manual and opt-in.
+
+## Scope boundary
+
+Parallel retrieval with the LangGraph `Send` API, advanced retry/fallback
+policies, circuit breakers, `interrupt()`-based human review, and the full graph
+wizard UI are tracked as Session 13 Plus work. They are not claimed as part of
+the mandatory pre-session submission.
+
+## Historical Session 10 retrieval work
+
+Session 10 remains available as historical coursework:
 
 ```text
-Session 10 — advanced retrieval compass and A/B/C/D retrieval evaluation
+Branch: gg-session-10/pre-work
+Deliverable: Session 10 — advanced retrieval compass and A/B/C/D retrieval evaluation
 ```
 
-## What this branch delivers
+### A/B/C/D retrieval variants
 
-This branch upgrades the existing pgvector retrieval baseline with advanced retrieval experiments:
+The deterministic historical runner is:
 
-1. PostgreSQL full text search support for lexical retrieval.
-2. Hybrid vector plus lexical retrieval using Reciprocal Rank Fusion.
-3. Optional service level reranking.
-4. A deterministic keyword overlap reranker for CI safe measurement.
-5. A golden retrieval set.
-6. An A/B/C/D measurement runner.
-7. Hardened retrieval metrics that distinguish repeated chunk relevance from unique budget relevance.
-
-The current evidence is intentionally bounded. It proves that the retrieval paths are wired, testable, and measurable on the small course corpus. It does not claim benchmark superiority.
-
-## A/B/C/D retrieval variants
-
-| Config | Meaning |
-| --- | --- |
-| A | Vector retrieval baseline |
-| B | Hybrid retrieval with vector plus lexical search fused by RRF |
-| C | Vector retrieval with wider recall followed by deterministic reranking |
-| D | Hybrid retrieval with wider RRF pool followed by deterministic reranking |
-
-## Latest deterministic retrieval result
-
-The latest committed Session 10 retrieval report is:
-
-```text
-estimador-cag/evals/session10_retrieval/REPORT.md
-```
-
-Summary on the 12 case golden set:
-
-| Config | result budget precision@5 | unique budget precision@5 | budget hit@5 | component hit@5 | top1 budget | top1 component |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| A | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-| B | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-| C | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-| D | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-
-Interpretation:
-
-The current corpus is very small and clean, so all variants solve the golden cases. This is wiring and smoke evidence, not proof that hybrid search or reranking improves quality in production.
-
-## Main files
-
-```text
-estimador-cag/app/embedding_pipeline/fusion.py
-estimador-cag/app/embedding_pipeline/reranker.py
-estimador-cag/app/embedding_pipeline/search_service.py
-estimador-cag/app/persistence/repository.py
-estimador-cag/app/routers/search.py
-estimador-cag/alembic/versions/0003_session10_full_text_search.py
-estimador-cag/evals/session10_retrieval/golden_retrieval.json
-estimador-cag/evals/session10_retrieval/evaluator.py
-estimador-cag/evals/session10_retrieval/run.py
-estimador-cag/evals/session10_retrieval/results.json
-estimador-cag/evals/session10_retrieval/REPORT.md
-```
-
-## Run deterministic Session 10 retrieval measurement
-
-```bash
+```zsh
 cd /workspaces/ai-engineering/estimador-cag
-
-uv run python -m evals.session10_retrieval.run \
-  --output evals/session10_retrieval/results.json \
-  --report evals/session10_retrieval/REPORT.md \
-  --k 5 \
-  --recall-k 8
+uv run python -m evals.session10_retrieval.run   --output evals/session10_retrieval/results.json   --report evals/session10_retrieval/REPORT.md   --k 5   --recall-k 8
 ```
 
-This runner is local and deterministic. It does not call FastAPI, PostgreSQL, OpenAI, DeepSeek, Kimi, or a live reranker model.
-
-## Run local gates
-
-```bash
-cd /workspaces/ai-engineering/estimador-cag
-
-uv run ruff check --fix app evals tests scripts query_examples.py streamlit_app.py
-uv run ruff check app evals tests scripts query_examples.py streamlit_app.py
-uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null) streamlit_app.py query_examples.py
-OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
-```
-
-## Optional DB integration smoke
-
-The persisted retrieval stack still uses PostgreSQL plus pgvector for the API path.
-
-```bash
-cd /workspaces/ai-engineering
-
-docker compose up -d postgres redis
-
-cd /workspaces/ai-engineering/estimador-cag
-DATABASE_URL=postgresql+asyncpg://estimator:estimator@localhost:5432/estimator uv run alembic upgrade head
-SESSION08_DB_INTEGRATION=1 DATABASE_URL=postgresql+asyncpg://estimator:estimator@localhost:5432/estimator uv run pytest tests/test_session08_db_search_integration.py -q
-```
-
-## Real provider policy
-
-Normal tests and committed reports must stay deterministic.
-
-If a real provider smoke is needed, prefer DeepSeek first. Use Kimi only as fallback or comparison. Keep real provider checks separate from deterministic CI gates.
-
-## Historical coursework notes
-
-Historical Session 06, 07, and 08 material is preserved in:
+Historical outputs:
 
 ```text
-estimador-cag/docs/HISTORICAL_SESSIONS.md
-estimador-cag/evals/stress/
-estimador-cag/evals/session08_search_quality/
-estimador-cag/query_examples.py
-estimador-cag/output_examples.txt
+evals/session10_retrieval/results.json
+evals/session10_retrieval/REPORT.md
 ```
 
-## Security notes
+The historical report distinguishes `result budget precision@5` from
+`unique budget precision@5`. The small corpus provided wiring and smoke
+evidence; it was not proof that hybrid search or reranking improves quality in
+production.
 
-Do not commit `.env`, real API keys, screenshots with secrets, copied terminal output containing secrets, or generated cache files.
+Historical provider policy: prefer DeepSeek first and use Kimi only as fallback
+or comparison.
 
-Normal CI uses dummy provider keys for deterministic test execution.
-
-## Optional DeepSeek live comparison
-
-Session 10 includes a CI-safe DeepSeek comparison path.
-
-The default mode is dry-run and writes the exact DeepSeek baseline and retrieval-grounded prompts without making network calls.
-
-    cd estimador-cag
-    uv run python -m evals.session10_retrieval.deepseek_live_comparison --max-cases 3
-
-To run the live provider comparison manually, set a real key and opt in explicitly:
-
-    cd estimador-cag
-    DEEPSEEK_API_KEY=... DEEPSEEK_MODEL=deepseek-v4-flash uv run python -m evals.session10_retrieval.deepseek_live_comparison --live --max-cases 3
-
-The live output path is ignored by git. Do not commit provider responses unless intentionally preparing a reviewed report.
-
-The Streamlit retrieval panel refreshes `/search/metrics` automatically after each successful search and renders the latest in-memory search metrics, including recorded searches, successes, failures, last result count, last search, and recent history.
-
-## Session 10 reproducible UI demo seed
-
-The Streamlit retrieval demo needs persisted chunks in PostgreSQL. To reproduce the browser demo from a clean Codespace:
-
-    cd /workspaces/ai-engineering
-    docker compose up -d postgres redis ai_service
-    docker compose exec -T ai_service uv run alembic upgrade head
-    docker compose exec -T ai_service uv run python scripts/seed_session10_demo_data.py
-
-Then start Streamlit:
-
-    cd /workspaces/ai-engineering/estimador-cag
-    ESTIMADOR_BACKEND_URL=http://localhost:8000 uv run streamlit run streamlit_app.py --server.address 0.0.0.0 --server.port 8501
-
-Use this demo query:
-
-    JWT authentication financial backend
-
-Recommended UI values:
-
-    search_mode: Hybrid RRF
-    k: 5
-    recall_k: 8
-    client_country: ES
-    client_sector: finance
-    tech_stack: leave empty
-    scope: leave empty
-
-Expected result:
-
-    BUD-2024-014
-    AUTH-001
-    AUDIT-001
-
-The seed script is idempotent and skips sample budgets that already exist.
+Security policy: Do not commit `.env`, real API keys, copied credentials, or
+credential-bearing connection strings.

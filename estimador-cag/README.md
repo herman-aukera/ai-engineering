@@ -1,58 +1,201 @@
 # Estimador CAG
 
-## Current Session 12 status
+## Current Session 13 status
 
 Current branch:
 
-    gg-session-12/pre-work
+```text
+gg-session-13/pre-work
+```
+
+Teacher-facing branch:
+
+```text
+session-13/pre-work
+```
 
 Current focus:
 
-    Session 12 — hand-written agent loop for transcript estimation, tool calls, trace evidence, and live-provider smoke
+> Replace the Session 12 hand-written agent loop with a typed, persistent, and
+> observable LangGraph workflow while preserving the existing external
+> estimation contract.
 
-Key Session 12 docs:
+## Mandatory graph
 
-- docs/session12_agentic_handoff.md
-- docs/session12_task12_compliance.md
+```text
+START
+  -> extract_requirements
+  -> classify_components
+  -> search_budgets
+  -> generate_estimate
+  -> validate_and_consolidate
+  -> END
+```
 
-## Session 12 agentic handoff
+The mandatory path remains sequential. Parallel fan-out, advanced recovery, and
+human intervention are deliberately deferred to the Plus roadmap.
 
-Latest Session 12 agentic implementation, commands, evidence files, and limitations are summarized in docs/session12_agentic_handoff.md.
+## Public API integration
 
+The graph is exposed through the additive endpoint:
+
+```text
+POST /api/v1/estimate/graph
+```
+
+The existing estimation endpoint and Streamlit path were not silently replaced
+during the mandatory milestone. This preserves rollback and allows
+compatibility to be proven before broader migration.
+
+The graph endpoint receives a transcript and returns a structured estimate with
+a terminal status. Graph internals are not leaked into the business-backend
+contract.
+
+## Shared state
+
+`app/generation/graph/state.py` defines checkpoint-safe typed state containing:
+
+- transcript and estimation identity;
+- structured requirements;
+- classified components;
+- provenance-rich budget matches;
+- deterministic component estimates;
+- consolidated estimate and status;
+- structured issues;
+- domain trace events;
+- sanitized provider metadata;
+- execution metadata.
+
+Reducer-backed fields include:
+
+- `budget_matches`;
+- `errors`;
+- `trace_events`.
+
+Nodes return partial updates. Reducer-backed nodes return only newly generated
+entries, not the complete accumulated list.
+
+## Node responsibilities
+
+| Node | Responsibility |
+| --- | --- |
+| `extract_requirements` | Convert the transcript into atomic structured requirements |
+| `classify_components` | Group requirements into implementation components |
+| `search_budgets` | Retrieve reference evidence sequentially per component |
+| `generate_estimate` | Calculate hours and totals deterministically in Python |
+| `validate_and_consolidate` | Apply invariants and set terminal status |
+
+Model and retrieval access is hidden behind injected ports. Deterministic fakes
+are used in normal CI; concrete adapters are used at runtime.
+
+## Persistence
+
+The graph uses `AsyncPostgresSaver` with the existing project PostgreSQL
+database.
+
+Application lifecycle responsibilities are:
+
+1. Open the checkpointer during FastAPI lifespan.
+2. Run checkpointer setup.
+3. Compile the graph with the saver.
+4. Invoke with a stable storage-safe thread identifier.
+5. Close resources during shutdown.
+
+The implementation includes close/reopen/reread evidence proving that state can
+be recovered without executing completed nodes again.
+
+## Execution semantics
+
+- New execution: starts a new thread.
+- Resume: continues only an incomplete thread.
+- Completed duplicate: returns the existing terminal result idempotently.
+- Replay: requires an explicit checkpoint identity.
+- Recalculation: uses a new thread.
+
+These semantics prevent accumulator reducers from appending historical values a
+second time.
+
+## Observability
+
+Logfire is used for hosted telemetry.
+
+Each execution produces:
+
+- one root span named `session13.graph.run`;
+- five child spans named `session13.graph.node`;
+- sanitized identifiers, counts, status, and totals;
+- no transcript, prompt, provider response, API token, or database DSN.
+
+The domain trace stored in graph state is separate from telemetry spans and
+operational logs.
+
+Final trace identifier:
+
+```text
+019f66df5be5e9f5db11c167f81b79dd
+```
+
+Logfire project:
+
+https://logfire-eu.pydantic.dev/herman-aukera/starter-project
+
+## Evidence files
+
+```text
+artifacts/session13/complex_graph_execution_deterministic.json
+artifacts/session13/postgres_persistence_proof.json
+artifacts/session13/live_postgres_logfire_trace_summary.json
+artifacts/session13/live_provider_smoke/REPORT.md
+artifacts/session13/live_provider_smoke/metadata.json
+artifacts/session13/live_provider_smoke/results.csv
+```
+
+The auxiliary live-provider smoke completed operationally, but its historical
+Session 06 latency and memory-drift thresholds did not pass. That result is
+preserved honestly and is not treated as a mandatory Session 13 acceptance
+gate.
+
+## Deterministic validation
+
+```zsh
+cd /workspaces/ai-engineering/estimador-cag
+
+uv run ruff check app scripts tests evals
+
+find app scripts tests evals -name '*.py' -type f -print0 |
+  xargs -0 uv run python -m py_compile
+
+OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
+```
+
+## Session 13 documentation
+
+- `docs/session13_task13_compliance.md`
+- `docs/session13_plus_roadmap.md`
+- `docs/session13_presentation_guide_es.md`
+
+## Historical Session 12 agentic work
+
+The Session 12 — hand-written agent loop is preserved from branch
+`gg-session-12/pre-work`.
+
+Session 12 agentic handoff:
+
+- `docs/session12_agentic_handoff.md`
+- `docs/session12_task12_compliance.md`
 
 ## Historical Session 10 retrieval background
 
-## Current retrieval stack
-
-The project now contains a layered retrieval implementation:
+The historical retrieval stack remains available:
 
 | Layer | Files |
 | --- | --- |
-| Persistence | `app/persistence/models.py`, `app/persistence/repository.py` |
-| Vector retrieval | `app/embedding_pipeline/search_service.py` |
-| Lexical retrieval | `DocumentRepository.search_chunks_by_text` |
 | Fusion | `app/embedding_pipeline/fusion.py` |
 | Reranking | `app/embedding_pipeline/reranker.py` |
-| API | `app/routers/search.py` |
+| Search API | `POST /search` |
 | Evaluation | `evals/session10_retrieval/` |
 
-## Public search API
-
-`POST /search` supports:
-
-| Field | Meaning |
-| --- | --- |
-| `query` | Search query |
-| `k` | Final result count |
-| `search_mode` | `vector` or `hybrid` |
-| `recall_k` | Wider internal candidate pool used by hybrid and reranking experiments |
-| metadata filters | sector, country, technology, complexity, year, budget, component, stack, scope |
-
-The router intentionally exposes vector and hybrid search. The deterministic reranker is currently measured at service level and is not exposed publicly through the API.
-
-## A/B/C/D evaluation
-
-The committed Session 10 measurement runner compares:
+Historical A/B/C/D matrix:
 
 | Config | Search | Reranking |
 | --- | --- | --- |
@@ -61,150 +204,18 @@ The committed Session 10 measurement runner compares:
 | C | Vector | Yes |
 | D | Hybrid | Yes |
 
-Run:
+Historical runner:
 
-```bash
-cd /workspaces/ai-engineering/estimador-cag
-
-uv run python -m evals.session10_retrieval.run \
-  --output evals/session10_retrieval/results.json \
-  --report evals/session10_retrieval/REPORT.md \
-  --k 5 \
-  --recall-k 8
+```zsh
+uv run python -m evals.session10_retrieval.run   --output evals/session10_retrieval/results.json   --report evals/session10_retrieval/REPORT.md   --k 5   --recall-k 8
 ```
 
-Outputs:
+The report distinguished `result budget precision@5` from
+`unique budget precision@5`. The corpus has only four budgets, eight component
+chunks, and seven clean queries plus challenge cases, so the result does not
+prove hybrid retrieval or reranking superiority.
 
-```text
-evals/session10_retrieval/results.json
-evals/session10_retrieval/REPORT.md
-```
+Historical provider policy: prefer DeepSeek first and use Kimi only as fallback
+or comparison.
 
-## Current measured result
-
-All variants currently solve the small deterministic golden set:
-
-| Config | result budget precision@5 | unique budget precision@5 | budget hit@5 | component hit@5 | top1 budget | top1 component |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| A | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-| B | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-| C | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-| D | 0.4000 | 0.2000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
-
-Interpretation:
-
-This confirms that all retrieval branches are wired and measurable. It does not prove hybrid retrieval or reranking superiority because the corpus has only four budgets, eight component chunks, and seven clean queries plus five challenge queries.
-
-## Metric interpretation
-
-| Metric | Interpretation |
-| --- | --- |
-| result budget precision@5 | Counts every result row whose budget is relevant, including duplicate chunks from the same budget |
-| unique budget precision@5 | Counts each retrieved budget once |
-| budget hit@5 | Correct budget appears anywhere in top 5 |
-| component hit@5 | Correct component appears anywhere in top 5 |
-| top1 budget | Correct budget is rank 1 |
-| top1 component | Correct component is rank 1 |
-
-## Deterministic gates
-
-```bash
-cd /workspaces/ai-engineering/estimador-cag
-
-uv run ruff check --fix app evals tests scripts query_examples.py streamlit_app.py
-uv run ruff check app evals tests scripts query_examples.py streamlit_app.py
-uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null) streamlit_app.py query_examples.py
-OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
-```
-
-## Streamlit retrieval UI
-
-The Streamlit app includes a Session 10 retrieval search panel backed by `/search`.
-
-The panel exposes:
-
-    search_mode: Vector only or Hybrid RRF
-    k: final result count
-    recall_k: internal candidate pool
-    client_sector, client_country, tech_stack, and scope filters
-
-The Streamlit retrieval panel refreshes `/search/metrics` automatically after each successful search and renders the latest in-memory search metrics, including recorded searches, successes, failures, last result count, last search, and recent history.
-
-The UI is a human review path for vector and hybrid retrieval. A/B/C/D evaluation remains runner based because reranking is intentionally measured at service level and is not exposed as a public API flag.
-
-## Optional persisted API smoke
-
-```bash
-cd /workspaces/ai-engineering
-docker compose up -d postgres redis ai_service
-docker compose exec -T ai_service uv run alembic upgrade head
-```
-
-Then use `/docs` or `POST /search`.
-
-## Real provider policy
-
-The deterministic retrieval runner does not call providers.
-
-For future live provider checks, prefer DeepSeek first. Use Kimi only as fallback or comparison. Do not put real provider checks in normal CI.
-
-## Historical notes
-
-Older Session 06, Session 07, and Session 08 material has been moved out of the front-door README and summarized in:
-
-```text
-docs/HISTORICAL_SESSIONS.md
-```
-
-The old artifacts are still intentionally preserved:
-
-```text
-evals/stress/
-evals/session08_search_quality/
-query_examples.py
-output_examples.txt
-docs/session07_*
-```
-
-## Security notes
-
-Never commit `.env`, real API keys, screenshots with secrets, copied terminal output containing secrets, or generated cache files.
-
-## Optional DeepSeek live comparison
-
-The optional DeepSeek comparison is intentionally outside normal CI.
-
-It compares:
-
-    DeepSeek baseline prompt without retrieved context
-    DeepSeek retrieval-grounded prompt using Session 10 hybrid plus reranking context
-
-Dry-run mode is safe and makes no network calls:
-
-    uv run python -m evals.session10_retrieval.deepseek_live_comparison --max-cases 3
-
-Live mode requires an explicit key and flag:
-
-    DEEPSEEK_API_KEY=... DEEPSEEK_MODEL=deepseek-v4-flash uv run python -m evals.session10_retrieval.deepseek_live_comparison --live --max-cases 3
-
-This keeps normal CI deterministic while still providing a real provider comparison path for manual evidence.
-
-## Reproducible Session 10 UI demo seed
-
-The retrieval UI reads from the persisted PostgreSQL chunk store. From a clean Codespace, seed the Session 10 sample budgets before opening Streamlit:
-
-    docker compose up -d postgres redis ai_service
-    docker compose exec -T ai_service uv run alembic upgrade head
-    docker compose exec -T ai_service uv run python scripts/seed_session10_demo_data.py
-
-Dry-run mode verifies the planned sample corpus without touching the database:
-
-    uv run python scripts/seed_session10_demo_data.py --dry-run
-
-The script inserts one document per budget from data/budgets_sample.json and is idempotent. Re-running it skips already seeded source paths.
-
-Browser smoke query:
-
-    JWT authentication financial backend
-
-Use Hybrid RRF, k=5, recall_k=8, client_country=ES, client_sector=finance, and leave tech_stack and scope empty. The expected results are BUD-2024-014 with AUTH-001 and AUDIT-001.
+Historical notes remain indexed in `docs/HISTORICAL_SESSIONS.md`.
