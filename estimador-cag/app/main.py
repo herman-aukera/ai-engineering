@@ -6,6 +6,8 @@ WHY IT EXISTS: Composition root pattern: all wiring happens in one place
 DEPENDS ON: app.routers.estimations, app.middleware.logging
 """
 
+import logging
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -13,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.embedding_pipeline.router import router as embedding_router
+from app.generation.graph.runtime import open_graph_estimation_service
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.graph_estimations import router as graph_estimations_router
@@ -20,12 +23,41 @@ from app.routers.search import router as search_router
 from app.routers.sessions import router as sessions_router
 from app.services.litellm_timeout import install_litellm_request_timeout
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Own the graph runtime without taking down unrelated routes."""
+
+    stack = AsyncExitStack()
+    app.state.graph_estimation_service = None
+
+    try:
+        try:
+            service = await stack.enter_async_context(
+                open_graph_estimation_service()
+            )
+        except Exception:
+            logger.exception(
+                "graph_estimation_runtime_initialization_failed"
+            )
+        else:
+            app.state.graph_estimation_service = service
+
+        yield
+    finally:
+        app.state.graph_estimation_service = None
+        await stack.aclose()
+
+
 install_litellm_request_timeout()
 
 app = FastAPI(
     title="LIDR Estimador CAG",
     description="Context-Augmented Generation (CAG) estimator",
     version="0.3.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
