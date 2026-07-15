@@ -7,6 +7,13 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID, uuid4
 
+from app.generation.graph.build import GRAPH_NAME
+from app.generation.graph.observability import (
+    NOOP_GRAPH_TRACER,
+    ROOT_SPAN_NAME,
+    GraphSpan,
+    GraphTracer,
+)
 from app.generation.graph.state import (
     EstimationGraphState,
     new_estimation_graph_state,
@@ -167,11 +174,53 @@ def _validate_terminal_state(
     return state
 
 
+def _record_terminal_span_attributes(
+    span: GraphSpan,
+    state: EstimationGraphState,
+) -> None:
+    status = state.get("status")
+    if isinstance(status, str):
+        span.set_attribute("terminal_status", status)
+
+    review_required = state.get("review_required")
+    if isinstance(review_required, bool):
+        span.set_attribute(
+            "review_required",
+            review_required,
+        )
+
+    for attribute_name, state_key in (
+        ("requirement_count", "requirements"),
+        ("component_count", "components"),
+        ("budget_match_count", "budget_matches"),
+        ("error_count", "errors"),
+        ("trace_event_count", "trace_events"),
+    ):
+        value = state.get(state_key)
+        span.set_attribute(
+            attribute_name,
+            len(value) if isinstance(value, list) else 0,
+        )
+
+    estimate = state.get("estimate")
+    if isinstance(estimate, Mapping):
+        total_hours = estimate.get("total_hours")
+        if (
+            isinstance(total_hours, (int, float))
+            and not isinstance(total_hours, bool)
+        ):
+            span.set_attribute(
+                "total_hours",
+                float(total_hours),
+            )
+
+
 @dataclass(frozen=True)
 class GraphEstimationService:
     """Run checkpointed graph threads without duplicating completed work."""
 
     graph: GraphRunner
+    tracer: GraphTracer = NOOP_GRAPH_TRACER
     graph_version: str = "session13.v1"
 
     async def estimate(
@@ -186,6 +235,31 @@ class GraphEstimationService:
         thread_id = thread_id_from_estimation_id(
             resolved_estimation_id
         )
+
+        with self.tracer.span(
+            ROOT_SPAN_NAME,
+            graph_name=GRAPH_NAME,
+            graph_version=self.graph_version,
+            estimation_id=resolved_estimation_id,
+            thread_id=thread_id,
+        ) as span:
+            return await self._estimate_with_span(
+                transcript=transcript,
+                resolved_estimation_id=(
+                    resolved_estimation_id
+                ),
+                thread_id=thread_id,
+                span=span,
+            )
+
+    async def _estimate_with_span(
+        self,
+        *,
+        transcript: str,
+        resolved_estimation_id: str,
+        thread_id: str,
+        span: GraphSpan,
+    ) -> GraphEstimationRun:
         config: dict[str, object] = {
             "configurable": {
                 "thread_id": thread_id,
@@ -219,6 +293,10 @@ class GraphEstimationService:
             )
 
         if saved_state is not None and not next_nodes:
+            span.set_attribute(
+                "execution_mode",
+                "completed",
+            )
             final_state = _validate_terminal_state(
                 saved_state,
                 estimation_id=resolved_estimation_id,
@@ -227,6 +305,10 @@ class GraphEstimationService:
             )
         else:
             if saved_state is None:
+                span.set_attribute(
+                    "execution_mode",
+                    "new",
+                )
                 graph_input: EstimationGraphState | None = (
                     new_estimation_graph_state(
                         transcript=transcript,
@@ -235,6 +317,10 @@ class GraphEstimationService:
                     )
                 )
             else:
+                span.set_attribute(
+                    "execution_mode",
+                    "resume",
+                )
                 # Resume the checkpointed pending nodes. Supplying a fresh
                 # state here would start another run and replay reducers.
                 graph_input = None
@@ -250,6 +336,11 @@ class GraphEstimationService:
                 transcript=transcript,
                 graph_version=self.graph_version,
             )
+
+        _record_terminal_span_attributes(
+            span,
+            final_state,
+        )
 
         return GraphEstimationRun(
             estimation_id=resolved_estimation_id,

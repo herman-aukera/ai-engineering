@@ -8,6 +8,9 @@ from fastapi import FastAPI
 
 import app.generation.graph.runtime as runtime_module
 import app.main as main_module
+from app.generation.graph.observability import (
+    NoopGraphTracer,
+)
 from app.generation.graph.runtime import (
     open_graph_estimation_service,
     open_postgres_checkpointer,
@@ -153,6 +156,7 @@ async def test_graph_runtime_wires_checkpointer_and_service(
     checkpointer = object()
     dependencies = object()
     graph = object()
+    tracer = NoopGraphTracer()
     events: list[object] = []
 
     @asynccontextmanager
@@ -173,12 +177,14 @@ async def test_graph_runtime_wires_checkpointer_and_service(
         received_dependencies: object,
         *,
         checkpointer: object,
+        tracer: object,
     ):
         events.append(
             (
                 "graph",
                 received_dependencies,
                 checkpointer,
+                tracer,
             )
         )
         return graph
@@ -205,14 +211,21 @@ async def test_graph_runtime_wires_checkpointer_and_service(
     )
 
     async with open_graph_estimation_service(
-        database_url
+        database_url,
+        tracer=tracer,
     ) as service:
         assert isinstance(service, GraphEstimationService)
         assert service.graph is graph
+        assert service.tracer is tracer
         assert events == [
             ("checkpointer_enter", database_url),
             "dependencies",
-            ("graph", dependencies, checkpointer),
+            (
+                "graph",
+                dependencies,
+                checkpointer,
+                tracer,
+            ),
         ]
 
     assert events[-1] == (

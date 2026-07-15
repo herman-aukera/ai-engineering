@@ -13,6 +13,11 @@ from app.generation.graph.nodes import (
     build_search_budgets_node,
     build_validate_and_consolidate_node,
 )
+from app.generation.graph.observability import (
+    NOOP_GRAPH_TRACER,
+    GraphTracer,
+    instrument_graph_node,
+)
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.state import EstimationGraphState
 
@@ -31,6 +36,7 @@ def build_estimation_graph(
     dependencies: GraphNodeDependencies,
     *,
     checkpointer: BaseCheckpointSaver | None = None,
+    tracer: GraphTracer = NOOP_GRAPH_TRACER,
 ) -> CompiledStateGraph:
     """Compile the exact mandatory five-node estimation workflow."""
 
@@ -46,31 +52,79 @@ def build_estimation_graph(
 
     builder.add_node(
         extract_requirements,
-        build_extract_requirements_node(dependencies),
+        instrument_graph_node(
+            graph_name=GRAPH_NAME,
+            node_name=extract_requirements,
+            node=build_extract_requirements_node(
+                dependencies
+            ),
+            tracer=tracer,
+        ),
     )
     builder.add_node(
         classify_components,
-        build_classify_components_node(dependencies),
+        instrument_graph_node(
+            graph_name=GRAPH_NAME,
+            node_name=classify_components,
+            node=build_classify_components_node(
+                dependencies
+            ),
+            tracer=tracer,
+        ),
     )
     builder.add_node(
         search_budgets,
-        build_search_budgets_node(dependencies),
+        instrument_graph_node(
+            graph_name=GRAPH_NAME,
+            node_name=search_budgets,
+            node=build_search_budgets_node(
+                dependencies
+            ),
+            tracer=tracer,
+        ),
     )
     builder.add_node(
         generate_estimate,
-        build_generate_estimate_node(dependencies),
+        instrument_graph_node(
+            graph_name=GRAPH_NAME,
+            node_name=generate_estimate,
+            node=build_generate_estimate_node(
+                dependencies
+            ),
+            tracer=tracer,
+        ),
     )
     builder.add_node(
         validate_and_consolidate,
-        build_validate_and_consolidate_node(),
+        instrument_graph_node(
+            graph_name=GRAPH_NAME,
+            node_name=validate_and_consolidate,
+            node=build_validate_and_consolidate_node(),
+            tracer=tracer,
+        ),
     )
 
     builder.add_edge(START, extract_requirements)
-    builder.add_edge(extract_requirements, classify_components)
-    builder.add_edge(classify_components, search_budgets)
-    builder.add_edge(search_budgets, generate_estimate)
-    builder.add_edge(generate_estimate, validate_and_consolidate)
-    builder.add_edge(validate_and_consolidate, END)
+    builder.add_edge(
+        extract_requirements,
+        classify_components,
+    )
+    builder.add_edge(
+        classify_components,
+        search_budgets,
+    )
+    builder.add_edge(
+        search_budgets,
+        generate_estimate,
+    )
+    builder.add_edge(
+        generate_estimate,
+        validate_and_consolidate,
+    )
+    builder.add_edge(
+        validate_and_consolidate,
+        END,
+    )
 
     return builder.compile(
         checkpointer=checkpointer,
