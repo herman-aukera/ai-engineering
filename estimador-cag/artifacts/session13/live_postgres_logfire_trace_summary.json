@@ -1,0 +1,56 @@
+{
+  "captured_at_utc": "2026-07-15T17:03:34.613163+00:00",
+  "execution": {
+    "graph_backend": "langgraph",
+    "persistence_backend": "postgresql",
+    "provider_backend": "deterministic_fakes",
+    "telemetry_backend": "logfire_eu",
+    "uses_live_postgres": true,
+    "uses_live_provider": false,
+    "uses_remote_logfire": true
+  },
+  "execution_source_commit": "22e2f2ae27c119cb5964c816638aa16a8fa4b9e6",
+  "privacy": {
+    "provider_payload_attached_to_spans": false,
+    "state_payload_attached_to_spans": false,
+    "token_or_dsn_recorded": false,
+    "transcript_attached_to_spans": false
+  },
+  "project_url": "https://logfire-eu.pydantic.dev/herman-aukera/starter-project",
+  "result": {
+    "budget_match_count": 15,
+    "component_count": 5,
+    "domain_trace_event_count": 5,
+    "estimation_id": "442172db-93eb-4ba2-b2f2-baccff2bd996",
+    "requirement_count": 5,
+    "review_required": false,
+    "status": "validated",
+    "thread_id": "estimate:442172db-93eb-4ba2-b2f2-baccff2bd996",
+    "total_hours": 168.0
+  },
+  "schema_version": "session13.live_trace_summary.v1",
+  "telemetry": {
+    "all_nodes_parented_to_root": true,
+    "all_nodes_share_root_trace": true,
+    "all_spans_closed": true,
+    "node_order": [
+      "extract_requirements",
+      "classify_components",
+      "search_budgets",
+      "generate_estimate",
+      "validate_and_consolidate"
+    ],
+    "node_span_count": 5,
+    "node_span_name": "session13.graph.node",
+    "root_span_count": 1,
+    "root_span_id": "c51997843b83874a",
+    "root_span_name": "session13.graph.run",
+    "span_count": 6,
+    "trace_id": "019f66b6dd30812ee72e384844335eff"
+  },
+  "trace_lookup": {
+    "instructions": "Open the Logfire project and search for the complete trace_id.",
+    "project_url": "https://logfire-eu.pydantic.dev/herman-aukera/starter-project",
+    "trace_id": "019f66b6dd30812ee72e384844335eff"
+  }
+}
