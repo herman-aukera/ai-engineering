@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
+from copy import deepcopy
 
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.state import (
@@ -289,7 +290,7 @@ def build_classify_components_node(
 
         raw_components = (
             await dependencies.component_classifier.classify_components(
-                requirements=requirements
+                requirements=deepcopy(requirements)
             )
         )
 

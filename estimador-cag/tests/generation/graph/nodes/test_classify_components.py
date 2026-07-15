@@ -380,3 +380,37 @@ async def test_classify_components_propagates_operational_failure() -> None:
 
     with pytest.raises(RuntimeError, match="classifier unavailable"):
         await node(_state())
+
+
+
+@pytest.mark.asyncio
+async def test_classify_components_isolates_classifier_input_from_graph_state(
+) -> None:
+    class MutatingComponentClassifier:
+        async def classify_components(
+            self,
+            *,
+            requirements: list[dict[str, object]],
+        ) -> list[dict[str, object]]:
+            requirements[0]["text"] = (
+                "MUTATED BY CLASSIFIER"
+            )
+            requirements.append(
+                {
+                    "requirement_id": "REQ-999",
+                    "text": "Injected requirement.",
+                }
+            )
+            return deepcopy(COMPONENTS)
+
+    node = build_classify_components_node(
+        _dependencies(MutatingComponentClassifier())
+    )
+
+    state = _state()
+    original_state = deepcopy(state)
+
+    update = await node(state)
+
+    assert state == original_state
+    assert update["components"] == COMPONENTS
