@@ -90,9 +90,8 @@ def test_live_postgres_logfire_trace_artifact() -> None:
         "transcript_attached_to_spans": False,
     }
 
-    assert re.fullmatch(
-        r"[0-9a-f]{40}",
-        artifact["execution_source_commit"],
+    assert artifact["execution_source_commit"] == (
+        "532b5be6c1826c35d1683aade587c857e075980c"
     )
 
     datetime.fromisoformat(
