@@ -32,7 +32,7 @@ def _finding(
             else None
         ),
         repair_scope=repair_scope,
-        component_ids=["cmp-auth"] if repair_scope == "selected_component" else [],
+        component_ids=["cmp-auth"] if repair_scope in {"selected_component", "human"} else [],
         node="generate_estimate",
     )
 
