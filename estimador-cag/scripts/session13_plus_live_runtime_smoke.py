@@ -51,7 +51,7 @@ def build_artifact(*, rows: list[dict[str, object]]) -> dict[str, object]:
 async def run_provider(tier: str) -> dict[str, object]:
     """Call one logical provider tier through the Plus adapter."""
 
-    model = LiteLLMAgentModel(tier=tier, max_tokens=96)
+    model = LiteLLMAgentModel(tier=tier, max_tokens=512)
     tracer = get_logfire_graph_tracer()
     started = perf_counter()
     with tracer.span(

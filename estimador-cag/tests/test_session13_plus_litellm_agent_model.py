@@ -96,7 +96,7 @@ async def test_litellm_adapter_normalizes_tool_calls_and_usage(monkeypatch) -> N
     assert turn.tool_calls[0].call_id == "call-1"
     assert turn.tool_calls[0].name == "search_budgets"
     assert turn.tool_calls[0].arguments == {"query": "JWT authentication"}
-    assert captured["model"] == "deepseek-test"
+    assert captured["model"] == "openai/deepseek-test"
     assert captured["tool_choice"] == "auto"
     assert captured["tools"][0]["function"]["strict"] is True
 

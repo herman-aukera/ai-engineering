@@ -107,6 +107,14 @@ def _tools_payload(tools: Sequence[AgentToolSpec]) -> list[dict[str, object]]:
     ]
 
 
+def _litellm_completion_model(*, provider: str, model: str) -> str:
+    """Route custom OpenAI-compatible DeepSeek model ids through LiteLLM."""
+
+    if provider == "deepseek" and "/" not in model:
+        return f"openai/{model}"
+    return model
+
+
 @dataclass(frozen=True)
 class LiteLLMAgentModel:
     """Execute one OpenAI-compatible tool turn through logical provider tiers."""
@@ -127,7 +135,10 @@ class LiteLLMAgentModel:
     ) -> AgentModelTurn:
         resolved = self.resolver.resolve_model(self.tier)
         response = await litellm.acompletion(
-            model=resolved.model,
+            model=_litellm_completion_model(
+                provider=resolved.provider,
+                model=resolved.model,
+            ),
             messages=list(messages),
             tools=_tools_payload(tools),
             tool_choice="auto" if tools else None,
