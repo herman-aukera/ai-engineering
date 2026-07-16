@@ -10,7 +10,7 @@ mandatory checkpoint. Plus work continues on `gg-session-13/plus`.
 
 ## P0 — Existing-product integration bridge
 
-Status: implementation complete; consolidated validation pending.
+Status: implementation and consolidated deterministic validation complete.
 
 Implemented:
 
@@ -35,14 +35,13 @@ payload and explicit compatibility metadata.
 See `docs/session13_plus_p0_bridge.md` for architecture, rollback, limitations,
 and the final validation plan.
 
-Promotion remains blocked until the final local gates, remote CI, PostgreSQL
-smoke, trace evidence, live-provider smoke where required, and browser proof are
-captured.
+Full local gates, remote CI, PostgreSQL restart, trace, deterministic browser,
+and benchmark evidence are captured. Credentialed live-provider and hosted
+telemetry proof remain outstanding.
 
 ## P1 — Read-only Graph Inspector UI
 
-Status: implementation complete; consolidated validation and browser proof
-pending.
+Status: implementation, consolidated validation, and browser proof complete.
 
 Implemented as the separate application `app/ui/graph_inspector.py`:
 
@@ -69,7 +68,7 @@ historical checkpoints without re-executing the graph.
 
 ## P2 — Reviewed subgraphs
 
-Status: implementation complete; consolidated runtime evidence pending.
+Status: implementation and consolidated runtime evidence complete.
 
 Separate the workflow into:
 
@@ -79,8 +78,8 @@ Separate the workflow into:
 
 ## P3 — Human review with `interrupt()`
 
-Status: implementation complete; PostgreSQL process-restart and browser proof
-pending.
+Status: implementation, PostgreSQL process-restart proof, and deterministic
+browser proof complete.
 
 Support explicit modes:
 
@@ -126,8 +125,8 @@ budget, tool-call budget, and human escalation.
 
 ## P7 — Send API parallel retrieval benchmark
 
-Status: implementation complete; consolidated validation and production-scale
-benchmark evidence pending.
+Status: implementation, consolidated validation, and course-scale benchmark
+evidence complete. Production-scale performance is explicitly not claimed.
 
 Implemented:
 
@@ -145,7 +144,7 @@ See `docs/session13_plus_p7_parallel_retrieval.md`.
 
 ## P8 — Full checkpoint and review wizard UI
 
-Status: implementation complete; PostgreSQL end-to-end browser proof pending.
+Status: implementation and deterministic end-to-end browser proof complete.
 
 Checkpoint history and scenario branching foundation implemented:
 
@@ -168,7 +167,8 @@ provider profiles, trace links, and browser smoke evidence.
 
 ## P9 — Production smoke and provider matrix
 
-Status: deterministic scenario matrix complete; live-provider evidence pending.
+Status: deterministic scenario matrix complete; credentialed live-provider and
+hosted telemetry evidence pending.
 
 Compare deterministic fakes, DeepSeek, Kimi, and an optional reference
 provider across success rate, latency, token use, cost, output parity,

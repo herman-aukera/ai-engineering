@@ -16,7 +16,25 @@ ESTIMADOR_BACKEND_URL=http://localhost:8001 \
   uv run streamlit run app/ui/review_control_room.py
 ```
 
-Browser evidence verified that the control room rendered against the demo
-backend and displayed `http://localhost:8001`. A separate real PostgreSQL smoke
-used three checkpointer lifetimes and restored both gates plus trace continuity.
-Live-provider and hosted telemetry evidence remain separate credentialed gates.
+## Browser proof
+
+On 2026-07-16 the complete journey was exercised in Brave against the local
+demo API at `http://localhost:8001` and the Streamlit control room at
+`http://localhost:8502`.
+
+- estimation id: `2047d38f-df6a-40a5-932a-c5018e9882e0`;
+- the structure interrupt rendered the proposed requirements and component;
+- `approve` resumed the same thread into the final-estimate interrupt;
+- the final gate rendered the grounded 40-hour estimate, provenance, structured
+  Critic result and deterministic Boss decision;
+- actor `brave-smoke` approved the final gate;
+- execution reached `completed` with zero pending nodes and `40.0` total hours;
+- the UI rendered parallel retrieval events and final-review audit events;
+- checkpoint history loaded as a table; and
+- the audit export action completed from the control room.
+
+This is browser/product wiring evidence, not PostgreSQL durability evidence:
+the demo composition intentionally uses `InMemorySaver`. A separate real
+PostgreSQL smoke used three checkpointer lifetimes and restored both gates plus
+trace continuity. Live-provider and hosted telemetry evidence remain separate
+credentialed gates.

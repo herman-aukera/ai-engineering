@@ -15,5 +15,7 @@ cost, provider/fallback, and checkpoint count.
 
 This is deliberately contract-level, deterministic CI evidence. `latency_ms`
 and cost are zero for the local fake and must not be presented as live-provider
-measurements. PostgreSQL process restart, browser operation, provider calls, and
-telemetry remain separate promotion gates because this matrix cannot prove them.
+measurements. PostgreSQL process restart and browser operation are proven by
+their dedicated integration and product-smoke evidence; provider calls and
+hosted telemetry remain separate credentialed gates because this matrix cannot
+prove them.
