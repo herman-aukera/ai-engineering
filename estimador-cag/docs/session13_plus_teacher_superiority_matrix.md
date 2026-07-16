@@ -10,7 +10,7 @@ from promotion evidence that still requires external services.
 | Recovery | Only selected unresolved components; server owns evidence and Python owns hours | `test_session13_plus_selective_recovery.py` | None required for fake CI | Live retrieval/provider behavior is not claimed |
 | Critic | Typed field-path findings with evidence refs and explicit repair scope | `test_session13_plus_review_policy.py` | Rendered by control room | Seeded precision is contract-level only |
 | Boss | Deterministic retry/fallback/human/reject routing under explicit budgets | `test_session13_plus_review_policy.py` | Rendered by control room | No live fallback claim yet |
-| Trace | Checkpointed domain events separated from spans and logs | graph observability and reviewed graph tests | Browser renders safe trace surfaces; run `29526996872` requested a successful Logfire export flush | Hosted ingestion still needs visual confirmation of the new spans |
+| Trace | Checkpointed domain events separated from spans and logs | graph observability and reviewed graph tests | Brave confirmed two hosted `session13.plus.live_provider` spans from run `29526996872` | The provider smoke spans are not a full browser-to-live graph trace |
 | Retrieval | Bounded `Send` workers, stable fan-in, failure isolation, sequential rollback | parallel retrieval tests and benchmark test | 8 components: 249.115 ms vs 67.022 ms, 3.717x | Local course-scale fake only |
 | Persistence | PostgreSQL checkpointer and stable thread identity | persistence contract/integration tests | Three saver lifetimes restored structure and final gates with trace continuity | Process-style saver reopen is proven; host reboot is not claimed |
 | Rollout | Off/shadow/serve, explicit errors, no silent legacy fallback | rollout, dispatcher and bridge tests | Shadow dashboard exists | Production canary is not claimed |
@@ -20,6 +20,6 @@ from promotion evidence that still requires external services.
 
 Remote CI, real PostgreSQL restart/resume, the full deterministic API/browser
 journey, the local benchmark, and bounded credentialed DeepSeek/Kimi turns are
-recorded. The Logfire client completed its remote flush request; visual hosted
-ingestion confirmation remains a separate evidence item. The PR remains draft
-for review and because production-scale provider quality is not claimed.
+recorded. Brave also confirmed the two corresponding hosted Logfire spans. The
+PR remains draft for review and because production-scale provider quality is
+not claimed.

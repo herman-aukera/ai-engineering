@@ -28,6 +28,18 @@ The sanitized workflow artifact reports:
 The artifact remains attached to the workflow run as `live-smoke-results`.
 It is not committed because it is run-specific evidence retained by GitHub.
 
+## Hosted telemetry confirmation
+
+The Logfire project was inspected through the authenticated Brave session on
+2026-07-16. Its 15-minute live view displayed two hosted
+`session13.plus.live_provider` spans from service `estimador-cag`:
+
+- 21:11:58 local time, 2.02 seconds;
+- 21:12:00 local time, 5.65 seconds.
+
+Those durations match the sanitized provider artifact closely enough to tie
+the hosted spans to this workflow execution without exposing span payloads.
+
 ## Gate isolation
 
 The inherited Session 06 HTTP stress smoke remains available through the
@@ -38,7 +50,7 @@ gate. Enabling it still produces a real failure if its own checks fail.
 ## Claim boundary
 
 This proves authenticated connectivity, provider routing, normalized response
-metadata, bounded live turns, and a successful Logfire export request. It does
-not prove retrieval quality, provider failover under load, browser-to-provider
-integration, hosted span ingestion by visual inspection, or production-scale
-latency. Those claims require their own evidence.
+metadata, bounded live turns, a successful Logfire export request, and hosted
+span ingestion. It does not prove retrieval quality, provider failover under
+load, browser-to-provider integration, or production-scale latency. Those
+claims require their own evidence.
