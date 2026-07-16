@@ -1,4 +1,4 @@
-"""Adapt terminal graph runs to the existing session-product response shape.
+"""Adapt terminal graph runs to public and session-product response shapes.
 
 The graph and legacy estimators do not expose semantically identical results.
 This adapter preserves graph evidence and provides a deterministic text fallback
@@ -11,7 +11,9 @@ from app.schemas.graph_estimation import GraphEstimationResponse
 from app.services.graph_estimation import GraphEstimationRun
 
 
-def _graph_response_from_run(run: GraphEstimationRun) -> GraphEstimationResponse:
+def graph_response_from_run(run: GraphEstimationRun) -> GraphEstimationResponse:
+    """Validate one terminal graph run against the public graph contract."""
+
     state = run.state
     return GraphEstimationResponse.model_validate(
         {
@@ -81,7 +83,7 @@ def adapt_graph_run_to_product_response(
 ) -> dict[str, object]:
     """Return a session-compatible response while declaring partial parity."""
 
-    graph_response = _graph_response_from_run(run)
+    graph_response = graph_response_from_run(run)
     provider_metadata = graph_response.provider_metadata
 
     return {
