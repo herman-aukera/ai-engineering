@@ -119,7 +119,10 @@ def _error_is_superseded(
     *,
     raw_code: str,
     grounding_statuses: set[str],
+    resolved_issue_codes: set[str],
 ) -> bool:
+    if raw_code in resolved_issue_codes:
+        return True
     if "missing_component_evidence" in raw_code:
         return "no_data" not in grounding_statuses
     if "low_confidence_component_estimate" in raw_code:
@@ -140,6 +143,9 @@ def _error_findings(
         return findings
 
     grounding_statuses = _current_grounding_statuses(state)
+    resolved_issue_codes = {
+        str(code) for code in state.get("resolved_issue_codes", [])
+    }
     for raw_error in raw_errors:
         if not isinstance(raw_error, Mapping):
             continue
@@ -147,6 +153,7 @@ def _error_findings(
         if _error_is_superseded(
             raw_code=raw_code,
             grounding_statuses=grounding_statuses,
+            resolved_issue_codes=resolved_issue_codes,
         ):
             continue
 
