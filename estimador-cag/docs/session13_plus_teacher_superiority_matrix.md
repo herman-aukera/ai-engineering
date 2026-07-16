@@ -14,7 +14,7 @@ from promotion evidence that still requires external services.
 | Retrieval | Bounded `Send` workers, stable fan-in, failure isolation, sequential rollback | parallel retrieval tests and benchmark test | 8 components: 249.115 ms vs 67.022 ms, 3.717x | Local course-scale fake only |
 | Persistence | PostgreSQL checkpointer and stable thread identity | persistence contract/integration tests | Not yet repeated in this promotion run | Docker engine currently unavailable |
 | Rollout | Off/shadow/serve, explicit errors, no silent legacy fallback | rollout, dispatcher and bridge tests | Shadow dashboard exists | Production canary is not claimed |
-| UI | One control room for reconnect, both gates, provenance, findings, decisions, history, scenarios and audit | control-room helper tests | Chrome launch/readability verified | Backend E2E awaits PostgreSQL |
+| UI | One control room for reconnect, both gates, provenance, findings, decisions, history, scenarios and audit | control-room and deterministic demo API tests | Chrome/Brave launch and deterministic backend binding verified | Live-provider browser journey requires credentials |
 | Evaluation | 19 adverse and happy scenarios with structured outcomes plus retrieval benchmark | `test_session13_plus_evaluation_matrix.py` | Benchmark recorded locally | Matrix is deterministic contract evidence |
 | Auditability | Provenance, issue lifecycle, checkpoint history, scenario lineage and allow-listed export | audit and checkpoint scenario tests | JSON download exposed in UI | External archival/signing is out of scope |
 

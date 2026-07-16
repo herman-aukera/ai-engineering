@@ -182,6 +182,18 @@ uv run python -m evals.session13_plus_parallel_retrieval_benchmark
 uv run python -m evals.session13_plus_evaluation_matrix
 ```
 
+For a keyless local API/UI journey using the production reviewed router, service
+and graph with deterministic adapters:
+
+```zsh
+uv run uvicorn scripts.session13_plus_demo_api:app --port 8001
+ESTIMADOR_BACKEND_URL=http://localhost:8001 \
+  uv run streamlit run app/ui/review_control_room.py
+```
+
+This demo uses an in-memory saver and is not a substitute for the separate real
+PostgreSQL restart proof.
+
 The reviewed API requires the PostgreSQL-backed application runtime. Sequential
 retrieval remains the default rollback; opt into the measured Plus fan-out with
 `GRAPH_RETRIEVAL_MODE=parallel`. See
