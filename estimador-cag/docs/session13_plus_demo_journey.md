@@ -36,5 +36,7 @@ demo API at `http://localhost:8001` and the Streamlit control room at
 This is browser/product wiring evidence, not PostgreSQL durability evidence:
 the demo composition intentionally uses `InMemorySaver`. A separate real
 PostgreSQL smoke used three checkpointer lifetimes and restored both gates plus
-trace continuity. Live-provider and hosted telemetry evidence remain separate
-credentialed gates.
+trace continuity. A separate credentialed workflow completed bounded DeepSeek
+and Kimi turns and requested a Logfire remote flush; see
+`docs/session13_plus_live_runtime_evidence.md`. The browser journey itself
+remains deterministic and is not presented as browser-to-provider evidence.

@@ -16,6 +16,7 @@ cost, provider/fallback, and checkpoint count.
 This is deliberately contract-level, deterministic CI evidence. `latency_ms`
 and cost are zero for the local fake and must not be presented as live-provider
 measurements. PostgreSQL process restart and browser operation are proven by
-their dedicated integration and product-smoke evidence; provider calls and
-hosted telemetry remain separate credentialed gates because this matrix cannot
-prove them.
+their dedicated integration and product-smoke evidence. The separate
+credentialed runtime gate in `docs/session13_plus_live_runtime_evidence.md`
+proves bounded DeepSeek/Kimi calls and a Logfire export request; this matrix
+does not prove those external behaviors.

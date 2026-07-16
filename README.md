@@ -55,6 +55,8 @@ The mandatory pre-session implementation includes:
   `estimador-cag/docs/session13_task13_compliance.md`
 - Non-mandatory Plus roadmap:
   `estimador-cag/docs/session13_plus_roadmap.md`
+- Plus credentialed runtime evidence:
+  `estimador-cag/docs/session13_plus_live_runtime_evidence.md`
 - Spanish presentation guide:
   `estimador-cag/docs/session13_presentation_guide_es.md`
 

@@ -36,8 +36,8 @@ See `docs/session13_plus_p0_bridge.md` for architecture, rollback, limitations,
 and the final validation plan.
 
 Full local gates, remote CI, PostgreSQL restart, trace, deterministic browser,
-and benchmark evidence are captured. Credentialed live-provider and hosted
-telemetry proof remain outstanding.
+benchmark evidence, and a credentialed DeepSeek/Kimi plus Logfire export smoke
+are captured. See `docs/session13_plus_live_runtime_evidence.md`.
 
 ## P1 — Read-only Graph Inspector UI
 
@@ -102,7 +102,7 @@ See `docs/session13_plus_final_estimate_gate.md`.
 
 ## P4 — Iterative provider tool runtimes
 
-Status: implementation complete; manual live-provider matrix pending.
+Status: implementation and bounded DeepSeek/Kimi live-turn evidence complete.
 
 Implement bounded DeepSeek and Kimi tool-call loops where the model
 chooses a tool, Python validates it, the tool runs, the result is
@@ -167,8 +167,9 @@ provider profiles, trace links, and browser smoke evidence.
 
 ## P9 — Production smoke and provider matrix
 
-Status: deterministic scenario matrix complete; credentialed live-provider and
-hosted telemetry evidence pending.
+Status: deterministic scenario matrix and bounded credentialed DeepSeek/Kimi
+plus Logfire export evidence complete. A production-scale provider matrix is
+not claimed.
 
 Compare deterministic fakes, DeepSeek, Kimi, and an optional reference
 provider across success rate, latency, token use, cost, output parity,

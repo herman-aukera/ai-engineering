@@ -155,6 +155,12 @@ Session 06 latency and memory-drift thresholds did not pass. That result is
 preserved honestly and is not treated as a mandatory Session 13 acceptance
 gate.
 
+The Session 13 Plus credentialed runtime gate is independent of that historical
+stress suite. GitHub Actions run `29526996872` completed bounded DeepSeek and
+Kimi turns and requested a remote Logfire flush. The sanitized evidence and
+claim boundary are documented in
+`docs/session13_plus_live_runtime_evidence.md`.
+
 ## Deterministic validation
 
 ```zsh

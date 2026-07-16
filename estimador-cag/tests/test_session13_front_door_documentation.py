@@ -8,6 +8,9 @@ PROJECT_README = PROJECT_ROOT / "README.md"
 
 COMPLIANCE_DOC = PROJECT_ROOT / "docs" / "session13_task13_compliance.md"
 PLUS_DOC = PROJECT_ROOT / "docs" / "session13_plus_roadmap.md"
+PLUS_LIVE_DOC = (
+    PROJECT_ROOT / "docs" / "session13_plus_live_runtime_evidence.md"
+)
 PRESENTATION_DOC = (
     PROJECT_ROOT / "docs" / "session13_presentation_guide_es.md"
 )
@@ -19,6 +22,7 @@ def test_session13_front_door_documentation() -> None:
         PROJECT_README,
         COMPLIANCE_DOC,
         PLUS_DOC,
+        PLUS_LIVE_DOC,
         PRESENTATION_DOC,
     ):
         assert path.is_file(), f"Missing documentation: {path}"
@@ -27,6 +31,7 @@ def test_session13_front_door_documentation() -> None:
     project_readme = PROJECT_README.read_text(encoding="utf-8")
     compliance = COMPLIANCE_DOC.read_text(encoding="utf-8")
     plus = PLUS_DOC.read_text(encoding="utf-8")
+    plus_live = PLUS_LIVE_DOC.read_text(encoding="utf-8")
     presentation = PRESENTATION_DOC.read_text(encoding="utf-8")
 
     root_front_door = root_readme.split(
@@ -57,6 +62,13 @@ def test_session13_front_door_documentation() -> None:
     assert "P9" in plus
     assert "Send API" in plus
     assert "interrupt()" in plus
+
+    assert "29526996872" in plus_live
+    assert "all_providers_completed: true" in plus_live
+    assert "DeepSeek" in plus_live
+    assert "Kimi" in plus_live
+    assert "Logfire" in plus_live
+    assert "production-scale" in plus_live
 
     assert "Guía de presentación" in presentation
     assert "¿Dónde haces las llamadas?" in presentation
