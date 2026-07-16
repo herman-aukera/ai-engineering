@@ -22,6 +22,7 @@ from app.generation.graph.runtime import open_graph_estimation_service
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.graph_estimations import router as graph_estimations_router
+from app.routers.graph_rollout import router as graph_rollout_router
 from app.routers.reviewed_graph_estimations import (
     router as reviewed_graph_estimations_router,
 )
@@ -93,6 +94,7 @@ setup_logging(app)
 # Transport layer
 app.include_router(estimations_router)
 app.include_router(graph_estimations_router)
+app.include_router(graph_rollout_router)
 app.include_router(reviewed_graph_estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
