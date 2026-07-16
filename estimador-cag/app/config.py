@@ -13,10 +13,12 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 TierName = Literal["flash", "pro", "backup", "backup_pro"]
+EstimationBackend = Literal["legacy", "graph"]
 
 
 class Settings(BaseSettings):
     """Pydantic Settings validates env vars at import time. Fails fast on missing secrets."""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -24,6 +26,7 @@ class Settings(BaseSettings):
     )
 
     llm_tier: TierName = "flash"
+    estimation_backend: EstimationBackend = "legacy"
 
     deepseek_api_key: str = "dummy"
     deepseek_model: str = "deepseek-v4-flash"
