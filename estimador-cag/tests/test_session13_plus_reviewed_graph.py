@@ -7,6 +7,7 @@ from langgraph.types import Command
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.reviewed_build import build_reviewed_estimation_graph
 from app.generation.graph.state import new_estimation_graph_state
+from app.services.checkpoint_scenarios import branch_checkpoint, list_checkpoint_records
 
 
 class FakeRequirementExtractor:
@@ -119,6 +120,24 @@ async def test_reviewed_graph_runs_three_composable_phases_without_human_gate() 
 
 
 @pytest.mark.asyncio
+async def test_parallel_retrieval_preserves_deterministic_estimate_parity() -> None:
+    sequential = build_reviewed_estimation_graph(_dependencies())
+    parallel = build_reviewed_estimation_graph(
+        _dependencies(), retrieval_mode="parallel", retrieval_max_concurrency=2
+    )
+
+    sequential_result = await sequential.ainvoke(_initial_state(review_mode="disabled"))
+    parallel_result = await parallel.ainvoke(_initial_state(review_mode="disabled"))
+
+    assert parallel_result["budget_matches"] == sequential_result["budget_matches"]
+    assert parallel_result["estimate"] == sequential_result["estimate"]
+    event_types = [event["event_type"] for event in parallel_result["trace_events"]]
+    assert "parallel_retrieval_dispatched" in event_types
+    assert "parallel_retrieval_worker_completed" in event_types
+    assert "parallel_retrieval_merged" in event_types
+
+
+@pytest.mark.asyncio
 async def test_required_structure_gate_pauses_and_resumes_same_thread() -> None:
     graph = build_reviewed_estimation_graph(
         _dependencies(),
@@ -153,6 +172,24 @@ async def test_required_structure_gate_pauses_and_resumes_same_thread() -> None:
     assert resumed["status"] == "validated"
     assert resumed["boss_decision"]["action"] == "accept"
     assert resumed["estimate"]["total_hours"] == 40.0
+    final_interrupts = resumed["__interrupt__"]
+    assert len(final_interrupts) == 1
+    assert final_interrupts[0].value["gate"] == "final_estimate_review"
+
+    completed = await graph.ainvoke(
+        Command(
+            resume={
+                "action": "approve",
+                "expected_revision": 0,
+                "actor": "reviewer@example.com",
+            }
+        ),
+        config=config,
+    )
+    assert completed["final_review_status"] == "approved"
+    assert completed["final_review_revision"] == 1
+    assert completed["status"] == "validated"
+    assert completed.get("__interrupt__", ()) == ()
 
 
 @pytest.mark.asyncio
@@ -186,3 +223,34 @@ async def test_human_rejection_stops_before_retrieval_and_estimation() -> None:
     assert resumed.get("budget_matches", []) == []
     assert resumed.get("component_estimates", []) == []
     assert "boss_decision" not in resumed
+
+
+@pytest.mark.asyncio
+async def test_real_graph_history_can_branch_without_mutating_original_thread() -> None:
+    graph = build_reviewed_estimation_graph(
+        _dependencies(), checkpointer=InMemorySaver()
+    )
+    estimation_id = "11111111-1111-4111-8111-111111111111"
+    config = {"configurable": {"thread_id": f"estimate:{estimation_id}"}}
+    original = await graph.ainvoke(
+        _initial_state(review_mode="disabled"), config=config
+    )
+    history = await list_checkpoint_records(graph, estimation_id=estimation_id)
+    assert len(history) >= 2
+
+    branch = await branch_checkpoint(
+        graph,
+        estimation_id=estimation_id,
+        checkpoint_id=history[0].checkpoint_id,
+        scenario_id="enterprise",
+    )
+    original_after = await graph.aget_state(config)
+    branched = await graph.aget_state(
+        {"configurable": {"thread_id": branch.thread_id}}
+    )
+
+    assert original_after.values["estimation_id"] == estimation_id
+    assert original_after.values["estimate"] == original["estimate"]
+    assert branched.values["estimation_id"] == branch.estimation_id
+    assert branched.values["parent_estimation_id"] == estimation_id
+    assert branched.values["parent_checkpoint_id"] == history[0].checkpoint_id

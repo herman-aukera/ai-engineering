@@ -7,7 +7,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.human_review import HumanReviewMode, StructureReviewDecision
+from app.schemas.human_review import (
+    FinalEstimateReviewDecision,
+    HumanReviewMode,
+    StructureReviewDecision,
+)
 
 
 class StrictReviewedPayload(BaseModel):
@@ -22,6 +26,10 @@ class ReviewedGraphStartRequest(StrictReviewedPayload):
 
 class ReviewedGraphResumeRequest(StructureReviewDecision):
     """Validated structure decision used as the LangGraph resume value."""
+
+
+class ReviewedGraphFinalResumeRequest(FinalEstimateReviewDecision):
+    """Validated final-estimate decision used as the resume value."""
 
 
 class ReviewedInterruptPayload(StrictReviewedPayload):
@@ -39,6 +47,40 @@ class ReviewedGraphExecutionResponse(StrictReviewedPayload):
     human_review_mode: HumanReviewMode
     structure_review_revision: int = Field(ge=0)
     structure_review_status: str | None = None
+    final_review_revision: int = Field(ge=0)
+    final_review_status: str | None = None
     next_nodes: list[str]
     interrupts: list[ReviewedInterruptPayload]
     state: dict[str, Any]
+
+
+class ReviewedCheckpointResponse(StrictReviewedPayload):
+    checkpoint_id: str = Field(min_length=1)
+    created_at: str | None = None
+    next_nodes: list[str]
+    state: dict[str, Any]
+
+
+class ReviewedCheckpointHistoryResponse(StrictReviewedPayload):
+    estimation_id: UUID
+    checkpoints: list[ReviewedCheckpointResponse]
+
+
+class ReviewedScenarioBranchRequest(StrictReviewedPayload):
+    checkpoint_id: str = Field(min_length=1, max_length=240)
+    scenario_id: str = Field(min_length=1, max_length=120)
+
+
+class ReviewedScenarioComparisonRequest(StrictReviewedPayload):
+    left_estimation_id: UUID
+    right_estimation_id: UUID
+
+
+class ReviewedScenarioComparisonResponse(StrictReviewedPayload):
+    left_estimation_id: UUID
+    right_estimation_id: UUID
+    comparison: dict[str, Any]
+
+
+class ReviewedAuditPacketResponse(StrictReviewedPayload):
+    packet: dict[str, Any]

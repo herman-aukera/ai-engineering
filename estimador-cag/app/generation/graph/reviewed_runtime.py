@@ -35,5 +35,7 @@ async def open_reviewed_graph_estimation_service(
             checkpointer=checkpointer,
             recovery_application=recovery_application,
             tracer=resolved_tracer,
+            retrieval_mode=settings.graph_retrieval_mode,
+            retrieval_max_concurrency=settings.graph_retrieval_max_concurrency,
         )
         yield ReviewedGraphEstimationService(graph=graph)

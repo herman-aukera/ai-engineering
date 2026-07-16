@@ -15,6 +15,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 TierName = Literal["flash", "pro", "backup", "backup_pro"]
 EstimationBackend = Literal["legacy", "graph"]
 GraphRolloutMode = Literal["off", "shadow", "serve"]
+GraphRetrievalMode = Literal["sequential", "parallel"]
 
 
 class Settings(BaseSettings):
@@ -29,6 +30,8 @@ class Settings(BaseSettings):
     llm_tier: TierName = "flash"
     estimation_backend: EstimationBackend = "legacy"
     graph_rollout_mode: GraphRolloutMode = "off"
+    graph_retrieval_mode: GraphRetrievalMode = "sequential"
+    graph_retrieval_max_concurrency: int = 4
 
     deepseek_api_key: str = "dummy"
     deepseek_model: str = "deepseek-v4-flash"
@@ -59,6 +62,8 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Al menos una API key debe configurarse: DEEPSEEK_API_KEY o KIMI_API_KEY"
             )
+        if self.graph_retrieval_max_concurrency <= 0:
+            raise ValueError("GRAPH_RETRIEVAL_MAX_CONCURRENCY must be positive")
         return self
 
     @property

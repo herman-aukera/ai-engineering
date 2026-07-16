@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
@@ -11,8 +11,20 @@ from langgraph.types import Command
 
 from app.generation.graph.review_state import ReviewedEstimationGraphState
 from app.generation.graph.state import new_estimation_graph_state
-from app.schemas.human_review import HumanReviewMode, StructureReviewDecision
+from app.schemas.human_review import (
+    FinalEstimateReviewDecision,
+    HumanReviewMode,
+    StructureReviewDecision,
+)
 from app.schemas.review_policy import ExecutionBudgetSnapshot
+from app.services.checkpoint_scenarios import (
+    CheckpointRecord,
+    ScenarioSnapshot,
+    branch_checkpoint,
+    compare_scenario_states,
+    list_checkpoint_records,
+    read_checkpoint,
+)
 from app.services.graph_estimation import (
     GraphStateSnapshot,
     thread_id_from_estimation_id,
@@ -34,6 +46,22 @@ class ReviewedGraphRunner(Protocol):
         config: dict[str, object] | None = None,
     ) -> Mapping[str, object]:
         """Start or resume one reviewed graph execution."""
+
+    def aget_state_history(
+        self,
+        config: dict[str, object],
+        *,
+        limit: int | None = None,
+    ) -> AsyncIterator[ScenarioSnapshot]:
+        """Iterate persisted snapshots newest first."""
+
+    async def aupdate_state(
+        self,
+        config: dict[str, object],
+        values: dict[str, object],
+        as_node: str | None = None,
+    ) -> dict[str, object]:
+        """Create a checkpoint on the selected thread."""
 
 
 class ReviewedGraphNotFoundError(LookupError):
@@ -70,12 +98,44 @@ class ReviewedGraphEstimationApplication(Protocol):
     ) -> ReviewedGraphRun:
         """Resume the same persisted thread with one validated human decision."""
 
+    async def resume_final_review(
+        self,
+        *,
+        estimation_id: UUID,
+        decision: FinalEstimateReviewDecision,
+    ) -> ReviewedGraphRun:
+        """Resume the final estimate gate on the same persisted thread."""
+
     async def inspect(
         self,
         *,
         estimation_id: UUID,
     ) -> ReviewedGraphRun:
         """Read the latest persisted reviewed-graph state without executing nodes."""
+
+    async def checkpoint_history(
+        self, *, estimation_id: UUID, limit: int = 50
+    ) -> tuple[CheckpointRecord, ...]:
+        """List checkpoint history without mutating the graph."""
+
+    async def inspect_checkpoint(
+        self, *, estimation_id: UUID, checkpoint_id: str
+    ) -> CheckpointRecord:
+        """Read one exact historical checkpoint."""
+
+    async def branch_scenario(
+        self,
+        *,
+        estimation_id: UUID,
+        checkpoint_id: str,
+        scenario_id: str,
+    ) -> ReviewedGraphRun:
+        """Create a new scenario thread from one checkpoint."""
+
+    async def compare_scenarios(
+        self, *, left_estimation_id: UUID, right_estimation_id: UUID
+    ) -> dict[str, object]:
+        """Compare product-relevant state across two scenarios."""
 
 
 def _config(thread_id: str) -> dict[str, object]:
@@ -150,6 +210,7 @@ class ReviewedGraphEstimationService:
             {
                 "human_review_mode": human_review_mode,
                 "structure_review_revision": 0,
+                "final_review_revision": 0,
                 "execution_budgets": ExecutionBudgetSnapshot().model_dump(mode="json"),
             }
         )
@@ -194,6 +255,72 @@ class ReviewedGraphEstimationService:
             thread_id=thread_id,
             result=None,
         )
+
+    async def resume_final_review(
+        self,
+        *,
+        estimation_id: UUID,
+        decision: FinalEstimateReviewDecision,
+    ) -> ReviewedGraphRun:
+        resolved_estimation_id = str(estimation_id)
+        thread_id = thread_id_from_estimation_id(resolved_estimation_id)
+        await self.inspect(estimation_id=estimation_id)
+        result = await self.graph.ainvoke(
+            Command(resume=decision.model_dump(mode="json", exclude_none=True)),
+            config=_config(thread_id),
+        )
+        return await self._read_run(
+            estimation_id=resolved_estimation_id,
+            thread_id=thread_id,
+            result=result,
+        )
+
+    async def checkpoint_history(
+        self, *, estimation_id: UUID, limit: int = 50
+    ) -> tuple[CheckpointRecord, ...]:
+        return await list_checkpoint_records(
+            self.graph,
+            estimation_id=str(estimation_id),
+            limit=limit,
+        )
+
+    async def inspect_checkpoint(
+        self, *, estimation_id: UUID, checkpoint_id: str
+    ) -> CheckpointRecord:
+        return await read_checkpoint(
+            self.graph,
+            estimation_id=str(estimation_id),
+            checkpoint_id=checkpoint_id,
+        )
+
+    async def branch_scenario(
+        self,
+        *,
+        estimation_id: UUID,
+        checkpoint_id: str,
+        scenario_id: str,
+    ) -> ReviewedGraphRun:
+        branch = await branch_checkpoint(
+            self.graph,
+            estimation_id=str(estimation_id),
+            checkpoint_id=checkpoint_id,
+            scenario_id=scenario_id,
+        )
+        return ReviewedGraphRun(
+            estimation_id=branch.estimation_id,
+            thread_id=branch.thread_id,
+            execution_status="completed",
+            state=branch.state,
+            next_nodes=(),
+            interrupts=(),
+        )
+
+    async def compare_scenarios(
+        self, *, left_estimation_id: UUID, right_estimation_id: UUID
+    ) -> dict[str, object]:
+        left = await self.inspect(estimation_id=left_estimation_id)
+        right = await self.inspect(estimation_id=right_estimation_id)
+        return compare_scenario_states(left.state, right.state)
 
     async def _read_run(
         self,

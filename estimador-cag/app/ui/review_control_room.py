@@ -8,12 +8,20 @@ Run with:
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from typing import Any
 
 import requests
 import streamlit as st
 
-from app.ui.graph_inspector import (
+# Streamlit executes this file with app/ui as sys.path[0]. Add the project root
+# so the documented direct launch command works outside pytest/uv package setup.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.ui.graph_inspector import (  # noqa: E402
     BACKEND_CONNECT_TIMEOUT_SECONDS,
     BACKEND_READ_TIMEOUT_SECONDS,
     get_backend_url,
@@ -23,6 +31,11 @@ from app.ui.graph_inspector import (
 REVIEWED_START_PATH = "/api/v1/estimate/graph/reviewed/start"
 REVIEWED_EXECUTION_PATH = "/api/v1/estimate/graph/reviewed/{estimation_id}"
 REVIEWED_RESUME_PATH = "/api/v1/estimate/graph/reviewed/{estimation_id}/resume"
+REVIEWED_FINAL_RESUME_PATH = "/api/v1/estimate/graph/reviewed/{estimation_id}/resume/final"
+REVIEWED_CHECKPOINTS_PATH = "/api/v1/estimate/graph/reviewed/{estimation_id}/checkpoints"
+REVIEWED_SCENARIOS_PATH = "/api/v1/estimate/graph/reviewed/{estimation_id}/scenarios"
+REVIEWED_SCENARIO_COMPARE_PATH = "/api/v1/estimate/graph/reviewed/scenarios/compare"
+REVIEWED_AUDIT_PATH = "/api/v1/estimate/graph/reviewed/{estimation_id}/audit"
 
 
 def build_reviewed_start_url() -> str:
@@ -35,6 +48,18 @@ def build_reviewed_execution_url(estimation_id: str) -> str:
 
 def build_reviewed_resume_url(estimation_id: str) -> str:
     return f"{get_backend_url()}{REVIEWED_RESUME_PATH.format(estimation_id=estimation_id)}"
+
+
+def build_reviewed_final_resume_url(estimation_id: str) -> str:
+    return f"{get_backend_url()}{REVIEWED_FINAL_RESUME_PATH.format(estimation_id=estimation_id)}"
+
+
+def build_reviewed_checkpoints_url(estimation_id: str) -> str:
+    return f"{get_backend_url()}{REVIEWED_CHECKPOINTS_PATH.format(estimation_id=estimation_id)}"
+
+
+def build_reviewed_scenarios_url(estimation_id: str) -> str:
+    return f"{get_backend_url()}{REVIEWED_SCENARIOS_PATH.format(estimation_id=estimation_id)}"
 
 
 def _response_json(response: requests.Response) -> dict[str, Any]:
@@ -87,6 +112,59 @@ def resume_reviewed_execution(
     return _response_json(response)
 
 
+def resume_final_reviewed_execution(
+    *, estimation_id: str, decision: dict[str, Any]
+) -> dict[str, Any]:
+    response = requests.post(
+        build_reviewed_final_resume_url(estimation_id.strip()),
+        json=decision,
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    return _response_json(response)
+
+
+def fetch_checkpoint_history(estimation_id: str) -> dict[str, Any]:
+    response = requests.get(
+        build_reviewed_checkpoints_url(estimation_id.strip()),
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    return _response_json(response)
+
+
+def create_scenario_branch(
+    *, estimation_id: str, checkpoint_id: str, scenario_id: str
+) -> dict[str, Any]:
+    response = requests.post(
+        build_reviewed_scenarios_url(estimation_id.strip()),
+        json={"checkpoint_id": checkpoint_id, "scenario_id": scenario_id},
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    return _response_json(response)
+
+
+def compare_scenario_executions(
+    *, left_estimation_id: str, right_estimation_id: str
+) -> dict[str, Any]:
+    response = requests.post(
+        f"{get_backend_url()}{REVIEWED_SCENARIO_COMPARE_PATH}",
+        json={
+            "left_estimation_id": left_estimation_id.strip(),
+            "right_estimation_id": right_estimation_id.strip(),
+        },
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    return _response_json(response)
+
+
+def fetch_audit_packet(estimation_id: str) -> dict[str, Any]:
+    path = REVIEWED_AUDIT_PATH.format(estimation_id=estimation_id.strip())
+    response = requests.get(
+        f"{get_backend_url()}{path}",
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    return _response_json(response)
+
+
 def reviewed_response_to_graph_payload(response: dict[str, Any]) -> dict[str, Any]:
     """Flatten the checkpoint-safe state for the existing Graph Inspector renderer."""
 
@@ -113,6 +191,17 @@ def pending_structure_review(response: dict[str, Any]) -> dict[str, Any] | None:
             continue
         value = interrupt_payload.get("value")
         if isinstance(value, dict) and value.get("gate") == "structure_review":
+            return value
+    return None
+
+
+def pending_final_review(response: dict[str, Any]) -> dict[str, Any] | None:
+    interrupts = response.get("interrupts")
+    if not isinstance(interrupts, list):
+        return None
+    for interrupt_payload in interrupts:
+        value = interrupt_payload.get("value") if isinstance(interrupt_payload, dict) else None
+        if isinstance(value, dict) and value.get("gate") == "final_estimate_review":
             return value
     return None
 
@@ -150,6 +239,28 @@ def build_structure_resume_payload(
         payload["components"] = _parse_json_list(
             components_json or "[]",
             field_name="components",
+        )
+    return payload
+
+
+def build_final_resume_payload(
+    *,
+    action: str,
+    expected_revision: int,
+    actor: str,
+    reason: str | None = None,
+    overrides_json: str | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "action": action,
+        "expected_revision": expected_revision,
+        "actor": actor.strip(),
+    }
+    if (reason or "").strip():
+        payload["reason"] = reason.strip()
+    if action == "override":
+        payload["overrides"] = _parse_json_list(
+            overrides_json or "[]", field_name="overrides"
         )
     return payload
 
@@ -241,6 +352,54 @@ def _render_review_form(response: dict[str, Any], interrupt_payload: dict[str, A
             st.error(f"Could not resume reviewed graph: {exc}")
 
 
+def _render_final_review_form(
+    response: dict[str, Any], interrupt_payload: dict[str, Any]
+) -> None:
+    st.markdown("## Human estimate gate")
+    st.warning("The final estimate is durably paused on the persisted thread.")
+    st.json(
+        {
+            "estimate": interrupt_payload.get("estimate"),
+            "critic_report": interrupt_payload.get("critic_report"),
+            "boss_decision": interrupt_payload.get("boss_decision"),
+        }
+    )
+    revision = int(interrupt_payload.get("revision", 0))
+    with st.form("final_review_resume_form"):
+        action = st.selectbox(
+            "Final decision",
+            options=["approve", "request_recovery", "override", "reject"],
+        )
+        actor = st.text_input("Actor", placeholder="reviewer@example.com")
+        reason = st.text_area("Reason")
+        overrides_json = st.text_area(
+            "Typed baseline overrides JSON",
+            value="[]",
+            disabled=action != "override",
+            help="Each item requires component_id, hours, and evidence_refs.",
+        )
+        submitted = st.form_submit_button("Resume final gate", type="primary")
+    if submitted:
+        try:
+            payload = build_final_resume_payload(
+                action=action,
+                expected_revision=revision,
+                actor=actor,
+                reason=reason,
+                overrides_json=overrides_json,
+            )
+            _store_response(
+                resume_final_reviewed_execution(
+                    estimation_id=str(response["estimation_id"]), decision=payload
+                )
+            )
+            st.rerun()
+        except requests.HTTPError as exc:
+            st.error(f"Final resume failed: {_request_error_text(exc)}")
+        except (requests.RequestException, ValueError, json.JSONDecodeError) as exc:
+            st.error(f"Could not resume final estimate gate: {exc}")
+
+
 def _render_execution(response: dict[str, Any]) -> None:
     execution_status = response.get("execution_status", "unknown")
     status_col, mode_col, revision_col, next_col = st.columns(4)
@@ -253,6 +412,9 @@ def _render_execution(response: dict[str, Any]) -> None:
     interrupt_payload = pending_structure_review(response)
     if execution_status == "paused" and interrupt_payload is not None:
         _render_review_form(response, interrupt_payload)
+    final_interrupt_payload = pending_final_review(response)
+    if execution_status == "paused" and final_interrupt_payload is not None:
+        _render_final_review_form(response, final_interrupt_payload)
 
     st.divider()
     render_graph_inspector(reviewed_response_to_graph_payload(response))
@@ -268,6 +430,74 @@ def _render_execution(response: dict[str, Any]) -> None:
         with boss_col:
             st.markdown("### Deterministic Boss")
             st.json(boss_decision or {})
+
+    st.markdown("## Checkpoints and scenarios")
+    estimation_id = str(response.get("estimation_id") or "")
+    try:
+        audit_payload = fetch_audit_packet(estimation_id)
+    except requests.RequestException:
+        audit_payload = None
+    if isinstance(audit_payload, dict):
+        st.download_button(
+            "Export audit packet",
+            data=json.dumps(audit_payload.get("packet", {}), ensure_ascii=False, indent=2),
+            file_name=f"estimation-audit-{estimation_id}.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+    if st.button("Load checkpoint history", use_container_width=True):
+        try:
+            st.session_state["reviewed_checkpoint_history"] = fetch_checkpoint_history(
+                estimation_id
+            )
+        except requests.RequestException as exc:
+            st.error(f"Could not load checkpoint history: {exc}")
+    history = st.session_state.get("reviewed_checkpoint_history", {})
+    checkpoints = history.get("checkpoints", []) if isinstance(history, dict) else []
+    if checkpoints:
+        st.dataframe(
+            [
+                {
+                    "checkpoint_id": item.get("checkpoint_id"),
+                    "created_at": item.get("created_at"),
+                    "next_nodes": ", ".join(item.get("next_nodes") or []),
+                    "status": (item.get("state") or {}).get("status"),
+                }
+                for item in checkpoints
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+        checkpoint_ids = [str(item["checkpoint_id"]) for item in checkpoints]
+        with st.form("scenario_branch_form"):
+            checkpoint_id = st.selectbox("Branch checkpoint", checkpoint_ids)
+            scenario_id = st.text_input("Scenario name", value="what-if")
+            branch_submitted = st.form_submit_button("Create isolated scenario")
+        if branch_submitted:
+            try:
+                branch = create_scenario_branch(
+                    estimation_id=estimation_id,
+                    checkpoint_id=checkpoint_id,
+                    scenario_id=scenario_id,
+                )
+                st.session_state["last_scenario_branch"] = branch
+                st.success(f"Scenario thread created: {branch.get('thread_id')}")
+            except requests.RequestException as exc:
+                st.error(f"Could not branch scenario: {exc}")
+
+    with st.form("scenario_compare_form"):
+        left_id = st.text_input("Left estimation ID", value=estimation_id)
+        right_id = st.text_input("Right scenario estimation ID")
+        compare_submitted = st.form_submit_button("Compare scenarios")
+    if compare_submitted:
+        try:
+            comparison = compare_scenario_executions(
+                left_estimation_id=left_id,
+                right_estimation_id=right_id,
+            )
+            st.json(comparison.get("comparison", {}))
+        except requests.RequestException as exc:
+            st.error(f"Could not compare scenarios: {exc}")
 
 
 def main() -> None:

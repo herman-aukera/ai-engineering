@@ -5,7 +5,9 @@ import json
 import pytest
 
 from app.ui.review_control_room import (
+    build_final_resume_payload,
     build_structure_resume_payload,
+    pending_final_review,
     pending_structure_review,
     reviewed_response_to_graph_payload,
 )
@@ -132,3 +134,35 @@ def test_edit_resume_payload_rejects_non_list_json() -> None:
             requirements_json='{"requirement_id": "req-1"}',
             components_json="[]",
         )
+
+
+def test_pending_final_review_extracts_final_gate() -> None:
+    response = _paused_response()
+    response["interrupts"] = [
+        {"id": "final-1", "value": {"gate": "final_estimate_review", "revision": 2}}
+    ]
+    assert pending_final_review(response) == {
+        "gate": "final_estimate_review",
+        "revision": 2,
+    }
+
+
+def test_final_override_payload_preserves_typed_human_evidence() -> None:
+    payload = build_final_resume_payload(
+        action="override",
+        expected_revision=2,
+        actor=" lead@example.com ",
+        reason="Accepted discovery baseline.",
+        overrides_json=json.dumps(
+            [{"component_id": "CMP-1", "hours": 52, "evidence_refs": ["NOTE-7"]}]
+        ),
+    )
+    assert payload == {
+        "action": "override",
+        "expected_revision": 2,
+        "actor": "lead@example.com",
+        "reason": "Accepted discovery baseline.",
+        "overrides": [
+            {"component_id": "CMP-1", "hours": 52, "evidence_refs": ["NOTE-7"]}
+        ],
+    }

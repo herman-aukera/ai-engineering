@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Annotated, Literal, TypedDict
 
 from app.generation.graph.state import EstimationGraphState
 from app.schemas.human_review import HumanReviewMode
@@ -24,6 +24,27 @@ RecoveryStatus = Literal[
     "failed",
 ]
 RecoveryRoute = Literal["complete", "recalculate"]
+FinalReviewRoute = Literal["complete", "stop", "recover"]
+
+
+def merge_parallel_retrieval_results(
+    current: list[dict[str, object]],
+    incoming: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Merge replayed worker envelopes once, independent of completion order."""
+
+    by_component = {
+        str(item.get("component_id")): dict(item)
+        for item in [*current, *incoming]
+        if item.get("component_id") is not None
+    }
+    return sorted(
+        by_component.values(),
+        key=lambda item: (
+            int(item.get("component_index", 0)),
+            str(item.get("component_id", "")),
+        ),
+    )
 
 
 class StructureReviewRecord(TypedDict, total=False):
@@ -50,3 +71,12 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     critic_report: dict[str, object]
     boss_decision: dict[str, object]
     execution_budgets: dict[str, object]
+    parallel_retrieval_results: Annotated[list[dict[str, object]], merge_parallel_retrieval_results]
+    final_review_revision: int
+    final_review_status: str
+    final_review_route: FinalReviewRoute
+    final_review_record: dict[str, object]
+    human_baseline_overrides: list[dict[str, object]]
+    scenario_id: str
+    parent_estimation_id: str
+    parent_checkpoint_id: str

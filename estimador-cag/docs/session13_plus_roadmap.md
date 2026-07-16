@@ -79,7 +79,8 @@ Separate the workflow into:
 
 ## P3 — Human review with `interrupt()`
 
-Status: planned.
+Status: implementation complete; PostgreSQL process-restart and browser proof
+pending.
 
 Support explicit modes:
 
@@ -88,6 +89,17 @@ Support explicit modes:
 - risk-based.
 
 Add checkpoint-safe pause, approval, edit, reject, and resume behavior.
+
+Implemented:
+
+- structure gate with approve, edit, reject and regenerate;
+- distinct post-Critic/Boss final estimate gate;
+- approve, reject, selective-recovery request and typed human override;
+- actor, reason, revision, evidence refs and old/new field audit records;
+- stale revision protection and same-thread resume API;
+- integrated control-room forms for both durable gates.
+
+See `docs/session13_plus_final_estimate_gate.md`.
 
 ## P4 — Iterative provider tool runtimes
 
@@ -114,18 +126,36 @@ budget, tool-call budget, and human escalation.
 
 ## P7 — Send API parallel retrieval benchmark
 
-Status: planned.
+Status: implementation complete; consolidated validation and production-scale
+benchmark evidence pending.
 
-- Measure the sequential baseline.
-- Fan out one search per component using the LangGraph `Send` API.
-- Use order-independent reducer semantics.
-- Bound concurrency.
-- Compare latency, cost, parity, and failure behavior.
-- Retain the sequential path as a regression baseline.
+Implemented:
+
+- sequential baseline retained unchanged and used as configuration rollback;
+- one LangGraph 1.2.9 `Send` packet per validated component;
+- explicit semaphore concurrency bound;
+- replay-idempotent result-envelope reducer;
+- canonical fan-in ordering and stable provenance deduplication;
+- sibling result preservation for missing, invalid, and failed workers;
+- sanitized dispatch, worker, and merge domain events and spans;
+- deterministic sequential/parallel estimate and provenance parity tests;
+- reproducible local benchmark with measured latency and honest scope limits.
+
+See `docs/session13_plus_p7_parallel_retrieval.md`.
 
 ## P8 — Full checkpoint and review wizard UI
 
 Status: planned.
+
+Checkpoint history and scenario branching foundation implemented:
+
+- newest-first persisted checkpoint listing and exact checkpoint inspection;
+- non-destructive branching into a new thread with explicit lineage;
+- deterministic comparison of hours, evidence, findings, cost and latency;
+- control-room history, branch and comparison controls;
+- no destructive canonical rollback.
+
+See `docs/session13_plus_checkpoint_scenarios.md`.
 
 Add editable structure review, human approvals, conflict and no-data
 states, checkpoint navigation, resume and recalculation controls,
