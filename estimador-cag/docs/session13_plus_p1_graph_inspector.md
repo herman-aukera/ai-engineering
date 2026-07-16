@@ -1,6 +1,6 @@
 # Session 13 Plus P1 — Read-only Graph Inspector
 
-Status: implementation complete; consolidated validation and browser evidence pending.
+Status: implementation, consolidated validation, and browser evidence complete.
 
 ## Objective
 
@@ -122,7 +122,8 @@ The tests do not require PostgreSQL, providers, network access, or a browser.
   domain response. Logfire remains the source for span timing.
 - The inspector is read-only. Durable edit/approve/reject/resume behavior belongs
   to P3.
-- Browser proof remains pending after the final local deterministic gates.
+- Browser proof is captured as part of the deterministic Session 13 Plus UI
+  journey; external provider and PostgreSQL gates remain purposefully separate.
 
 ## Required validation
 

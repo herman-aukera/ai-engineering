@@ -1,6 +1,6 @@
 # Session 13 Plus P0 — Existing-product integration bridge
 
-Status: implementation complete; consolidated validation pending.
+Status: implementation and consolidated validation complete.
 
 This document applies only to branch `gg-session-13/plus`. The mandatory
 teacher-facing Session 13 branches remain frozen at commit
@@ -117,8 +117,8 @@ broken deployment and make backend evidence ambiguous.
 
 ## Current limitations
 
-- Consolidated local Ruff, compilation, full pytest, secret scan, and remote CI
-  evidence must still be captured after pulling the final implementation.
+- Consolidated local Ruff, compilation, full pytest, and remote CI evidence are
+  captured in PR #10 and the Plus roadmap.
 - Graph mode includes the current transcript and extracted attachment text in
   graph input. Conversation history and project metadata remain owned and
   updated by the session layer, but the mandatory graph service does not yet
@@ -127,8 +127,9 @@ broken deployment and make backend evidence ambiguous.
   resume is not claimed.
 - The current Streamlit UI uses its existing text fallback for graph mode. A
   graph-aware read-only UI belongs to P1.
-- Live provider, PostgreSQL persistence, Logfire trace, and browser evidence for
-  this integrated path remain pending final validation.
+- Provider, PostgreSQL persistence, Logfire, and browser evidence are captured
+  as separate purpose-specific gates. They do not claim that one browser run
+  exercised every external dependency simultaneously.
 
 ## Required final validation
 
