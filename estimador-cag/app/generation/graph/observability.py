@@ -9,6 +9,7 @@ from typing import Protocol, cast
 
 import logfire
 
+from app.generation.graph.review_state import ReviewedEstimationGraphState
 from app.generation.graph.state import EstimationGraphState
 
 ROOT_SPAN_NAME = "session13.graph.run"
@@ -91,6 +92,10 @@ GraphNode = Callable[
     [EstimationGraphState],
     Awaitable[EstimationGraphState],
 ]
+ReviewedGraphNode = Callable[
+    [ReviewedEstimationGraphState],
+    Awaitable[ReviewedEstimationGraphState],
+]
 
 
 def _safe_text(value: object) -> str:
@@ -105,6 +110,29 @@ def _list_count(value: object) -> int:
     return 0
 
 
+def _record_update_attributes(
+    *,
+    span: GraphSpan,
+    update: EstimationGraphState | ReviewedEstimationGraphState,
+) -> None:
+    span.set_attribute(
+        "state_delta_keys",
+        sorted(update.keys()),
+    )
+    span.set_attribute(
+        "error_count",
+        _list_count(update.get("errors")),
+    )
+    span.set_attribute(
+        "trace_event_count",
+        _list_count(update.get("trace_events")),
+    )
+
+    status = update.get("status")
+    if isinstance(status, str):
+        span.set_attribute("status", status)
+
+
 def instrument_graph_node(
     *,
     graph_name: str,
@@ -112,7 +140,7 @@ def instrument_graph_node(
     node: GraphNode,
     tracer: GraphTracer,
 ) -> GraphNode:
-    """Wrap one graph node without recording state payloads."""
+    """Wrap one mandatory graph node without recording state payloads."""
 
     async def instrumented_node(
         state: EstimationGraphState,
@@ -129,24 +157,37 @@ def instrument_graph_node(
             ),
         ) as span:
             update = await node(state)
+            _record_update_attributes(span=span, update=update)
+            return update
 
-            span.set_attribute(
-                "state_delta_keys",
-                sorted(update.keys()),
-            )
-            span.set_attribute(
-                "error_count",
-                _list_count(update.get("errors")),
-            )
-            span.set_attribute(
-                "trace_event_count",
-                _list_count(update.get("trace_events")),
-            )
+    return instrumented_node
 
-            status = update.get("status")
-            if isinstance(status, str):
-                span.set_attribute("status", status)
 
+def instrument_reviewed_graph_node(
+    *,
+    graph_name: str,
+    node_name: str,
+    node: ReviewedGraphNode,
+    tracer: GraphTracer,
+) -> ReviewedGraphNode:
+    """Wrap one Plus node while preserving the reviewed-state schema."""
+
+    async def instrumented_node(
+        state: ReviewedEstimationGraphState,
+    ) -> ReviewedEstimationGraphState:
+        with tracer.span(
+            NODE_SPAN_NAME,
+            graph_name=graph_name,
+            node_name=node_name,
+            estimation_id=_safe_text(
+                state.get("estimation_id")
+            ),
+            graph_version=_safe_text(
+                state.get("graph_version")
+            ),
+        ) as span:
+            update = await node(state)
+            _record_update_attributes(span=span, update=update)
             return update
 
     return instrumented_node
