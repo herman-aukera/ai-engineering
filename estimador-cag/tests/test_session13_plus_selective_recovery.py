@@ -169,7 +169,7 @@ async def test_selective_recovery_accepts_only_server_owned_search_result() -> N
 
     assert result.recovered_component_ids == ["cmp-auth"]
     assert result.unresolved_component_ids == []
-    assert [match["recorded_hours"] for match in result.recovered_matches] == [36.0, 44.0]
+    assert [match.recorded_hours for match in result.recovered_matches] == [36.0, 44.0]
     assert result.runtime.status == "completed"
     select_observation = next(
         observation
