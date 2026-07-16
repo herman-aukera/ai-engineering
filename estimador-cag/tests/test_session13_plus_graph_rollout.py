@@ -153,10 +153,9 @@ async def test_shadow_mode_serves_legacy_before_graph_operation_runs() -> None:
     assert record.cost_delta_eur == 500.0
     assert record.shadow_graph_status == "validated"
     assert record.shadow_review_required is False
-    assert record.request_fingerprint != values_transcript := (
-        "Build a secure FastAPI onboarding platform with PostgreSQL."
-    )
-    assert values_transcript not in record.model_dump_json()
+    transcript = "Build a secure FastAPI onboarding platform with PostgreSQL."
+    assert record.request_fingerprint != transcript
+    assert transcript not in record.model_dump_json()
 
 
 @pytest.mark.asyncio
@@ -188,9 +187,11 @@ async def test_serve_mode_fails_closed_when_graph_runtime_is_unavailable() -> No
         )
 
 
-def test_shadow_store_is_bounded_and_newest_first() -> None:
-    store = InMemoryGraphShadowStore(max_records=1)
+def test_shadow_store_validates_bounds() -> None:
+    with pytest.raises(ValueError, match="max_records must be positive"):
+        InMemoryGraphShadowStore(max_records=0)
 
+    store = InMemoryGraphShadowStore(max_records=1)
     assert store.list() == []
     with pytest.raises(ValueError, match="limit must be positive"):
         store.list(limit=0)
