@@ -36,7 +36,7 @@ class StructureReviewDecision(StrictReviewPayload):
     components: list[ReviewedComponent] | None = None
 
     @model_validator(mode="after")
-    def validate_action_contract(self) -> "StructureReviewDecision":
+    def validate_action_contract(self) -> StructureReviewDecision:
         if self.action == "edit":
             if not self.requirements or not self.components:
                 raise ValueError("edit requires non-empty requirements and components")
