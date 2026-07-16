@@ -69,7 +69,7 @@ historical checkpoints without re-executing the graph.
 
 ## P2 — Reviewed subgraphs
 
-Status: planned.
+Status: implementation complete; consolidated runtime evidence pending.
 
 Separate the workflow into:
 
@@ -103,7 +103,7 @@ See `docs/session13_plus_final_estimate_gate.md`.
 
 ## P4 — Iterative provider tool runtimes
 
-Status: planned.
+Status: implementation complete; manual live-provider matrix pending.
 
 Implement bounded DeepSeek and Kimi tool-call loops where the model
 chooses a tool, Python validates it, the tool runs, the result is
@@ -112,14 +112,14 @@ result before the graph continues.
 
 ## P5 — Structured Critic
 
-Status: planned.
+Status: implementation complete.
 
 Produce typed findings with issue code, severity, state path,
 explanation, proposed repair, and supporting evidence.
 
 ## P6 — Deterministic Boss and policy router
 
-Status: planned.
+Status: implementation complete.
 
 Bound and route retry count, provider fallback, latency budget, cost
 budget, tool-call budget, and human escalation.
@@ -145,7 +145,7 @@ See `docs/session13_plus_p7_parallel_retrieval.md`.
 
 ## P8 — Full checkpoint and review wizard UI
 
-Status: planned.
+Status: implementation complete; PostgreSQL end-to-end browser proof pending.
 
 Checkpoint history and scenario branching foundation implemented:
 
@@ -157,17 +157,25 @@ Checkpoint history and scenario branching foundation implemented:
 
 See `docs/session13_plus_checkpoint_scenarios.md`.
 
+The control room also exports an allow-listed JSON audit packet with final
+estimate, provenance, unresolved issues, Critic/Boss/human decisions, lineage,
+sanitized execution metadata, domain trace, and explicit limitations. See
+`docs/session13_plus_audit_export.md`.
+
 Add editable structure review, human approvals, conflict and no-data
 states, checkpoint navigation, resume and recalculation controls,
 provider profiles, trace links, and browser smoke evidence.
 
 ## P9 — Production smoke and provider matrix
 
-Status: planned.
+Status: deterministic scenario matrix complete; live-provider evidence pending.
 
 Compare deterministic fakes, DeepSeek, Kimi, and an optional reference
 provider across success rate, latency, token use, cost, output parity,
 retrieval quality, trace completeness, and recovery behavior.
+
+See `docs/session13_plus_evaluation_matrix.md` for the 19-scenario keyless
+contract matrix and its explicit evidence limits.
 
 ## Promotion rule
 

@@ -174,6 +174,19 @@ OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
 - `docs/session13_plus_roadmap.md`
 - `docs/session13_presentation_guide_es.md`
 
+### Session 13 Plus control room
+
+```zsh
+uv run streamlit run app/ui/review_control_room.py
+uv run python -m evals.session13_plus_parallel_retrieval_benchmark
+uv run python -m evals.session13_plus_evaluation_matrix
+```
+
+The reviewed API requires the PostgreSQL-backed application runtime. Sequential
+retrieval remains the default rollback; opt into the measured Plus fan-out with
+`GRAPH_RETRIEVAL_MODE=parallel`. See
+`docs/session13_plus_teacher_superiority_matrix.md` for evidence and limitations.
+
 ## Historical Session 12 agentic work
 
 The Session 12 — hand-written agent loop is preserved from branch
