@@ -39,22 +39,33 @@ Promotion remains blocked until the final local gates, remote CI, PostgreSQL
 smoke, trace evidence, live-provider smoke where required, and browser proof are
 captured.
 
-## P1 — Read-only graph-aware UI
+## P1 — Read-only Graph Inspector UI
 
-Status: planned.
+Status: implementation complete; consolidated validation and browser proof
+pending.
 
-Expose:
+Implemented as the separate application `app/ui/graph_inspector.py`:
 
-- estimation and thread identifiers;
-- graph status;
-- extracted requirements;
-- classified components;
-- retrieved provenance;
-- component estimates;
-- node timeline;
-- domain trace events;
-- checkpoint metadata;
-- validated versus review-required state.
+- safe execution header with estimation, thread, graph, status, provider, hours,
+  cost, and count metadata;
+- stable graph topology diagram;
+- node timeline reconstructed from checkpointed domain events;
+- deterministic component-to-source provenance explorer;
+- structured issue view;
+- explicit separation of domain trace, telemetry metadata, and checkpoint-safe
+  payload;
+- offline inspection of a saved graph response;
+- optional idempotent reopen through an existing estimation UUID;
+- deterministic pure-helper tests that require no provider, PostgreSQL, network,
+  or browser.
+
+The inspector does not expose hidden chain-of-thought and does not modify the
+established Streamlit application. See
+`docs/session13_plus_p1_graph_inspector.md` for the run command, contracts,
+limitations, and browser-proof plan.
+
+A future checkpoint-read API remains desirable for inspecting interrupted and
+historical checkpoints without re-executing the graph.
 
 ## P2 — Reviewed subgraphs
 
