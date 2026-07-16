@@ -2,6 +2,12 @@ name: Live provider smoke - Estimador CAG
 
 on:
   workflow_dispatch:
+    inputs:
+      run_legacy_stress:
+        description: Run the inherited Session 06 HTTP stress smoke
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   live-smoke:
@@ -69,6 +75,7 @@ jobs:
             --output artifacts/session13/live/session13_plus_live_runtime.json
 
       - name: Start FastAPI
+        if: inputs.run_legacy_stress
         run: |
           uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/estimador-cag.log 2>&1 &
           for i in $(seq 1 30); do
@@ -81,6 +88,7 @@ jobs:
           exit 1
 
       - name: Run bounded live stress smoke
+        if: inputs.run_legacy_stress
         run: |
           uv run python -m evals.stress.run \
             --http http://127.0.0.1:8000 \
@@ -94,7 +102,7 @@ jobs:
           sed -n '1,180p' evals/stress/live_smoke/REPORT.md
 
       - name: Print FastAPI log on failure
-        if: failure()
+        if: failure() && inputs.run_legacy_stress
         run: |
           cat /tmp/estimador-cag.log || true
 

@@ -43,6 +43,9 @@ def test_live_workflow_wires_all_three_secrets_and_artifact() -> None:
     assert "LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}" in workflow
     assert "session13_plus_live_runtime_smoke" in workflow
     assert "session13_plus_live_runtime.json" in workflow
+    assert "run_legacy_stress:" in workflow
+    assert "default: false" in workflow
+    assert workflow.count("if: inputs.run_legacy_stress") == 2
 
 
 def test_live_runner_executes_as_direct_file_without_import_failure(tmp_path: Path) -> None:
