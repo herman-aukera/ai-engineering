@@ -22,6 +22,25 @@ ReviewPolicyNode = Callable[
 ]
 
 
+def _recovery_attempted(state: ReviewedEstimationGraphState) -> bool:
+    return state.get("recovery_status") in {
+        "skipped",
+        "completed",
+        "partial",
+        "failed",
+    }
+
+
+def _current_grounding_statuses(
+    state: ReviewedEstimationGraphState,
+) -> set[str]:
+    return {
+        str(estimate.get("grounding_status"))
+        for estimate in state.get("component_estimates", [])
+        if isinstance(estimate, Mapping) and estimate.get("grounding_status")
+    }
+
+
 def _component_findings(
     state: ReviewedEstimationGraphState,
 ) -> list[CriticFinding]:
@@ -30,6 +49,7 @@ def _component_findings(
     if not isinstance(raw_estimates, list):
         return findings
 
+    recovery_attempted = _recovery_attempted(state)
     for raw_estimate in raw_estimates:
         if not isinstance(raw_estimate, Mapping):
             continue
@@ -49,9 +69,11 @@ def _component_findings(
                     explanation="The component has no recorded-hours evidence.",
                     evidence_refs=[component_id, *reference_budget_ids],
                     proposed_repair=(
-                        "Re-run retrieval or request a human estimate for this component."
+                        "Provide or approve a human baseline for this unresolved component."
+                        if recovery_attempted
+                        else "Run selective retrieval recovery for this component."
                     ),
-                    repair_scope="selected_component",
+                    repair_scope="human" if recovery_attempted else "selected_component",
                     component_ids=[component_id],
                     node="generate_estimate",
                 )
@@ -76,17 +98,35 @@ def _component_findings(
             findings.append(
                 CriticFinding(
                     code=CriticIssueCode.UNRELIABLE_ESTIMATE,
-                    severity="minor",
+                    severity="major" if recovery_attempted else "minor",
                     state_path=f"component_estimates.{component_id}",
                     explanation="The component estimate has insufficient or dispersed evidence.",
                     evidence_refs=[component_id, *reference_budget_ids],
-                    proposed_repair="Re-run retrieval for the selected component.",
-                    repair_scope="selected_component",
+                    proposed_repair=(
+                        "Approve or replace the low-confidence baseline."
+                        if recovery_attempted
+                        else "Re-run retrieval for the selected component."
+                    ),
+                    repair_scope="human" if recovery_attempted else "selected_component",
                     component_ids=[component_id],
                     node="generate_estimate",
                 )
             )
     return findings
+
+
+def _error_is_superseded(
+    *,
+    raw_code: str,
+    grounding_statuses: set[str],
+) -> bool:
+    if "missing_component_evidence" in raw_code:
+        return "no_data" not in grounding_statuses
+    if "low_confidence_component_estimate" in raw_code:
+        return "low_confidence" not in grounding_statuses
+    if "conflicting_component_evidence" in raw_code:
+        return "conflict" not in grounding_statuses
+    return False
 
 
 def _error_findings(
@@ -99,10 +139,17 @@ def _error_findings(
     if not isinstance(raw_errors, list):
         return findings
 
+    grounding_statuses = _current_grounding_statuses(state)
     for raw_error in raw_errors:
         if not isinstance(raw_error, Mapping):
             continue
         raw_code = str(raw_error.get("code") or "unknown_error")
+        if _error_is_superseded(
+            raw_code=raw_code,
+            grounding_statuses=grounding_statuses,
+        ):
+            continue
+
         node = str(raw_error.get("node") or "unknown")
         message = str(raw_error.get("message") or "Graph validation failed.")
         severity = "critical" if "mismatch" in raw_code else "major"
@@ -117,8 +164,12 @@ def _error_findings(
             proposed_repair = "Review the conflicting evidence and choose an accepted baseline."
         elif "missing_component_evidence" in raw_code:
             issue_code = CriticIssueCode.NO_DATA
-            repair_scope = "selected_component"
-            proposed_repair = "Re-run retrieval for the component without evidence."
+            repair_scope = "human" if _recovery_attempted(state) else "selected_component"
+            proposed_repair = (
+                "Provide or approve a human baseline for the component without evidence."
+                if repair_scope == "human"
+                else "Re-run retrieval for the component without evidence."
+            )
         elif "mismatch" in raw_code:
             issue_code = CriticIssueCode.ARITHMETIC_MISMATCH
             repair_scope = "full_graph"
@@ -127,6 +178,10 @@ def _error_findings(
             issue_code = CriticIssueCode.INCOMPLETE_TRACE
             repair_scope = "selected_node"
             proposed_repair = "Re-run the node and restore the required domain event."
+        elif raw_code == "selective_recovery_failed":
+            issue_code = CriticIssueCode.PROVIDER_RUNTIME_ANOMALY
+            repair_scope = "human"
+            proposed_repair = "Inspect the recovery runtime and choose a human fallback."
         else:
             issue_code = CriticIssueCode.UNRELIABLE_ESTIMATE
             repair_scope = "selected_node"
@@ -135,6 +190,7 @@ def _error_findings(
         if issue_code in existing_codes and issue_code in {
             CriticIssueCode.NO_DATA,
             CriticIssueCode.CONFLICTING_EVIDENCE,
+            CriticIssueCode.UNRELIABLE_ESTIMATE,
         }:
             continue
 
@@ -178,7 +234,7 @@ def build_deterministic_critic_node() -> ReviewPolicyNode:
         ):
             verdict = "reject"
         elif any(
-            finding.code in {CriticIssueCode.CONFLICTING_EVIDENCE}
+            finding.repair_scope == "human"
             and finding.severity in {"major", "critical"}
             for finding in findings
         ):
