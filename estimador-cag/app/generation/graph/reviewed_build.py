@@ -23,7 +23,7 @@ from app.generation.graph.nodes.structure_review import build_structure_review_n
 from app.generation.graph.observability import (
     NOOP_GRAPH_TRACER,
     GraphTracer,
-    instrument_graph_node,
+    instrument_reviewed_graph_node,
 )
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.review_state import ReviewedEstimationGraphState
@@ -54,7 +54,7 @@ def _instrument(
     node,
     tracer: GraphTracer,
 ):
-    return instrument_graph_node(
+    return instrument_reviewed_graph_node(
         graph_name=graph_name,
         node_name=node_name,
         node=node,
