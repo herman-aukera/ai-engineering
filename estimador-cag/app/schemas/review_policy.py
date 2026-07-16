@@ -55,7 +55,7 @@ class CriticFinding(StrictReviewModel):
     node: str | None = Field(default=None, max_length=120)
 
     @model_validator(mode="after")
-    def validate_repair_contract(self) -> "CriticFinding":
+    def validate_repair_contract(self) -> CriticFinding:
         if self.repair_scope == "none" and self.proposed_repair is not None:
             raise ValueError("repair_scope=none must not include proposed_repair")
         if self.repair_scope != "none" and not self.proposed_repair:
@@ -74,7 +74,7 @@ class CriticReport(StrictReviewModel):
     summary: str = Field(min_length=5, max_length=2000)
 
     @model_validator(mode="after")
-    def validate_verdict_contract(self) -> "CriticReport":
+    def validate_verdict_contract(self) -> CriticReport:
         serious_issues = [
             issue for issue in self.issues if issue.severity in {"major", "critical"}
         ]
