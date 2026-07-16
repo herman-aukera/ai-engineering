@@ -27,3 +27,17 @@ def test_estimation_backend_accepts_graph() -> None:
 def test_estimation_backend_rejects_unknown_value() -> None:
     with pytest.raises(ValidationError):
         _settings(estimation_backend="shadow")
+
+
+def test_graph_rollout_mode_defaults_to_off() -> None:
+    assert _settings().graph_rollout_mode == "off"
+
+
+@pytest.mark.parametrize("mode", ["off", "shadow", "serve"])
+def test_graph_rollout_mode_accepts_explicit_policy(mode: str) -> None:
+    assert _settings(graph_rollout_mode=mode).graph_rollout_mode == mode
+
+
+def test_graph_rollout_mode_rejects_unknown_value() -> None:
+    with pytest.raises(ValidationError):
+        _settings(graph_rollout_mode="canary")
