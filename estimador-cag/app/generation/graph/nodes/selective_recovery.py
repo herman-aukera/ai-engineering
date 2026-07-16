@@ -180,7 +180,10 @@ def build_selective_recovery_node(
             "recovery_unresolved_component_ids": unresolved,
         }
         if result.recovered_matches:
-            update["budget_matches"] = result.recovered_matches
+            update["budget_matches"] = [
+                match.model_dump(mode="json")
+                for match in result.recovered_matches
+            ]
             state_delta_keys.append("budget_matches")
         update["trace_events"] = [
             _event(
