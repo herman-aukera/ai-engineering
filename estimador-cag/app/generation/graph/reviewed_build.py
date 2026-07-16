@@ -19,6 +19,9 @@ from app.generation.graph.nodes.review_policy import (
     build_deterministic_boss_node,
     build_deterministic_critic_node,
 )
+from app.generation.graph.nodes.selective_recovery import (
+    build_selective_recovery_node,
+)
 from app.generation.graph.nodes.structure_review import build_structure_review_node
 from app.generation.graph.observability import (
     NOOP_GRAPH_TRACER,
@@ -28,6 +31,7 @@ from app.generation.graph.observability import (
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.review_state import ReviewedEstimationGraphState
 from app.schemas.human_review import HumanReviewMode
+from app.services.selective_recovery import SelectiveRecoveryApplication
 
 REVIEWED_GRAPH_NAME = "session13_plus_reviewed_estimation_graph"
 STRUCTURE_SUBGRAPH_NAME = "session13_plus_structure_subgraph"
@@ -45,6 +49,12 @@ def _parent_structure_route(
     state: ReviewedEstimationGraphState,
 ) -> Literal["continue", "stop"]:
     return "stop" if state.get("structure_route") == "stop" else "continue"
+
+
+def _recovery_route(
+    state: ReviewedEstimationGraphState,
+) -> Literal["complete", "recalculate"]:
+    return state.get("recovery_route", "complete")
 
 
 def _instrument(
@@ -117,9 +127,10 @@ def build_structure_subgraph(
 def build_estimation_subgraph(
     dependencies: GraphNodeDependencies,
     *,
+    recovery_application: SelectiveRecoveryApplication | None = None,
     tracer: GraphTracer = NOOP_GRAPH_TRACER,
 ) -> CompiledStateGraph:
-    """Build retrieval, deterministic estimation, and invariant validation."""
+    """Build deterministic estimation plus selective evidence recovery."""
 
     builder = StateGraph(ReviewedEstimationGraphState)
     builder.add_node(
@@ -141,10 +152,37 @@ def build_estimation_subgraph(
         ),
     )
     builder.add_node(
-        "validate_and_consolidate",
+        "validate_initial",
         _instrument(
             graph_name=ESTIMATION_SUBGRAPH_NAME,
-            node_name="validate_and_consolidate",
+            node_name="validate_initial",
+            node=build_validate_and_consolidate_node(),
+            tracer=tracer,
+        ),
+    )
+    builder.add_node(
+        "selective_recovery",
+        _instrument(
+            graph_name=ESTIMATION_SUBGRAPH_NAME,
+            node_name="selective_recovery",
+            node=build_selective_recovery_node(recovery_application),
+            tracer=tracer,
+        ),
+    )
+    builder.add_node(
+        "recalculate_estimate",
+        _instrument(
+            graph_name=ESTIMATION_SUBGRAPH_NAME,
+            node_name="recalculate_estimate",
+            node=build_generate_estimate_node(dependencies),
+            tracer=tracer,
+        ),
+    )
+    builder.add_node(
+        "validate_final",
+        _instrument(
+            graph_name=ESTIMATION_SUBGRAPH_NAME,
+            node_name="validate_final",
             node=build_validate_and_consolidate_node(),
             tracer=tracer,
         ),
@@ -152,8 +190,18 @@ def build_estimation_subgraph(
 
     builder.add_edge(START, "search_budgets")
     builder.add_edge("search_budgets", "generate_estimate")
-    builder.add_edge("generate_estimate", "validate_and_consolidate")
-    builder.add_edge("validate_and_consolidate", END)
+    builder.add_edge("generate_estimate", "validate_initial")
+    builder.add_edge("validate_initial", "selective_recovery")
+    builder.add_conditional_edges(
+        "selective_recovery",
+        _recovery_route,
+        {
+            "complete": END,
+            "recalculate": "recalculate_estimate",
+        },
+    )
+    builder.add_edge("recalculate_estimate", "validate_final")
+    builder.add_edge("validate_final", END)
     return builder.compile(name=ESTIMATION_SUBGRAPH_NAME)
 
 
@@ -194,6 +242,7 @@ def build_reviewed_estimation_graph(
     *,
     checkpointer: BaseCheckpointSaver | None = None,
     default_review_mode: HumanReviewMode = "risk_based",
+    recovery_application: SelectiveRecoveryApplication | None = None,
     tracer: GraphTracer = NOOP_GRAPH_TRACER,
 ) -> CompiledStateGraph:
     """Compose independently testable structure, estimation, and policy phases."""
@@ -205,6 +254,7 @@ def build_reviewed_estimation_graph(
     )
     estimation_subgraph = build_estimation_subgraph(
         dependencies,
+        recovery_application=recovery_application,
         tracer=tracer,
     )
     review_policy_subgraph = build_review_policy_subgraph(tracer=tracer)
