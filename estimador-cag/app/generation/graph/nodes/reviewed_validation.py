@@ -30,9 +30,12 @@ def _issue_is_superseded(
     code: str,
     grounding_statuses: set[str],
     after_recovery: bool,
+    recovery_complete: bool,
     explicitly_resolved: set[str],
 ) -> bool:
     if code in explicitly_resolved:
+        return True
+    if code == "missing_budget_matches" and recovery_complete:
         return True
     if code == "missing_component_evidence":
         return "no_data" not in grounding_statuses
@@ -66,18 +69,22 @@ def build_reviewed_validation_node(
             "failed",
             "skipped",
         }
+        recovery_complete = (
+            state.get("recovery_status") == "completed"
+            and not state.get("recovery_unresolved_component_ids", [])
+        )
 
         retained_issues: list[dict[str, object]] = []
         newly_resolved: list[str] = []
         for issue in state.get("errors", []):
             if not isinstance(issue, Mapping):
-                retained_issues.append(dict(issue))
                 continue
             code = str(issue.get("code") or "")
             if _issue_is_superseded(
                 code=code,
                 grounding_statuses=grounding_statuses,
                 after_recovery=after_recovery,
+                recovery_complete=recovery_complete,
                 explicitly_resolved=explicitly_resolved,
             ):
                 if code:
