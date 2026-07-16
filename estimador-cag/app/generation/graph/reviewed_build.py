@@ -13,11 +13,13 @@ from app.generation.graph.nodes import (
     build_extract_requirements_node,
     build_generate_estimate_node,
     build_search_budgets_node,
-    build_validate_and_consolidate_node,
 )
 from app.generation.graph.nodes.review_policy import (
     build_deterministic_boss_node,
     build_deterministic_critic_node,
+)
+from app.generation.graph.nodes.reviewed_validation import (
+    build_reviewed_validation_node,
 )
 from app.generation.graph.nodes.selective_recovery import (
     build_selective_recovery_node,
@@ -156,7 +158,7 @@ def build_estimation_subgraph(
         _instrument(
             graph_name=ESTIMATION_SUBGRAPH_NAME,
             node_name="validate_initial",
-            node=build_validate_and_consolidate_node(),
+            node=build_reviewed_validation_node(rebuild_aggregate=False),
             tracer=tracer,
         ),
     )
@@ -183,7 +185,7 @@ def build_estimation_subgraph(
         _instrument(
             graph_name=ESTIMATION_SUBGRAPH_NAME,
             node_name="validate_final",
-            node=build_validate_and_consolidate_node(),
+            node=build_reviewed_validation_node(rebuild_aggregate=True),
             tracer=tracer,
         ),
     )
