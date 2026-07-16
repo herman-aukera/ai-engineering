@@ -48,7 +48,7 @@ async def execute_session_estimation(
     """Select one backend while preserving each backend's native contract."""
 
     async def legacy_operation() -> dict[str, Any]:
-        return legacy_estimator(
+        result = legacy_estimator(
             request,
             tier=tier,
             prompt_version=prompt_version,
@@ -56,6 +56,8 @@ async def execute_session_estimation(
             attachments_text=attachments_text,
             conversation_history=conversation_history,
         )
+        result.setdefault("estimation_backend", "legacy")
+        return result
 
     async def graph_operation() -> dict[str, Any]:
         if graph_service is None:
