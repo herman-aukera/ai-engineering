@@ -14,6 +14,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 TierName = Literal["flash", "pro", "backup", "backup_pro"]
 EstimationBackend = Literal["legacy", "graph"]
+GraphRolloutMode = Literal["off", "shadow", "serve"]
 
 
 class Settings(BaseSettings):
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
 
     llm_tier: TierName = "flash"
     estimation_backend: EstimationBackend = "legacy"
+    graph_rollout_mode: GraphRolloutMode = "off"
 
     deepseek_api_key: str = "dummy"
     deepseek_model: str = "deepseek-v4-flash"
