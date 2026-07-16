@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.generation.graph.state import BudgetMatch
 from app.schemas.agent_runtime import AgentRuntimeResult
 
 
@@ -26,11 +25,25 @@ class ValidateRecoveryArgs(StrictRecoveryModel):
     component_ids: list[str] = Field(min_length=1)
 
 
+class RecoveryBudgetMatch(StrictRecoveryModel):
+    """One accepted server-owned historical reference."""
+
+    component_id: str = Field(min_length=1)
+    budget_id: str = Field(min_length=1)
+    reference_component_id: str | None = None
+    source_document_id: str = Field(min_length=1)
+    source_chunk_id: str = Field(min_length=1)
+    recorded_hours: float | None = Field(default=None, gt=0)
+    distance: float | None = Field(default=None, ge=0)
+    score: float | None = None
+    retrieval_method: str = Field(min_length=1)
+
+
 class SelectiveRecoveryResult(StrictRecoveryModel):
     """Recovered evidence plus bounded runtime evidence, never model-authored hours."""
 
     flagged_component_ids: list[str]
     recovered_component_ids: list[str]
     unresolved_component_ids: list[str]
-    recovered_matches: list[BudgetMatch]
+    recovered_matches: list[RecoveryBudgetMatch]
     runtime: AgentRuntimeResult
