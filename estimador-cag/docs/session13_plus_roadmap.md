@@ -5,21 +5,39 @@
 This roadmap preserves product and architecture work intentionally
 excluded from the mandatory pre-session branch.
 
-Every item below is **planned**, not claimed as implemented.
-
 The teacher-facing `session-13/pre-work` branch remains the stable
-mandatory checkpoint. Plus work should continue from a separate branch
-such as `gg-session-13/plus`.
+mandatory checkpoint. Plus work continues on `gg-session-13/plus`.
 
 ## P0 — Existing-product integration bridge
 
-Status: planned.
+Status: implementation complete; consolidated validation pending.
 
-- Prove parity between legacy and graph response contracts.
-- Add a configuration-controlled backend selector.
-- Route one controlled product path through the graph service.
-- Preserve rollback to the legacy implementation.
-- Avoid duplicate estimation logic.
+Implemented:
+
+- configuration-controlled `legacy | graph` backend selector;
+- `legacy` default and configuration-only rollback;
+- async dispatcher with exactly-one-operation semantics;
+- controlled integration of `POST /sessions/{session_id}/estimate`;
+- unchanged `/api/v1/estimate`, `/api/v1/estimate/stream`, and
+  `/api/v1/estimate/graph` paths;
+- shared graph-run response validation;
+- honest partial graph-to-product adaptation without fabricated legacy phases;
+- explicit `503` for unavailable graph runtime;
+- explicit `502` for graph execution failure;
+- Session 06 stress-fake precedence;
+- focused unit and route integration tests;
+- `.env.example` and P0 implementation documentation.
+
+The graph and legacy response contracts are not claimed to be identical. Graph
+mode exposes a deterministic text fallback plus the complete validated graph
+payload and explicit compatibility metadata.
+
+See `docs/session13_plus_p0_bridge.md` for architecture, rollback, limitations,
+and the final validation plan.
+
+Promotion remains blocked until the final local gates, remote CI, PostgreSQL
+smoke, trace evidence, live-provider smoke where required, and browser proof are
+captured.
 
 ## P1 — Read-only graph-aware UI
 
