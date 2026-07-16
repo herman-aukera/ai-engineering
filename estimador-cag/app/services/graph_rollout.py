@@ -61,7 +61,7 @@ GLOBAL_GRAPH_SHADOW_STORE = InMemoryGraphShadowStore()
 
 
 def _request_fingerprint(*, transcript: str, attachments_text: str) -> str:
-    raw = f"{transcript}\x00{attachments_text}".encode("utf-8")
+    raw = f"{transcript}\x00{attachments_text}".encode()
     return sha256(raw).hexdigest()
 
 
@@ -75,8 +75,7 @@ def _mapping(value: object) -> dict[str, Any]:
 
 
 def _legacy_cost(result: dict[str, Any]) -> float | None:
-    structured = _mapping(result.get("result"))
-    value = structured.get("total_cost_eur")
+    value = _mapping(result.get("result")).get("total_cost_eur")
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         return max(0.0, float(value))
     return None
@@ -87,17 +86,13 @@ def _graph_payload(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def _graph_cost(result: dict[str, Any]) -> float | None:
-    estimate = _mapping(_graph_payload(result).get("estimate"))
-    value = estimate.get("total_cost_eur")
+    value = _mapping(_graph_payload(result).get("estimate")).get("total_cost_eur")
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         return max(0.0, float(value))
     return None
 
 
-def _cost_delta(
-    primary_cost: float | None,
-    shadow_cost: float | None,
-) -> float | None:
+def _cost_delta(primary_cost: float | None, shadow_cost: float | None) -> float | None:
     if primary_cost is None or shadow_cost is None:
         return None
     return round(shadow_cost - primary_cost, 2)
@@ -133,12 +128,12 @@ def _completed_record(
         shadow_text_chars=len(str(shadow_result.get("text") or "")),
         primary_structured_result=primary_result.get("result") is not None,
         shadow_graph_status=(
-            str(graph_payload.get("status"))
+            str(graph_payload["status"])
             if graph_payload.get("status") is not None
             else None
         ),
         shadow_review_required=(
-            bool(graph_payload.get("review_required"))
+            bool(graph_payload["review_required"])
             if graph_payload.get("review_required") is not None
             else None
         ),
@@ -166,15 +161,38 @@ def _failed_record(
         shadow_latency_ms=shadow_latency_ms,
         latency_delta_ms=shadow_latency_ms - primary_latency_ms,
         primary_total_cost_eur=_legacy_cost(primary_result),
-        shadow_total_cost_eur=None,
-        cost_delta_eur=None,
         primary_text_chars=len(str(primary_result.get("text") or "")),
         shadow_text_chars=0,
         primary_structured_result=primary_result.get("result") is not None,
-        shadow_graph_status=None,
-        shadow_review_required=None,
         error_type=type(error).__name__,
         error_message=str(error)[:500],
+    )
+
+
+async def _execute_backend(
+    *,
+    backend: EstimationBackend,
+    legacy_estimator: LegacyEstimator,
+    graph_service: GraphEstimationApplication | None,
+    request: EstimationRequest,
+    transcript: str,
+    tier: TierName | None,
+    prompt_version: str,
+    project_metadata: object,
+    attachments_text: str,
+    conversation_history: list[dict[str, str]],
+) -> dict[str, Any]:
+    return await execute_session_estimation(
+        backend=backend,
+        legacy_estimator=legacy_estimator,
+        graph_service=graph_service,
+        request=request,
+        transcript=transcript,
+        tier=tier,
+        prompt_version=prompt_version,
+        project_metadata=project_metadata,
+        attachments_text=attachments_text,
+        conversation_history=conversation_history,
     )
 
 
@@ -196,51 +214,28 @@ async def prepare_session_estimation_rollout(
 ) -> PreparedRollout:
     """Prepare one served result and optionally one isolated graph shadow run."""
 
-    if rollout_mode == "serve":
-        result = await execute_session_estimation(
-            backend="graph",
-            legacy_estimator=legacy_estimator,
-            graph_service=graph_service,
-            request=request,
-            transcript=transcript,
-            tier=tier,
-            prompt_version=prompt_version,
-            project_metadata=project_metadata,
-            attachments_text=attachments_text,
-            conversation_history=conversation_history,
-        )
-        result["graph_rollout_mode"] = "serve"
-        return PreparedRollout(result=result)
+    common = {
+        "legacy_estimator": legacy_estimator,
+        "graph_service": graph_service,
+        "request": request,
+        "transcript": transcript,
+        "tier": tier,
+        "prompt_version": prompt_version,
+        "project_metadata": project_metadata,
+        "attachments_text": attachments_text,
+        "conversation_history": conversation_history,
+    }
 
-    if rollout_mode == "off":
-        result = await execute_session_estimation(
-            backend=configured_backend,
-            legacy_estimator=legacy_estimator,
-            graph_service=graph_service,
-            request=request,
-            transcript=transcript,
-            tier=tier,
-            prompt_version=prompt_version,
-            project_metadata=project_metadata,
-            attachments_text=attachments_text,
-            conversation_history=conversation_history,
+    if rollout_mode in {"off", "serve"}:
+        backend: EstimationBackend = (
+            "graph" if rollout_mode == "serve" else configured_backend
         )
-        result["graph_rollout_mode"] = "off"
+        result = await _execute_backend(backend=backend, **common)
+        result["graph_rollout_mode"] = rollout_mode
         return PreparedRollout(result=result)
 
     primary_started = perf_counter()
-    primary_result = await execute_session_estimation(
-        backend="legacy",
-        legacy_estimator=legacy_estimator,
-        graph_service=graph_service,
-        request=request,
-        transcript=transcript,
-        tier=tier,
-        prompt_version=prompt_version,
-        project_metadata=project_metadata,
-        attachments_text=attachments_text,
-        conversation_history=conversation_history,
-    )
+    primary_result = await _execute_backend(backend="legacy", **common)
     primary_latency_ms = int((perf_counter() - primary_started) * 1000)
     comparison_id = uuid4()
     created_at = datetime.now(UTC)
@@ -254,18 +249,7 @@ async def prepare_session_estimation_rollout(
     async def shadow_operation() -> None:
         shadow_started = perf_counter()
         try:
-            shadow_result = await execute_session_estimation(
-                backend="graph",
-                legacy_estimator=legacy_estimator,
-                graph_service=graph_service,
-                request=request,
-                transcript=transcript,
-                tier=tier,
-                prompt_version=prompt_version,
-                project_metadata=project_metadata,
-                attachments_text=attachments_text,
-                conversation_history=conversation_history,
-            )
+            shadow_result = await _execute_backend(backend="graph", **common)
         except Exception as exc:
             shadow_latency_ms = int((perf_counter() - shadow_started) * 1000)
             shadow_store.append(
