@@ -15,6 +15,7 @@ from app.schemas.graph_estimation import (
 from app.services.graph_estimation import (
     GraphEstimationApplication,
 )
+from app.services.graph_product_adapter import graph_response_from_run
 
 logger = logging.getLogger(__name__)
 
@@ -61,49 +62,7 @@ async def create_graph_estimation(
             transcript=payload.transcript,
             estimation_id=payload.estimation_id,
         )
-        state = run.state
-
-        return GraphEstimationResponse.model_validate(
-            {
-                "estimation_id": run.estimation_id,
-                "thread_id": run.thread_id,
-                "graph_version": state.get("graph_version"),
-                "status": state.get("status"),
-                "review_required": state.get(
-                    "review_required"
-                ),
-                "estimate": state.get("estimate"),
-                "requirements": state.get(
-                    "requirements",
-                    [],
-                ),
-                "components": state.get(
-                    "components",
-                    [],
-                ),
-                "budget_matches": state.get(
-                    "budget_matches",
-                    [],
-                ),
-                "component_estimates": state.get(
-                    "component_estimates",
-                    [],
-                ),
-                "errors": state.get("errors", []),
-                "trace_events": state.get(
-                    "trace_events",
-                    [],
-                ),
-                "provider_metadata": state.get(
-                    "provider_metadata",
-                    {},
-                ),
-                "execution_metadata": state.get(
-                    "execution_metadata",
-                    {},
-                ),
-            }
-        )
+        return graph_response_from_run(run)
     except ValidationError as exc:
         logger.exception(
             "graph_estimation_response_invalid"
