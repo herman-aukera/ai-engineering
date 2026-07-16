@@ -15,10 +15,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.embedding_pipeline.router import router as embedding_router
+from app.generation.graph.reviewed_runtime import (
+    open_reviewed_graph_estimation_service,
+)
 from app.generation.graph.runtime import open_graph_estimation_service
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.graph_estimations import router as graph_estimations_router
+from app.routers.reviewed_graph_estimations import (
+    router as reviewed_graph_estimations_router,
+)
 from app.routers.search import router as search_router
 from app.routers.sessions import router as sessions_router
 from app.services.litellm_timeout import install_litellm_request_timeout
@@ -28,10 +34,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Own the graph runtime without taking down unrelated routes."""
+    """Own graph runtimes without taking down unrelated routes."""
 
     stack = AsyncExitStack()
     app.state.graph_estimation_service = None
+    app.state.reviewed_graph_estimation_service = None
 
     try:
         try:
@@ -45,8 +52,20 @@ async def lifespan(app: FastAPI):
         else:
             app.state.graph_estimation_service = service
 
+        try:
+            reviewed_service = await stack.enter_async_context(
+                open_reviewed_graph_estimation_service()
+            )
+        except Exception:
+            logger.exception(
+                "reviewed_graph_estimation_runtime_initialization_failed"
+            )
+        else:
+            app.state.reviewed_graph_estimation_service = reviewed_service
+
         yield
     finally:
+        app.state.reviewed_graph_estimation_service = None
         app.state.graph_estimation_service = None
         await stack.aclose()
 
@@ -74,6 +93,7 @@ setup_logging(app)
 # Transport layer
 app.include_router(estimations_router)
 app.include_router(graph_estimations_router)
+app.include_router(reviewed_graph_estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
 app.include_router(search_router, tags=["search"])
@@ -92,6 +112,7 @@ def metrics():
     WHY: Session 3 observability requirement. Shows tokens, tier, latency.
     """
     return get_last_metrics()
+
 
 SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
 SSE_SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
