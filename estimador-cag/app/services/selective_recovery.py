@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from statistics import median
 from typing import Protocol
 
@@ -14,8 +14,8 @@ from app.generation.graph.state import BudgetMatch, ComponentItem
 from app.schemas.agent_runtime import AgentRuntimeLimits, AgentToolSpec
 from app.schemas.selective_recovery import (
     SearchRecoveryEvidenceArgs,
-    SelectRecoveryEvidenceArgs,
     SelectiveRecoveryResult,
+    SelectRecoveryEvidenceArgs,
     ValidateRecoveryArgs,
 )
 from app.services.agent_tool_runtime import (
@@ -79,14 +79,8 @@ def _tool_spec(
     )
 
 
-@dataclass(frozen=True)
-class SelectiveRecoveryService:
-    """Let a bounded model reformulate retrieval without authoring arithmetic."""
-
-    model_port: AgentModelPort
-    budget_searcher: BudgetSearcher
-    search_k: int = 8
-    limits: AgentRuntimeLimits = AgentRuntimeLimits(
+def _default_recovery_limits() -> AgentRuntimeLimits:
+    return AgentRuntimeLimits(
         max_iterations=8,
         max_tool_calls=16,
         max_elapsed_ms=90_000,
@@ -94,6 +88,16 @@ class SelectiveRecoveryService:
         max_model_output_chars=4_000,
         max_tool_output_chars=12_000,
     )
+
+
+@dataclass(frozen=True)
+class SelectiveRecoveryService:
+    """Let a bounded model reformulate retrieval without authoring arithmetic."""
+
+    model_port: AgentModelPort
+    budget_searcher: BudgetSearcher
+    search_k: int = 8
+    limits: AgentRuntimeLimits = field(default_factory=_default_recovery_limits)
 
     def __post_init__(self) -> None:
         if self.search_k <= 0:
