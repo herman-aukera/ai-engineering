@@ -1,0 +1,39 @@
+{
+  "active_candidate_id": "candidate-1",
+  "candidate_versions": [
+    {
+      "answer": "Use the verified deterministic path.",
+      "candidate_id": "candidate-1",
+      "evidence_refs": ["git:a207d71"],
+      "producer": "generate_candidate",
+      "version": 1
+    }
+  ],
+  "constraints": ["Do not invent repository state."],
+  "contract_version": "1.0.0",
+  "critic_findings": [],
+  "decision_outcomes": [],
+  "energy_card": null,
+  "energy_scores": [],
+  "errors": [],
+  "evidence_refs": ["git:a207d71"],
+  "final_answer": null,
+  "mode": "project",
+  "policy_version": "1.0.0",
+  "repair_requests": [],
+  "request_id": "request-1",
+  "schema_version": "1.0.0",
+  "status": "candidate_ready",
+  "thread_id": "thread-1",
+  "trace_events": [
+    {
+      "event_id": "evt-1",
+      "event_type": "request_interpreted",
+      "payload": {},
+      "producer": "interpret_request",
+      "sequence": 1
+    }
+  ],
+  "trace_id": "trace-1",
+  "user_request": "What is the safest next milestone?"
+}
