@@ -1,0 +1,12 @@
+{
+  "proposal_id": "fixture-allow-pytest",
+  "executable": "pytest",
+  "arguments": ["-q", "tests/test_energy_core_controlled_execution.py"],
+  "working_directory": ".",
+  "declared_paths": ["tests/test_energy_core_controlled_execution.py"],
+  "requested_mode": "dry_run",
+  "timeout_seconds": 30,
+  "max_output_chars": 12000,
+  "environment_names": ["PYTHONUNBUFFERED"],
+  "rollback_summary": "Dry-run and fake modes do not mutate the repository."
+}
