@@ -13,7 +13,7 @@ Branch: `EACODE`
 - The deterministic core includes typed policies, candidates, evidence, critics, scoring, decisions, ledgers, integrity checks, recovery, retention, manifests, CLI review surfaces, a persistent LangGraph judge, SQLite restart persistence, and typed human clarification/escalation.
 - Spec 0007 adds typed controlled-execution proposals, deterministic risk policy, repository/path/symlink boundaries, budgets, redaction, a fake tool port, dry-run/fake evidence, and graph reevaluation.
 - Spec 0008 adds exact revision-guarded human execution authorization, trusted actors, expiry, one-time nonce replay protection, strict scope, rollback acknowledgement, CLI verification/consumption, a separate persisted LangGraph interrupt, sanitized state, receipts, and authorization evidence.
-- Remote CI run `29609538596` passed Ruff, compilation, Energy Core boundary checks, all tests, all smoke scripts, the canonical full gate, root smoke, and repository cleanliness for head `42c6eaee89b97f10b973382f09fcaebc6c5c4aa3`.
+- Remote CI run `29610364281` passed Ruff, compilation, Energy Core boundary checks, all tests, all smoke scripts, the canonical full gate, root smoke, and repository cleanliness for head `715555a47f1c4b3a78f46056e0c8548307d670ec`.
 - No real subprocess execution, provider calls, commits, pushes, merges, resets, or execution side effects have been added.
 
 ## Product vision
