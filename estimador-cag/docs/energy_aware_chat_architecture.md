@@ -1,20 +1,28 @@
 # Energy Aware Chat architecture
 
-Status: verified at `a207d7114d386c8009fe43d5d3a54dc274c71c15`, then updated by the graph-state milestone.
+## Status
 
-## Current runtime map
+Milestone 9 code checkpoint: `dd79bf4befd625ce673242e843c14a023c0862d6`.
 
-The existing deterministic `/energy-chat/chat` route calls a product-local linear function:
+Remote CI run `29608614284` passed with 519 tests.
+
+## Current public runtime
+
+The existing deterministic `/energy-chat/chat` route still calls the legacy product-local linear function:
 
 ```text
 request -> lexical project retrieval -> deterministic draft
         -> deterministic critics -> energy sum -> deterministic decision
-        -> optional one-pass deterministic repair -> Energy Card
+        -> optional one-pass deterministic repair -> compact Energy Card
 ```
 
 The live route substitutes a provider-backed draft through the existing DeepSeek/Kimi adapter seam. Normal CI does not make live calls.
 
-`graph_runtime.py` now compiles the first real sequential LangGraph proof:
+These routes remain compatibility and rollback surfaces. They are not yet backed by the new graph.
+
+## Current internal graph
+
+`graph_runtime.py` compiles the canonical internal LangGraph:
 
 ```text
 START -> interpret_request -> load_policy_and_constraints
@@ -24,61 +32,93 @@ START -> interpret_request -> load_policy_and_constraints
          -> await_external_evidence -> END         -> run_critic_panel
                                                     -> calculate_energy
                                                     -> decide_candidate
-                                                       -> END
                                                        -> plan_repair
                                                           -> apply_repair
-                                                          -> run_critic_panel
-                                                          -> calculate_energy
-                                                          -> decide_candidate
-                                                          -> finalize_repair -> END
+                                                          -> full reevaluation
+                                                          -> finalize_repair
+                                                       -> record_decision
+                                                       -> build_final_projection
+                                                       -> END
 ```
 
-The repair branch is bounded by typed retry and cumulative cost budgets. It creates candidate version 2, fully re-evaluates it, records improvement/no-improvement/budget exhaustion, and stops. This graph is not yet wired to the public API and has no checkpointer or human interrupt lifecycle.
+Terminal authoritative decisions pass through:
 
-Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy penalties, critics, scorer, decider, repair functions, evidence classification, retrieval, and Energy Card projection. `graph_state.py` provides the versioned checkpoint-safe state contract. `graph_nodes.py` provides provider-free interpretation and policy/constraint nodes. `evidence_nodes.py` provides deterministic source-need classification plus skip, project-retrieval, and external-required routing. `candidate_provider.py` defines deterministic and baseline-backed candidate adapters with observable budgets and metrics; `candidate_node.py` retains immutable candidate/provider-call history and avoids duplicate calls on replay. `evaluation_nodes.py` binds the existing critic, scoring, and decision functions to the active candidate and records immutable panel, score, and outcome history. These remain independently testable typed deltas; none executes a graph or alters the current API runtime path.
+```text
+record_decision
+→ append-only Decision Ledger
+→ Energy Card v2
+→ safe final-answer projection
+```
+
+The repair branch is bounded by typed retry and cumulative cost budgets. It creates candidate version 2, fully reevaluates it, records improvement/no-improvement/budget exhaustion, and stops.
+
+The graph is not yet wired to the public API and has no checkpointer or human interrupt lifecycle.
+
+## Component ownership
+
+| Component | Ownership |
+|---|---|
+| `contracts.py`, policies, critics, scorer and decider | deterministic chat domain truth |
+| `graph_state.py` | versioned product-local state and replay-safe reducers |
+| `graph_nodes.py` | interpretation and policy/constraint deltas |
+| `evidence_nodes.py` | deterministic source-need and evidence routes |
+| `candidate_provider.py`, `candidate_node.py` | provider boundary, budgets, immutable candidate history |
+| `evaluation_nodes.py` | candidate-linked critics, scores and decisions |
+| `repair_nodes.py` | bounded repair requests, candidate v2 and results |
+| `audit_models.py` | ledger, evidence-integrity and Energy Card v2 contracts |
+| `finalization_nodes.py` | ledger writer and user-safe projection |
+| `graph_runtime.py` | LangGraph-only orchestration and conditional routes |
+
+Domain policy remains independently testable outside LangGraph, FastAPI, and UI.
 
 ## Verified requirement map
 
 | Requirement | Current evidence | Classification |
 |---|---|---|
-| Deterministic critics, score, decision, repair | Existing evaluator and tests | verified |
-| Project retrieval baseline | Deterministic committed-source retriever | verified |
-| Versioned graph state and reducers | v1 contract, fixture, focused tests | verified |
-| Interpretation and policy node contracts | Typed deltas, replay-safe application, policy parity tests | verified |
-| Evidence classification and routing nodes | Existing classifier/retriever parity, attribution and replay tests | verified |
-| Candidate provider abstraction | Local and baseline adapters, budgets, metrics, malformed output and replay tests | verified |
-| Critic, score, and decision nodes | Candidate-linked records and exact evaluator parity tests | verified |
-| Sequential LangGraph orchestration | Compiled graph, conditional routes, delta and parity tests | verified wiring proof |
-| Bounded graph repair | Explicit request, candidate v2, full re-evaluation, budgets and termination tests | verified |
-| Complete decision semantics | Six deterministic dispositions, rule IDs, precedence and transition tests | verified |
-| Checkpoint resume and human gates | No runtime implementation | missing |
-| `refuse` and `escalate` dispositions | State vocabulary only; current decider has four outcomes | missing at runtime |
-| Typed domain trace and decision ledger | Typed trace-event state exists; no ledger writer | partial |
-| Retry, cost, token, latency budgets | Provider metadata exists in older contracts; no graph budget enforcement | missing |
-| Persistent evidence/ledger redaction and retention | No product-local persistence policy enforcement | missing |
-| Browser smoke, live benchmark, deployment telemetry | Claim gate remains blocked | missing evidence |
+| Deterministic critics, score, decision and repair | evaluator and graph tests | verified L2 |
+| Project retrieval baseline | deterministic committed-source retriever | verified L2 |
+| Versioned graph state and reducers | v1 contract, fixture and focused tests | verified L2 |
+| Interpretation, policy and evidence nodes | typed deltas and replay tests | verified L2 |
+| Candidate provider abstraction | local/live adapters, budgets and replay protection | verified L2 deterministic |
+| Sequential LangGraph orchestration | compiled graph and conditional routes | verified L2 wiring |
+| Bounded graph repair | candidate v2, reevaluation and termination | verified L2 |
+| Six disposition semantics | deterministic rules and transition tests | verified L2 |
+| Append-only Decision Ledger | exact candidate/panel/score/decision links; conflict tests | verified L2 |
+| Evidence reference integrity | SHA-256 reference hashes; body excluded | verified L2 |
+| Energy Card v2 and final projection | graph finalization tests | verified L2 |
+| Graph-backed API | specification only | missing implementation |
+| Checkpoint resume and human gates | no runtime implementation | missing |
+| PostgreSQL migration/retention | no product-local implementation | missing |
+| Browser, live graph provider and benchmark evidence | claim gates remain blocked | missing evidence |
 
 ## Architectural invariants
 
-1. Models may propose candidates and observations; deterministic Python owns energy, evidence sufficiency, and disposition.
-2. LangGraph may orchestrate transitions but must not own domain truth.
+1. Models may propose candidates and observations; deterministic Python owns energy, evidence sufficiency and disposition.
+2. LangGraph orchestrates transitions but does not own domain truth.
 3. Append-only records use immutable IDs. Identical retry is a no-op; conflicting ID reuse fails.
-4. Singular authoritative values replace: active candidate, final answer, status, policy version, and Energy Card are not reducers.
-5. Hidden chain-of-thought and sensitive evidence bodies are not checkpoint fields.
-6. The existing API remains unchanged until parity tests demonstrate graph behavior.
-7. Node trace events persist safe counts and versions, not user request or constraint text.
-8. Project retrieval cannot satisfy a current/external evidence requirement; that route waits for external evidence.
-9. A retained candidate prevents a provider call from repeating during checkpoint replay.
-10. Token, cost, latency, and retry budgets are deterministic gates over typed provider metrics.
-11. Critics, scores, and decisions fail closed unless their records reference the active candidate and policy version.
-12. LangGraph nodes return explicit field deltas; append-only runtime channels reuse domain reducer semantics.
-13. An evaluated state routes directly from `START` to `END`, preventing replay from repeating work.
-14. Repair consumes an explicit retry attempt, never repeats the initial provider call, and always re-runs critics, score, and decision.
-15. Equal or higher post-repair energy terminates as `no_improvement`; exhausted retry budget terminates explicitly.
-16. Request refusal is distinct from candidate rejection; human-authority and exhausted-budget cases escalate.
+4. Singular authoritative values replace: active candidate, final answer, status, policy version and Energy Cards are not reducers.
+5. Hidden chain-of-thought, credentials, prompts and sensitive evidence bodies are not audit fields.
+6. Project retrieval cannot satisfy a current/external evidence requirement.
+7. A retained candidate prevents a provider call from repeating during replay.
+8. Provider output always passes critics, score, decision, ledger and projection.
+9. Repair consumes an explicit retry and always reruns critics, score and decision.
+10. Equal or higher post-repair energy terminates as `no_improvement`; exhausted repair budget terminates explicitly.
+11. Request refusal is distinct from candidate rejection; human-authority and exhausted-budget cases escalate.
+12. Unsafe rejected candidate text is not emitted as the final answer.
+13. `reference_hash` covers the evidence reference string only; it is not a body-content claim.
+14. Public API migration must not silently execute legacy and graph runtimes together.
 
 ## Current claim boundary
 
-Allowed: browser-testable, production-oriented MVP candidate with a deterministic project retrieval and evaluation path.
+Allowed:
 
-Blocked: production-ready, public deployment live, quality improvement over plain DeepSeek, frontier-model superiority, persistent LangGraph orchestration, and production telemetry.
+> EACHAT has a CI-validated deterministic LangGraph core with typed state, evidence routing, provider budgets, bounded repair, six dispositions, an append-only Decision Ledger, Energy Card v2, and safe final-answer projection.
+
+Blocked:
+
+- graph-backed public API;
+- persistent LangGraph orchestration;
+- human interrupt/resume;
+- public deployment;
+- quality improvement over plain DeepSeek;
+- production readiness and telemetry.
