@@ -4,92 +4,149 @@ Schema version: `1.0.0`
 
 Contract version: `1.0.0`
 
-The contract is product-local and independently testable. It deliberately does not import LangGraph. Unsupported schema versions fail closed; migrations will be additive and explicit when a v2 schema is justified.
+The contract is product-local and independently testable. It deliberately does not import LangGraph. Unsupported schema versions fail closed. New Milestone 9 fields are additive v1 fields; a breaking invariant requires a new schema and explicit migration.
 
 ## Ownership and reducer matrix
 
 | Field | Intended writer | Reader | Persistence/redaction | Update rule |
 |---|---|---|---|---|
-| identity and version fields | request initializer | every node | persisted; identifiers are opaque | immutable |
-| `user_request`, `mode` | `interpret_request` | retrieval, generation, decision | persisted; redact before construction | replace |
-| `constraints`, `policy_version` | `load_policy_and_constraints` | critics, score, decision | persisted; redact before construction | replace |
-| `request_policy` | `load_policy_and_constraints` | complete decider | persisted; rule ID/reason only | replace |
-| `source_need` | `determine_evidence_need` | evidence routing, decision | safe classification only | replace |
-| `project_rag` | `route_evidence` | generation, attribution | project corpus content only | replace |
-| `evidence_refs` | `route_evidence` | generation, critics, card | references only; no sensitive bodies | append unique |
-| `candidate_versions` | `generate_candidate`, later repair | critics, score, decision | persisted; user-visible answer text | append by `candidate_id` |
-| `active_candidate_id` | generation/repair nodes | critics, score, decision | persisted | replace; must reference history |
-| `provider_metrics` | `generate_candidate` | budgets, observability, audit | persisted; no prompts or secrets | append by `provider_call_id` |
-| `critic_panels` | `run_critic_panel` | score, repair, audit | persisted; candidate-linked safe findings | append by `panel_id` |
-| `critic_findings` | `run_critic_panel` | current score/UI projection | persisted; safe summaries only | replace with active panel |
-| `energy_scores` | `calculate_energy` | decision, card | persisted; candidate and policy linked | append by `score_id` |
-| `decision_outcomes` | `decide_candidate` | ledger, card, terminal routing | persisted; candidate and score linked | append by `decision_id` |
-| `repair_requests` | deterministic decider | repair node | persisted | append by `repair_id` |
-| `repair_results` | repair finalizer | audit, terminal routing | persisted | append by `result_id` |
-| `retry_budget` | repair application | decision router, repair nodes | persisted | replace after deterministic consumption |
-| `cost_budget` | candidate generation | provider gate, audit | persisted; numeric totals only | replace after provider call |
-| `trace_events` | every node | audit/observability | safe payloads only; no hidden reasoning | append by `event_id` |
-| `errors` | failing node boundary | retry/terminal routing | safe projection, no secrets | append by `error_id` |
-| `final_answer`, `energy_card`, `status` | terminal projection nodes | API/UI | user-safe | replace |
+| identity and version fields | request initializer | every node | persisted; opaque IDs | immutable |
+| `user_request`, `mode` | `interpret_request` | retrieval, generation, decision | persisted later; redact before construction | replace |
+| `constraints`, `policy_version`, `request_policy` | policy node | critics, score, decision | safe rules/constraints only | replace |
+| `source_need`, `project_rag` | evidence nodes | routing, generation, attribution | no external body fabrication | replace |
+| `evidence_refs` | evidence/generation nodes | critics, ledger, cards | references only | append unique |
+| `candidate_versions` | generation/repair | critics, score, decision, finalization | visible answer text | append by `candidate_id` |
+| `active_candidate_id` | generation/repair | evaluation and finalization | must reference retained history | replace |
+| `provider_metrics` | generation | budgets and audit | no prompts or secrets | append by `provider_call_id` |
+| `critic_panels` | critic node | score, repair and ledger | safe findings | append by `panel_id` |
+| `critic_findings` | critic node | current UI projection | safe active findings | replace |
+| `energy_scores` | score node | decision, ledger and cards | numeric and typed findings | append by `score_id` |
+| `decision_outcomes` | decision node | routing, ledger and projection | safe reasons | append by `decision_id` |
+| `repair_requests` | repair planner | repair and ledger | no hidden reasoning | append by `repair_id` |
+| `repair_results` | repair finalizer | ledger and cards | energy before/after/outcome | append by `result_id` |
+| `retry_budget`, `cost_budget` | repair/generation | routing and audit | numeric totals | replace |
+| `trace_events` | every node | audit/observability | allow-listed payloads | append by `event_id` |
+| `decision_ledger_entries` | `record_decision` | projection, future audit/API | authoritative links; no evidence bodies | append by `ledger_entry_id` |
+| `errors` | failing boundaries | routing/API | sanitized | append by `error_id` |
+| `final_answer` | final projection | API/UI | user-safe | replace |
+| `energy_card` | final projection | legacy compatibility | user-safe | replace |
+| `energy_card_v2` | final projection | API/UI | user-safe authoritative projection | replace |
+| `final_projection` | final projection | API/UI | no secrets or hidden reasoning | replace |
+| `status` | current node | graph router/API | safe enum | replace |
 
 ## Reducer invariant
 
-`append_unique_records` accepts a repeated record with identical content as an idempotent retry. It raises on the same ID with different content, preventing replay from rewriting history. Reducers are not applied to singular authoritative fields.
+`append_unique_records` accepts a repeated record with identical content as an idempotent retry. It raises on the same ID with different content. Reducers are not applied to singular authoritative fields.
+
+The new Decision Ledger reuses the same invariant through `ledger_entry_id`.
 
 ## Serialization and fixture
 
-`serialize_graph_state` emits canonical sorted compact JSON. `deserialize_graph_state` accepts only schema `1.0.0`. The persisted compatibility fixture is `tests/fixtures/energy_chat_graph_state_v1.json`.
+`serialize_graph_state` emits canonical sorted compact JSON. `deserialize_graph_state` accepts only schema `1.0.0`.
 
-New optional v1 fields are additive. Canonical serialization uses the fields that were explicitly present, so loading and saving the original v1 fixture does not silently inject later optional fields. A breaking field or invariant change requires a new schema version and explicit migration.
+The compatibility fixture remains:
 
-This milestone proves the contract only. Checkpoint storage, graph reducers, migrations, retention enforcement, and resume behavior remain future milestones.
+```text
+tests/fixtures/energy_chat_graph_state_v1.json
+```
 
-## Provider-free node deltas
+Canonical serialization uses fields explicitly present in the loaded fixture, so new optional v1 fields do not silently rewrite the original fixture.
 
-`InterpretationDelta` owns only normalized request text, explicit mode, status, and one safe trace event. `PolicyConstraintsDelta` owns only policy version, normalized constraints, status, and one safe trace event. Identity fields cannot be supplied through either strict delta contract.
+## Node-delta discipline
 
-The application functions validate the complete resulting state. A replay against an already-applied state returns the same trace event ID and content, so the append-only reducer treats it as an idempotent retry.
+Each node validates the complete state through `EnergyChatGraphState`, delegates to product-local deterministic logic, and returns only fields it owns.
+
+Identity fields cannot be rewritten by node deltas.
 
 ## Evidence routing
 
-`EvidenceNeedDelta` reuses the current deterministic source classifier. `EvidenceRoutingDelta` has three explicit routes:
+Three routes remain authoritative:
 
-- `skip` when sources are unnecessary or trusted evidence already exists;
-- `retrieve_project` for missing project evidence using the deterministic committed-source retriever;
-- `external_required` for missing current/external evidence, leaving status `awaiting_evidence` without fabricating references.
+- `skip`;
+- `retrieve_project`;
+- `external_required`.
+
+The external route stops with `awaiting_evidence`; it does not fabricate candidate, ledger, Energy Card, or final answer records.
 
 ## Candidate providers and budgets
 
-`CandidateProviderRequest` carries the normalized request, mode, constraints, evidence references, optional project retrieval result, and maximum output tokens. It contains no credentials. Providers return `CandidateGenerationResult` with a visible answer, attributable references, and `ProviderMetrics`.
+Providers receive normalized request, mode, constraints, references, optional project retrieval result, and output limit. They receive no credential fields through graph state.
 
-The deterministic adapter preserves the existing local draft behavior. The baseline adapter wraps the existing DeepSeek/Kimi fallback-capable seam and measures elapsed latency. Before a delta is applied, the candidate node enforces output-token, cost, latency, and retry limits. Each candidate stores its `provider_call_id`, linking it to exactly one metrics record.
+Provider metrics record safe facts: provider, model, tier, tokens, cost, latency, retries, fallback and finish reason.
 
-Candidate and provider-call IDs are deterministic for request/version. When both records already exist, replay returns them without invoking the provider again.
+Retained candidates and provider-call IDs make replay idempotent.
 
-## Critic, score, and decision linkage
+## Evaluation linkage
 
-`run_critic_panel` reconstructs the existing `EnergyChatRequest` from the active immutable candidate and delegates to the current deterministic critics and source guard. `calculate_energy` accepts only a panel for the active candidate and records the policy version. `decide_candidate` accepts only a score for the active candidate and active policy, then delegates to the existing deterministic decider.
+Critic panels, energy scores and decisions must reference the active candidate. Scores also reference the active policy version.
 
-Panel, score, and decision IDs are deterministic. Identical replay reuses retained records; conflicting content is rejected by append-only reducers. Trace payloads include IDs, counts, energy, and disposition, not hidden reasoning or full candidate text.
+Stale or missing linkage fails closed.
 
-## LangGraph runtime schema
+## Bounded repair
 
-`EnergyChatRuntimeState` is the LangGraph-only `TypedDict` wiring schema. It mirrors the product-local state while annotating only true accumulating channels with plain reducer callables: evidence references, candidate versions, provider metrics, critic panels, energy scores, decisions, repairs, trace events, and errors.
+A repair request links source decision and source/target candidate IDs. The applied repair creates a new candidate and consumes one retry. The complete evaluation sequence reruns.
 
-Singular authoritative fields retain replacement semantics. Every runtime node validates the full input through `EnergyChatGraphState`, delegates to product-local domain logic, and returns only its explicit delta. `graph_state.py` retains no LangGraph import.
+Repair results record:
 
-The compiled graph currently has no persistence. Its completed-state short circuit and retained-candidate behavior prove in-memory replay safety, not checkpoint resume across process restarts.
+- energy before;
+- energy after;
+- `improved`, `no_improvement`, `budget_exhausted`, or `not_repairable`.
 
-## Bounded repair lifecycle
+## Decision Ledger
 
-`plan_repair` accepts only the active candidate's `repair` disposition and creates an explicit `RepairRequest` containing source decision, target candidate ID, instructions, proposed visible answer, and applied repair identifiers. The default strategy delegates to the existing deterministic one-pass repair helper.
+Each `DecisionLedgerEntry` contains:
 
-`apply_repair` creates the next immutable candidate version and consumes exactly one `RetryBudget` attempt. It makes no provider call and therefore adds no cost. The graph then runs the complete critic, score, and decision sequence again.
+- schema version and stable ledger ID;
+- deterministic sequence;
+- thread/request/trace IDs;
+- candidate, panel, score and decision IDs;
+- policy version and rule ID;
+- disposition and user-safe reason;
+- energy before/after/delta;
+- categorized violations;
+- evidence references and integrity metadata;
+- provider-call IDs;
+- repair request/result IDs;
+- limitations.
 
-`finalize_repair` records a `RepairResultRecord` with before/after energy and one of `improved`, `no_improvement`, `budget_exhausted`, or `not_repairable`. Cumulative provider cost is charged once by candidate generation through `CostBudget`; per-call provider limits remain independently enforced.
+Every retained authoritative decision is recorded, including the initial repair decision and the final post-repair decision.
 
-## Complete decision semantics
+## Evidence integrity metadata
 
-`RequestPolicyAssessment` stores version, directive, rule ID, and safe reason without copying request text. `DecisionOutcome` stores the authoritative `policy_rule_id`. The complete decider applies request refusal/human-authority rules before candidate rules, and converts a still-repairable result with zero remaining retries into `escalate`.
+The metadata contains:
 
-The six dispositions are `accept`, `repair`, `clarify`, `reject`, `refuse`, and `escalate`. Their current graph transitions are declared in `DISPOSITION_TRANSITIONS`; clarification and escalation human-resume behavior remains a later milestone.
+- exact evidence reference;
+- `sha256:` hash of that reference string;
+- trust status;
+- freshness status;
+- redaction status;
+- `body_included=false`.
+
+It must not be described as a content hash for an evidence body.
+
+## Energy Card v2 and final projection
+
+Energy Card v2 is derived from the final ledger entry and exposes:
+
+- decision and policy rule;
+- hard and soft findings;
+- energy before/after/delta;
+- repair attempts/outcomes;
+- evidence references;
+- limitations.
+
+The final projection includes the safe answer and execution markers.
+
+For rejected candidates, the unsafe candidate body is not emitted. Refuse, clarify and escalate use the deterministic policy reason.
+
+## Persistence boundary
+
+The compiled graph still has no checkpointer. Replay safety is in-memory wiring proof only.
+
+Before real persistence:
+
+1. freeze fixtures;
+2. add checkpointer tests;
+3. define retention and redaction enforcement;
+4. add migration and rollback;
+5. prove restart and human-resume behavior.
