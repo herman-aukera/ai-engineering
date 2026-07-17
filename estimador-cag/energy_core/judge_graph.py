@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from operator import add
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypedDict
@@ -7,9 +8,19 @@ from typing import Annotated, Any, Literal, TypedDict
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from energy_core.controlled_execution import CommandProposal, review_execution
+from energy_core.controlled_execution import (
+    CommandProposal,
+    ExecutionPlan,
+    review_execution,
+)
 from energy_core.decider import evaluate_candidate
 from energy_core.evidence import read_evidence_records
+from energy_core.execution_authorization import (
+    AuthorizationContext,
+    ExecutionAuthorization,
+    consume_execution_authorization,
+    scope_for_plan,
+)
 from energy_core.models import CandidateState, EnergyDecision, EnergyPolicy, EvidenceRecord
 from energy_core.policy import load_policy
 
@@ -46,7 +57,17 @@ class JudgeState(TypedDict, total=False):
         "fake",
         "human_required",
         "denied",
+        "authorization_pending",
+        "authorized",
+        "authorization_cancelled",
     ]
+    execution_revision: int
+    trusted_execution_actors: list[str]
+    authorization_now: str
+    consumed_nonce_hashes: list[str]
+    execution_authorized: bool
+    execution_authorization: dict[str, Any]
+    authorization_receipt: dict[str, Any]
     trace: Annotated[list[dict[str, Any]], add]
     decisions: Annotated[list[dict[str, Any]], add]
 
@@ -62,11 +83,17 @@ def judge_input(
     thread_id: str | None = None,
     repository_root: str | Path = ".",
     command_proposal: dict[str, object] | None = None,
+    execution_revision: int = 0,
+    trusted_execution_actors: list[str] | None = None,
+    authorization_now: str | None = None,
+    consumed_nonce_hashes: list[str] | None = None,
 ) -> JudgeState:
     """Build JSON-compatible authoritative input for a deterministic judge run."""
 
     if max_iterations < 1:
         raise ValueError("max_iterations must be at least 1")
+    if execution_revision < 0:
+        raise ValueError("execution_revision must be non-negative")
     policy = load_policy(policy_path)
     evidence = read_evidence_records(evidence_path)
     state: JudgeState = {
@@ -85,11 +112,17 @@ def judge_input(
         "human_reviewed": False,
         "repository_root": str(Path(repository_root).resolve()),
         "execution_status": "not_requested",
+        "execution_revision": execution_revision,
+        "trusted_execution_actors": list(trusted_execution_actors or []),
+        "consumed_nonce_hashes": list(consumed_nonce_hashes or []),
+        "execution_authorized": False,
         "trace": [],
         "decisions": [],
     }
     if command_proposal is not None:
         state["command_proposal"] = dict(command_proposal)
+    if authorization_now is not None:
+        state["authorization_now"] = authorization_now
     return state
 
 
@@ -106,6 +139,7 @@ def build_judge_graph(
     builder.add_node("evaluate", _evaluate)
     builder.add_node("record", _record)
     builder.add_node("execution_preview", _execution_preview)
+    builder.add_node("execution_authorization", _execution_authorization)
     builder.add_node("reevaluate_execution", _reevaluate_execution)
     builder.add_node("record_execution", _record_execution)
     builder.add_node("human_review", _human_review)
@@ -124,7 +158,15 @@ def build_judge_graph(
             "finalize": "finalize",
         },
     )
-    builder.add_edge("execution_preview", "reevaluate_execution")
+    builder.add_conditional_edges(
+        "execution_preview",
+        _route_after_execution_preview,
+        {
+            "execution_authorization": "execution_authorization",
+            "reevaluate_execution": "reevaluate_execution",
+        },
+    )
+    builder.add_edge("execution_authorization", "reevaluate_execution")
     builder.add_edge("reevaluate_execution", "record_execution")
     builder.add_edge("record_execution", "finalize")
     builder.add_edge("human_review", "finalize")
@@ -204,7 +246,7 @@ def _execution_preview(state: JudgeState) -> JudgeState:
     if plan.disposition == "deny":
         execution_status = "denied"
     elif plan.disposition == "human_required":
-        execution_status = "human_required"
+        execution_status = "authorization_pending"
     else:
         execution_status = proposal.requested_mode
     record = evidence.to_evidence_record()
@@ -222,6 +264,108 @@ def _execution_preview(state: JudgeState) -> JudgeState:
                 "execution_preview",
                 state,
                 f"planned {plan.disposition} in {proposal.requested_mode} mode",
+            )
+        ],
+    }
+
+
+def _route_after_execution_preview(
+    state: JudgeState,
+) -> Literal["execution_authorization", "reevaluate_execution"]:
+    plan = ExecutionPlan.model_validate(state["execution_plan"])
+    return (
+        "execution_authorization"
+        if plan.disposition == "human_required"
+        else "reevaluate_execution"
+    )
+
+
+def _execution_authorization(state: JudgeState) -> JudgeState:
+    plan = ExecutionPlan.model_validate(state["execution_plan"])
+    response = interrupt(
+        {
+            "kind": "execution_authorization",
+            "run_id": state["run_id"],
+            "thread_id": state["thread_id"],
+            "plan_id": plan.plan_id,
+            "plan_hash": plan.plan_hash,
+            "expected_revision": state["execution_revision"],
+            "scope": scope_for_plan(plan).model_dump(mode="json"),
+            "allowed_actions": ["authorize", "cancel"],
+            "execution_performed": False,
+        }
+    )
+    if not isinstance(response, dict) or response.get("action") not in {
+        "authorize",
+        "cancel",
+    }:
+        raise ValueError("Execution authorization response must authorize or cancel.")
+    if response["action"] == "cancel":
+        return {
+            "execution_authorized": False,
+            "execution_status": "authorization_cancelled",
+            "execution_performed": False,
+            "trace": [
+                _trace(
+                    "execution_authorization",
+                    state,
+                    "human cancelled exact execution plan",
+                )
+            ],
+        }
+
+    if not state.get("authorization_now"):
+        raise ValueError("authorization_now is required for replay-safe verification")
+    authorization = ExecutionAuthorization.model_validate(response.get("authorization"))
+    context = AuthorizationContext(
+        current_revision=state["execution_revision"],
+        trusted_actors=state.get("trusted_execution_actors", []),
+        consumed_nonce_hashes=state.get("consumed_nonce_hashes", []),
+        now=_parse_authorization_time(state["authorization_now"]),
+    )
+    consumed, updated_context, receipt = consume_execution_authorization(
+        plan,
+        authorization,
+        context,
+    )
+    authorization_record = EvidenceRecord(
+        evidence_id=f"authorization-{authorization.authorization_id}",
+        run_id=state["run_id"],
+        recorded_at=receipt.consumed_at.isoformat(),
+        type="execution_authorization",
+        status="pass",
+        summary="Exact revision-guarded execution authorization consumed once.",
+        trusted=True,
+        trust_classification="trusted",
+        provenance={
+            "authorization_id": authorization.authorization_id,
+            "actor": authorization.actor,
+            "plan_hash": authorization.plan_hash,
+            "accepted_revision": authorization.accepted_revision,
+            "nonce_hash": receipt.nonce_hash,
+            "execution_performed": False,
+        },
+        redaction_status="not_required",
+        command_hash=authorization.plan_hash,
+    )
+    sanitized_authorization = consumed.model_dump(mode="json")
+    sanitized_authorization["nonce"] = "[CONSUMED]"
+    return {
+        "execution_authorized": True,
+        "execution_authorization": sanitized_authorization,
+        "authorization_receipt": receipt.model_dump(mode="json"),
+        "consumed_nonce_hashes": updated_context.consumed_nonce_hashes,
+        "execution_status": "authorized",
+        "execution_performed": False,
+        "evidence": [
+            *state["evidence"],
+            authorization_record.model_dump(mode="json"),
+        ],
+        "trace": [
+            _trace(
+                "execution_authorization",
+                state,
+                "consumed exact one-time authorization without execution",
             )
         ],
     }
@@ -307,6 +451,10 @@ def _evaluate_current_state(state: JudgeState) -> EnergyDecision:
     candidate = CandidateState.model_validate(state["candidate"])
     evidence = [EvidenceRecord.model_validate(record) for record in state["evidence"]]
     return evaluate_candidate(policy=policy, candidate=candidate, evidence=evidence)
+
+
+def _parse_authorization_time(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def _trace(node: str, state: JudgeState, detail: str) -> dict[str, Any]:
