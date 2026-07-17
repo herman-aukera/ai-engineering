@@ -6,6 +6,11 @@ from typing import Annotated, Any, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from app.energy_chat.audit_models import (
+    DecisionLedgerEntry,
+    EnergyCardV2,
+    FinalAnswerProjection,
+)
 from app.energy_chat.candidate_node import generate_candidate
 from app.energy_chat.candidate_provider import (
     CandidateProvider,
@@ -27,6 +32,7 @@ from app.energy_chat.evidence_nodes import (
     route_evidence,
     select_evidence_route,
 )
+from app.energy_chat.finalization_nodes import build_final_projection, record_decision
 from app.energy_chat.graph_nodes import interpret_request, load_policy_and_constraints
 from app.energy_chat.graph_state import (
     CandidateVersion,
@@ -105,6 +111,12 @@ def _reduce_trace_events(
     return append_unique_records(current, incoming, id_field="event_id")
 
 
+def _reduce_ledger_entries(
+    current: list[DecisionLedgerEntry], incoming: list[DecisionLedgerEntry]
+) -> list[DecisionLedgerEntry]:
+    return append_unique_records(current, incoming, id_field="ledger_entry_id")
+
+
 def _reduce_errors(
     current: list[ErrorRecord], incoming: list[ErrorRecord]
 ) -> list[ErrorRecord]:
@@ -139,9 +151,12 @@ class EnergyChatRuntimeState(TypedDict):
     retry_budget: RetryBudget
     cost_budget: CostBudget
     trace_events: Annotated[list[TraceEvent], _reduce_trace_events]
+    decision_ledger_entries: Annotated[list[DecisionLedgerEntry], _reduce_ledger_entries]
     errors: Annotated[list[ErrorRecord], _reduce_errors]
     final_answer: str | None
     energy_card: EnergyCard | None
+    energy_card_v2: EnergyCardV2 | None
+    final_projection: FinalAnswerProjection | None
     status: GraphStatus
 
 
@@ -151,7 +166,7 @@ def build_energy_chat_graph(
     budget: ProviderBudget | None = None,
     repair_strategy: RepairStrategy | None = None,
 ):
-    """Compile the provider-injected sequential graph with one bounded repair loop."""
+    """Compile the provider-injected graph with one bounded repair loop."""
 
     active_provider = provider or DeterministicCandidateProvider()
     active_budget = budget or ProviderBudget()
@@ -267,6 +282,25 @@ def build_energy_chat_graph(
             "trace_events": delta.trace_events,
         }
 
+    def ledger_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
+        delta = record_decision(_domain_state(state))
+        return {
+            "decision_ledger_entries": delta.decision_ledger_entries,
+            "status": delta.status,
+            "trace_events": delta.trace_events,
+        }
+
+    def projection_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
+        delta = build_final_projection(_domain_state(state))
+        return {
+            "final_answer": delta.final_answer,
+            "energy_card": delta.energy_card,
+            "energy_card_v2": delta.energy_card_v2,
+            "final_projection": delta.final_projection,
+            "status": delta.status,
+            "trace_events": delta.trace_events,
+        }
+
     builder.add_node("interpret_request", interpret_node)
     builder.add_node("load_policy_and_constraints", policy_node)
     builder.add_node("determine_evidence_need", evidence_need_node)
@@ -288,6 +322,8 @@ def build_energy_chat_graph(
     builder.add_node("plan_repair", repair_plan_node)
     builder.add_node("apply_repair", repair_apply_node)
     builder.add_node("finalize_repair", repair_finalize_node)
+    builder.add_node("record_decision", ledger_node)
+    builder.add_node("build_final_projection", projection_node)
 
     builder.add_conditional_edges(
         START,
@@ -314,15 +350,21 @@ def build_energy_chat_graph(
     builder.add_conditional_edges(
         "decide_candidate",
         _decision_route,
-        {"end": END, "repair": "plan_repair", "finalize": "finalize_repair"},
+        {
+            "end": "record_decision",
+            "repair": "plan_repair",
+            "finalize": "finalize_repair",
+        },
     )
     builder.add_conditional_edges(
         "plan_repair",
         _repair_plan_route,
-        {"apply": "apply_repair", "end": END},
+        {"apply": "apply_repair", "end": "record_decision"},
     )
     builder.add_edge("apply_repair", "run_critic_panel")
-    builder.add_edge("finalize_repair", END)
+    builder.add_edge("finalize_repair", "record_decision")
+    builder.add_edge("record_decision", "build_final_projection")
+    builder.add_edge("build_final_projection", END)
     return builder.compile()
 
 
@@ -333,7 +375,7 @@ def run_energy_chat_graph(
     budget: ProviderBudget | None = None,
     repair_strategy: RepairStrategy | None = None,
 ) -> EnergyChatGraphState:
-    """Run the sequential graph and validate its complete domain state output."""
+    """Run the graph and validate its complete domain state output."""
 
     result = build_energy_chat_graph(
         provider=provider, budget=budget, repair_strategy=repair_strategy
@@ -342,7 +384,8 @@ def run_energy_chat_graph(
 
 
 def _start_route(state: EnergyChatRuntimeState) -> Literal["run", "complete"]:
-    return "complete" if state["status"] == "evaluated" else "run"
+    projection = state.get("final_projection")
+    return "complete" if state["status"] == "evaluated" and projection is not None else "run"
 
 
 def _evidence_route(state: EnergyChatRuntimeState) -> EvidenceRoute:
