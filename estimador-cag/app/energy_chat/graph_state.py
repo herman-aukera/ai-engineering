@@ -1,6 +1,6 @@
 """Versioned, product-local state contracts for Energy Aware Chat orchestration.
 
-This module defines domain truth only.  It deliberately has no LangGraph import so
+This module defines domain truth only. It deliberately has no LangGraph import so
 state invariants, persistence fixtures, and reducer behavior remain independently
 testable before a graph runtime is introduced.
 """
@@ -13,6 +13,11 @@ from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.energy_chat.audit_models import (
+    DecisionLedgerEntry,
+    EnergyCardV2,
+    FinalAnswerProjection,
+)
 from app.energy_chat.contracts import (
     CriticFinding,
     EnergyCard,
@@ -215,9 +220,12 @@ class EnergyChatGraphState(GraphStateRecord):
     retry_budget: RetryBudget = Field(default_factory=RetryBudget)
     cost_budget: CostBudget = Field(default_factory=CostBudget)
     trace_events: list[TraceEvent] = Field(default_factory=list)
+    decision_ledger_entries: list[DecisionLedgerEntry] = Field(default_factory=list)
     errors: list[ErrorRecord] = Field(default_factory=list)
     final_answer: str | None = None
     energy_card: EnergyCard | None = None
+    energy_card_v2: EnergyCardV2 | None = None
+    final_projection: FinalAnswerProjection | None = None
     status: GraphStatus = "received"
 
     @model_validator(mode="after")
