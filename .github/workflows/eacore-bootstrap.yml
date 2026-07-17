@@ -1,0 +1,48 @@
+name: EACORE one-shot bootstrap
+
+on:
+  push:
+    branches:
+      - EACORE
+    paths:
+      - .github/workflows/eacore-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout EACORE
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize verified EACORE payload
+        env:
+          EXPECTED_SHA256: 5f68faa901dadae0c6fd4ac9f19fa6ec32add6093a541d24ef0b91cc515cbfd9
+        run: |
+          cat .eacore-bootstrap/chunk-*.b64 > /tmp/eacore-payload.b64
+          base64 --decode /tmp/eacore-payload.b64 > /tmp/eacore-payload.tar.gz
+          echo "${EXPECTED_SHA256}  /tmp/eacore-payload.tar.gz" | sha256sum --check -
+          python - <<'PY'
+          from pathlib import Path
+          import tarfile
+
+          archive = Path("/tmp/eacore-payload.tar.gz")
+          root = Path(".").resolve()
+          with tarfile.open(archive, "r:gz") as payload:
+              for member in payload.getmembers():
+                  target = (root / member.name).resolve()
+                  target.relative_to(root)
+              payload.extractall(root)
+          PY
+          rm -rf .eacore-bootstrap
+          rm -f .github/workflows/eacore-bootstrap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "eacore: feat(kernel): add neutral kernel 0.1"
+          git push origin HEAD:EACORE
