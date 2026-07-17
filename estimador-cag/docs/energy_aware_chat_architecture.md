@@ -14,7 +14,7 @@ request -> lexical project retrieval -> deterministic draft
 
 The live route substitutes a provider-backed draft through the existing DeepSeek/Kimi adapter seam. Normal CI does not make live calls. The current runtime is not a LangGraph graph and has no checkpoint/resume lifecycle.
 
-Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy penalties, critics, scorer, decider, repair functions, evidence classification, retrieval, and Energy Card projection. `graph_state.py` adds a versioned checkpoint-safe state contract but does not execute or alter the runtime path.
+Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy penalties, critics, scorer, decider, repair functions, evidence classification, retrieval, and Energy Card projection. `graph_state.py` provides the versioned checkpoint-safe state contract. `graph_nodes.py` now provides provider-free interpretation and policy/constraint nodes as independently testable typed deltas. Neither module executes a graph or alters the current API runtime path.
 
 ## Verified requirement map
 
@@ -23,6 +23,7 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 | Deterministic critics, score, decision, repair | Existing evaluator and tests | verified |
 | Project retrieval baseline | Deterministic committed-source retriever | verified |
 | Versioned graph state and reducers | v1 contract, fixture, focused tests | verified |
+| Interpretation and policy node contracts | Typed deltas, replay-safe application, policy parity tests | verified |
 | LangGraph orchestration | No dependency or graph builder | missing |
 | Checkpoint resume and human gates | No runtime implementation | missing |
 | `refuse` and `escalate` dispositions | State vocabulary only; current decider has four outcomes | missing at runtime |
@@ -39,6 +40,7 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 4. Singular authoritative values replace: active candidate, final answer, status, policy version, and Energy Card are not reducers.
 5. Hidden chain-of-thought and sensitive evidence bodies are not checkpoint fields.
 6. The existing API remains unchanged until parity tests demonstrate graph behavior.
+7. Node trace events persist safe counts and versions, not user request or constraint text.
 
 ## Current claim boundary
 

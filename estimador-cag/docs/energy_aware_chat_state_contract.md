@@ -11,7 +11,8 @@ The contract is product-local and independently testable. It deliberately does n
 | Field | Intended writer | Reader | Persistence/redaction | Update rule |
 |---|---|---|---|---|
 | identity and version fields | request initializer | every node | persisted; identifiers are opaque | immutable |
-| `user_request`, `mode`, `constraints` | interpretation/policy nodes | retrieval, generation, decision | persisted; redact before construction | replace |
+| `user_request`, `mode` | `interpret_request` | retrieval, generation, decision | persisted; redact before construction | replace |
+| `constraints`, `policy_version` | `load_policy_and_constraints` | critics, score, decision | persisted; redact before construction | replace |
 | `evidence_refs` | evidence node | generation, critics, card | references only; no sensitive bodies | append unique when wired |
 | `candidate_versions` | generation/repair nodes | critics, score, decision | persisted; user-visible answer text | append by `candidate_id` |
 | `active_candidate_id` | generation/repair nodes | critics, score, decision | persisted | replace; must reference history |
@@ -32,3 +33,9 @@ The contract is product-local and independently testable. It deliberately does n
 `serialize_graph_state` emits canonical sorted compact JSON. `deserialize_graph_state` accepts only schema `1.0.0`. The persisted compatibility fixture is `tests/fixtures/energy_chat_graph_state_v1.json`.
 
 This milestone proves the contract only. Checkpoint storage, graph reducers, migrations, retention enforcement, and resume behavior remain future milestones.
+
+## Provider-free node deltas
+
+`InterpretationDelta` owns only normalized request text, explicit mode, status, and one safe trace event. `PolicyConstraintsDelta` owns only policy version, normalized constraints, status, and one safe trace event. Identity fields cannot be supplied through either strict delta contract.
+
+The application functions validate the complete resulting state. A replay against an already-applied state returns the same trace event ID and content, so the append-only reducer treats it as an idempotent retry.

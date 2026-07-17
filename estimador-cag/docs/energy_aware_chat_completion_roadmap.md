@@ -13,8 +13,8 @@
 | Milestone | Status | Exit evidence |
 |---|---|---|
 | 0. Recovery and baseline | complete for current checkpoint | isolated clean worktree, repository/PR/CI verified, architecture and gap map recorded |
-| 1. Versioned product-local graph state | implemented; validation pending | typed v1 state, reducer discipline, canonical serializer, fixture, import-boundary tests |
-| 2. Interpretation and policy nodes | next | explicit state deltas and typed trace events |
+| 1. Versioned product-local graph state | complete | typed v1 state, reducer discipline, canonical serializer, fixture, import-boundary tests; exact-head CI green |
+| 2. Interpretation and policy nodes | implemented; validation pending | explicit state deltas, safe typed trace events, deterministic normalization, replay tests |
 | 3-5. Evidence, provider, critic/score/decision nodes | pending | preserve current behavior with parity tests |
 | 6. Sequential LangGraph | pending | fake-runtime path; domain truth remains outside graph |
 | 7-10. Repair, decisions, ledger/card, API compatibility | pending | bounded budgets and six dispositions |
@@ -24,7 +24,7 @@
 
 ## Next exact milestone
 
-Add provider-free `interpret_request` and `load_policy_and_constraints` node functions that accept v1 state and return typed deltas. Red tests must cover normalization, mode selection, immutable identity, safe trace payloads, idempotent replay, and parity with the existing request/policy defaults. Do not add LangGraph execution until these node contracts are independently green.
+Add provider-free evidence-need and evidence-routing nodes that reuse the current `classify_source_need` and project retriever. Red tests must prove skip/retrieve routing, evidence attribution, safe state deltas, idempotent trace replay, and parity with the existing source-need behavior. Do not add LangGraph execution yet.
 
 ## Claim discipline
 

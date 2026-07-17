@@ -21,6 +21,7 @@ GRAPH_STATE_CONTRACT_VERSION = "1.0.0"
 GraphStatus = Literal[
     "received",
     "interpreted",
+    "policy_ready",
     "evidence_ready",
     "candidate_ready",
     "evaluated",
