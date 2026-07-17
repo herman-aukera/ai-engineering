@@ -13,6 +13,7 @@ The contract is product-local and independently testable. It deliberately does n
 | identity and version fields | request initializer | every node | persisted; identifiers are opaque | immutable |
 | `user_request`, `mode` | `interpret_request` | retrieval, generation, decision | persisted; redact before construction | replace |
 | `constraints`, `policy_version` | `load_policy_and_constraints` | critics, score, decision | persisted; redact before construction | replace |
+| `request_policy` | `load_policy_and_constraints` | complete decider | persisted; rule ID/reason only | replace |
 | `source_need` | `determine_evidence_need` | evidence routing, decision | safe classification only | replace |
 | `project_rag` | `route_evidence` | generation, attribution | project corpus content only | replace |
 | `evidence_refs` | `route_evidence` | generation, critics, card | references only; no sensitive bodies | append unique |
@@ -86,3 +87,9 @@ The compiled graph currently has no persistence. Its completed-state short circu
 `apply_repair` creates the next immutable candidate version and consumes exactly one `RetryBudget` attempt. It makes no provider call and therefore adds no cost. The graph then runs the complete critic, score, and decision sequence again.
 
 `finalize_repair` records a `RepairResultRecord` with before/after energy and one of `improved`, `no_improvement`, `budget_exhausted`, or `not_repairable`. Cumulative provider cost is charged once by candidate generation through `CostBudget`; per-call provider limits remain independently enforced.
+
+## Complete decision semantics
+
+`RequestPolicyAssessment` stores version, directive, rule ID, and safe reason without copying request text. `DecisionOutcome` stores the authoritative `policy_rule_id`. The complete decider applies request refusal/human-authority rules before candidate rules, and converts a still-repairable result with zero remaining retries into `escalate`.
+
+The six dispositions are `accept`, `repair`, `clarify`, `reject`, `refuse`, and `escalate`. Their current graph transitions are declared in `DISPOSITION_TRANSITIONS`; clarification and escalation human-resume behavior remains a later milestone.

@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from app.energy_chat.contracts import Mode
+from app.energy_chat.contracts import Mode, RequestPolicyAssessment
 from app.energy_chat.graph_state import (
     EnergyChatGraphState,
     GraphStateRecord,
@@ -20,7 +20,7 @@ from app.energy_chat.graph_state import (
     build_trace_event,
     validated_state_update,
 )
-from app.energy_chat.policies import default_chat_lite_policy
+from app.energy_chat.policies import assess_request_policy, default_chat_lite_policy
 
 
 class InterpretationDelta(GraphStateRecord):
@@ -36,6 +36,7 @@ class PolicyConstraintsDelta(GraphStateRecord):
     """Fields owned by the deterministic policy and constraint loading node."""
 
     policy_version: str = Field(min_length=1)
+    request_policy: RequestPolicyAssessment
     constraints: list[str]
     status: Literal["policy_ready"] = "policy_ready"
     trace_events: list[TraceEvent] = Field(min_length=1, max_length=1)
@@ -65,6 +66,7 @@ def load_policy_and_constraints(state: EnergyChatGraphState) -> PolicyConstraint
     """Load the existing deterministic policy and normalize explicit constraints."""
 
     policy = default_chat_lite_policy()
+    request_policy = assess_request_policy(state.user_request)
     constraints = _normalize_constraints(state.constraints)
     event = build_trace_event(
         state,
@@ -74,10 +76,14 @@ def load_policy_and_constraints(state: EnergyChatGraphState) -> PolicyConstraint
             "constraint_count": len(constraints),
             "policy_id": policy.policy_id,
             "policy_version": policy.version,
+            "request_policy_directive": request_policy.directive,
+            "request_policy_rule_id": request_policy.rule_id,
+            "request_policy_version": request_policy.version,
         },
     )
     return PolicyConstraintsDelta(
         policy_version=policy.version,
+        request_policy=request_policy,
         constraints=constraints,
         trace_events=[event],
     )
@@ -107,6 +113,7 @@ def apply_policy_delta(
     return validated_state_update(
         state,
         policy_version=delta.policy_version,
+        request_policy=delta.request_policy,
         constraints=delta.constraints,
         status=delta.status,
         trace_events=append_unique_records(

@@ -82,9 +82,10 @@ def test_zero_retry_budget_terminates_without_creating_candidate_version_two() -
 
     assert provider.calls == 1
     assert len(state.candidate_versions) == 1
-    assert state.decision_outcomes[-1].disposition == "repair"
+    assert state.decision_outcomes[-1].disposition == "escalate"
+    assert state.decision_outcomes[-1].policy_rule_id == "repair_budget_exhausted"
     assert state.repair_requests == []
-    assert state.repair_results[-1].outcome == "budget_exhausted"
+    assert state.repair_results == []
     assert state.status == "evaluated"
 
 

@@ -262,7 +262,11 @@ def render_energy_card(card: dict[str, Any] | None) -> None:
 
     col_decision, col_energy, col_repairs, col_hard = st.columns(4)
     with col_decision:
-        st.metric("Decision", card.get("decision", "unknown"), help="Final decider result: accept, repair, reject, or clarify.")
+        st.metric(
+            "Decision",
+            card.get("decision", "unknown"),
+            help="Final decider result: accept, repair, clarify, reject, refuse, or escalate.",
+        )
     with col_energy:
         st.metric("Energy", card.get("energy", "unknown"), help="Lower is better. Energy is the weighted penalty total after critics run.")
     with col_repairs:

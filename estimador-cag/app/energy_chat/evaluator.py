@@ -9,9 +9,10 @@ from app.energy_chat.contracts import (
     RepairEvaluationResult,
 )
 from app.energy_chat.critics import run_chat_lite_critics
-from app.energy_chat.decider import decide
+from app.energy_chat.decision_policy import decide_complete
 from app.energy_chat.energy_card import build_energy_card
-from app.energy_chat.policies import default_chat_lite_policy
+from app.energy_chat.graph_state import RetryBudget
+from app.energy_chat.policies import assess_request_policy, default_chat_lite_policy
 from app.energy_chat.repairs import build_repaired_request
 from app.energy_chat.scorer import score_findings
 from app.energy_chat.source_guard import source_need_findings
@@ -27,7 +28,13 @@ def run_evaluation(
         *source_need_findings(request, active_policy),
     ]
     energy_score = score_findings(findings)
-    decision = decide(energy_score, active_policy, request.evidence_refs)
+    decision = decide_complete(
+        energy_score,
+        active_policy,
+        request.evidence_refs,
+        request_policy=assess_request_policy(request.user_message),
+        retry_budget=RetryBudget(max_attempts=active_policy.max_repairs_mvp),
+    )
     card = build_energy_card(decision, energy_score)
     return EvaluationResult(
         request=request,

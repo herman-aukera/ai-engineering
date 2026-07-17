@@ -17,6 +17,7 @@ from app.energy_chat.contracts import (
     EnergyCard,
     Mode,
     ProjectRagResult,
+    RequestPolicyAssessment,
     SourceNeedResult,
 )
 from app.energy_chat.evaluation_nodes import calculate_energy, decide_candidate, run_critic_panel
@@ -121,6 +122,7 @@ class EnergyChatRuntimeState(TypedDict):
     user_request: str
     mode: Mode
     policy_version: str
+    request_policy: RequestPolicyAssessment | None
     constraints: list[str]
     evidence_refs: Annotated[list[str], _reduce_evidence_refs]
     source_need: SourceNeedResult | None
@@ -168,6 +170,7 @@ def build_energy_chat_graph(
         delta = load_policy_and_constraints(_domain_state(state))
         return {
             "policy_version": delta.policy_version,
+            "request_policy": delta.request_policy,
             "constraints": delta.constraints,
             "status": delta.status,
             "trace_events": delta.trace_events,

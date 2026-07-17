@@ -50,6 +50,7 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 | Critic, score, and decision nodes | Candidate-linked records and exact evaluator parity tests | verified |
 | Sequential LangGraph orchestration | Compiled graph, conditional routes, delta and parity tests | verified wiring proof |
 | Bounded graph repair | Explicit request, candidate v2, full re-evaluation, budgets and termination tests | verified |
+| Complete decision semantics | Six deterministic dispositions, rule IDs, precedence and transition tests | verified |
 | Checkpoint resume and human gates | No runtime implementation | missing |
 | `refuse` and `escalate` dispositions | State vocabulary only; current decider has four outcomes | missing at runtime |
 | Typed domain trace and decision ledger | Typed trace-event state exists; no ledger writer | partial |
@@ -74,6 +75,7 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 13. An evaluated state routes directly from `START` to `END`, preventing replay from repeating work.
 14. Repair consumes an explicit retry attempt, never repeats the initial provider call, and always re-runs critics, score, and decision.
 15. Equal or higher post-repair energy terminates as `no_improvement`; exhausted retry budget terminates explicitly.
+16. Request refusal is distinct from candidate rejection; human-authority and exhausted-budget cases escalate.
 
 ## Current claim boundary
 

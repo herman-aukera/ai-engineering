@@ -42,6 +42,7 @@ def test_fixed_benchmark_run_is_deterministic_and_provider_free() -> None:
     assert result.metadata["provider_calls"] == 0
     assert result.metadata["live_provider_required"] is False
     assert result.metadata["quality_claim_allowed"] is False
+    assert result.dataset_path == "evals/energy_chat/fixed_benchmark_cases.jsonl"
     assert result.metadata["claim_status"] == "measurement_only_no_quality_claim"
     assert result.accepted_baseline <= result.cases_total
     assert result.accepted_after_repair <= result.cases_total

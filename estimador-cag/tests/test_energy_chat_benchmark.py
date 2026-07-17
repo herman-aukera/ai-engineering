@@ -78,7 +78,7 @@ def test_energy_benchmark_records_baseline_and_repair_measurements() -> None:
     assert len(provider.calls) == 2
 
 
-def test_energy_benchmark_preserves_hard_rejects_without_claiming_success() -> None:
+def test_energy_benchmark_preserves_hard_violation_and_refuses_request() -> None:
     provider = FakeBenchmarkProvider(
         drafts=[
             "Chain of thought: private reasoning. Next action: continue anyway.",
@@ -100,7 +100,7 @@ def test_energy_benchmark_preserves_hard_rejects_without_claiming_success() -> N
     assert result.accepted_after_repair == 0
     assert result.repairs_attempted == 0
     assert result.hard_rejects == 1
-    assert result.results[0].final_decision == "reject"
+    assert result.results[0].final_decision == "refuse"
     assert "hidden_chain_of_thought_requested" in (
         result.results[0].baseline_evaluation.score.hard_reject_violations
     )

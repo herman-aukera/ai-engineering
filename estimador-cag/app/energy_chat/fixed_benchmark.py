@@ -23,6 +23,7 @@ DEFAULT_FIXED_BENCHMARK_PATH = (
     / "energy_chat"
     / "fixed_benchmark_cases.jsonl"
 )
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class FixedBenchmarkCase(BaseModel):
@@ -148,7 +149,7 @@ def run_fixed_benchmark(
 
     return FixedBenchmarkRunResult(
         run_id=run_id,
-        dataset_path=str(dataset_path),
+        dataset_path=_display_dataset_path(dataset_path),
         cases_total=len(results),
         accepted_baseline=accepted_baseline,
         accepted_after_repair=accepted_after_repair,
@@ -188,7 +189,7 @@ def render_fixed_benchmark_markdown(result: FixedBenchmarkRunResult) -> str:
         "",
         "## Boundary",
         "",
-        "This report is deterministic CI evidence. It does not prove live provider quality improvement. ",
+        "This report is deterministic CI evidence. It does not prove live provider quality improvement.",
         "Use it to verify benchmark plumbing, case stability, evaluator behavior, and repair behavior.",
         "",
         "## Cases",
@@ -217,6 +218,14 @@ def render_fixed_benchmark_markdown(result: FixedBenchmarkRunResult) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+def _display_dataset_path(dataset_path: Path) -> str:
+    resolved = dataset_path.resolve()
+    try:
+        return resolved.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return str(dataset_path)
 
 
 def _missing_terms(text: str, terms: list[str]) -> list[str]:

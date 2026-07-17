@@ -19,6 +19,7 @@ from app.energy_chat.contracts import (
     EnergyScore,
     Mode,
     ProjectRagResult,
+    RequestPolicyAssessment,
     SourceNeedResult,
 )
 
@@ -89,6 +90,7 @@ class DecisionOutcome(GraphStateRecord):
     reason: str = Field(min_length=1)
     required_repairs: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
+    policy_rule_id: str = "legacy_energy_decider"
 
 
 class RepairRequest(GraphStateRecord):
@@ -196,6 +198,7 @@ class EnergyChatGraphState(GraphStateRecord):
     user_request: str = Field(min_length=1)
     mode: Mode = "chat_lite"
     policy_version: str = Field(min_length=1)
+    request_policy: RequestPolicyAssessment | None = None
     constraints: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
     source_need: SourceNeedResult | None = None

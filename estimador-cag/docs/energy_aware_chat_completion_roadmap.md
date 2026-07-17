@@ -19,15 +19,16 @@
 | 4. Candidate provider abstraction | complete | deterministic and baseline adapters, typed metrics, budget gates, replay protection; exact-head CI green |
 | 5. Critic, score, and decision nodes | complete | candidate/policy linkage, evaluator parity, stale-link and replay tests; exact-head CI green |
 | 6. Sequential LangGraph | complete | compiled graph, conditional evidence routes, explicit deltas, deterministic parity, replay short circuit; exact-head CI green |
-| 7. Bounded repair | implemented; validation pending | explicit plans, candidate v2, retry/cost budgets, full re-evaluation, termination and replay tests |
-| 8-10. Decision semantics, ledger/card, API compatibility | pending | six dispositions, append-only audit, graph-backed routes |
+| 7. Bounded repair | complete | explicit plans, candidate v2, retry/cost budgets, full re-evaluation, termination and replay tests; exact-head CI green |
+| 8. Complete decision semantics | implemented; validation pending | six deterministic dispositions, versioned request rules, precedence, rule IDs and transitions |
+| 9-10. Ledger/card and API compatibility | pending | append-only audit, safe projection, graph-backed routes |
 | 11-13. Checkpoints, human gates, PostgreSQL | pending | resume, migration, rollback, retention, redaction |
 | 14-18. Observability, retrieval, UI, providers, evaluation | pending | opt-in live evidence and fixed quality metrics |
 | 19-20. Deployment and release audit | pending | operational proof before claim changes |
 
 ## Next exact milestone
 
-Implement complete deterministic decision semantics for `accept`, `repair`, `clarify`, `reject`, `refuse`, and `escalate`, including allowed transitions and policy reasons. Preserve the current four-outcome behavior while adding explicit refusal and escalation rules; do not use a model as disposition authority.
+Add the append-only decision ledger and Energy Card v2 projection: policy/critic versions, candidate and score links, energy before/after/delta, evidence references, repair history, limitations, and safe user projection. Keep hidden reasoning and sensitive evidence bodies out of both artifacts.
 
 ## Claim discipline
 

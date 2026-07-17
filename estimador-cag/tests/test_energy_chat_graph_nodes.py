@@ -58,6 +58,9 @@ def test_policy_node_matches_existing_default_and_normalizes_constraints() -> No
         "constraint_count": 2,
         "policy_id": default_chat_lite_policy().policy_id,
         "policy_version": default_chat_lite_policy().version,
+        "request_policy_directive": "continue",
+        "request_policy_rule_id": "request_allowed",
+        "request_policy_version": "energy-chat-request-policy-1.0.0",
     }
 
 

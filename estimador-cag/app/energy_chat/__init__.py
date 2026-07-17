@@ -34,10 +34,12 @@ from app.energy_chat.contracts import (
     ProjectRagRequest,
     ProjectRagResult,
     RepairEvaluationResult,
+    RequestPolicyAssessment,
     SourceNeedRequest,
     SourceNeedResult,
 )
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
+from app.energy_chat.policies import assess_request_policy
 from app.energy_chat.rag import retrieve_project_context
 from app.energy_chat.release_snapshot import (
     GateSnapshot,
@@ -91,10 +93,12 @@ __all__ = [
     "ProjectRagResult",
     "ReleaseSnapshot",
     "RepairEvaluationResult",
+    "RequestPolicyAssessment",
     "ReviewPacket",
     "SourceNeedRequest",
     "SourceNeedResult",
     "artifact_paths",
+    "assess_request_policy",
     "build_ci_proof_command",
     "build_deepseek_benchmark_report_markdown",
     "build_energy_chat_closeout_pack",

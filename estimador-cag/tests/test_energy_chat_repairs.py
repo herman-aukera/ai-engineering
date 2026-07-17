@@ -30,8 +30,8 @@ def test_one_pass_repair_does_not_repair_hard_reject() -> None:
 
     result = evaluate_with_one_pass_repair(request)
 
-    assert result.initial_result.decision.decision == "reject"
-    assert result.final_result.decision.decision == "reject"
+    assert result.initial_result.decision.decision == "refuse"
+    assert result.final_result.decision.decision == "refuse"
     assert result.repair_attempted is False
     assert result.repairs_applied == []
     assert result.repaired_request is None

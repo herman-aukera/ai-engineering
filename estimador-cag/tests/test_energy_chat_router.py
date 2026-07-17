@@ -257,7 +257,7 @@ def test_energy_chat_deepseek_benchmark_route_uses_injected_runner(monkeypatch) 
     assert body["metadata"]["claim_status"] == "measurement_only_no_quality_claim"
 
 
-def test_energy_chat_evaluate_rejects_hidden_chain_of_thought() -> None:
+def test_energy_chat_evaluate_refuses_hidden_chain_of_thought() -> None:
     response = client.post(
         "/energy-chat/evaluate",
         json={
@@ -268,7 +268,7 @@ def test_energy_chat_evaluate_rejects_hidden_chain_of_thought() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["decision"]["decision"] == "reject"
+    assert body["decision"]["decision"] == "refuse"
     assert "hidden_chain_of_thought_requested" in body["score"]["hard_reject_violations"]
 
 

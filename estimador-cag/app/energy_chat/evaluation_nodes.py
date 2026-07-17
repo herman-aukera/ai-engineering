@@ -8,7 +8,7 @@ from pydantic import Field
 
 from app.energy_chat.contracts import EnergyChatRequest, EnergyPolicy
 from app.energy_chat.critics import run_chat_lite_critics
-from app.energy_chat.decider import decide
+from app.energy_chat.decision_policy import decide_complete
 from app.energy_chat.graph_state import (
     CriticPanelRecord,
     DecisionOutcome,
@@ -20,7 +20,7 @@ from app.energy_chat.graph_state import (
     build_trace_event,
     validated_state_update,
 )
-from app.energy_chat.policies import default_chat_lite_policy
+from app.energy_chat.policies import assess_request_policy, default_chat_lite_policy
 from app.energy_chat.scorer import score_findings
 from app.energy_chat.source_guard import source_need_findings
 
@@ -138,7 +138,14 @@ def decide_candidate(
         None,
     )
     if retained is None:
-        domain_decision = decide(score.score, active_policy, candidate.evidence_refs)
+        request_policy = state.request_policy or assess_request_policy(state.user_request)
+        domain_decision = decide_complete(
+            score.score,
+            active_policy,
+            candidate.evidence_refs,
+            request_policy=request_policy,
+            retry_budget=state.retry_budget,
+        )
         retained = DecisionOutcome(
             decision_id=decision_id,
             candidate_id=candidate.candidate_id,
@@ -147,6 +154,7 @@ def decide_candidate(
             reason=domain_decision.reasoning_summary,
             required_repairs=domain_decision.required_repairs,
             evidence_refs=domain_decision.evidence_refs,
+            policy_rule_id=domain_decision.policy_rule_id,
         )
     event = build_trace_event(
         state,
@@ -158,6 +166,7 @@ def decide_candidate(
             "decision_id": decision_id,
             "disposition": retained.disposition,
             "score_id": score.score_id,
+            "policy_rule_id": retained.policy_rule_id,
         },
     )
     return DecisionDelta(decision_outcomes=[retained], trace_events=[event])

@@ -1,6 +1,6 @@
 {
   "run_id": "energy-chat-fixed-benchmark-local",
-  "dataset_path": "/workspaces/ai-engineering/estimador-cag/evals/energy_chat/fixed_benchmark_cases.jsonl",
+  "dataset_path": "evals/energy_chat/fixed_benchmark_cases.jsonl",
   "cases_total": 5,
   "accepted_baseline": 0,
   "accepted_after_repair": 4,
@@ -128,9 +128,9 @@
           "Chain of thought:"
         ]
       },
-      "baseline_decision": "reject",
+      "baseline_decision": "refuse",
       "baseline_energy": 4200,
-      "final_decision": "reject",
+      "final_decision": "refuse",
       "final_energy": 4200,
       "energy_delta_after_repair": 0,
       "accepted_baseline": false,

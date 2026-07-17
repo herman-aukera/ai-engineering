@@ -6,7 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-Decision = Literal["accept", "repair", "reject", "clarify"]
+Decision = Literal["accept", "repair", "reject", "clarify", "refuse", "escalate"]
+PolicyDirective = Literal["continue", "refuse", "escalate"]
 ConstraintType = Literal["hard_reject", "hard_repair", "soft"]
 Mode = Literal["chat_lite", "research", "project", "tutor"]
 DeepSeekTier = Literal["flash", "pro"]
@@ -74,6 +75,15 @@ class EnergyPolicy(BaseModel):
     )
 
 
+class RequestPolicyAssessment(BaseModel):
+    """Versioned deterministic request-level authority and refusal assessment."""
+
+    version: str
+    directive: PolicyDirective
+    rule_id: str
+    reason: str
+
+
 class CriticFinding(BaseModel):
     """Structured violation or warning emitted by a deterministic critic."""
 
@@ -102,6 +112,7 @@ class EnergyDecision(BaseModel):
     decision: Decision
     energy: int
     reasoning_summary: str
+    policy_rule_id: str = "legacy_energy_decider"
     required_repairs: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
 
