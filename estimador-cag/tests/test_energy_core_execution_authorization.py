@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from energy_core.controlled_execution import build_execution_plan
+from energy_core.controlled_execution import CommandProposal, build_execution_plan
 from energy_core.execution_authorization import (
     AuthorizationContext,
     ExecutionAuthorization,
@@ -14,7 +14,6 @@ from energy_core.execution_authorization import (
     scope_for_plan,
     verify_execution_authorization,
 )
-from energy_core.controlled_execution import CommandProposal
 
 
 def _plan(tmp_path):
