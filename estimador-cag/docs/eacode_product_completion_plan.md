@@ -7,106 +7,132 @@ Branch: `EACODE`
 
 ## Verified current state
 
-- Local and remote branch head: `9482ef454ffae9eddcd24782dd7dcb9f5b21bc3b`.
-- PR #4 is open, draft, mergeable, and unmerged. Do not merge it into `main` as routine coursework.
-- The checkout was clean before this plan slice.
-- Baseline inventory: 65 `energy_core` Python modules, 44 Energy Core test modules, 24 Energy Core smoke scripts, and one spec packet. Phase 1 adds eleven domain/CLI modules, three test modules, and three spec packets.
-- The existing product is a deterministic judge with typed contracts, critics, scoring, decisions, reporting, ledger checks, CLI surfaces, and broad deterministic review artifacts.
-- The persisted example ledger contains five evidence records and no decisions. This is demonstration data, not production telemetry.
-- The full gate is defined, but could not be executed in this environment because `uv` is unavailable. This is an environment blocker, not passing evidence.
-- No applicable `AGENTS.md` was found.
+- Historical audited baseline before the Codex completion run: `9482ef454ffae9eddcd24782dd7dcb9f5b21bc3b`.
+- Phase 0-2 checkpoint before controlled execution work: `1d15dc3c06e0918781b945399b13351b1a86f005`.
+- PR #4 remains open, draft, mergeable, and unmerged. Do not merge it into `main` as routine coursework.
+- The deterministic core includes typed policies, candidates, evidence, critics, scoring, decisions, ledgers, integrity checks, recovery, retention, manifests, CLI review surfaces, a persistent LangGraph judge, SQLite restart persistence, and typed human clarification/escalation.
+- Spec 0007 adds typed controlled-execution proposals, deterministic risk policy, repository/path/symlink boundaries, budgets, redaction, a fake tool port, a dry-run/fake CLI, normalized execution evidence, and optional judge-graph preview plus deterministic reevaluation.
+- Spec 0007 does not add real subprocess execution, provider calls, commits, pushes, merges, or execution authorization.
+- Remote CI run `29608664559` passed Ruff, compilation, Energy Core boundary checks, all tests, all smoke scripts, the canonical full gate, root smoke, and repository cleanliness for head `d70c88b19b586003a381521fa6778a8844f6a3f0`.
 
 ## Product vision
 
-EACODE is a provider-neutral supervision product that evaluates proposed coding actions against a versioned specification and policy. It must keep deterministic authorization separate from actors and tools, preserve auditable evidence, bound every loop, and make unsafe or unsupported transitions impossible to approve silently.
+EACODE is a provider-neutral coding supervision product. Models, tools, shell adapters, and IDE agents may propose actions, but deterministic Python policy owns evidence sufficiency, hard constraints, constraint energy, budgets, authorization requirements, and final disposition.
+
+The operating principle remains:
+
+```text
+First build the judge.
+Then give it controlled hands.
+The hands never approve themselves.
+```
 
 ## Capability matrix
 
 | Capability | State | Evidence | Maturity judgment |
 |---|---|---|---|
-| Typed domain contracts | Implemented | `energy_core/models.py`, adapter contracts, schema export | Established |
-| Deterministic critics, scorer, decider | Implemented | Unit tests and review surfaces | Established |
-| Evidence and decision ledgers | Implemented | Versioning, provenance, hashing, reference integrity, retention, trusted manifests, recovery | Phase 1 trust gate complete |
-| CLI and machine-readable reporting | Implemented | CLI modules and smoke scripts | Broad but fragmented |
-| Persistent LangGraph orchestration | Implemented | Typed bounded graph, SQLite restart persistence, human interrupts, CLI, traces | Phase 2 gate complete |
-| Controlled shell evidence adapter | Missing | Explicit PR exclusion | Phase 3 |
-| Bounded repair loop | Missing | No repair orchestration | Phase 4 |
-| Live provider adapters | Missing | Explicit PR exclusion | Phase 5 |
-| Product API and review UI | Missing | Existing API/UI belong to the host course app | Phase 6 |
-| Benchmarks and regression comparison | Partial | Review artifacts exist; benchmark harness absent | Phase 7 |
-| Dedicated packaging and extraction | Partial | Extraction plan/readiness reports | Phase 8 |
+| Typed domain contracts | Implemented | strict Pydantic models, schema export, contract tests | established |
+| Deterministic critics, scorer, decider | Implemented | unit tests and review surfaces | established |
+| Evidence and decision ledgers | Implemented | versioning, provenance, hashing, referential integrity, retention, manifests, recovery | Phase 1 complete |
+| Persistent LangGraph orchestration | Implemented | typed bounded graph, SQLite restart persistence, thread isolation, human interrupts, CLI | Phase 2 complete |
+| Controlled execution planning | Implemented | `CommandProposal`, risk policy, root/path/symlink checks, plan hashing | Spec 0007 complete |
+| Dry-run and fake execution evidence | Implemented | fake adapter, redaction, truncation, normalized `EvidenceRecord`, graph reevaluation | L2 deterministic evidence |
+| Real execution authorization | Missing | explicitly excluded | Spec 0008 |
+| Real sandboxed tool adapter | Missing | no subprocess implementation | after Spec 0008 |
+| Bounded actor repair | Missing | current graph retries supplied candidates only | later phase |
+| Provider-neutral actor layer | Missing | no fake/live actor contract in EACODE | later phase |
+| Product API and review console | Missing | host coursework UI is not an EACODE product surface | later phase |
+| Benchmark comparison | Partial | implementation tests and reports exist; agent baseline benchmark absent | later phase |
+| Dedicated packaging and extraction | Partial | extraction plans exist; product remains embedded | release phase |
 
 ## Gap matrix
 
 | Gap | User impact | Dependency | Priority | Exit evidence |
 |---|---|---|---|---|
-| No controlled execution evidence adapter | Accepted proposals cannot produce governed execution evidence | Persistent deterministic graph | P0 | Fake-tool risk, boundary, timeout, redaction, rollback tests |
-| No dedicated product review interface | Operators lack one approval and timeline surface | Stable application services | P2 | Workflow-tested API or review console |
-| No bounded agentic repair | Repairs cannot be automated safely | Execution evidence | P1 | Budget and non-progress tests |
-| No provider-neutral actor layer | Live or fake actors lack one governed contract | Bounded repair state | P1 | Structured fake and adapter contract tests |
-| No benchmark harness | Product quality cannot be compared over time | Stable domain scenarios | P1 | Versioned cases and regression report |
-| Product is embedded in course repository | Installation and ownership remain unclear | Stable public contracts | P2 | Extraction rehearsal and rollback proof |
+| No revision-guarded execution authorization | safe plans cannot receive durable scoped approval | Spec 0007 plan hash and persistence | P0 | stale/replay/expiry/revision tests and restart proof |
+| No real sandboxed adapter | no real command can produce execution evidence | authorization plus OS safety design | P0/P1 | controlled manual smoke and failure injection |
+| No real bounded repair actor | critics cannot request and evaluate generated candidate v2 | stable execution evidence | P1 | repetition, energy-improvement, and budget tests |
+| No provider-neutral actor | DeepSeek/Kimi cannot participate through one governed contract | bounded repair contract | P1 | fake actor CI and manual provider smoke |
+| No benchmark harness | quality and safety gains cannot be compared | stable end-to-end scenarios | P1 | versioned baseline/regression report |
+| No dedicated review interface | operator lacks one execution-approval and timeline surface | application services and authorization | P2 | browser-tested review console |
+| Product remains in course repository | installation and ownership remain unclear | stable package boundary | P2 | extraction rehearsal and rollback proof |
 
 ## Dependency graph
 
 ```text
 Phase 0 audit and plan
   -> Phase 1 trust foundation
-    -> Phase 2 persistent deterministic graph
-      -> Phase 3 controlled shell evidence
-        -> Phase 4 bounded repair
-          -> Phase 5 provider adapters
-            -> Phase 6 developer interfaces
-Phase 1 -> Phase 7 benchmarks and observability
-Phases 1-7 -> Phase 8 packaging and extraction
+    -> Phase 2 persistent deterministic judge
+      -> Phase 3A controlled execution preview and fake evidence
+        -> Phase 3B revision-guarded human execution authorization
+          -> Phase 3C real sandboxed tool adapter
+            -> Phase 4 bounded repair actor
+              -> Phase 5 provider adapters
+                -> Phase 6 review API/UI
+Phase 1-6 -> Phase 7 benchmark, security, and observability evidence
+Phases 1-7 -> Phase 8 packaging, release, and extraction rehearsal
 ```
 
 ## Ordered phases
 
-1. Keep this audit and plan synchronized with verified repository evidence.
-2. Version and harden evidence and decision records, provenance, referential integrity, append semantics, migrations, and recovery.
-3. Add a persistent deterministic LangGraph topology without shell execution.
-4. Add a replaceable controlled shell evidence adapter with fake tools in CI and human gates for risk.
-5. Add bounded repair with iteration, time, tool, repetition, energy-delta, token, and cost budgets.
-6. Add provider-neutral structured actors, deterministic fakes, then opt-in live providers.
-7. Consolidate the CLI and add only the API/review console surfaces proven useful by workflow tests.
-8. Add benchmark cases, failure injection, regression comparison, telemetry, and developer-UX evaluation.
-9. Package, rehearse extraction, document migrations and rollback, then prepare a release candidate.
+1. Keep this plan synchronized with current branch, PR, CI, specs, and evidence.
+2. Preserve the deterministic trust foundation and persistent judge.
+3. Complete Spec 0007 controlled execution planning and fake/dry-run evidence without real execution.
+4. Implement Spec 0008 revision-guarded, one-time execution authorization tied to exact plan hash, actor, expiry, scope, reason, expected revision, and rollback acknowledgement.
+5. Delegate the real sandboxed adapter to a local coding agent that can inspect and execute the repository safely; require no-shell process creation, minimal environment, timeout, cancellation, process-tree cleanup, output streaming, redaction, path-race controls, and failure injection.
+6. Add immutable candidate versions and bounded repair with repetition, energy-delta, time, tool, token, and cost budgets.
+7. Add a provider-neutral fake actor, then opt-in DeepSeek and Kimi adapters outside deterministic CI.
+8. Add one workflow-tested API/review console and Code Decision Card only after backend contracts are stable.
+9. Add baseline/regression benchmarks, threat-model evidence, telemetry, packaging, demo, and extraction rehearsal.
 
 ## Risk register
 
 | Risk | Severity | Mitigation |
 |---|---|---|
-| Judge and executor authority become coupled | Critical | Enforce inward dependencies and separate policy authorization from adapters |
-| Ledger claims exceed actual guarantees | High | Document file/application/git semantics and avoid cryptographic language without proof |
-| Host course application leaks into core | High | Boundary tests and extraction rehearsal |
-| Autonomous loop fails to make progress | High | Hard budgets, repeated-proposal detection, energy-delta gate, escalation |
-| Secrets appear in execution evidence | High | Environment allowlist, redaction tests, output limits, artifact hashes |
-| Review/report surface proliferation raises maintenance cost | Medium | One canonical report model with thin renderers and consistency tests |
-| Optional providers destabilize deterministic CI | Medium | Fake provider required in CI; live smoke remains manual and opt-in |
+| judge and executor authority become coupled | critical | adapters return evidence only; policy and authorization verifier remain independent |
+| fake evidence is mistaken for real execution | critical | explicit mode, `execution_performed=false`, claim gates, separate evidence levels |
+| stale or replayed human approval | critical | exact plan hash, revision guard, actor, expiry, nonce, one-time consumption |
+| path or symlink race after planning | high | revalidate immediately before real process start and use OS sandbox boundaries |
+| secrets appear in output or environment | high | minimal environment, redaction, bounded output, sanitized artifacts, security tests |
+| autonomous repair fails to progress | high | candidate fingerprint, minimum energy improvement, hard budgets, escalation |
+| review/report proliferation increases maintenance | medium | one canonical domain projection with thin CLI/API/UI renderers |
+| providers destabilize deterministic CI | medium | fake actors in CI; manual sanitized live smoke only |
+| shared-core extraction creates coupling | medium | product-local contracts until semantic equivalence is independently proven |
 
 ## Acceptance gates
 
-- Each slice has a spec packet, a failing test that proves the gap, minimal implementation, focused tests, regression evidence, security review, migration/rollback notes, and synchronized docs.
-- Deterministic CI never requires credentials, network access, live providers, or real shell execution.
-- Persisted schema changes include backward-compatible migration and corrupted-data recovery tests.
-- Loops and commands have explicit budgets, working-directory boundaries, output limits, and escalation behavior.
-- A release candidate requires clean full gate, reproducible demo, benchmark comparison, threat model, packaging proof, and extraction rollback rehearsal.
+- Every slice has a canonical spec packet, failing contract test or proven gap, minimal implementation, focused tests, full regression, security review, migration/rollback notes, and synchronized documentation.
+- Deterministic CI requires no credentials, network, provider calls, or real shell execution.
+- Persisted or public contract changes require compatibility and rollback coverage.
+- Real execution requires revision-guarded one-time human authorization and independent policy verification.
+- Loops and tools require explicit iteration, repetition, time, output, tool, token, cost, and energy-improvement budgets as applicable.
+- UI claims require browser smoke. Provider claims require manual provider evidence. Improvement claims require benchmarks.
+- A release candidate requires clean full gate, threat model, reproducible demo, benchmark report, packaging proof, known limitations, and extraction rollback rehearsal.
 
 ## Deferred capabilities
 
-- Live provider calls, public deployment, automatic commit/push, force push, PR state changes, and merging require explicit authorization.
-- Aider, Cline, OpenCode, and EACHAT bridges remain adapter work after neutral contracts stabilize.
-- Multi-user auth, billing, and hosted infrastructure are deferred until a local product workflow is proven.
+- Real shell execution is blocked until Spec 0008 authorization and sandbox requirements are green.
+- DeepSeek, Kimi, and OpenAI calls remain manual and opt-in; no live provider belongs in deterministic CI.
+- Aider, Cline, OpenCode, automatic commit/push, force-push, merge, and EACHAT bridges remain deferred.
+- Multi-user authorization, billing, hosted infrastructure, and production deployment remain deferred until the local workflow and security model are proven.
+- Shared Energy Core extraction remains an audit decision, not an implementation default.
 
 ## Evidence level
 
-Current confidence is **repository-audited, gate-unverified in this environment**. File inventory, git head, and live PR state were verified on 2026-07-17. Tests and smokes are present, but the full gate was not run because `uv` is unavailable. No capability is considered green solely because a roadmap or report names it.
+Current controlled-execution contracts, dry-run/fake adapter, security policy, and graph integration are **L2**: remote deterministic CI is green.
+
+This does not prove real command execution, OS sandbox safety, provider integration, benchmark superiority, browser UX, or production readiness.
 
 ## Current checkpoint
 
-Phase 0, Phase 1, and Phase 2 are implemented locally. The deterministic judge now runs as a typed LangGraph with explicit reducers, bounded proposal/repair routing, thread/run IDs, graph/policy/spec versions, domain traces, SQLite checkpoint persistence, process-restart recovery, isolated threads, and JSON-safe human interrupts for clarify/escalate routes. It performs no shell or provider execution and delegates authorization to the Python decider. The Phase 2B pre-commit gate passed all functional stages with 416 tests; only the expected cleanliness guard rejected the uncommitted slice. The product is not complete.
+Phase 0, Phase 1, Phase 2, and Spec 0007 Phase 3A are implemented. An accepted coding candidate may now carry an optional typed command proposal. The graph creates a bounded execution plan, denies disallowed actions, classifies human-required actions, produces dry-run or deterministic fake evidence, converts it into the existing evidence contract, and reevaluates through the existing Python decider. Real execution remains impossible and `execution_performed` remains false.
+
+The cross-project learning register records the exact Session 13 Plus and EACHAT source SHAs and keeps borrowed ideas product-local.
 
 ## Next slice
 
-Phase 3A: define typed command proposals, deterministic command-risk classification, explicit allow/deny policy, working-directory boundaries, time/output/environment budgets, redaction contracts, dry-run plans, approval requirements, and fake-tool execution evidence. Do not execute real commands in CI and do not add commit or push behavior.
+Spec 0008: revision-guarded human execution authorization.
+
+Implement strict authorization records containing trusted actor, exact plan hash, expected revision, bounded command scope, expiry, one-time nonce, reason, rollback acknowledgement, and consumed state. Prove stale revision, wrong hash, expired authorization, replay, conflicting nonce, restart/resume, and non-authorized execution all fail closed.
+
+Do not add a real subprocess adapter in the same slice.
