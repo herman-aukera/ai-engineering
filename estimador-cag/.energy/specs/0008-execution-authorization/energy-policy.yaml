@@ -1,0 +1,39 @@
+policy_id: eacode-execution-authorization
+version: 1.0.0
+owner: EACODE
+status: active
+hard_constraints:
+  missing_authorization: reject
+  untrusted_actor: reject
+  plan_hash_mismatch: reject
+  stale_revision: reject
+  future_or_expired_authorization: reject
+  authorization_replay: reject
+  authorization_scope_mismatch: reject
+  missing_rollback_acknowledgement: reject
+  executor_self_approval: reject
+  silent_decision_rewrite: reject
+  execution_during_authorization: reject
+required_fields:
+  - authorization_id
+  - actor
+  - plan_hash
+  - expected_revision
+  - accepted_revision
+  - scope
+  - created_at
+  - expires_at
+  - nonce
+  - reason
+  - rollback_acknowledged
+consumption:
+  one_time: true
+  persist_nonce_hash_only: true
+  execution_performed: false
+non_goals:
+  - real_tool_execution
+  - operating_system_sandbox
+  - production_identity_provider
+  - provider_actor
+  - auto_commit
+  - auto_push
