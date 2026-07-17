@@ -49,7 +49,7 @@ PR: #4, open draft, do not merge as routine coursework
 
 ## Validation evidence
 
-Remote CI run `29609538596` validated head `42c6eaee89b97f10b973382f09fcaebc6c5c4aa3` and passed:
+Remote CI run `29610086661` validated final head `f7f168acf68323dc1fc34ab5aaba66a1ba1196d3` and passed:
 
 - Ruff;
 - Python compilation;
@@ -59,8 +59,6 @@ Remote CI run `29609538596` validated head `42c6eaee89b97f10b973382f09fcaebc6c5c
 - canonical Energy Core full gate;
 - root compatibility smoke;
 - repository cleanliness.
-
-The final documentation/evidence head must also remain green before beginning delegated work.
 
 ## Claim boundary
 
