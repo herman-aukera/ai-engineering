@@ -1,0 +1,21 @@
+# Acceptance
+
+- Valid exact authorization verifies and consumes exactly once.
+- Wrong plan hash fails closed.
+- Stale expected or accepted revision fails closed.
+- Untrusted actor fails closed.
+- Future-dated or expired authorization fails closed.
+- Missing rollback acknowledgement fails closed.
+- Already consumed authorization and replayed nonce fail closed.
+- Scope broader or different from the plan fails closed.
+- A plan not classified `human_required` cannot consume execution authority.
+- Missing authorization cannot be consumed.
+- Timestamps must be timezone-aware.
+- Verify CLI does not consume authority; consume CLI writes a consumed authorization, replay context, and receipt.
+- The execution-authorization interrupt is distinct from clarification/escalation review.
+- The interrupt survives SQLite process restart and resumes on the same thread.
+- Cancellation records no authority and performs no execution.
+- Successful authorization stores a sanitized consumed record, nonce hash, receipt, and normalized evidence.
+- Authorization leaves `execution_performed=false` and does not invoke any tool.
+- Existing no-command and non-human-gated graph paths remain compatible.
+- Focused tests and the canonical deterministic CI gate pass.
