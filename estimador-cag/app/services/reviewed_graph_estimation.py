@@ -87,6 +87,7 @@ class ReviewedGraphEstimationApplication(Protocol):
         transcript: str,
         human_review_mode: HumanReviewMode,
         estimation_id: UUID | None = None,
+        v2_profile: str | None = None,
     ) -> ReviewedGraphRun:
         """Start a reviewed graph and return either a pause or terminal state."""
 
@@ -196,6 +197,7 @@ class ReviewedGraphEstimationService:
         transcript: str,
         human_review_mode: HumanReviewMode,
         estimation_id: UUID | None = None,
+        v2_profile: str | None = None,
     ) -> ReviewedGraphRun:
         resolved_estimation_id = str(estimation_id or uuid4())
         thread_id = thread_id_from_estimation_id(resolved_estimation_id)
@@ -214,6 +216,8 @@ class ReviewedGraphEstimationService:
                 "execution_budgets": ExecutionBudgetSnapshot().model_dump(mode="json"),
             }
         )
+        if v2_profile is not None:
+            initial_state["v2_profile"] = v2_profile
         result = await self.graph.ainvoke(
             initial_state,
             config=_config(thread_id),
@@ -255,7 +259,6 @@ class ReviewedGraphEstimationService:
             thread_id=thread_id,
             result=None,
         )
-
     async def resume_final_review(
         self,
         *,

@@ -24,6 +24,7 @@ from app.generation.graph.fakes import (
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.reviewed_build import build_reviewed_estimation_graph
 from app.routers.reviewed_graph_estimations import router
+from app.routers.v2_estimations import router as v2_router
 from app.services.reviewed_graph_estimation import ReviewedGraphEstimationService
 
 REQUIREMENTS = [
@@ -80,6 +81,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Session 13 Plus deterministic demo API", lifespan=lifespan)
 app.include_router(router)
+app.include_router(v2_router)
 
 
 @app.get("/health")

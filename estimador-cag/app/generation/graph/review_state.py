@@ -57,6 +57,7 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     """Plus state fields layered on the frozen mandatory graph contract."""
 
     human_review_mode: HumanReviewMode
+    v2_profile: str
     structure_review_revision: int
     structure_review_status: StructureReviewStatus
     structure_review_record: StructureReviewRecord

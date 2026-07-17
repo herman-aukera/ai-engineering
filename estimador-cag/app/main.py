@@ -28,6 +28,7 @@ from app.routers.reviewed_graph_estimations import (
 )
 from app.routers.search import router as search_router
 from app.routers.sessions import router as sessions_router
+from app.routers.v2_estimations import router as v2_estimations_router
 from app.services.litellm_timeout import install_litellm_request_timeout
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,7 @@ app.include_router(estimations_router)
 app.include_router(graph_estimations_router)
 app.include_router(graph_rollout_router)
 app.include_router(reviewed_graph_estimations_router)
+app.include_router(v2_estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
 app.include_router(search_router, tags=["search"])
