@@ -105,6 +105,11 @@ async def run_benchmark(
 
     sequential_ms = median(sequential_latencies)
     parallel_ms = median(parallel_latencies)
+
+    def percentile(values: list[float], percentile_value: float) -> float:
+        ordered = sorted(values)
+        index = min(len(ordered) - 1, int((len(ordered) - 1) * percentile_value))
+        return ordered[index]
     provenance_fields = (
         "component_id",
         "budget_id",
@@ -124,6 +129,10 @@ async def run_benchmark(
         "synthetic_delay_ms_per_call": delay_seconds * 1000,
         "sequential_median_latency_ms": round(sequential_ms, 3),
         "parallel_median_latency_ms": round(parallel_ms, 3),
+        "sequential_p50_latency_ms": round(percentile(sequential_latencies, 0.50), 3),
+        "sequential_p95_latency_ms": round(percentile(sequential_latencies, 0.95), 3),
+        "parallel_p50_latency_ms": round(percentile(parallel_latencies, 0.50), 3),
+        "parallel_p95_latency_ms": round(percentile(parallel_latencies, 0.95), 3),
         "speedup_ratio": round(sequential_ms / parallel_ms, 3),
         "result_parity": sequential_result == parallel_result,
         "provenance_parity": provenance(sequential_result) == provenance(parallel_result),
@@ -133,15 +142,43 @@ async def run_benchmark(
     }
 
 
+async def run_benchmark_grid(
+    *, delay_seconds: float = 0.02, repeats: int = 5
+) -> dict[str, object]:
+    """Run the required 1/4/8/16 by 1/2/4/8 reproducible matrix."""
+
+    rows = []
+    for component_count in (1, 4, 8, 16):
+        for concurrency in (1, 2, 4, 8):
+            rows.append(
+                await run_benchmark(
+                    component_count=component_count,
+                    concurrency=concurrency,
+                    delay_seconds=delay_seconds,
+                    repeats=repeats,
+                )
+            )
+    return {
+        "schema_version": "session13.plus.retrieval_benchmark.v2",
+        "scope": "course-scale deterministic wiring evidence",
+        "component_counts": [1, 4, 8, 16],
+        "concurrency_levels": [1, 2, 4, 8],
+        "rows": rows,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--components", type=int, default=8)
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--delay-ms", type=float, default=20.0)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--grid", action="store_true")
     args = parser.parse_args()
     result = asyncio.run(
-        run_benchmark(
+        run_benchmark_grid(delay_seconds=args.delay_ms / 1000, repeats=args.repeats)
+        if args.grid
+        else run_benchmark(
             component_count=args.components,
             concurrency=args.concurrency,
             delay_seconds=args.delay_ms / 1000,
