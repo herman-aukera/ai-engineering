@@ -14,7 +14,7 @@ request -> lexical project retrieval -> deterministic draft
 
 The live route substitutes a provider-backed draft through the existing DeepSeek/Kimi adapter seam. Normal CI does not make live calls. The current runtime is not a LangGraph graph and has no checkpoint/resume lifecycle.
 
-Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy penalties, critics, scorer, decider, repair functions, evidence classification, retrieval, and Energy Card projection. `graph_state.py` provides the versioned checkpoint-safe state contract. `graph_nodes.py` now provides provider-free interpretation and policy/constraint nodes as independently testable typed deltas. Neither module executes a graph or alters the current API runtime path.
+Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy penalties, critics, scorer, decider, repair functions, evidence classification, retrieval, and Energy Card projection. `graph_state.py` provides the versioned checkpoint-safe state contract. `graph_nodes.py` provides provider-free interpretation and policy/constraint nodes. `evidence_nodes.py` provides deterministic source-need classification plus skip, project-retrieval, and external-required routing. These remain independently testable typed deltas; none executes a graph or alters the current API runtime path.
 
 ## Verified requirement map
 
@@ -24,6 +24,7 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 | Project retrieval baseline | Deterministic committed-source retriever | verified |
 | Versioned graph state and reducers | v1 contract, fixture, focused tests | verified |
 | Interpretation and policy node contracts | Typed deltas, replay-safe application, policy parity tests | verified |
+| Evidence classification and routing nodes | Existing classifier/retriever parity, attribution and replay tests | verified |
 | LangGraph orchestration | No dependency or graph builder | missing |
 | Checkpoint resume and human gates | No runtime implementation | missing |
 | `refuse` and `escalate` dispositions | State vocabulary only; current decider has four outcomes | missing at runtime |
@@ -41,6 +42,7 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 5. Hidden chain-of-thought and sensitive evidence bodies are not checkpoint fields.
 6. The existing API remains unchanged until parity tests demonstrate graph behavior.
 7. Node trace events persist safe counts and versions, not user request or constraint text.
+8. Project retrieval cannot satisfy a current/external evidence requirement; that route waits for external evidence.
 
 ## Current claim boundary
 

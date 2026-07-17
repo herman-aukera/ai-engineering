@@ -13,7 +13,9 @@ The contract is product-local and independently testable. It deliberately does n
 | identity and version fields | request initializer | every node | persisted; identifiers are opaque | immutable |
 | `user_request`, `mode` | `interpret_request` | retrieval, generation, decision | persisted; redact before construction | replace |
 | `constraints`, `policy_version` | `load_policy_and_constraints` | critics, score, decision | persisted; redact before construction | replace |
-| `evidence_refs` | evidence node | generation, critics, card | references only; no sensitive bodies | append unique when wired |
+| `source_need` | `determine_evidence_need` | evidence routing, decision | safe classification only | replace |
+| `project_rag` | `route_evidence` | generation, attribution | project corpus content only | replace |
+| `evidence_refs` | `route_evidence` | generation, critics, card | references only; no sensitive bodies | append unique |
 | `candidate_versions` | generation/repair nodes | critics, score, decision | persisted; user-visible answer text | append by `candidate_id` |
 | `active_candidate_id` | generation/repair nodes | critics, score, decision | persisted | replace; must reference history |
 | `critic_findings` | critic panel | score, decision, repair | persisted; safe summaries only | append when IDs are added in a later contract |
@@ -32,6 +34,8 @@ The contract is product-local and independently testable. It deliberately does n
 
 `serialize_graph_state` emits canonical sorted compact JSON. `deserialize_graph_state` accepts only schema `1.0.0`. The persisted compatibility fixture is `tests/fixtures/energy_chat_graph_state_v1.json`.
 
+New optional v1 fields are additive. Canonical serialization uses the fields that were explicitly present, so loading and saving the original v1 fixture does not silently inject later optional fields. A breaking field or invariant change requires a new schema version and explicit migration.
+
 This milestone proves the contract only. Checkpoint storage, graph reducers, migrations, retention enforcement, and resume behavior remain future milestones.
 
 ## Provider-free node deltas
@@ -39,3 +43,11 @@ This milestone proves the contract only. Checkpoint storage, graph reducers, mig
 `InterpretationDelta` owns only normalized request text, explicit mode, status, and one safe trace event. `PolicyConstraintsDelta` owns only policy version, normalized constraints, status, and one safe trace event. Identity fields cannot be supplied through either strict delta contract.
 
 The application functions validate the complete resulting state. A replay against an already-applied state returns the same trace event ID and content, so the append-only reducer treats it as an idempotent retry.
+
+## Evidence routing
+
+`EvidenceNeedDelta` reuses the current deterministic source classifier. `EvidenceRoutingDelta` has three explicit routes:
+
+- `skip` when sources are unnecessary or trusted evidence already exists;
+- `retrieve_project` for missing project evidence using the deterministic committed-source retriever;
+- `external_required` for missing current/external evidence, leaving status `awaiting_evidence` without fabricating references.

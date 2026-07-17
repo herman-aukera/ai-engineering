@@ -17,6 +17,8 @@ from app.energy_chat.graph_state import (
     GraphStateRecord,
     TraceEvent,
     append_unique_records,
+    build_trace_event,
+    validated_state_update,
 )
 from app.energy_chat.policies import default_chat_lite_policy
 
@@ -43,7 +45,7 @@ def interpret_request(state: EnergyChatGraphState) -> InterpretationDelta:
     """Normalize request text while preserving the caller's explicit supported mode."""
 
     normalized_request = _normalize_space(state.user_request)
-    event = _trace_event(
+    event = build_trace_event(
         state,
         event_type="request_interpreted",
         producer="interpret_request",
@@ -64,7 +66,7 @@ def load_policy_and_constraints(state: EnergyChatGraphState) -> PolicyConstraint
 
     policy = default_chat_lite_policy()
     constraints = _normalize_constraints(state.constraints)
-    event = _trace_event(
+    event = build_trace_event(
         state,
         event_type="policy_and_constraints_loaded",
         producer="load_policy_and_constraints",
@@ -86,7 +88,7 @@ def apply_interpretation_delta(
 ) -> EnergyChatGraphState:
     """Apply interpretation-owned replacements and the append-only trace reducer."""
 
-    return _validated_update(
+    return validated_state_update(
         state,
         user_request=delta.user_request,
         mode=delta.mode,
@@ -102,7 +104,7 @@ def apply_policy_delta(
 ) -> EnergyChatGraphState:
     """Apply policy-owned replacements and the append-only trace reducer."""
 
-    return _validated_update(
+    return validated_state_update(
         state,
         policy_version=delta.policy_version,
         constraints=delta.constraints,
@@ -110,27 +112,6 @@ def apply_policy_delta(
         trace_events=append_unique_records(
             state.trace_events, delta.trace_events, id_field="event_id"
         ),
-    )
-
-
-def _trace_event(
-    state: EnergyChatGraphState,
-    *,
-    event_type: str,
-    producer: str,
-    payload: dict[str, object],
-) -> TraceEvent:
-    event_id = f"{state.trace_id}:{event_type}"
-    existing = next((event for event in state.trace_events if event.event_id == event_id), None)
-    if existing is not None:
-        return existing
-    next_sequence = max((event.sequence for event in state.trace_events), default=0) + 1
-    return TraceEvent(
-        event_id=event_id,
-        event_type=event_type,
-        producer=producer,
-        sequence=next_sequence,
-        payload=payload,
     )
 
 
@@ -148,9 +129,3 @@ def _normalize_constraints(constraints: list[str]) -> list[str]:
 
 def _normalize_space(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
-
-
-def _validated_update(state: EnergyChatGraphState, **updates: object) -> EnergyChatGraphState:
-    payload = state.model_dump(mode="python")
-    payload.update(updates)
-    return EnergyChatGraphState.model_validate(payload)

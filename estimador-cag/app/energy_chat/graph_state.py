@@ -13,7 +13,14 @@ from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.energy_chat.contracts import CriticFinding, EnergyCard, EnergyScore, Mode
+from app.energy_chat.contracts import (
+    CriticFinding,
+    EnergyCard,
+    EnergyScore,
+    Mode,
+    ProjectRagResult,
+    SourceNeedResult,
+)
 
 GRAPH_STATE_SCHEMA_VERSION = "1.0.0"
 GRAPH_STATE_CONTRACT_VERSION = "1.0.0"
@@ -22,6 +29,8 @@ GraphStatus = Literal[
     "received",
     "interpreted",
     "policy_ready",
+    "evidence_classified",
+    "awaiting_evidence",
     "evidence_ready",
     "candidate_ready",
     "evaluated",
@@ -108,6 +117,8 @@ class EnergyChatGraphState(GraphStateRecord):
     policy_version: str = Field(min_length=1)
     constraints: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
+    source_need: SourceNeedResult | None = None
+    project_rag: ProjectRagResult | None = None
     candidate_versions: list[CandidateVersion] = Field(default_factory=list)
     active_candidate_id: str | None = None
     critic_findings: list[CriticFinding] = Field(default_factory=list)
@@ -158,11 +169,51 @@ def append_unique_records(
     return result
 
 
+def append_unique_values(current: Sequence[str], incoming: Sequence[str]) -> list[str]:
+    """Append string references in stable order without duplicating retries."""
+
+    return list(dict.fromkeys([*current, *incoming]))
+
+
+def build_trace_event(
+    state: EnergyChatGraphState,
+    *,
+    event_type: str,
+    producer: str,
+    payload: dict[str, Any],
+    event_key: str | None = None,
+) -> TraceEvent:
+    """Build or reuse a deterministic node event for replay-safe tracing."""
+
+    event_id = f"{state.trace_id}:{event_key or event_type}"
+    existing = next((event for event in state.trace_events if event.event_id == event_id), None)
+    if existing is not None:
+        return existing
+    next_sequence = max((event.sequence for event in state.trace_events), default=0) + 1
+    return TraceEvent(
+        event_id=event_id,
+        event_type=event_type,
+        producer=producer,
+        sequence=next_sequence,
+        payload=payload,
+    )
+
+
+def validated_state_update(
+    state: EnergyChatGraphState, **updates: object
+) -> EnergyChatGraphState:
+    """Apply explicit replacements and validate the complete resulting state."""
+
+    payload = state.model_dump(mode="python")
+    payload.update(updates)
+    return EnergyChatGraphState.model_validate(payload)
+
+
 def serialize_graph_state(state: EnergyChatGraphState) -> str:
     """Serialize v1 state into stable canonical JSON for fixtures/checkpoints."""
 
     return json.dumps(
-        state.model_dump(mode="json"),
+        state.model_dump(mode="json", exclude_unset=True),
         sort_keys=True,
         separators=(",", ":"),
     )

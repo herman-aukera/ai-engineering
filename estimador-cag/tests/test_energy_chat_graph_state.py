@@ -79,3 +79,12 @@ def test_unknown_schema_version_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="Unsupported Energy Chat graph state schema"):
         deserialize_graph_state(json.dumps(payload))
+
+
+def test_additive_optional_fields_do_not_rewrite_older_v1_payloads() -> None:
+    payload = FIXTURE.read_text(encoding="utf-8")
+
+    serialized = serialize_graph_state(deserialize_graph_state(payload))
+
+    assert "source_need" not in json.loads(serialized)
+    assert "project_rag" not in json.loads(serialized)
