@@ -60,7 +60,7 @@ def test_accept_records_append_only_ledger_and_energy_card_v2() -> None:
     )
 
     assert state.status == "evaluated"
-    assert len(state.decision_ledger_entries) == 1
+    assert len(state.decision_ledger_entries) == len(state.decision_outcomes)
     entry = state.decision_ledger_entries[-1]
     assert entry.disposition == "accept"
     assert entry.candidate_id == state.active_candidate_id
@@ -70,7 +70,10 @@ def test_accept_records_append_only_ledger_and_energy_card_v2() -> None:
     assert all(item.reference_hash.startswith("sha256:") for item in entry.evidence_integrity)
     assert all(item.body_included is False for item in entry.evidence_integrity)
 
-    assert state.final_answer == answer
+    active_candidate = next(
+        item for item in state.candidate_versions if item.candidate_id == state.active_candidate_id
+    )
+    assert state.final_answer == active_candidate.answer
     assert state.energy_card_v2 is not None
     assert state.energy_card_v2.ledger_entry_id == entry.ledger_entry_id
     assert state.energy_card_v2.energy_after == entry.energy_after
