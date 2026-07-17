@@ -89,6 +89,8 @@ class ReviewedGraphEstimationApplication(Protocol):
         estimation_id: UUID | None = None,
         v2_profile: str | None = None,
         project_context: dict[str, object] | None = None,
+        execution_budgets: dict[str, object] | None = None,
+        execution_metadata: dict[str, object] | None = None,
     ) -> ReviewedGraphRun:
         """Start a reviewed graph and return either a pause or terminal state."""
 
@@ -200,6 +202,8 @@ class ReviewedGraphEstimationService:
         estimation_id: UUID | None = None,
         v2_profile: str | None = None,
         project_context: dict[str, object] | None = None,
+        execution_budgets: dict[str, object] | None = None,
+        execution_metadata: dict[str, object] | None = None,
     ) -> ReviewedGraphRun:
         resolved_estimation_id = str(estimation_id or uuid4())
         thread_id = thread_id_from_estimation_id(resolved_estimation_id)
@@ -215,13 +219,16 @@ class ReviewedGraphEstimationService:
                 "human_review_mode": human_review_mode,
                 "structure_review_revision": 0,
                 "final_review_revision": 0,
-                "execution_budgets": ExecutionBudgetSnapshot().model_dump(mode="json"),
+                "execution_budgets": execution_budgets
+                or ExecutionBudgetSnapshot().model_dump(mode="json"),
             }
         )
         if v2_profile is not None:
             initial_state["v2_profile"] = v2_profile
         if project_context is not None:
             initial_state["project_context"] = project_context
+        if execution_metadata is not None:
+            initial_state["execution_metadata"] = execution_metadata
         result = await self.graph.ainvoke(
             initial_state,
             config=_config(thread_id),

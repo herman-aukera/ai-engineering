@@ -59,6 +59,25 @@ async def create_estimation_v2(
         estimation_id=payload.estimation_id,
         v2_profile=payload.profile,
         project_context=payload.context.model_dump(mode="json"),
+        execution_budgets={
+            "retry_count": 0,
+            "retry_limit": policy.retry_limit,
+            "fallback_count": 0,
+            "fallback_limit": 1 if policy.fallback_provider else 0,
+            "tool_call_count": 0,
+            "tool_call_limit": policy.tool_call_limit,
+            "elapsed_ms": 0,
+            "latency_budget_ms": int(policy.timeout_seconds * 1000),
+            "estimated_cost_usd": 0.0,
+            "cost_budget_usd": policy.cost_limit_usd,
+        },
+        execution_metadata={
+            "active_provider": policy.primary_provider,
+            "fallback_provider": policy.fallback_provider,
+            "provider_failure": "none",
+            "max_concurrency": policy.max_concurrency,
+            "confidence_threshold": policy.confidence_threshold,
+        },
     )
     return _response(run)
 
@@ -234,6 +253,8 @@ async def export_estimation_v2_audit(
             run.state,
             thread_id=run.thread_id,
             checkpoint_id=checkpoint_id,
-            limitations=["V2 currently projects one task per reviewed graph component."],
+            limitations=[
+                "Graph-owned module totals are allocated across reviewed visual tasks."
+            ],
         )
     }

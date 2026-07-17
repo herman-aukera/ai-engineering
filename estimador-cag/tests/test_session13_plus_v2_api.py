@@ -121,3 +121,25 @@ def test_v2_visual_structure_keeps_multiple_tasks_and_graph_owned_total() -> Non
             20.0,
             20.0,
         ]
+
+
+def test_v2_profile_is_applied_to_runtime_budgets_not_only_displayed() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v2/estimations",
+            json={
+                "context": {
+                    "transcript": "Estimate a durable workflow with audit evidence."
+                },
+                "profile": "cost_first",
+            },
+        )
+        assert created.status_code == 200, created.text
+        estimation_id = created.json()["estimation"]["estimation_id"]
+        audit = client.get(f"/api/v2/estimations/{estimation_id}/audit").json()[
+            "packet"
+        ]
+        budgets = audit["execution"]["budgets"]
+        assert budgets["retry_limit"] == 1
+        assert budgets["tool_call_limit"] == 4
+        assert budgets["cost_budget_usd"] == 0.25
