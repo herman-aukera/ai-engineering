@@ -1,0 +1,17 @@
+policy_id: eacode-sqlite-human-interrupts
+version: 1.0.0
+owner: EACODE
+status: active
+hard_constraints:
+  in_memory_only_persistence: reject
+  unserializable_interrupt: reject
+  human_self_execution: reject
+  silent_decision_rewrite: reject
+soft_constraints: {}
+allowed_human_actions:
+  - acknowledge
+  - provide_context
+  - cancel
+non_goals:
+  - production_database
+  - execution_approval

@@ -116,6 +116,16 @@ COMMANDS: list[dict[str, Any]] = [
         "category": "ledger",
     },
     {
+        "id": "judge_graph",
+        "entrypoint": "python -m energy_core.judge_graph_cli",
+        "purpose": "Run, inspect, or resume the deterministic judge with a SQLite checkpoint database.",
+        "mutates_ledger": False,
+        "supports_dry_run": False,
+        "repo_root_supported": True,
+        "smoke": "tests/test_energy_core_judge_persistence.py",
+        "category": "orchestration",
+    },
+    {
         "id": "spec_coverage",
         "entrypoint": "python -m energy_core.cli spec-coverage",
         "purpose": "Check that the spec package has required files and bundled examples.",

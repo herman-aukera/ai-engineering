@@ -28,7 +28,7 @@ EACODE is a provider-neutral supervision product that evaluates proposed coding 
 | Deterministic critics, scorer, decider | Implemented | Unit tests and review surfaces | Established |
 | Evidence and decision ledgers | Implemented | Versioning, provenance, hashing, reference integrity, retention, trusted manifests, recovery | Phase 1 trust gate complete |
 | CLI and machine-readable reporting | Implemented | CLI modules and smoke scripts | Broad but fragmented |
-| Persistent LangGraph orchestration | Partial | Typed bounded graph, in-memory checkpoints, interrupt/resume, thread isolation | Needs on-disk persistence and explicit interrupt payload |
+| Persistent LangGraph orchestration | Implemented | Typed bounded graph, SQLite restart persistence, human interrupts, CLI, traces | Phase 2 gate complete |
 | Controlled shell evidence adapter | Missing | Explicit PR exclusion | Phase 3 |
 | Bounded repair loop | Missing | No repair orchestration | Phase 4 |
 | Live provider adapters | Missing | Explicit PR exclusion | Phase 5 |
@@ -40,8 +40,8 @@ EACODE is a provider-neutral supervision product that evaluates proposed coding 
 
 | Gap | User impact | Dependency | Priority | Exit evidence |
 |---|---|---|---|---|
-| No on-disk orchestration persistence | Runs cannot survive process restart | In-memory graph and checkpoints | P0 | SQLite restart/resume and migration tests |
-| No controlled execution | Accepted proposals cannot produce governed evidence | Stable graph | P1 | Fake-tool CI and risk-policy tests |
+| No controlled execution evidence adapter | Accepted proposals cannot produce governed execution evidence | Persistent deterministic graph | P0 | Fake-tool risk, boundary, timeout, redaction, rollback tests |
+| No dedicated product review interface | Operators lack one approval and timeline surface | Stable application services | P2 | Workflow-tested API or review console |
 | No bounded agentic repair | Repairs cannot be automated safely | Execution evidence | P1 | Budget and non-progress tests |
 | No provider-neutral actor layer | Live or fake actors lack one governed contract | Bounded repair state | P1 | Structured fake and adapter contract tests |
 | No benchmark harness | Product quality cannot be compared over time | Stable domain scenarios | P1 | Versioned cases and regression report |
@@ -105,8 +105,8 @@ Current confidence is **repository-audited, gate-unverified in this environment*
 
 ## Current checkpoint
 
-Phase 0, Phase 1, and Phase 2A are implemented locally. The deterministic judge now runs as a typed LangGraph with explicit reducers, bounded proposal/repair routing, injected in-memory checkpointing, thread/run IDs, graph/policy/spec versions, domain traces, interruption/resume, and isolated threads. It performs no shell or provider execution and delegates authorization to the Python decider. Local checkpoint commit `20c48ee` passed the complete canonical gate: Ruff, compile, boundary, 411 tests, every smoke, root compatibility, git diff, and repository cleanliness. The product is not complete.
+Phase 0, Phase 1, and Phase 2 are implemented locally. The deterministic judge now runs as a typed LangGraph with explicit reducers, bounded proposal/repair routing, thread/run IDs, graph/policy/spec versions, domain traces, SQLite checkpoint persistence, process-restart recovery, isolated threads, and JSON-safe human interrupts for clarify/escalate routes. It performs no shell or provider execution and delegates authorization to the Python decider. The Phase 2B pre-commit gate passed all functional stages with 416 tests; only the expected cleanliness guard rejected the uncommitted slice. The product is not complete.
 
 ## Next slice
 
-Phase 2B: add SQLite checkpoint persistence behind the same injected interface, prove restart/resume and migration behavior, add explicit human interrupt payloads for clarify/escalate routes, and expose a deterministic graph CLI. Do not execute shell commands or call providers.
+Phase 3A: define typed command proposals, deterministic command-risk classification, explicit allow/deny policy, working-directory boundaries, time/output/environment budgets, redaction contracts, dry-run plans, approval requirements, and fake-tool execution evidence. Do not execute real commands in CI and do not add commit or push behavior.

@@ -20,6 +20,7 @@ def test_command_catalog_lists_supported_surfaces() -> None:
     assert "demo_walkthrough" in command_ids
     assert "extraction_readiness" in command_ids
     assert "ledger_integrity" in command_ids
+    assert "judge_graph" in command_ids
     assert "nightly_status" in command_ids
     assert "candidate_readiness" in command_ids
     assert "acceptance_trace" in command_ids
@@ -47,6 +48,7 @@ def test_command_catalog_markdown_exposes_mutation_behavior() -> None:
     assert "### demo_walkthrough" in markdown
     assert "### extraction_readiness" in markdown
     assert "### ledger_integrity" in markdown
+    assert "### judge_graph" in markdown
     assert "### nightly_status" in markdown
     assert "Mutates ledger: True" in markdown
     assert "Mutates ledger: False" in markdown

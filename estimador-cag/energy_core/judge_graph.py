@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import interrupt
 
 from energy_core.decider import evaluate_candidate
 from energy_core.evidence import read_evidence_records
@@ -32,6 +33,8 @@ class JudgeState(TypedDict, total=False):
     status: Literal["accept", "repair", "reject", "escalate"]
     bounded_loop_exhausted: bool
     execution_performed: bool
+    human_reviewed: bool
+    human_response: dict[str, Any]
     trace: Annotated[list[dict[str, Any]], add]
     decisions: Annotated[list[dict[str, Any]], add]
 
@@ -65,6 +68,7 @@ def judge_input(
         "max_iterations": max_iterations,
         "bounded_loop_exhausted": False,
         "execution_performed": False,
+        "human_reviewed": False,
         "trace": [],
         "decisions": [],
     }
@@ -82,6 +86,7 @@ def build_judge_graph(
     builder.add_node("propose", _propose)
     builder.add_node("evaluate", _evaluate)
     builder.add_node("record", _record)
+    builder.add_node("human_review", _human_review)
     builder.add_node("finalize", _finalize)
     builder.add_edge(START, "initialize")
     builder.add_edge("initialize", "propose")
@@ -90,8 +95,13 @@ def build_judge_graph(
     builder.add_conditional_edges(
         "record",
         _route_after_record,
-        {"propose": "propose", "finalize": "finalize"},
+        {
+            "propose": "propose",
+            "human_review": "human_review",
+            "finalize": "finalize",
+        },
     )
+    builder.add_edge("human_review", "finalize")
     builder.add_edge("finalize", END)
     return builder.compile(
         checkpointer=checkpointer,
@@ -140,13 +150,53 @@ def _record(state: JudgeState) -> JudgeState:
     }
 
 
-def _route_after_record(state: JudgeState) -> Literal["propose", "finalize"]:
+def _route_after_record(
+    state: JudgeState,
+) -> Literal["propose", "human_review", "finalize"]:
     can_retry = (
         state["decision"]["decision"] == "repair"
         and state["iteration"] < state["max_iterations"]
         and state["iteration"] < len(state["proposals"])
     )
-    return "propose" if can_retry else "finalize"
+    if can_retry:
+        return "propose"
+    decision = state["decision"]
+    if decision["decision"] == "escalate" or (
+        decision["decision"] == "repair"
+        and decision["next_action"] == "add_required_evidence"
+    ):
+        return "human_review"
+    return "finalize"
+
+
+def _human_review(state: JudgeState) -> JudgeState:
+    decision = EnergyDecision.model_validate(state["decision"])
+    route = "escalate" if decision.decision == "escalate" else "clarify"
+    response = interrupt(
+        {
+            "kind": "human_review",
+            "route": route,
+            "run_id": state["run_id"],
+            "thread_id": state["thread_id"],
+            "decision": decision.decision,
+            "reasoning_summary": decision.reasoning_summary,
+            "required_repairs": decision.required_repairs,
+            "allowed_actions": ["acknowledge", "provide_context", "cancel"],
+            "execution_performed": False,
+        }
+    )
+    if not isinstance(response, dict) or response.get("action") not in {
+        "acknowledge",
+        "provide_context",
+        "cancel",
+    }:
+        raise ValueError("Human response must contain an allowed action.")
+    return {
+        "human_reviewed": True,
+        "human_response": dict(response),
+        "execution_performed": False,
+        "trace": [_trace("human_review", state, f"human handled {route} route")],
+    }
 
 
 def _finalize(state: JudgeState) -> JudgeState:
