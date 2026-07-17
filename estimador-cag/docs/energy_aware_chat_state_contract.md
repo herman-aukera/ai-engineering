@@ -16,8 +16,9 @@ The contract is product-local and independently testable. It deliberately does n
 | `source_need` | `determine_evidence_need` | evidence routing, decision | safe classification only | replace |
 | `project_rag` | `route_evidence` | generation, attribution | project corpus content only | replace |
 | `evidence_refs` | `route_evidence` | generation, critics, card | references only; no sensitive bodies | append unique |
-| `candidate_versions` | generation/repair nodes | critics, score, decision | persisted; user-visible answer text | append by `candidate_id` |
+| `candidate_versions` | `generate_candidate`, later repair | critics, score, decision | persisted; user-visible answer text | append by `candidate_id` |
 | `active_candidate_id` | generation/repair nodes | critics, score, decision | persisted | replace; must reference history |
+| `provider_metrics` | `generate_candidate` | budgets, observability, audit | persisted; no prompts or secrets | append by `provider_call_id` |
 | `critic_findings` | critic panel | score, decision, repair | persisted; safe summaries only | append when IDs are added in a later contract |
 | `energy_scores` | energy node | decision, card | persisted | append by `score_id` |
 | `decision_outcomes` | deterministic decider | ledger, card, terminal routing | persisted | append by `decision_id` |
@@ -51,3 +52,11 @@ The application functions validate the complete resulting state. A replay agains
 - `skip` when sources are unnecessary or trusted evidence already exists;
 - `retrieve_project` for missing project evidence using the deterministic committed-source retriever;
 - `external_required` for missing current/external evidence, leaving status `awaiting_evidence` without fabricating references.
+
+## Candidate providers and budgets
+
+`CandidateProviderRequest` carries the normalized request, mode, constraints, evidence references, optional project retrieval result, and maximum output tokens. It contains no credentials. Providers return `CandidateGenerationResult` with a visible answer, attributable references, and `ProviderMetrics`.
+
+The deterministic adapter preserves the existing local draft behavior. The baseline adapter wraps the existing DeepSeek/Kimi fallback-capable seam and measures elapsed latency. Before a delta is applied, the candidate node enforces output-token, cost, latency, and retry limits. Each candidate stores its `provider_call_id`, linking it to exactly one metrics record.
+
+Candidate and provider-call IDs are deterministic for request/version. When both records already exist, replay returns them without invoking the provider again.

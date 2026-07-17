@@ -15,8 +15,9 @@
 | 0. Recovery and baseline | complete for current checkpoint | isolated clean worktree, repository/PR/CI verified, architecture and gap map recorded |
 | 1. Versioned product-local graph state | complete | typed v1 state, reducer discipline, canonical serializer, fixture, import-boundary tests; exact-head CI green |
 | 2. Interpretation and policy nodes | complete | explicit state deltas, safe typed trace events, deterministic normalization, replay tests; exact-head CI green |
-| 3. Evidence routing | implemented; validation pending | classifier/retriever parity, skip/project/external routes, attribution and replay tests |
-| 4-5. Provider and critic/score/decision nodes | pending | preserve current behavior with parity tests |
+| 3. Evidence routing | complete | classifier/retriever parity, skip/project/external routes, attribution and replay tests; exact-head CI green |
+| 4. Candidate provider abstraction | implemented; validation pending | deterministic and baseline adapters, typed metrics, budget gates, replay protection |
+| 5. Critic, score, and decision nodes | pending | preserve evaluator behavior with candidate-linked parity tests |
 | 6. Sequential LangGraph | pending | fake-runtime path; domain truth remains outside graph |
 | 7-10. Repair, decisions, ledger/card, API compatibility | pending | bounded budgets and six dispositions |
 | 11-13. Checkpoints, human gates, PostgreSQL | pending | resume, migration, rollback, retention, redaction |
@@ -25,7 +26,7 @@
 
 ## Next exact milestone
 
-Add a typed candidate-provider abstraction with a deterministic fake/local adapter and a provider-backed adapter contract. Capture bounded token, cost, latency, retry, and fallback metrics without making live calls in CI. Preserve the current deterministic draft and live-provider seams through parity tests. Do not add LangGraph execution yet.
+Add provider-free critic, energy-score, and deterministic decision nodes tied to the active candidate ID. Preserve the current evaluator behavior through parity tests, reject stale candidate/score links, retain typed findings and outcomes, and emit safe trace events. Do not add LangGraph execution yet.
 
 ## Claim discipline
 

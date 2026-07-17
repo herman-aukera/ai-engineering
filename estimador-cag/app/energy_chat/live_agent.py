@@ -39,7 +39,7 @@ def run_live_energy_aware_chat_agent(
     )
     baseline = baseline_result or generate_deepseek_baseline_draft(
         DeepSeekBaselineRequest(
-            user_message=_build_provider_grounded_prompt(request=request, chunks=rag.results),
+            user_message=build_provider_grounded_prompt(request=request, chunks=rag.results),
             mode=request.mode,
             tier="flash",
             max_tokens=1200,
@@ -107,7 +107,7 @@ def run_live_energy_aware_chat_agent(
     )
 
 
-def _build_provider_grounded_prompt(
+def build_provider_grounded_prompt(
     *,
     request: EnergyAwareChatAgentRequest,
     chunks: list[ProjectRagChunk],

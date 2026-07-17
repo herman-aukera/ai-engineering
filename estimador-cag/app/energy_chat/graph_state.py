@@ -55,6 +55,7 @@ class CandidateVersion(GraphStateRecord):
     answer: str
     producer: str = Field(min_length=1)
     evidence_refs: list[str] = Field(default_factory=list)
+    provider_call_id: str | None = None
 
 
 class EnergyScoreRecord(GraphStateRecord):
@@ -104,6 +105,22 @@ class ErrorRecord(GraphStateRecord):
     retryable: bool = False
 
 
+class ProviderMetrics(GraphStateRecord):
+    """Bounded, checkpoint-safe facts for one candidate provider call."""
+
+    provider_call_id: str = Field(min_length=1)
+    provider: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    tier: str = Field(min_length=1)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    cost_usd: float = Field(default=0.0, ge=0.0)
+    latency_ms: int = Field(default=0, ge=0)
+    retries: int = Field(default=0, ge=0)
+    fallback_used: bool = False
+    finish_reason: str | None = None
+
+
 class EnergyChatGraphState(GraphStateRecord):
     """Authoritative v1 state for a single Energy Aware Chat request."""
 
@@ -121,6 +138,7 @@ class EnergyChatGraphState(GraphStateRecord):
     project_rag: ProjectRagResult | None = None
     candidate_versions: list[CandidateVersion] = Field(default_factory=list)
     active_candidate_id: str | None = None
+    provider_metrics: list[ProviderMetrics] = Field(default_factory=list)
     critic_findings: list[CriticFinding] = Field(default_factory=list)
     energy_scores: list[EnergyScoreRecord] = Field(default_factory=list)
     decision_outcomes: list[DecisionOutcome] = Field(default_factory=list)
