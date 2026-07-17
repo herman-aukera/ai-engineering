@@ -1,0 +1,21 @@
+{
+  "authorization_id": "replace-with-unique-id",
+  "action": "authorize",
+  "actor": "replace-with-trusted-actor",
+  "plan_hash": "replace-with-exact-64-character-plan-hash",
+  "expected_revision": 0,
+  "accepted_revision": 0,
+  "scope": {
+    "executable": "git",
+    "working_directory": "replace-with-canonical-working-directory",
+    "execution_mode": "fake",
+    "timeout_seconds": 30,
+    "max_output_chars": 512
+  },
+  "created_at": "2026-07-17T20:00:00Z",
+  "expires_at": "2026-07-17T20:10:00Z",
+  "nonce": "replace-with-one-time-nonce",
+  "reason": "Explain why this exact plan and revision are authorized.",
+  "rollback_acknowledged": true,
+  "consumed": false
+}
