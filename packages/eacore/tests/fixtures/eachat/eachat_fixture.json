@@ -1,0 +1,28 @@
+{
+  "candidate": {
+    "candidate_id": "eachat-answer-001",
+    "candidate_kind": "chat_answer",
+    "candidate_version": "2",
+    "payload_ref": "eachat://threads/demo/candidates/2"
+  },
+  "critic": {
+    "critic_id": "source-grounding",
+    "critic_version": "1.0.0",
+    "product_issue_code": "fabricated_citation",
+    "severity": "critical",
+    "summary": "Candidate contains an unsupported citation."
+  },
+  "decision": {
+    "outcome_class": "change_required",
+    "product_decision_code": "repair"
+  },
+  "evidence_refs": [
+    "eachat://evidence/source-001"
+  ],
+  "trace_actions": [
+    "candidate_generated",
+    "critic_evaluated",
+    "energy_scored",
+    "repair_requested"
+  ]
+}

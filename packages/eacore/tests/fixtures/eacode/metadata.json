@@ -1,0 +1,12 @@
+{
+  "captured_at": "2026-07-17T19:45:00Z",
+  "redaction_status": "sanitized_reference_only",
+  "source_branch": "EACODE",
+  "source_commit": "397226d2574d04e516c5c8d4b71423aa912a3d32",
+  "source_files": [
+    "estimador-cag/energy_core/models.py",
+    "estimador-cag/energy_core/record_schema.py",
+    "estimador-cag/energy_core/ledger.py"
+  ],
+  "source_project": "eacode"
+}

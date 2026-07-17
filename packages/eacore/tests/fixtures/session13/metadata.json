@@ -1,0 +1,12 @@
+{
+  "captured_at": "2026-07-17T19:45:00Z",
+  "redaction_status": "sanitized_reference_only",
+  "source_branch": "gg-session-13/plus",
+  "source_commit": "596f94d394e98c8063fcf476684f224af89cb6f5",
+  "source_files": [
+    "estimador-cag/app/schemas/review_policy.py",
+    "estimador-cag/app/generation/graph/review_state.py",
+    "estimador-cag/app/services/audit_export.py"
+  ],
+  "source_project": "session13-plus"
+}

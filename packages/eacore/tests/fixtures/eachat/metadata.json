@@ -1,0 +1,12 @@
+{
+  "captured_at": "2026-07-17T19:45:00Z",
+  "redaction_status": "sanitized_reference_only",
+  "source_branch": "EACHAT",
+  "source_commit": "6044c3d7f003a44bf69b77fd567e93f4a2267e42",
+  "source_files": [
+    "estimador-cag/app/energy_chat/contracts.py",
+    "estimador-cag/app/energy_chat/graph_state.py",
+    "estimador-cag/app/energy_chat/decision_policy.py"
+  ],
+  "source_project": "eachat"
+}

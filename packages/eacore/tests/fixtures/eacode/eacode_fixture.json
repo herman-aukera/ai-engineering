@@ -1,0 +1,28 @@
+{
+  "candidate": {
+    "candidate_id": "eacode-step-001",
+    "candidate_kind": "coding_step",
+    "candidate_version": "1",
+    "payload_ref": "eacode://runs/demo/candidates/1"
+  },
+  "critic": {
+    "critic_id": "terminal-safety",
+    "critic_version": "1.0.0",
+    "product_issue_code": "unsafe_command",
+    "severity": "critical",
+    "summary": "Proposed command is not authorized."
+  },
+  "decision": {
+    "outcome_class": "blocked",
+    "product_decision_code": "reject"
+  },
+  "evidence_refs": [
+    "eacode://evidence/policy-001"
+  ],
+  "trace_actions": [
+    "candidate_loaded",
+    "critic_evaluated",
+    "energy_scored",
+    "decision_recorded"
+  ]
+}

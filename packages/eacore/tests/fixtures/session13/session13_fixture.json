@@ -1,0 +1,28 @@
+{
+  "candidate": {
+    "candidate_id": "session13-estimate-001",
+    "candidate_kind": "project_estimate",
+    "candidate_version": "1",
+    "payload_ref": "session13://estimations/001/revision/1"
+  },
+  "critic": {
+    "critic_id": "session13-critic",
+    "critic_version": "1.0.0",
+    "product_issue_code": "conflicting_evidence",
+    "severity": "major",
+    "summary": "Budget evidence conflicts for one component."
+  },
+  "decision": {
+    "outcome_class": "human_required",
+    "product_decision_code": "human_review"
+  },
+  "evidence_refs": [
+    "session13://evidence/budget-001"
+  ],
+  "trace_actions": [
+    "structure_reviewed",
+    "evidence_retrieved",
+    "critic_reviewed",
+    "boss_decided"
+  ]
+}
