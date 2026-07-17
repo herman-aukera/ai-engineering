@@ -4,7 +4,7 @@ Status: verified at `a207d7114d386c8009fe43d5d3a54dc274c71c15`, then updated by 
 
 ## Current runtime map
 
-The deterministic `/energy-chat/chat` route calls a product-local linear function:
+The existing deterministic `/energy-chat/chat` route calls a product-local linear function:
 
 ```text
 request -> lexical project retrieval -> deterministic draft
@@ -12,7 +12,21 @@ request -> lexical project retrieval -> deterministic draft
         -> optional one-pass deterministic repair -> Energy Card
 ```
 
-The live route substitutes a provider-backed draft through the existing DeepSeek/Kimi adapter seam. Normal CI does not make live calls. The current runtime is not a LangGraph graph and has no checkpoint/resume lifecycle.
+The live route substitutes a provider-backed draft through the existing DeepSeek/Kimi adapter seam. Normal CI does not make live calls.
+
+`graph_runtime.py` now compiles the first real sequential LangGraph proof:
+
+```text
+START -> interpret_request -> load_policy_and_constraints
+      -> determine_evidence_need
+         -> skip_evidence ---------------------+
+         -> retrieve_project_evidence ---------+-> generate_candidate
+         -> await_external_evidence -> END         -> run_critic_panel
+                                                    -> calculate_energy
+                                                    -> decide_candidate -> END
+```
+
+This graph is not yet wired to the public API. It has no checkpointer, repair loop, or human interrupt lifecycle.
 
 Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy penalties, critics, scorer, decider, repair functions, evidence classification, retrieval, and Energy Card projection. `graph_state.py` provides the versioned checkpoint-safe state contract. `graph_nodes.py` provides provider-free interpretation and policy/constraint nodes. `evidence_nodes.py` provides deterministic source-need classification plus skip, project-retrieval, and external-required routing. `candidate_provider.py` defines deterministic and baseline-backed candidate adapters with observable budgets and metrics; `candidate_node.py` retains immutable candidate/provider-call history and avoids duplicate calls on replay. `evaluation_nodes.py` binds the existing critic, scoring, and decision functions to the active candidate and records immutable panel, score, and outcome history. These remain independently testable typed deltas; none executes a graph or alters the current API runtime path.
 
@@ -27,7 +41,7 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 | Evidence classification and routing nodes | Existing classifier/retriever parity, attribution and replay tests | verified |
 | Candidate provider abstraction | Local and baseline adapters, budgets, metrics, malformed output and replay tests | verified |
 | Critic, score, and decision nodes | Candidate-linked records and exact evaluator parity tests | verified |
-| LangGraph orchestration | No dependency or graph builder | missing |
+| Sequential LangGraph orchestration | Compiled graph, conditional routes, delta and parity tests | verified wiring proof |
 | Checkpoint resume and human gates | No runtime implementation | missing |
 | `refuse` and `escalate` dispositions | State vocabulary only; current decider has four outcomes | missing at runtime |
 | Typed domain trace and decision ledger | Typed trace-event state exists; no ledger writer | partial |
@@ -48,6 +62,8 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 9. A retained candidate prevents a provider call from repeating during checkpoint replay.
 10. Token, cost, latency, and retry budgets are deterministic gates over typed provider metrics.
 11. Critics, scores, and decisions fail closed unless their records reference the active candidate and policy version.
+12. LangGraph nodes return explicit field deltas; append-only runtime channels reuse domain reducer semantics.
+13. An evaluated state routes directly from `START` to `END`, preventing replay from repeating work.
 
 ## Current claim boundary
 

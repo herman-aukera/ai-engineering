@@ -88,13 +88,12 @@ def route_evidence(state: EnergyChatGraphState, *, k: int = 3) -> EvidenceRoutin
     if state.source_need is None:
         raise ValueError("Evidence need must be classified before routing")
 
-    if state.source_need.missing_evidence and state.source_need.requires_current_sources:
-        route: EvidenceRoute = "external_required"
+    route = select_evidence_route(state.source_need)
+    if route == "external_required":
         rag = None
         refs: list[str] = []
         status = "awaiting_evidence"
-    elif state.source_need.missing_evidence and state.source_need.requires_project_sources:
-        route = "retrieve_project"
+    elif route == "retrieve_project":
         rag = retrieve_project_context(
             ProjectRagRequest(query=state.user_request, mode=state.mode, k=k)
         )
@@ -123,6 +122,16 @@ def route_evidence(state: EnergyChatGraphState, *, k: int = 3) -> EvidenceRoutin
         status=status,
         trace_events=[event],
     )
+
+
+def select_evidence_route(source_need: SourceNeedResult) -> EvidenceRoute:
+    """Choose the deterministic evidence branch without performing retrieval."""
+
+    if source_need.missing_evidence and source_need.requires_current_sources:
+        return "external_required"
+    if source_need.missing_evidence and source_need.requires_project_sources:
+        return "retrieve_project"
+    return "skip"
 
 
 def apply_evidence_need_delta(

@@ -67,3 +67,11 @@ Candidate and provider-call IDs are deterministic for request/version. When both
 `run_critic_panel` reconstructs the existing `EnergyChatRequest` from the active immutable candidate and delegates to the current deterministic critics and source guard. `calculate_energy` accepts only a panel for the active candidate and records the policy version. `decide_candidate` accepts only a score for the active candidate and active policy, then delegates to the existing deterministic decider.
 
 Panel, score, and decision IDs are deterministic. Identical replay reuses retained records; conflicting content is rejected by append-only reducers. Trace payloads include IDs, counts, energy, and disposition, not hidden reasoning or full candidate text.
+
+## LangGraph runtime schema
+
+`EnergyChatRuntimeState` is the LangGraph-only `TypedDict` wiring schema. It mirrors the product-local state while annotating only true accumulating channels with plain reducer callables: evidence references, candidate versions, provider metrics, critic panels, energy scores, decisions, repairs, trace events, and errors.
+
+Singular authoritative fields retain replacement semantics. Every runtime node validates the full input through `EnergyChatGraphState`, delegates to product-local domain logic, and returns only its explicit delta. `graph_state.py` retains no LangGraph import.
+
+The compiled graph currently has no persistence. Its completed-state short circuit and retained-candidate behavior prove in-memory replay safety, not checkpoint resume across process restarts.

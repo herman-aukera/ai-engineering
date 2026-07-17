@@ -17,8 +17,8 @@
 | 2. Interpretation and policy nodes | complete | explicit state deltas, safe typed trace events, deterministic normalization, replay tests; exact-head CI green |
 | 3. Evidence routing | complete | classifier/retriever parity, skip/project/external routes, attribution and replay tests; exact-head CI green |
 | 4. Candidate provider abstraction | complete | deterministic and baseline adapters, typed metrics, budget gates, replay protection; exact-head CI green |
-| 5. Critic, score, and decision nodes | implemented; validation pending | candidate/policy linkage, evaluator parity, stale-link and replay tests |
-| 6. Sequential LangGraph | pending | fake-runtime path; domain truth remains outside graph |
+| 5. Critic, score, and decision nodes | complete | candidate/policy linkage, evaluator parity, stale-link and replay tests; exact-head CI green |
+| 6. Sequential LangGraph | implemented; validation pending | compiled graph, conditional evidence routes, explicit deltas, deterministic parity, replay short circuit |
 | 7-10. Repair, decisions, ledger/card, API compatibility | pending | bounded budgets and six dispositions |
 | 11-13. Checkpoints, human gates, PostgreSQL | pending | resume, migration, rollback, retention, redaction |
 | 14-18. Observability, retrieval, UI, providers, evaluation | pending | opt-in live evidence and fixed quality metrics |
@@ -26,7 +26,7 @@
 
 ## Next exact milestone
 
-Add the sequential LangGraph builder over Milestones 1-5 with conditional evidence routes and a complete deterministic fake-runtime path. Nodes must return explicit deltas, reducers must retain their tested semantics, and parity with the existing deterministic agent must remain green. Persistence, repair loops, and human interrupts remain later milestones.
+Add bounded repair to the graph: explicit repair requests, candidate version 2, retry and cost budget consumption, full critic/score/decision re-evaluation, no-improvement termination, and duplicate-call protection. Preserve the existing one-pass deterministic repair behavior through parity tests before changing the public API.
 
 ## Claim discipline
 
