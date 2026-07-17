@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from eacore.contracts import CompatibilityError, ManifestPathError
+from eacore.contracts import ManifestPathError
 from eacore.engine import MigrationRegistry, build_manifest
 
 

@@ -1,5 +1,3 @@
-import json
-
 import pytest
 
 from eacore.engine import candidate_fingerprint, canonical_hash, canonical_json

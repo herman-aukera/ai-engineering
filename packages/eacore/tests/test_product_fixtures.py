@@ -29,7 +29,8 @@ def test_product_fixture_maps_to_neutral_references_without_importing_product(pr
     fixture = json.loads((FIXTURES / product / f"{product}_fixture.json").read_text())
     candidate = fixture["candidate"]
     fingerprint = candidate_fingerprint(
-        candidate_kind=candidate["candidate_kind"], payload={"payload_ref": candidate["payload_ref"]}
+        candidate_kind=candidate["candidate_kind"],
+        payload={"payload_ref": candidate["payload_ref"]},
     )
     candidate_ref = CandidateRef(
         candidate_id=candidate["candidate_id"],

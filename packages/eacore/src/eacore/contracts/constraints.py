@@ -28,8 +28,9 @@ class ConstraintObservation(StrictModel):
     summary: str = Field(min_length=1, max_length=1000)
 
     @model_validator(mode="after")
-    def validate_status(self) -> "ConstraintObservation":
-        if self.status in {ObservationStatus.PASS, ObservationStatus.NOT_APPLICABLE} and self.penalty:
+    def validate_status(self) -> ConstraintObservation:
+        passing_statuses = {ObservationStatus.PASS, ObservationStatus.NOT_APPLICABLE}
+        if self.status in passing_statuses and self.penalty:
             raise ValueError("passing/not-applicable observations must have zero penalty")
         if self.required_evidence_missing and self.status != ObservationStatus.MISSING:
             raise ValueError("required_evidence_missing requires status=missing")

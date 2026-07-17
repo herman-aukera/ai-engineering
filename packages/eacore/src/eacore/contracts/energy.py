@@ -29,7 +29,7 @@ class EnergySnapshot(StrictModel):
     setup_work_justification: str | None = Field(default=None, max_length=1000)
 
     @model_validator(mode="after")
-    def validate_arithmetic(self) -> "EnergySnapshot":
+    def validate_arithmetic(self) -> EnergySnapshot:
         expected_delta = self.energy_after - self.energy_before
         if abs(expected_delta - self.energy_delta) > 1e-9:
             raise ValueError("energy_delta must equal energy_after - energy_before")

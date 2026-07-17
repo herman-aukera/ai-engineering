@@ -15,7 +15,9 @@ def canonical_hash(value: Any) -> str:
     return sha256_hex(canonical_json_bytes(value))
 
 
-def candidate_fingerprint(*, candidate_kind: str, payload: Any, parent_id: str | None = None) -> str:
+def candidate_fingerprint(
+    *, candidate_kind: str, payload: Any, parent_id: str | None = None
+) -> str:
     return canonical_hash(
         {"candidate_kind": candidate_kind, "parent_candidate_id": parent_id, "payload": payload}
     )

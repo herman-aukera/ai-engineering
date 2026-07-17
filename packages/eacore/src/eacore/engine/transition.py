@@ -45,4 +45,6 @@ def verify_transition(
         raise TransitionInvariantError("zero or positive repair delta cannot be marked improved")
 
     if decision.outcome_class == OutcomeClass.ACCEPTED and decision.authorization_ref is None:
-        raise TransitionInvariantError("accepted outcome requires independent authorization reference")
+        raise TransitionInvariantError(
+            "accepted outcome requires independent authorization reference"
+        )
