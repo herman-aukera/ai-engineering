@@ -58,6 +58,7 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
 
     human_review_mode: HumanReviewMode
     v2_profile: str
+    v2_modules: list[dict[str, object]]
     structure_review_revision: int
     structure_review_status: StructureReviewStatus
     structure_review_record: StructureReviewRecord

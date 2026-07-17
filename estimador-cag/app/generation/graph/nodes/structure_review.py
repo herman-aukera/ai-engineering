@@ -206,6 +206,7 @@ def build_structure_review_node(
                 **common_update,
                 "requirements": reviewed_requirements,
                 "components": reviewed_components,
+                "v2_modules": decision.v2_modules or [],
                 "review_required": False,
                 "structure_review_status": "edited",
                 "structure_route": "continue",
@@ -217,6 +218,7 @@ def build_structure_review_node(
                         state_delta_keys=[
                             "requirements",
                             "components",
+                            "v2_modules",
                             "review_required",
                             "structure_review_revision",
                             "structure_review_status",

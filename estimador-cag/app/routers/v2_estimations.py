@@ -103,6 +103,10 @@ def _structure_decision(payload: EstimationV2ActionRequest) -> StructureReviewDe
             "reason": payload.reason,
             "requirements": requirements,
             "components": components,
+            "v2_modules": [
+                module.model_dump(mode="json", exclude={"total_hours", "total_cost_eur"})
+                for module in payload.modules or []
+            ] or None,
         }
     )
 

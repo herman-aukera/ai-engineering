@@ -73,3 +73,51 @@ def test_v2_action_contract_rejects_wrong_gate_fields() -> None:
             },
         )
     assert response.status_code == 422
+
+
+def test_v2_visual_structure_keeps_multiple_tasks_and_graph_owned_total() -> None:
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/v2/estimations",
+            json={
+                "context": {
+                    "transcript": "Build secure authentication with an auditable event trail."
+                },
+                "profile": "human_controlled",
+            },
+        ).json()
+        estimation = created["estimation"]
+        module = estimation["modules"][0]
+        first_task = module["tasks"][0]
+        second_task = {
+            **first_task,
+            "task_id": "task:audit-report",
+            "name": "Audit report",
+        }
+        editable_module = {
+            key: value
+            for key, value in module.items()
+            if key not in {"total_hours", "total_cost_eur"}
+        }
+        edited = client.post(
+            f"/api/v2/estimations/{estimation['estimation_id']}/actions",
+            json={
+                "gate": "structure",
+                "action": "edit",
+                "expected_revision": 0,
+                "reason": "Split the reviewed module visually.",
+                "requirements": estimation["requirements"],
+                "modules": [{**editable_module, "tasks": [first_task, second_task]}],
+            },
+        )
+        assert edited.status_code == 200, edited.text
+        result = edited.json()["estimation"]
+        assert [task["task_id"] for task in result["modules"][0]["tasks"]] == [
+            "task:cmp-auth",
+            "task:audit-report",
+        ]
+        assert result["modules"][0]["total_hours"] == 40.0
+        assert [task["estimate"]["hours_expected"] for task in result["modules"][0]["tasks"]] == [
+            20.0,
+            20.0,
+        ]

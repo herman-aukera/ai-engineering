@@ -97,44 +97,85 @@ def _modules(state: Mapping[str, Any]) -> list[WorkModuleV2]:
     }
     evidence = _evidence_by_component(state)
     modules: list[WorkModuleV2] = []
-    for raw in state.get("components", []) or []:
+    v2_modules = state.get("v2_modules") or []
+    raw_modules = v2_modules if v2_modules else [
+        {
+            "module_id": item.get("component_id"),
+            "name": item.get("name"),
+            "description": None,
+            "tasks": [
+                {
+                    "task_id": f"task:{item.get('component_id')}",
+                    "name": item.get("name"),
+                    "description": None,
+                    "category": item.get("category"),
+                    "requirement_ids": item.get("requirement_ids", []),
+                }
+            ],
+        }
+        for item in state.get("components", []) or []
+        if isinstance(item, Mapping)
+    ]
+    for raw in raw_modules:
         if not isinstance(raw, Mapping):
             continue
-        component_id = str(raw.get("component_id"))
+        component_id = str(raw.get("module_id"))
         estimate = estimates.get(component_id)
-        task_estimate = None
-        if estimate:
-            expected = estimate.get("hours")
-            low = estimate.get("source_range_low")
-            high = estimate.get("source_range_high")
-            task_estimate = TaskEstimateV2(
-                hours_low=low if low is not None else expected,
-                hours_expected=expected,
-                hours_high=high if high is not None else expected,
-                hourly_rate_eur=0,
-                confidence=float(estimate.get("confidence") or 0),
-                derivation_method=estimate.get("derivation_method"),
+        raw_tasks = [item for item in raw.get("tasks", []) if isinstance(item, Mapping)]
+        weights = [
+            float((item.get("estimate") or {}).get("hours_expected") or 1)
+            for item in raw_tasks
+        ]
+        weight_total = sum(weights) or 1
+        tasks: list[TaskV2] = []
+        for raw_task, weight in zip(raw_tasks, weights, strict=True):
+            task_estimate = None
+            if estimate:
+                share = weight / weight_total
+                expected = estimate.get("hours")
+                low = estimate.get("source_range_low")
+                high = estimate.get("source_range_high")
+                if expected is not None:
+                    task_estimate = TaskEstimateV2(
+                        hours_low=round(
+                            float(low if low is not None else expected) * share, 2
+                        ),
+                        hours_expected=round(float(expected) * share, 2),
+                        hours_high=round(
+                            float(high if high is not None else expected) * share, 2
+                        ),
+                        hourly_rate_eur=float(
+                            (raw_task.get("estimate") or {}).get("hourly_rate_eur") or 0
+                        ),
+                        confidence=float(estimate.get("confidence") or 0),
+                        derivation_method="weighted_component_allocation",
+                    )
+            tasks.append(
+                TaskV2(
+                    task_id=str(raw_task.get("task_id")),
+                    name=str(raw_task.get("name") or raw_task.get("task_id")),
+                    description=raw_task.get("description"),
+                    category=str(raw_task.get("category") or "uncategorized"),
+                    requirement_ids=list(raw_task.get("requirement_ids") or []),
+                    estimate=task_estimate,
+                    evidence=evidence.get(component_id, []),
+                    active_finding_codes=[
+                        str(issue.get("code"))
+                        for issue in (state.get("critic_report", {}) or {}).get("issues", [])
+                        if isinstance(issue, Mapping)
+                        and component_id in issue.get("component_ids", [])
+                    ],
+                    review_status=str(
+                        estimate.get("grounding_status") if estimate else "pending"
+                    ),
+                )
             )
-        task = TaskV2(
-            task_id=f"task:{component_id}",
-            name=str(raw.get("name") or component_id),
-            description=None,
-            category=str(raw.get("category") or "uncategorized"),
-            requirement_ids=list(raw.get("requirement_ids") or []),
-            estimate=task_estimate,
-            evidence=evidence.get(component_id, []),
-            active_finding_codes=[
-                str(issue.get("code"))
-                for issue in (state.get("critic_report", {}) or {}).get("issues", [])
-                if isinstance(issue, Mapping) and component_id in issue.get("component_ids", [])
-            ],
-            review_status=str(estimate.get("grounding_status") if estimate else "pending"),
-        )
         modules.append(
             WorkModuleV2(
                 module_id=component_id,
                 name=str(raw.get("name") or component_id),
-                tasks=[task],
+                description=raw.get("description"),
+                tasks=tasks,
             )
         )
     return modules

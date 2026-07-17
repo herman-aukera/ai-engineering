@@ -35,6 +35,7 @@ class StructureReviewDecision(StrictReviewPayload):
     reason: str | None = Field(default=None, max_length=2000)
     requirements: list[ReviewedRequirement] | None = None
     components: list[ReviewedComponent] | None = None
+    v2_modules: list[dict[str, object]] | None = None
 
     @model_validator(mode="after")
     def validate_action_contract(self) -> StructureReviewDecision:
@@ -62,7 +63,11 @@ class StructureReviewDecision(StrictReviewPayload):
                     "reviewed components reference unknown requirements: "
                     + ", ".join(sorted(unknown_ids))
                 )
-        elif self.requirements is not None or self.components is not None:
+        elif (
+            self.requirements is not None
+            or self.components is not None
+            or self.v2_modules is not None
+        ):
             raise ValueError("only edit may include requirements or components")
 
         if self.action in {"reject", "regenerate"} and not (self.reason or "").strip():
