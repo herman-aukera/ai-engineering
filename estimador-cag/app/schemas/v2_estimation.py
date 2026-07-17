@@ -166,6 +166,8 @@ class EstimationV2(StrictV2Model):
     stage: EstimationStage
     graph_status: Literal["pending", "validated", "needs_review"]
     revision: int = Field(ge=0)
+    context: ProjectContextV2
+    reformulated_request: str
     requirements: list[RequirementV2]
     modules: list[WorkModuleV2]
     assumptions: list[str] = Field(default_factory=list)

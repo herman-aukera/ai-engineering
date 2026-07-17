@@ -88,6 +88,7 @@ class ReviewedGraphEstimationApplication(Protocol):
         human_review_mode: HumanReviewMode,
         estimation_id: UUID | None = None,
         v2_profile: str | None = None,
+        project_context: dict[str, object] | None = None,
     ) -> ReviewedGraphRun:
         """Start a reviewed graph and return either a pause or terminal state."""
 
@@ -198,6 +199,7 @@ class ReviewedGraphEstimationService:
         human_review_mode: HumanReviewMode,
         estimation_id: UUID | None = None,
         v2_profile: str | None = None,
+        project_context: dict[str, object] | None = None,
     ) -> ReviewedGraphRun:
         resolved_estimation_id = str(estimation_id or uuid4())
         thread_id = thread_id_from_estimation_id(resolved_estimation_id)
@@ -218,6 +220,8 @@ class ReviewedGraphEstimationService:
         )
         if v2_profile is not None:
             initial_state["v2_profile"] = v2_profile
+        if project_context is not None:
+            initial_state["project_context"] = project_context
         result = await self.graph.ainvoke(
             initial_state,
             config=_config(thread_id),

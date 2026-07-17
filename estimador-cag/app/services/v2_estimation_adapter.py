@@ -13,6 +13,7 @@ from app.schemas.v2_estimation import (
     EstimationV2,
     ExecutionPolicyV2,
     HumanDecisionV2,
+    ProjectContextV2,
     ProviderUsageV2,
     RequirementV2,
     ScenarioLineageV2,
@@ -224,6 +225,12 @@ def canonical_estimation_from_run(
     usage = []
     if isinstance(provider, Mapping) and provider.get("provider"):
         usage.append(ProviderUsageV2(provider=str(provider["provider"]), model=provider.get("model")))
+    raw_context = state.get("project_context")
+    context = (
+        ProjectContextV2.model_validate(raw_context)
+        if isinstance(raw_context, Mapping)
+        else ProjectContextV2(transcript=str(state.get("transcript") or ""))
+    )
     return EstimationV2(
         estimation_id=run.estimation_id,
         thread_id=run.thread_id,
@@ -233,6 +240,10 @@ def canonical_estimation_from_run(
         revision=max(
             int(state.get("structure_review_revision") or 0),
             int(state.get("final_review_revision") or 0),
+        ),
+        context=context,
+        reformulated_request=str(
+            state.get("reformulated_request") or state.get("transcript") or ""
         ),
         requirements=[
             RequirementV2.model_validate(item) for item in state.get("requirements", []) or []

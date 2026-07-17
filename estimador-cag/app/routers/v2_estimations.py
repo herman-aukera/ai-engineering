@@ -58,6 +58,7 @@ async def create_estimation_v2(
         human_review_mode=policy.human_review_mode,
         estimation_id=payload.estimation_id,
         v2_profile=payload.profile,
+        project_context=payload.context.model_dump(mode="json"),
     )
     return _response(run)
 

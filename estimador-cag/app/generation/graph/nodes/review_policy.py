@@ -325,3 +325,54 @@ def build_deterministic_boss_node() -> ReviewPolicyNode:
         return update
 
     return deterministic_boss
+
+
+def build_boss_action_node() -> ReviewPolicyNode:
+    """Apply the Boss decision as one bounded, checkpoint-safe transition."""
+
+    async def apply_boss_action(
+        state: ReviewedEstimationGraphState,
+    ) -> ReviewedEstimationGraphState:
+        decision = state.get("boss_decision", {})
+        action = str(decision.get("action", "human_review"))
+        budgets = ExecutionBudgetSnapshot.model_validate(
+            state.get("execution_budgets", {})
+        )
+        budget_update = budgets.model_dump(mode="json")
+        update: ReviewedEstimationGraphState = {
+            "boss_route": "final_review",
+        }
+
+        if action == "retry_selected":
+            budget_update["retry_count"] = budgets.retry_count + 1
+            budget_update["tool_call_count"] = budgets.tool_call_count + 1
+            update["boss_route"] = "recover"
+        elif action == "fallback_provider":
+            budget_update["fallback_count"] = budgets.fallback_count + 1
+            budget_update["tool_call_count"] = budgets.tool_call_count + 1
+            next_provider = decision.get("next_provider")
+            if isinstance(next_provider, str) and next_provider:
+                update["active_provider"] = next_provider
+            metadata = dict(state.get("execution_metadata", {}))
+            metadata["provider_failure"] = "none"
+            metadata["active_provider"] = update.get("active_provider", "")
+            update["execution_metadata"] = metadata
+            update["boss_route"] = "recover"
+        elif action == "reject":
+            update["boss_route"] = "stop"
+
+        if action in {"retry_selected", "fallback_provider"}:
+            update["execution_budgets"] = budget_update
+
+        update["trace_events"] = [
+            {
+                "event_type": f"boss_action_applied_{action}",
+                "node": "boss_action",
+                "summary": f"Applied bounded Boss transition: {action}.",
+                "evidence_refs": [str(value) for value in decision.get("issue_codes", [])],
+                "state_delta_keys": list(update),
+            }
+        ]
+        return update
+
+    return apply_boss_action

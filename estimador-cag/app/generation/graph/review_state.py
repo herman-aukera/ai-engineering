@@ -25,6 +25,7 @@ RecoveryStatus = Literal[
 ]
 RecoveryRoute = Literal["complete", "recalculate"]
 FinalReviewRoute = Literal["complete", "stop", "recover"]
+BossRoute = Literal["final_review", "recover", "stop"]
 
 
 def merge_parallel_retrieval_results(
@@ -57,6 +58,8 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     """Plus state fields layered on the frozen mandatory graph contract."""
 
     human_review_mode: HumanReviewMode
+    project_context: dict[str, object]
+    reformulated_request: str
     v2_profile: str
     v2_modules: list[dict[str, object]]
     structure_review_revision: int
@@ -72,6 +75,9 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     resolved_issue_codes: list[str]
     critic_report: dict[str, object]
     boss_decision: dict[str, object]
+    boss_route: BossRoute
+    active_provider: str
+    provider_circuits: dict[str, dict[str, object]]
     execution_budgets: dict[str, object]
     parallel_retrieval_results: Annotated[list[dict[str, object]], merge_parallel_retrieval_results]
     final_review_revision: int

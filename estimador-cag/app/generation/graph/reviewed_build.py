@@ -21,7 +21,9 @@ from app.generation.graph.nodes.parallel_retrieval import (
     build_parallel_retrieval_nodes,
     parallel_retrieval_dispatch,
 )
+from app.generation.graph.nodes.reformulate_request import build_reformulate_request_node
 from app.generation.graph.nodes.review_policy import (
+    build_boss_action_node,
     build_deterministic_boss_node,
     build_deterministic_critic_node,
 )
@@ -71,6 +73,12 @@ def _final_review_route(
     state: ReviewedEstimationGraphState,
 ) -> Literal["complete", "stop", "recover"]:
     return state.get("final_review_route", "complete")
+
+
+def _boss_route(
+    state: ReviewedEstimationGraphState,
+) -> Literal["final_review", "recover", "stop"]:
+    return state.get("boss_route", "final_review")
 
 
 def _instrument(
@@ -372,9 +380,27 @@ def build_reviewed_estimation_graph(
     )
 
     builder = StateGraph(ReviewedEstimationGraphState)
+    builder.add_node(
+        "reformulate_request",
+        _instrument(
+            graph_name=REVIEWED_GRAPH_NAME,
+            node_name="reformulate_request",
+            node=build_reformulate_request_node(),
+            tracer=tracer,
+        ),
+    )
     builder.add_node("structure_phase", structure_subgraph)
     builder.add_node("estimation_phase", estimation_subgraph)
     builder.add_node("review_policy_phase", review_policy_subgraph)
+    builder.add_node(
+        "boss_action",
+        _instrument(
+            graph_name=REVIEWED_GRAPH_NAME,
+            node_name="boss_action",
+            node=build_boss_action_node(),
+            tracer=tracer,
+        ),
+    )
     builder.add_node(
         "final_estimate_review",
         _instrument(
@@ -395,7 +421,8 @@ def build_reviewed_estimation_graph(
         ),
     )
 
-    builder.add_edge(START, "structure_phase")
+    builder.add_edge(START, "reformulate_request")
+    builder.add_edge("reformulate_request", "structure_phase")
     builder.add_conditional_edges(
         "structure_phase",
         _parent_structure_route,
@@ -405,7 +432,16 @@ def build_reviewed_estimation_graph(
         },
     )
     builder.add_edge("estimation_phase", "review_policy_phase")
-    builder.add_edge("review_policy_phase", "final_estimate_review")
+    builder.add_edge("review_policy_phase", "boss_action")
+    builder.add_conditional_edges(
+        "boss_action",
+        _boss_route,
+        {
+            "final_review": "final_estimate_review",
+            "recover": "final_recovery_phase",
+            "stop": END,
+        },
+    )
     builder.add_conditional_edges(
         "final_estimate_review",
         _final_review_route,
