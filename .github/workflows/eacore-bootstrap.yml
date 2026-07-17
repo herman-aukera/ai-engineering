@@ -34,7 +34,7 @@ jobs:
           base64 --decode /tmp/eacore-payload.b64 > /tmp/eacore-payload.tar.gz
           echo "${EXPECTED_SHA256}  /tmp/eacore-payload.tar.gz" | sha256sum --check -
 
-      - name: Extract bounded payload
+      - name: Extract bounded package source
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -49,7 +49,7 @@ jobs:
               payload.extractall(root)
           PY
 
-      - name: Normalize documentation and stage source
+      - name: Normalize and stage non-workflow source
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -60,11 +60,11 @@ jobs:
               path.write_text(normalized, encoding="utf-8")
           PY
           rm -rf .eacore-bootstrap
-          rm -f .github/workflows/eacore-bootstrap.yml
+          rm -f .github/workflows/eacore-ci.yml
           git add -A
           git diff --cached --check
 
-      - name: Commit neutral kernel
+      - name: Commit neutral kernel source
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
