@@ -53,3 +53,5 @@ jobs:
           git diff --cached --check
           git commit -m "eacore: feat(kernel): add neutral kernel 0.1"
           git push origin HEAD:EACORE
+
+# Retry marker: verified chunk hashes match the locally tested payload.
