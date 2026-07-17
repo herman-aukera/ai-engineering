@@ -1,0 +1,12 @@
+{
+  "proposal_id": "fixture-deny-rm",
+  "executable": "rm",
+  "arguments": ["-rf", "."],
+  "working_directory": ".",
+  "declared_paths": [],
+  "requested_mode": "fake",
+  "timeout_seconds": 30,
+  "max_output_chars": 12000,
+  "environment_names": [],
+  "rollback_summary": null
+}
