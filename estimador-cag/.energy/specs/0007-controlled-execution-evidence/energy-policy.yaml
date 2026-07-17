@@ -1,0 +1,43 @@
+policy_id: eacode-controlled-execution-evidence
+version: 1.0.0
+owner: EACODE
+status: active
+hard_constraints:
+  arbitrary_shell_string: reject
+  shell_interpreter: reject
+  unknown_executable: reject
+  repository_escape: reject
+  symlink_escape: reject
+  environment_value_capture: reject
+  denied_git_mutation: reject
+  executor_self_approval: reject
+  real_execution_in_ci: reject
+  automatic_commit_or_push: reject
+  missing_human_authorization: repair
+soft_constraints:
+  excessive_timeout: repair
+  excessive_output_budget: repair
+  missing_rollback_summary: repair
+allowed_fake_executables:
+  - pytest
+  - ruff
+  - python
+  - python3
+  - uv
+human_required_executables:
+  - git
+environment_allowlist:
+  - PYTHONPATH
+  - PYTHONUNBUFFERED
+budgets:
+  max_timeout_seconds: 120
+  max_output_chars: 20000
+execution_modes:
+  - dry_run
+  - fake
+non_goals:
+  - real_shell_execution
+  - execution_authorization
+  - provider_actor
+  - auto_commit
+  - auto_push
