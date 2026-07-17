@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 EvidenceStatus = Literal["pass", "fail", "missing", "conflict"]
+TrustClassification = Literal["trusted", "untrusted", "unknown"]
+RedactionStatus = Literal["not_required", "redacted", "not_redacted", "unknown"]
 Decision = Literal["accept", "repair", "reject", "escalate"]
 ConstraintDecision = Literal["reject", "repair", "repair_if_threshold_exceeded"]
 ConstraintType = Literal["hard_reject", "hard_repair", "soft", "missing_evidence", "conflict"]
@@ -65,13 +67,21 @@ class CandidateState(EnergyModel):
 
 
 class EvidenceRecord(EnergyModel):
+    schema_version: str = "1.0.0"
     evidence_id: str
+    run_id: str = "legacy"
+    recorded_at: str | None = None
     type: str
     status: EvidenceStatus
     summary: str
     trusted: bool = True
+    trust_classification: TrustClassification = "unknown"
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    redaction_status: RedactionStatus = "unknown"
     command: str | None = None
+    command_hash: str | None = None
     path: str | None = None
+    artifact_hash: str | None = None
     exit_code: int | None = None
 
 
@@ -87,6 +97,11 @@ class Violation(EnergyModel):
 
 
 class EnergyDecision(EnergyModel):
+    schema_version: str = "1.0.0"
+    decision_id: str | None = None
+    run_id: str = "legacy"
+    recorded_at: str | None = None
+    provenance: dict[str, Any] = Field(default_factory=dict)
     policy_id: str
     candidate_id: str
     decision: Decision

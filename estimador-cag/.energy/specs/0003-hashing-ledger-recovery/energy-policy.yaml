@@ -1,0 +1,14 @@
+policy_id: eacode-hashing-ledger-recovery
+version: 1.0.0
+owner: EACODE
+status: active
+hard_constraints:
+  unknown_evidence_type: reject
+  malformed_claimed_hash: reject
+  in_place_recovery: reject
+  overwrite_recovery_output: reject
+soft_constraints: {}
+hash_algorithm: sha256
+non_goals:
+  - cryptographic_authenticity
+  - automatic_semantic_repair

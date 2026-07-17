@@ -1,0 +1,2 @@
+{"evidence_id":"fixture-valid","type":"pytest_output","status":"pass","summary":"valid recovery fixture"}
+{"evidence_id":"fixture-broken","type":"pytest_output","status":"unsupported","summary":"invalid recovery fixture"}

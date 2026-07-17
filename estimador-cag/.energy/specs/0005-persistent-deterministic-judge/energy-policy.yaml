@@ -1,0 +1,15 @@
+policy_id: eacode-persistent-deterministic-judge
+version: 1.0.0
+owner: EACODE
+status: active
+graph_version: 1.0.0
+hard_constraints:
+  shell_execution: reject
+  provider_call: reject
+  duplicated_decision_policy: reject
+  unbounded_iteration: reject
+  missing_thread_id: reject
+soft_constraints: {}
+non_goals:
+  - production_checkpointer
+  - controlled_execution

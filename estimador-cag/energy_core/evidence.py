@@ -7,6 +7,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from energy_core.models import EvidenceRecord
+from energy_core.record_schema import migrate_evidence_payload
 
 
 class EvidenceLoadError(ValueError):
@@ -36,7 +37,7 @@ def read_evidence_records(path: str | Path) -> list[EvidenceRecord]:
                 f"Evidence line {line_number} must be an object: {evidence_path}"
             )
         try:
-            records.append(EvidenceRecord.model_validate(payload))
+            records.append(EvidenceRecord.model_validate(migrate_evidence_payload(payload)))
         except ValidationError as exc:
             raise EvidenceLoadError(
                 f"Evidence line {line_number} does not match the Energy Aware Code evidence schema. "

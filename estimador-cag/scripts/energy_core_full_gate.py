@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,8 +45,13 @@ def _repo_command(label: str, argv: tuple[str, ...]) -> GateCommand:
     return GateCommand(label, _repo_root(), argv)
 
 
+def _python_command(*argv: str) -> tuple[str, ...]:
+    """Run tools through the active project interpreter on every platform."""
+
+    return (sys.executable, *argv)
+
+
 def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
-    repo_root = _repo_root()
     project_root = _project_root()
     py_files = _python_files(project_root)
 
@@ -54,9 +60,8 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
         commands.append(
             _project_command(
                 "Ruff autofix",
-                (
-                    "uv",
-                    "run",
+                _python_command(
+                    "-m",
                     "ruff",
                     "check",
                     "--fix",
@@ -70,43 +75,40 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
         [
             _project_command(
                 "Ruff check",
-                ("uv", "run", "ruff", "check", "energy_core", "tests", "scripts"),
+                _python_command("-m", "ruff", "check", "energy_core", "tests", "scripts"),
             ),
             _project_command(
                 "Python compile",
-                ("uv", "run", "python", "-m", "py_compile", *py_files),
+                _python_command("-m", "py_compile", *py_files),
             ),
             _project_command(
                 "Energy Core boundary",
-                ("uv", "run", "python", "scripts/energy_core_boundary_check.py"),
+                _python_command("scripts/energy_core_boundary_check.py"),
             ),
-            _project_command("Pytest", ("uv", "run", "pytest", "-q")),
+            _project_command("Pytest", _python_command("-m", "pytest", "-q")),
             _project_command(
                 "Energy Core smoke",
-                ("uv", "run", "python", "scripts/energy_core_smoke.py"),
+                _python_command("scripts/energy_core_smoke.py"),
             ),
             _project_command(
                 "Energy Core example smoke",
-                ("uv", "run", "python", "scripts/energy_core_example_smoke.py"),
+                _python_command("scripts/energy_core_example_smoke.py"),
             ),
             _project_command(
                 "Energy Core constraint smoke",
-                ("uv", "run", "python", "scripts/energy_core_constraint_smoke.py"),
+                _python_command("scripts/energy_core_constraint_smoke.py"),
             ),
             _project_command(
                 "Energy Core critic coverage smoke",
-                ("uv", "run", "python", "scripts/energy_core_critic_coverage_smoke.py"),
+                _python_command("scripts/energy_core_critic_coverage_smoke.py"),
             ),
             _project_command(
                 "Energy Core ledger integrity smoke",
-                ("uv", "run", "python", "scripts/energy_core_ledger_integrity_smoke.py"),
+                _python_command("scripts/energy_core_ledger_integrity_smoke.py"),
             ),
             _project_command(
                 "Energy Core nightly status smoke",
-                (
-                    "uv",
-                    "run",
-                    "python",
+                _python_command(
                     "-m",
                     "energy_core.nightly_status_cli",
                     "--project-root",
@@ -118,49 +120,46 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
             ),
             _project_command(
                 "Energy Core release smoke",
-                ("uv", "run", "python", "scripts/energy_core_release_smoke.py"),
+                _python_command("scripts/energy_core_release_smoke.py"),
             ),
             _project_command(
                 "Energy Core schema smoke",
-                ("uv", "run", "python", "scripts/energy_core_schema_smoke.py"),
+                _python_command("scripts/energy_core_schema_smoke.py"),
             ),
             _project_command(
                 "Energy Core package smoke",
-                ("uv", "run", "python", "scripts/energy_core_package_smoke.py"),
+                _python_command("scripts/energy_core_package_smoke.py"),
             ),
             _project_command(
                 "Energy Core reviewer smoke",
-                ("uv", "run", "python", "scripts/energy_core_reviewer_smoke.py"),
+                _python_command("scripts/energy_core_reviewer_smoke.py"),
             ),
             _project_command(
                 "Energy Core command catalog smoke",
-                (
-                    "uv",
-                    "run",
-                    "python",
+                _python_command(
                     "scripts/energy_core_command_catalog_smoke.py",
                 ),
             ),
             _project_command(
                 "Energy Core review pack smoke",
-                ("uv", "run", "python", "scripts/energy_core_review_pack_smoke.py"),
+                _python_command("scripts/energy_core_review_pack_smoke.py"),
             ),
             _project_command(
                 "Energy Core closeout pack smoke",
-                ("uv", "run", "python", "scripts/energy_core_closeout_pack_smoke.py"),
+                _python_command("scripts/energy_core_closeout_pack_smoke.py"),
             ),
             _project_command(
                 "Energy Core scaffold smoke",
-                ("uv", "run", "python", "scripts/energy_core_scaffold_smoke.py"),
+                _python_command("scripts/energy_core_scaffold_smoke.py"),
             ),
             _project_command(
                 "Energy Core export plan smoke",
-                ("uv", "run", "python", "scripts/energy_core_export_plan_smoke.py"),
+                _python_command("scripts/energy_core_export_plan_smoke.py"),
             ),
             _repo_command(
                 "Energy Core root smoke",
                 (
-                    str(repo_root / "estimador-cag/.venv/bin/python"),
+                    sys.executable,
                     "scripts/energy_core_root_smoke.py",
                 ),
             ),

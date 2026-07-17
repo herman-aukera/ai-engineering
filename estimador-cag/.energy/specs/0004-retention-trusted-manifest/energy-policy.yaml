@@ -1,0 +1,16 @@
+policy_id: eacode-retention-trusted-manifest
+version: 1.0.0
+owner: EACODE
+status: active
+retention:
+  release_days: null
+  audit_days: 365
+  transient_days: 30
+hard_constraints:
+  automatic_deletion: reject
+  manifest_root_escape: reject
+  manifest_overwrite: reject
+  manifest_mismatch: reject
+non_goals:
+  - signing_key_management
+  - legal_retention_advice

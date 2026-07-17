@@ -122,7 +122,7 @@ def test_cli_runs_from_repository_root() -> None:
 
     completed = subprocess.run(
         [
-            repo_root / "estimador-cag" / ".venv" / "bin" / "python",
+            sys.executable,
             "-m",
             "energy_core.ledger_integrity_cli",
             "--ledger",

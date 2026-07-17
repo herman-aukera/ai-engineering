@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from energy_core.models import CandidateState, EnergyPolicy
+import re
+
+from energy_core.models import CandidateState, EnergyPolicy, EvidenceRecord
 
 _REQUIRED_HARD_CONSTRAINTS = {
     "tests_failed",
@@ -19,6 +21,8 @@ _REQUIRED_EVIDENCE_TYPES = {
     "secret_scan_output",
     "git_diff",
 }
+
+_SHA256_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def validate_policy(policy: EnergyPolicy) -> dict[str, object]:
@@ -117,4 +121,51 @@ def validate_candidate_state(policy: EnergyPolicy, candidate: CandidateState) ->
         "unknown_soft_flags": unknown_soft_flags,
         "validation_claims": sorted(candidate.validation_claims),
         "scope_claims": sorted(candidate.scope_claims),
+    }
+
+
+def validate_evidence_records(
+    policy: EnergyPolicy,
+    records: list[EvidenceRecord],
+) -> dict[str, object]:
+    """Validate evidence types and any claimed byte-derived hashes."""
+
+    unknown_evidence_types = sorted(
+        {record.type for record in records if record.type not in policy.evidence_types}
+    )
+    duplicate_evidence_ids = sorted(
+        evidence_id
+        for evidence_id in {record.evidence_id for record in records}
+        if sum(record.evidence_id == evidence_id for record in records) > 1
+    )
+    invalid_hashes = [
+        {"evidence_id": record.evidence_id, "field": field, "value": value}
+        for record in records
+        for field, value in (
+            ("command_hash", record.command_hash),
+            ("artifact_hash", record.artifact_hash),
+        )
+        if value is not None and not _SHA256_PATTERN.fullmatch(value)
+    ]
+    missing_hashes = [
+        {"evidence_id": record.evidence_id, "field": field}
+        for record in records
+        for field, value in (
+            ("command_hash", record.command_hash if record.command else "not-required"),
+            ("artifact_hash", record.artifact_hash if record.path else "not-required"),
+        )
+        if value is None
+    ]
+    return {
+        "complete": not (
+            unknown_evidence_types
+            or duplicate_evidence_ids
+            or invalid_hashes
+            or missing_hashes
+        ),
+        "record_total": len(records),
+        "unknown_evidence_types": unknown_evidence_types,
+        "duplicate_evidence_ids": duplicate_evidence_ids,
+        "invalid_hashes": invalid_hashes,
+        "missing_hashes": missing_hashes,
     }

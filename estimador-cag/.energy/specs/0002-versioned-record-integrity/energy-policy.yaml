@@ -1,0 +1,13 @@
+policy_id: eacode-versioned-record-integrity
+version: 1.0.0
+owner: EACODE
+status: active
+hard_constraints:
+  duplicate_decision_id: reject
+  duplicate_evidence_id: reject
+  dangling_evidence_reference: reject
+soft_constraints:
+  legacy_unversioned_record: migrate_in_memory
+non_goals:
+  - cryptographic_tamper_proof
+  - automatic_historical_rewrite

@@ -12,6 +12,7 @@ from energy_core.ledger_integrity import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LEDGER = Path(".energy/specs/0001-energy-policy-ledger/decisions.jsonl")
+DEFAULT_EVIDENCE = Path(".energy/specs/0001-energy-policy-ledger/evidence.jsonl")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -19,6 +20,11 @@ def main(argv: list[str] | None = None) -> int:
         description="Inspect Energy Core decision ledger integrity without mutation."
     )
     parser.add_argument("--ledger", default=str(DEFAULT_LEDGER))
+    parser.add_argument(
+        "--evidence",
+        default=str(DEFAULT_EVIDENCE),
+        help="Evidence JSONL used to validate decision evidence references.",
+    )
     parser.add_argument("--format", choices=["text", "json", "markdown"], default="text")
     parser.add_argument(
         "--fail-on-invalid",
@@ -27,7 +33,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    report = build_ledger_integrity(_resolve_path(args.ledger))
+    report = build_ledger_integrity(
+        _resolve_path(args.ledger),
+        evidence_path=_resolve_path(args.evidence),
+    )
 
     if args.format == "json":
         print(json.dumps(report, indent=2, sort_keys=True))

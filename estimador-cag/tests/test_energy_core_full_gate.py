@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from scripts.energy_core_full_gate import build_gate_commands
 
 
@@ -40,5 +42,5 @@ def test_full_gate_runs_from_project_and_repo_roots() -> None:
     by_label = {command.label: command for command in commands}
 
     assert by_label["Pytest"].cwd.name == "estimador-cag"
-    assert by_label["Energy Core root smoke"].cwd.name == "ai-engineering"
-    assert by_label["Git status check"].cwd.name == "ai-engineering"
+    assert by_label["Energy Core root smoke"].cwd == Path(__file__).resolve().parents[2]
+    assert by_label["Git status check"].cwd == Path(__file__).resolve().parents[2]

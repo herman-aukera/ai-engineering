@@ -47,7 +47,7 @@ def main() -> int:
 
     root_text = _run(
         [
-            repo_root / "estimador-cag" / ".venv" / "bin" / "python",
+            sys.executable,
             "-m",
             "energy_core.command_catalog_cli",
             "--format",

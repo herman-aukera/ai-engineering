@@ -32,7 +32,7 @@ def test_reviewer_cli_outputs_markdown_from_repository_root() -> None:
 
     completed = subprocess.run(
         [
-            str(project_root / ".venv" / "bin" / "python"),
+            sys.executable,
             "-m",
             "energy_core.reviewer_cli",
             "--project-root",
