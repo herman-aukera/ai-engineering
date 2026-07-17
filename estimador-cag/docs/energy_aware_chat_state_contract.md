@@ -24,6 +24,9 @@ The contract is product-local and independently testable. It deliberately does n
 | `energy_scores` | `calculate_energy` | decision, card | persisted; candidate and policy linked | append by `score_id` |
 | `decision_outcomes` | `decide_candidate` | ledger, card, terminal routing | persisted; candidate and score linked | append by `decision_id` |
 | `repair_requests` | deterministic decider | repair node | persisted | append by `repair_id` |
+| `repair_results` | repair finalizer | audit, terminal routing | persisted | append by `result_id` |
+| `retry_budget` | repair application | decision router, repair nodes | persisted | replace after deterministic consumption |
+| `cost_budget` | candidate generation | provider gate, audit | persisted; numeric totals only | replace after provider call |
 | `trace_events` | every node | audit/observability | safe payloads only; no hidden reasoning | append by `event_id` |
 | `errors` | failing node boundary | retry/terminal routing | safe projection, no secrets | append by `error_id` |
 | `final_answer`, `energy_card`, `status` | terminal projection nodes | API/UI | user-safe | replace |
@@ -75,3 +78,11 @@ Panel, score, and decision IDs are deterministic. Identical replay reuses retain
 Singular authoritative fields retain replacement semantics. Every runtime node validates the full input through `EnergyChatGraphState`, delegates to product-local domain logic, and returns only its explicit delta. `graph_state.py` retains no LangGraph import.
 
 The compiled graph currently has no persistence. Its completed-state short circuit and retained-candidate behavior prove in-memory replay safety, not checkpoint resume across process restarts.
+
+## Bounded repair lifecycle
+
+`plan_repair` accepts only the active candidate's `repair` disposition and creates an explicit `RepairRequest` containing source decision, target candidate ID, instructions, proposed visible answer, and applied repair identifiers. The default strategy delegates to the existing deterministic one-pass repair helper.
+
+`apply_repair` creates the next immutable candidate version and consumes exactly one `RetryBudget` attempt. It makes no provider call and therefore adds no cost. The graph then runs the complete critic, score, and decision sequence again.
+
+`finalize_repair` records a `RepairResultRecord` with before/after energy and one of `improved`, `no_improvement`, `budget_exhausted`, or `not_repairable`. Cumulative provider cost is charged once by candidate generation through `CostBudget`; per-call provider limits remain independently enforced.

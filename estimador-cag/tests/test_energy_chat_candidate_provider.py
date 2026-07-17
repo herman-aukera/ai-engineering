@@ -12,7 +12,7 @@ from app.energy_chat.candidate_provider import (
     ProviderMetrics,
 )
 from app.energy_chat.contracts import EnergyAwareChatAgentRequest, ProjectRagRequest
-from app.energy_chat.graph_state import EnergyChatGraphState
+from app.energy_chat.graph_state import CostBudget, EnergyChatGraphState
 from app.energy_chat.rag import retrieve_project_context
 
 
@@ -109,6 +109,30 @@ def test_candidate_node_enforces_cost_budget_before_state_application() -> None:
             _state(),
             provider=ExpensiveProvider(),
             budget=ProviderBudget(max_cost_usd=0.01),
+        )
+
+
+def test_candidate_node_enforces_cumulative_graph_cost_budget() -> None:
+    class CumulativeProvider:
+        def generate(self, request: CandidateProviderRequest) -> CandidateGenerationResult:
+            return CandidateGenerationResult(
+                answer="Decision: candidate. Next action: stop.",
+                metrics=ProviderMetrics(
+                    provider_call_id=request.provider_call_id,
+                    provider="fake",
+                    model="cumulative",
+                    tier="local",
+                    cost_usd=0.02,
+                    latency_ms=1,
+                ),
+            )
+
+    state = _state().model_copy(update={"cost_budget": CostBudget(limit_usd=0.01)})
+    with pytest.raises(ProviderBudgetExceededError, match="Cumulative"):
+        generate_candidate(
+            state,
+            provider=CumulativeProvider(),
+            budget=ProviderBudget(max_cost_usd=0.05),
         )
 
 

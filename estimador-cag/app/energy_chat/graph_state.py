@@ -36,6 +36,7 @@ GraphStatus = Literal[
     "criticized",
     "scored",
     "evaluated",
+    "repair_requested",
     "awaiting_human",
     "completed",
     "failed",
@@ -96,6 +97,56 @@ class RepairRequest(GraphStateRecord):
     repair_id: str = Field(min_length=1)
     candidate_id: str = Field(min_length=1)
     instructions: list[str] = Field(min_length=1)
+    source_decision_id: str | None = None
+    target_candidate_id: str | None = None
+    proposed_answer: str | None = None
+    repairs_applied: list[str] = Field(default_factory=list)
+
+
+class RepairResultRecord(GraphStateRecord):
+    """Terminal assessment of one bounded repair cycle."""
+
+    result_id: str = Field(min_length=1)
+    repair_id: str = Field(min_length=1)
+    source_candidate_id: str = Field(min_length=1)
+    target_candidate_id: str = Field(min_length=1)
+    energy_before: int = Field(ge=0)
+    energy_after: int = Field(ge=0)
+    outcome: Literal["improved", "no_improvement", "budget_exhausted", "not_repairable"]
+
+
+class RetryBudget(GraphStateRecord):
+    """Authoritative bounded repair-attempt budget."""
+
+    max_attempts: int = Field(default=1, ge=0, le=8)
+    attempts_used: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def attempts_cannot_exceed_limit(self) -> RetryBudget:
+        if self.attempts_used > self.max_attempts:
+            raise ValueError("Repair attempts exceed retry budget")
+        return self
+
+    @property
+    def remaining(self) -> int:
+        return self.max_attempts - self.attempts_used
+
+
+class CostBudget(GraphStateRecord):
+    """Cumulative provider-cost budget across the graph lifecycle."""
+
+    limit_usd: float = Field(default=0.10, ge=0.0)
+    spent_usd: float = Field(default=0.0, ge=0.0)
+
+    @model_validator(mode="after")
+    def spend_cannot_exceed_limit(self) -> CostBudget:
+        if self.spent_usd > self.limit_usd + 1e-12:
+            raise ValueError("Provider spend exceeds cost budget")
+        return self
+
+    @property
+    def remaining_usd(self) -> float:
+        return max(0.0, self.limit_usd - self.spent_usd)
 
 
 class TraceEvent(GraphStateRecord):
@@ -157,6 +208,9 @@ class EnergyChatGraphState(GraphStateRecord):
     energy_scores: list[EnergyScoreRecord] = Field(default_factory=list)
     decision_outcomes: list[DecisionOutcome] = Field(default_factory=list)
     repair_requests: list[RepairRequest] = Field(default_factory=list)
+    repair_results: list[RepairResultRecord] = Field(default_factory=list)
+    retry_budget: RetryBudget = Field(default_factory=RetryBudget)
+    cost_budget: CostBudget = Field(default_factory=CostBudget)
     trace_events: list[TraceEvent] = Field(default_factory=list)
     errors: list[ErrorRecord] = Field(default_factory=list)
     final_answer: str | None = None

@@ -11,10 +11,12 @@ from app.energy_chat.candidate_provider import (
     CandidateProvider,
     CandidateProviderRequest,
     ProviderBudget,
+    ProviderBudgetExceededError,
     enforce_provider_budget,
 )
 from app.energy_chat.graph_state import (
     CandidateVersion,
+    CostBudget,
     EnergyChatGraphState,
     GraphStateRecord,
     ProviderMetrics,
@@ -33,6 +35,7 @@ class CandidateDelta(GraphStateRecord):
     active_candidate_id: str = Field(min_length=1)
     provider_metrics: list[ProviderMetrics] = Field(min_length=1, max_length=1)
     evidence_refs: list[str] = Field(default_factory=list)
+    cost_budget: CostBudget
     status: Literal["candidate_ready"] = "candidate_ready"
     trace_events: list[TraceEvent] = Field(min_length=1, max_length=1)
 
@@ -69,6 +72,7 @@ def generate_candidate(
             evidence_refs=retained.evidence_refs,
             metrics=metrics,
         )
+        updated_cost_budget = state.cost_budget
     else:
         raw_result = provider.generate(
             CandidateProviderRequest(
@@ -85,6 +89,10 @@ def generate_candidate(
         if result.metrics.provider_call_id != provider_call_id:
             raise ValueError("Candidate provider returned mismatched provider_call_id")
         enforce_provider_budget(result.metrics, active_budget)
+        next_spend = state.cost_budget.spent_usd + result.metrics.cost_usd
+        if next_spend > state.cost_budget.limit_usd + 1e-12:
+            raise ProviderBudgetExceededError("Cumulative provider cost budget exceeded")
+        updated_cost_budget = state.cost_budget.model_copy(update={"spent_usd": next_spend})
         retained = CandidateVersion(
             candidate_id=candidate_id,
             version=version,
@@ -111,6 +119,7 @@ def generate_candidate(
         active_candidate_id=candidate_id,
         provider_metrics=[result.metrics],
         evidence_refs=retained.evidence_refs,
+        cost_budget=updated_cost_budget,
         trace_events=[event],
     )
 
@@ -130,6 +139,7 @@ def apply_candidate_delta(
             state.provider_metrics, delta.provider_metrics, id_field="provider_call_id"
         ),
         evidence_refs=append_unique_values(state.evidence_refs, delta.evidence_refs),
+        cost_budget=delta.cost_budget,
         status=delta.status,
         trace_events=append_unique_records(
             state.trace_events, delta.trace_events, id_field="event_id"

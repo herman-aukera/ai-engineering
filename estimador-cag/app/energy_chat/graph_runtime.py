@@ -29,6 +29,7 @@ from app.energy_chat.evidence_nodes import (
 from app.energy_chat.graph_nodes import interpret_request, load_policy_and_constraints
 from app.energy_chat.graph_state import (
     CandidateVersion,
+    CostBudget,
     CriticPanelRecord,
     DecisionOutcome,
     EnergyChatGraphState,
@@ -37,9 +38,17 @@ from app.energy_chat.graph_state import (
     GraphStatus,
     ProviderMetrics,
     RepairRequest,
+    RepairResultRecord,
+    RetryBudget,
     TraceEvent,
     append_unique_records,
     append_unique_values,
+)
+from app.energy_chat.repair_nodes import (
+    RepairStrategy,
+    apply_repair,
+    finalize_repair,
+    plan_repair,
 )
 
 
@@ -83,6 +92,12 @@ def _reduce_repairs(
     return append_unique_records(current, incoming, id_field="repair_id")
 
 
+def _reduce_repair_results(
+    current: list[RepairResultRecord], incoming: list[RepairResultRecord]
+) -> list[RepairResultRecord]:
+    return append_unique_records(current, incoming, id_field="result_id")
+
+
 def _reduce_trace_events(
     current: list[TraceEvent], incoming: list[TraceEvent]
 ) -> list[TraceEvent]:
@@ -118,6 +133,9 @@ class EnergyChatRuntimeState(TypedDict):
     energy_scores: Annotated[list[EnergyScoreRecord], _reduce_energy_scores]
     decision_outcomes: Annotated[list[DecisionOutcome], _reduce_decisions]
     repair_requests: Annotated[list[RepairRequest], _reduce_repairs]
+    repair_results: Annotated[list[RepairResultRecord], _reduce_repair_results]
+    retry_budget: RetryBudget
+    cost_budget: CostBudget
     trace_events: Annotated[list[TraceEvent], _reduce_trace_events]
     errors: Annotated[list[ErrorRecord], _reduce_errors]
     final_answer: str | None
@@ -129,8 +147,9 @@ def build_energy_chat_graph(
     *,
     provider: CandidateProvider | None = None,
     budget: ProviderBudget | None = None,
+    repair_strategy: RepairStrategy | None = None,
 ):
-    """Compile the provider-injected sequential graph without persistence or repair loops."""
+    """Compile the provider-injected sequential graph with one bounded repair loop."""
 
     active_provider = provider or DeterministicCandidateProvider()
     active_budget = budget or ProviderBudget()
@@ -188,6 +207,7 @@ def build_energy_chat_graph(
             "active_candidate_id": delta.active_candidate_id,
             "provider_metrics": delta.provider_metrics,
             "evidence_refs": delta.evidence_refs,
+            "cost_budget": delta.cost_budget,
             "status": delta.status,
             "trace_events": delta.trace_events,
         }
@@ -217,6 +237,33 @@ def build_energy_chat_graph(
             "trace_events": delta.trace_events,
         }
 
+    def repair_plan_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
+        delta = plan_repair(_domain_state(state), strategy=repair_strategy)
+        return {
+            "repair_requests": delta.repair_requests,
+            "repair_results": delta.repair_results,
+            "status": delta.status,
+            "trace_events": delta.trace_events,
+        }
+
+    def repair_apply_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
+        delta = apply_repair(_domain_state(state))
+        return {
+            "candidate_versions": delta.candidate_versions,
+            "active_candidate_id": delta.active_candidate_id,
+            "retry_budget": delta.retry_budget,
+            "status": delta.status,
+            "trace_events": delta.trace_events,
+        }
+
+    def repair_finalize_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
+        delta = finalize_repair(_domain_state(state))
+        return {
+            "repair_results": delta.repair_results,
+            "status": delta.status,
+            "trace_events": delta.trace_events,
+        }
+
     builder.add_node("interpret_request", interpret_node)
     builder.add_node("load_policy_and_constraints", policy_node)
     builder.add_node("determine_evidence_need", evidence_need_node)
@@ -235,6 +282,9 @@ def build_energy_chat_graph(
     builder.add_node("run_critic_panel", critic_node)
     builder.add_node("calculate_energy", score_node)
     builder.add_node("decide_candidate", decision_node)
+    builder.add_node("plan_repair", repair_plan_node)
+    builder.add_node("apply_repair", repair_apply_node)
+    builder.add_node("finalize_repair", repair_finalize_node)
 
     builder.add_conditional_edges(
         START,
@@ -258,7 +308,18 @@ def build_energy_chat_graph(
     builder.add_edge("generate_candidate", "run_critic_panel")
     builder.add_edge("run_critic_panel", "calculate_energy")
     builder.add_edge("calculate_energy", "decide_candidate")
-    builder.add_edge("decide_candidate", END)
+    builder.add_conditional_edges(
+        "decide_candidate",
+        _decision_route,
+        {"end": END, "repair": "plan_repair", "finalize": "finalize_repair"},
+    )
+    builder.add_conditional_edges(
+        "plan_repair",
+        _repair_plan_route,
+        {"apply": "apply_repair", "end": END},
+    )
+    builder.add_edge("apply_repair", "run_critic_panel")
+    builder.add_edge("finalize_repair", END)
     return builder.compile()
 
 
@@ -267,12 +328,13 @@ def run_energy_chat_graph(
     *,
     provider: CandidateProvider | None = None,
     budget: ProviderBudget | None = None,
+    repair_strategy: RepairStrategy | None = None,
 ) -> EnergyChatGraphState:
     """Run the sequential graph and validate its complete domain state output."""
 
-    result = build_energy_chat_graph(provider=provider, budget=budget).invoke(
-        _runtime_payload(state)
-    )
+    result = build_energy_chat_graph(
+        provider=provider, budget=budget, repair_strategy=repair_strategy
+    ).invoke(_runtime_payload(state))
     return EnergyChatGraphState.model_validate(result)
 
 
@@ -285,6 +347,29 @@ def _evidence_route(state: EnergyChatRuntimeState) -> EvidenceRoute:
     if source_need is None:
         raise ValueError("Evidence need is missing at the conditional route")
     return select_evidence_route(source_need)
+
+
+def _decision_route(state: EnergyChatRuntimeState) -> Literal["end", "repair", "finalize"]:
+    domain_state = _domain_state(state)
+    active_candidate_id = domain_state.active_candidate_id
+    decision = next(
+        item
+        for item in reversed(domain_state.decision_outcomes)
+        if item.candidate_id == active_candidate_id
+    )
+    repaired_candidate = any(
+        request.target_candidate_id == active_candidate_id
+        for request in domain_state.repair_requests
+    )
+    if repaired_candidate:
+        return "finalize"
+    if decision.disposition == "repair":
+        return "repair" if domain_state.retry_budget.remaining > 0 else "finalize"
+    return "end"
+
+
+def _repair_plan_route(state: EnergyChatRuntimeState) -> Literal["apply", "end"]:
+    return "apply" if state["status"] == "repair_requested" else "end"
 
 
 def _domain_state(state: EnergyChatRuntimeState) -> EnergyChatGraphState:

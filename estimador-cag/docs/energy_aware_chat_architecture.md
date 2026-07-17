@@ -23,10 +23,17 @@ START -> interpret_request -> load_policy_and_constraints
          -> retrieve_project_evidence ---------+-> generate_candidate
          -> await_external_evidence -> END         -> run_critic_panel
                                                     -> calculate_energy
-                                                    -> decide_candidate -> END
+                                                    -> decide_candidate
+                                                       -> END
+                                                       -> plan_repair
+                                                          -> apply_repair
+                                                          -> run_critic_panel
+                                                          -> calculate_energy
+                                                          -> decide_candidate
+                                                          -> finalize_repair -> END
 ```
 
-This graph is not yet wired to the public API. It has no checkpointer, repair loop, or human interrupt lifecycle.
+The repair branch is bounded by typed retry and cumulative cost budgets. It creates candidate version 2, fully re-evaluates it, records improvement/no-improvement/budget exhaustion, and stops. This graph is not yet wired to the public API and has no checkpointer or human interrupt lifecycle.
 
 Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy penalties, critics, scorer, decider, repair functions, evidence classification, retrieval, and Energy Card projection. `graph_state.py` provides the versioned checkpoint-safe state contract. `graph_nodes.py` provides provider-free interpretation and policy/constraint nodes. `evidence_nodes.py` provides deterministic source-need classification plus skip, project-retrieval, and external-required routing. `candidate_provider.py` defines deterministic and baseline-backed candidate adapters with observable budgets and metrics; `candidate_node.py` retains immutable candidate/provider-call history and avoids duplicate calls on replay. `evaluation_nodes.py` binds the existing critic, scoring, and decision functions to the active candidate and records immutable panel, score, and outcome history. These remain independently testable typed deltas; none executes a graph or alters the current API runtime path.
 
@@ -42,6 +49,7 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 | Candidate provider abstraction | Local and baseline adapters, budgets, metrics, malformed output and replay tests | verified |
 | Critic, score, and decision nodes | Candidate-linked records and exact evaluator parity tests | verified |
 | Sequential LangGraph orchestration | Compiled graph, conditional routes, delta and parity tests | verified wiring proof |
+| Bounded graph repair | Explicit request, candidate v2, full re-evaluation, budgets and termination tests | verified |
 | Checkpoint resume and human gates | No runtime implementation | missing |
 | `refuse` and `escalate` dispositions | State vocabulary only; current decider has four outcomes | missing at runtime |
 | Typed domain trace and decision ledger | Typed trace-event state exists; no ledger writer | partial |
@@ -64,6 +72,8 @@ Domain truth remains in `app/energy_chat`: Pydantic transport contracts, policy 
 11. Critics, scores, and decisions fail closed unless their records reference the active candidate and policy version.
 12. LangGraph nodes return explicit field deltas; append-only runtime channels reuse domain reducer semantics.
 13. An evaluated state routes directly from `START` to `END`, preventing replay from repeating work.
+14. Repair consumes an explicit retry attempt, never repeats the initial provider call, and always re-runs critics, score, and decision.
+15. Equal or higher post-repair energy terminates as `no_improvement`; exhausted retry budget terminates explicitly.
 
 ## Current claim boundary
 
