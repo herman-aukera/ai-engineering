@@ -105,7 +105,7 @@ Current confidence is **repository-audited, gate-unverified in this environment*
 
 ## Current checkpoint
 
-Phase 0, Phase 1, and Phase 2A are implemented locally. The deterministic judge now runs as a typed LangGraph with explicit reducers, bounded proposal/repair routing, injected in-memory checkpointing, thread/run IDs, graph/policy/spec versions, domain traces, interruption/resume, and isolated threads. It performs no shell or provider execution and delegates authorization to the Python decider. The canonical gate reached its final cleanliness check after 411 tests and every smoke passed; the work requires a local checkpoint commit before a clean rerun. The product is not complete.
+Phase 0, Phase 1, and Phase 2A are implemented locally. The deterministic judge now runs as a typed LangGraph with explicit reducers, bounded proposal/repair routing, injected in-memory checkpointing, thread/run IDs, graph/policy/spec versions, domain traces, interruption/resume, and isolated threads. It performs no shell or provider execution and delegates authorization to the Python decider. Local checkpoint commit `20c48ee` passed the complete canonical gate: Ruff, compile, boundary, 411 tests, every smoke, root compatibility, git diff, and repository cleanliness. The product is not complete.
 
 ## Next slice
 
