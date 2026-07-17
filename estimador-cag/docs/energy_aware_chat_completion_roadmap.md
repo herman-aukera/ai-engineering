@@ -16,8 +16,8 @@
 | 1. Versioned product-local graph state | complete | typed v1 state, reducer discipline, canonical serializer, fixture, import-boundary tests; exact-head CI green |
 | 2. Interpretation and policy nodes | complete | explicit state deltas, safe typed trace events, deterministic normalization, replay tests; exact-head CI green |
 | 3. Evidence routing | complete | classifier/retriever parity, skip/project/external routes, attribution and replay tests; exact-head CI green |
-| 4. Candidate provider abstraction | implemented; validation pending | deterministic and baseline adapters, typed metrics, budget gates, replay protection |
-| 5. Critic, score, and decision nodes | pending | preserve evaluator behavior with candidate-linked parity tests |
+| 4. Candidate provider abstraction | complete | deterministic and baseline adapters, typed metrics, budget gates, replay protection; exact-head CI green |
+| 5. Critic, score, and decision nodes | implemented; validation pending | candidate/policy linkage, evaluator parity, stale-link and replay tests |
 | 6. Sequential LangGraph | pending | fake-runtime path; domain truth remains outside graph |
 | 7-10. Repair, decisions, ledger/card, API compatibility | pending | bounded budgets and six dispositions |
 | 11-13. Checkpoints, human gates, PostgreSQL | pending | resume, migration, rollback, retention, redaction |
@@ -26,7 +26,7 @@
 
 ## Next exact milestone
 
-Add provider-free critic, energy-score, and deterministic decision nodes tied to the active candidate ID. Preserve the current evaluator behavior through parity tests, reject stale candidate/score links, retain typed findings and outcomes, and emit safe trace events. Do not add LangGraph execution yet.
+Add the sequential LangGraph builder over Milestones 1-5 with conditional evidence routes and a complete deterministic fake-runtime path. Nodes must return explicit deltas, reducers must retain their tested semantics, and parity with the existing deterministic agent must remain green. Persistence, repair loops, and human interrupts remain later milestones.
 
 ## Claim discipline
 

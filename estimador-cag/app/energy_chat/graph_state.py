@@ -33,6 +33,8 @@ GraphStatus = Literal[
     "awaiting_evidence",
     "evidence_ready",
     "candidate_ready",
+    "criticized",
+    "scored",
     "evaluated",
     "awaiting_human",
     "completed",
@@ -67,6 +69,15 @@ class EnergyScoreRecord(GraphStateRecord):
     score: EnergyScore
 
 
+class CriticPanelRecord(GraphStateRecord):
+    """Deterministic critic findings tied to one immutable candidate."""
+
+    panel_id: str = Field(min_length=1)
+    candidate_id: str = Field(min_length=1)
+    critic_version: str = Field(min_length=1)
+    findings: list[CriticFinding] = Field(default_factory=list)
+
+
 class DecisionOutcome(GraphStateRecord):
     """Deterministic disposition for one scored candidate."""
 
@@ -75,6 +86,8 @@ class DecisionOutcome(GraphStateRecord):
     score_id: str = Field(min_length=1)
     disposition: Disposition
     reason: str = Field(min_length=1)
+    required_repairs: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
 
 
 class RepairRequest(GraphStateRecord):
@@ -140,6 +153,7 @@ class EnergyChatGraphState(GraphStateRecord):
     active_candidate_id: str | None = None
     provider_metrics: list[ProviderMetrics] = Field(default_factory=list)
     critic_findings: list[CriticFinding] = Field(default_factory=list)
+    critic_panels: list[CriticPanelRecord] = Field(default_factory=list)
     energy_scores: list[EnergyScoreRecord] = Field(default_factory=list)
     decision_outcomes: list[DecisionOutcome] = Field(default_factory=list)
     repair_requests: list[RepairRequest] = Field(default_factory=list)

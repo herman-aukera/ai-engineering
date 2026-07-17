@@ -19,9 +19,10 @@ The contract is product-local and independently testable. It deliberately does n
 | `candidate_versions` | `generate_candidate`, later repair | critics, score, decision | persisted; user-visible answer text | append by `candidate_id` |
 | `active_candidate_id` | generation/repair nodes | critics, score, decision | persisted | replace; must reference history |
 | `provider_metrics` | `generate_candidate` | budgets, observability, audit | persisted; no prompts or secrets | append by `provider_call_id` |
-| `critic_findings` | critic panel | score, decision, repair | persisted; safe summaries only | append when IDs are added in a later contract |
-| `energy_scores` | energy node | decision, card | persisted | append by `score_id` |
-| `decision_outcomes` | deterministic decider | ledger, card, terminal routing | persisted | append by `decision_id` |
+| `critic_panels` | `run_critic_panel` | score, repair, audit | persisted; candidate-linked safe findings | append by `panel_id` |
+| `critic_findings` | `run_critic_panel` | current score/UI projection | persisted; safe summaries only | replace with active panel |
+| `energy_scores` | `calculate_energy` | decision, card | persisted; candidate and policy linked | append by `score_id` |
+| `decision_outcomes` | `decide_candidate` | ledger, card, terminal routing | persisted; candidate and score linked | append by `decision_id` |
 | `repair_requests` | deterministic decider | repair node | persisted | append by `repair_id` |
 | `trace_events` | every node | audit/observability | safe payloads only; no hidden reasoning | append by `event_id` |
 | `errors` | failing node boundary | retry/terminal routing | safe projection, no secrets | append by `error_id` |
@@ -60,3 +61,9 @@ The application functions validate the complete resulting state. A replay agains
 The deterministic adapter preserves the existing local draft behavior. The baseline adapter wraps the existing DeepSeek/Kimi fallback-capable seam and measures elapsed latency. Before a delta is applied, the candidate node enforces output-token, cost, latency, and retry limits. Each candidate stores its `provider_call_id`, linking it to exactly one metrics record.
 
 Candidate and provider-call IDs are deterministic for request/version. When both records already exist, replay returns them without invoking the provider again.
+
+## Critic, score, and decision linkage
+
+`run_critic_panel` reconstructs the existing `EnergyChatRequest` from the active immutable candidate and delegates to the current deterministic critics and source guard. `calculate_energy` accepts only a panel for the active candidate and records the policy version. `decide_candidate` accepts only a score for the active candidate and active policy, then delegates to the existing deterministic decider.
+
+Panel, score, and decision IDs are deterministic. Identical replay reuses retained records; conflicting content is rejected by append-only reducers. Trace payloads include IDs, counts, energy, and disposition, not hidden reasoning or full candidate text.
