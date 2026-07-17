@@ -10,15 +10,14 @@ PR: #4, open draft, do not merge as routine coursework
 - Phase 0: audit and product completion plan — complete.
 - Phase 1: versioned trust, hashing, recovery, retention, manifests — complete.
 - Phase 2: persistent deterministic LangGraph judge, SQLite restart, human clarification/escalation — complete.
-- Phase 3A: controlled execution planning plus dry-run/fake evidence — complete pending final documentation CI.
-- Real execution — not implemented.
-- Provider actors — not implemented.
+- Phase 3A / Spec 0007: controlled planning plus dry-run/fake execution evidence — complete and L2 validated.
+- Phase 3B / Spec 0008: revision-guarded one-time execution authorization — complete and L2 validated.
+- Phase 3C: real sandboxed tool adapter — not implemented; delegation target.
+- Provider actors and autonomous repair — not implemented.
 
-## Slice completed
+## Completed deterministic boundary
 
-Spec 0007 — Controlled Execution Evidence.
-
-Implemented:
+### Spec 0007
 
 - strict command proposal, policy, plan, fake result, and evidence contracts;
 - deterministic executable and argument policy;
@@ -30,25 +29,38 @@ Implemented:
 - dry-run and fake evidence with `execution_performed=false`;
 - conversion to the existing `EvidenceRecord`;
 - controlled-execution preview CLI;
-- optional judge-graph preview, evidence append, and deterministic reevaluation;
-- cross-project learning register;
-- active threat model;
-- Spec 0007 requirements, design, tasks, acceptance, policy, fixtures, evidence, and decision records.
+- optional judge-graph preview, evidence append, and deterministic reevaluation.
+
+### Spec 0008
+
+- strict authorization scope, authorization, context, decision, and receipt contracts;
+- exact plan-hash and revision binding;
+- explicit trusted actors;
+- timezone-aware creation and expiry;
+- one-time nonce hashing and replay rejection;
+- exact scope and rollback-acknowledgement checks;
+- deterministic verify and consume operations;
+- verify/consume CLI with replay-safe artifacts;
+- separate execution-authorization LangGraph interrupt;
+- SQLite restart/resume proof;
+- sanitized consumed authorization, receipt, and normalized evidence;
+- cancellation and fail-closed paths;
+- `execution_authorized` and `execution_performed` preserved as distinct facts.
 
 ## Validation evidence
 
-Remote CI run `29608664559` validated head `d70c88b19b586003a381521fa6778a8844f6a3f0` and passed:
+Remote CI run `29609538596` validated head `42c6eaee89b97f10b973382f09fcaebc6c5c4aa3` and passed:
 
 - Ruff;
 - Python compilation;
 - Energy Core boundary check;
-- full test suite, including Spec 0007 contract, CLI, security, and graph tests;
+- full test suite, including Spec 0007 and Spec 0008 domain, CLI, security, replay, SQLite, and graph tests;
 - every existing smoke script;
 - canonical Energy Core full gate;
 - root compatibility smoke;
 - repository cleanliness.
 
-Later documentation/evidence commits require their own final CI before the current branch head is called green.
+The final documentation/evidence head must also remain green before beginning delegated work.
 
 ## Claim boundary
 
@@ -56,57 +68,41 @@ Allowed:
 
 - EACODE can deterministically plan, deny, or human-gate structured command proposals.
 - EACODE can produce bounded dry-run and fake execution evidence.
-- EACODE can attach that evidence to the persistent judge and reevaluate through the existing Python decider.
-- The controlled-execution foundation is remotely CI validated.
+- EACODE can consume one exact trusted authorization tied to plan hash, revision, scope, actor, expiry, nonce, reason, and rollback acknowledgement.
+- EACODE persists authorization interrupts and resumes across SQLite process restart.
+- EACODE reevaluates normalized evidence through the existing Python decider.
+- The controlled-execution and authorization boundary is remotely CI validated.
 
 Not allowed:
 
-- safe real shell execution;
+- safe real shell/tool execution;
 - production sandboxing;
 - provider integration;
 - autonomous repair quality;
 - benchmark superiority;
+- browser product readiness;
 - production readiness.
 
-## Exact next slice
+## Delegated next slice
 
-Spec 0008 — Revision-Guarded Human Execution Authorization.
+Phase 3C — Real Sandboxed Tool Adapter.
 
-Required contracts:
+The delegated implementation must:
 
-- `ExecutionAuthorization`;
-- trusted actor identity field;
-- exact plan hash;
-- expected and accepted revision;
-- bounded command scope;
-- expiry;
-- one-time nonce;
-- reason;
-- rollback acknowledgement;
-- consumed state;
-- authorization verifier;
-- append-only authorization audit record.
+1. preserve the current `ToolPort` and all strict Spec 0007/0008 contracts;
+2. require a valid consumed authorization receipt for human-gated plans;
+3. never use `shell=True` or shell interpolation;
+4. construct a minimal allow-listed environment;
+5. revalidate repository root, working directory, paths, and symlinks immediately before process start;
+6. enforce timeout, cancellation, and process-tree cleanup;
+7. stream bounded output through redaction before persistence;
+8. record partial failure, exit code, duration, hashes, truncation, rollback availability, and authorization references;
+9. remain disabled by default and absent from deterministic CI execution;
+10. use fake tools in CI and a separate explicit manual `--live-tool` smoke for real process proof;
+11. implement failure injection for timeout, cancellation, non-zero exit, oversized output, secret-like output, path race, and unavailable rollback;
+12. add no commit, push, merge, reset, clean, checkout, or force-push capability.
 
-Required failure tests:
-
-- wrong plan hash;
-- stale expected revision;
-- expired authorization;
-- replayed nonce;
-- conflicting nonce reuse;
-- untrusted actor;
-- broader command scope than plan;
-- missing rollback acknowledgement;
-- restart and resume with consumed authorization;
-- any execution attempt without authorization.
-
-Do not add real subprocess execution in Spec 0008.
-
-## Delegation boundary
-
-After Spec 0008 is green, delegate the real sandboxed tool adapter to Claude Code using DeepSeek. That work requires a local repository, OS/process inspection, repeated test execution, manual tool smoke, and controlled environment validation that the GitHub file connector cannot safely perform.
-
-The delegated adapter must preserve the current `ToolPort`, never use `shell=True`, build a minimal environment, revalidate root/symlink boundaries immediately before start, enforce timeout and process-tree cleanup, stream bounded redacted output, produce rollback evidence, and remain disabled by default.
+This slice requires a local coding agent because it needs operating-system process control, filesystem race inspection, repeated local tests, and manual sanitized tool evidence.
 
 ## Resume commands
 
@@ -118,4 +114,4 @@ git status --short -uall
 git log --oneline --decorate -20
 ```
 
-Then run the repository-native deterministic full gate before starting Spec 0008.
+Run the canonical deterministic full gate, confirm the current remote CI is green, then start the delegated adapter on a new local branch or worktree. Do not work directly on `EACODE` with an autonomous agent.
