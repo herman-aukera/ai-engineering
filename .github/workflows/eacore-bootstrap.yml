@@ -6,17 +6,24 @@ on:
       - EACORE
     paths:
       - .github/workflows/eacore-bootstrap.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/eacore-bootstrap.yml
 
 permissions:
   contents: write
 
 jobs:
   materialize:
+    if: github.head_ref == 'EACORE' || github.ref_name == 'EACORE'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout EACORE
+      - name: Checkout isolated EACORE branch
         uses: actions/checkout@v4
         with:
+          ref: EACORE
           fetch-depth: 0
 
       - name: Materialize verified EACORE payload
