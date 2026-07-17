@@ -26,13 +26,16 @@ jobs:
           ref: EACORE
           fetch-depth: 0
 
-      - name: Materialize verified EACORE payload
+      - name: Verify payload integrity
         env:
           EXPECTED_SHA256: 5f68faa901dadae0c6fd4ac9f19fa6ec32add6093a541d24ef0b91cc515cbfd9
         run: |
           cat .eacore-bootstrap/chunk-*.b64 > /tmp/eacore-payload.b64
           base64 --decode /tmp/eacore-payload.b64 > /tmp/eacore-payload.tar.gz
           echo "${EXPECTED_SHA256}  /tmp/eacore-payload.tar.gz" | sha256sum --check -
+
+      - name: Extract bounded payload
+        run: |
           python - <<'PY'
           from pathlib import Path
           import tarfile
@@ -45,13 +48,27 @@ jobs:
                   target.relative_to(root)
               payload.extractall(root)
           PY
+
+      - name: Normalize documentation and stage source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          for path in Path("packages/eacore").rglob("*.md"):
+              text = path.read_text(encoding="utf-8")
+              normalized = "\n".join(line.rstrip() for line in text.splitlines()) + "\n"
+              path.write_text(normalized, encoding="utf-8")
+          PY
           rm -rf .eacore-bootstrap
           rm -f .github/workflows/eacore-bootstrap.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --check
-          git commit -m "eacore: feat(kernel): add neutral kernel 0.1"
-          git push origin HEAD:EACORE
 
-# Retry marker: verified chunk hashes match the locally tested payload.
+      - name: Commit neutral kernel
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "eacore: feat(kernel): add neutral kernel 0.1"
+
+      - name: Push isolated EACORE head
+        run: git push origin HEAD:EACORE
