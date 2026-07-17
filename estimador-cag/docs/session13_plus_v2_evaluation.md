@@ -43,9 +43,20 @@ This is controlled course-scale scheduling evidence. It excludes database-pool,
 network, provider-rate-limit and production-load effects. The one-component
 result also demonstrates why concurrency is bounded and profile controlled.
 
+## Runtime verification (2026-07-17)
+
+- Full local suite: 794 passed, 10 service-dependent skips.
+- Real PostgreSQL: reviewed graph passed the two-reopen, both-human-gates proof.
+- Brave: created a V2 estimation against the deterministic demo API, displayed
+  the eight-stage progress, 40-hour task range, evidence/Critic/Boss/history/audit
+  tabs, and built the sanitized audit packet for the same estimation/thread.
+- GitHub Actions: `CI - Estimador CAG` run `29559567374` succeeded for commit
+  `cd4bed2ac9ca3afdf6779249ed448fa31d82b942`.
+
 ## Release gates
 
-V2 remains additive and the pull request remains draft. Promotion requires green
-CI, a PostgreSQL close/reopen proof for the reviewed V2 graph, a full browser
-journey, and credentialed provider/Logfire smoke. Legacy remains available for
-rollback; there is no silent fallback or double execution in the V2 route.
+V2 remains additive and the pull request remains draft. CI, PostgreSQL and the
+deterministic Brave journey are green. Credentialed provider/Logfire evidence is
+kept separate from this deterministic V2 UI run and remains connectivity evidence,
+not a provider-quality claim. Legacy remains available for rollback; there is no
+silent fallback or double execution in the V2 route.
