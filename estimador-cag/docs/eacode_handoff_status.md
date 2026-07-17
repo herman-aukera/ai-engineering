@@ -49,7 +49,7 @@ PR: #4, open draft, do not merge as routine coursework
 
 ## Validation evidence
 
-Remote CI run `29610086661` validated final head `f7f168acf68323dc1fc34ab5aaba66a1ba1196d3` and passed:
+Remote CI run `29610521240` validated final head `f306bbc192c49217e391c9bf26cca8479ddbb171` and passed:
 
 - Ruff;
 - Python compilation;
