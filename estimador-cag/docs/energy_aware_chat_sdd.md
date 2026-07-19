@@ -10,9 +10,10 @@
 | PR | #5, open, unmerged |
 | Milestone 9 code checkpoint | `dd79bf4befd625ce673242e843c14a023c0862d6` |
 | Milestone 9 deterministic tests | 519 passed |
+| Milestone 10 code checkpoint | `9aa1e09347734c3323436fea0c9bb2ef437fb209` |
 | Provider/context architecture checkpoint | `57438c5fa4068bf7d4fab1e9d10d5527128a45ca` |
-| Latest exact-head CI | runs `29689906124` and `29689906247`, success |
-| SDD version | 1.1.0 |
+| Latest exact-head CI | pending for M10 |
+| SDD version | 1.2.0 |
 | Claim status | `release_claims_blocked_missing_evidence`; `measurement_only_no_quality_claim` |
 
 This SDD is the canonical engineering control document for EACHAT. Detailed state, policy, provider/context and architecture documents remain supporting specifications.

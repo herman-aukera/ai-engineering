@@ -28,16 +28,14 @@ Do not modify `EACODE`, `gg-session-13/plus`, `main` or `finalproject-GGC` while
 
 ## Current task
 
-The next implementation slice is Milestone 10: additive graph-backed API routes.
+Milestone 10 (graph-backed API) is implemented at `9aa1e09347734c3323436fea0c9bb2ef437fb209`. The next slice is Milestone 11: in-memory checkpoint proof.
 
 ```text
-POST /energy-chat/v2/chat
-POST /energy-chat/v2/chat/live
+POST /energy-chat/v2/chat        — implemented, deterministic
+POST /energy-chat/v2/chat/live   — implemented, live bounded
 ```
 
-One request invokes one graph execution. Existing routes remain rollback surfaces. No silent legacy fallback or double execution.
-
-The provider/context addendum is mandatory. Milestone 10 should be provider-neutral in contract shape without expanding into complete Kimi K3, GPT-5.6, persistent context compaction, UI selector or committee multi-agent implementation.
+Each V2 route invokes one graph execution. Legacy routes remain rollback surfaces. No silent fallback or double execution. Provider-neutral selector contracts are validated; only balanced context and critic orchestration are active.
 
 ## Model and selector policy
 

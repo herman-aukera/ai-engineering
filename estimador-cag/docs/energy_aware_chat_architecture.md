@@ -4,9 +4,13 @@
 
 Milestone 9 code checkpoint: `dd79bf4befd625ce673242e843c14a023c0862d6`.
 
-Remote CI run `29608614284` passed with 519 tests.
+Milestone 10 code checkpoint: `9aa1e09347734c3323436fea0c9bb2ef437fb209`.
+
+Remote CI run `29608614284` passed with 519 tests (M9 baseline).
 
 ## Current public runtime
+
+### Legacy routes (rollback surfaces)
 
 The existing deterministic `/energy-chat/chat` route still calls the legacy product-local linear function:
 
@@ -18,7 +22,26 @@ request -> lexical project retrieval -> deterministic draft
 
 The live route substitutes a provider-backed draft through the existing DeepSeek/Kimi adapter seam. Normal CI does not make live calls.
 
-These routes remain compatibility and rollback surfaces. They are not yet backed by the new graph.
+### V2 graph-backed routes (Milestone 10)
+
+Additive V2 routes invoke exactly one canonical graph execution:
+
+```text
+POST /energy-chat/v2/chat        — deterministic, keyless, CI-safe
+POST /energy-chat/v2/chat/live   — live bounded, opt-in, monkeypatchable
+```
+
+Each V2 request flows through:
+
+```text
+request -> validate selectors -> resolve identity -> build graph state
+        -> run_energy_chat_graph (one call)
+        -> project authoritative response (EnergyCardV2, ledger IDs, safe metrics)
+```
+
+Provider-neutral selector contracts (provider/effort/context/orchestration) are validated explicitly. Only `balanced` context and `critic` orchestration are active in M10; other values fail with typed errors. Kimi and OpenAI providers return `provider_unavailable` until credentialed adapters exist.
+
+Legacy routes remain unchanged as rollback surfaces.
 
 ## Current internal graph
 

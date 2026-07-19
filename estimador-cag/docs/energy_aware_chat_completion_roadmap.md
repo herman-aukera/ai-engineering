@@ -6,8 +6,9 @@
 - PR #5: open, base `main`, head `EACHAT`, mergeable, not merged.
 - Milestone 9 code checkpoint: `dd79bf4befd625ce673242e843c14a023c0862d6`.
 - Milestone 9 deterministic suite: 519 passed.
+- Milestone 10 code checkpoint: `9aa1e09347734c3323436fea0c9bb2ef437fb209`.
 - Provider/context architecture checkpoint: `1b3157c50778d2f42f1a73886a400358a22f3369`.
-- Exact-head CI runs `29689810921` and `29689811061`: success.
+- Exact-head CI runs `29689810921` and `29689811061`: success (M9 baseline); M10 CI pending.
 - Release claims remain `release_claims_blocked_missing_evidence` and `measurement_only_no_quality_claim`.
 
 ## Milestone status
@@ -24,7 +25,7 @@
 | 7. Bounded repair | complete | explicit plans, candidate v2, retry/cost budgets, full reevaluation and termination tests |
 | 8. Complete decision semantics | complete | six deterministic dispositions, versioned request rules, precedence, rule IDs and transitions |
 | 9. Ledger and Energy Card v2 | complete | append-only ledger, reference integrity metadata, safe final answer, Energy Card v2, replay/conflict tests, remote CI green |
-| 10. Graph-backed API | specified; implementation pending | additive V2 routes, stable IDs, no double execution, compatibility and rollback tests |
+| 10. Graph-backed API | implemented | additive V2 routes at `/energy-chat/v2/chat` and `/energy-chat/v2/chat/live`, stable IDs, one canonical graph execution, provider-neutral selector contracts, no double execution, no silent legacy fallback, deterministic CI-safe route, live bounded route, awaiting-evidence representation, safe error mapping, legacy route regression tests |
 | 11. In-memory checkpoint proof | pending | thread isolation, replay and resume contracts |
 | 12. Human gates | pending | revision-guarded clarify/escalate interrupt and resume |
 | 13. PostgreSQL | pending | migrations, rollback, retention, redaction and restart proof |
@@ -38,21 +39,15 @@
 
 ## Next exact milestone
 
-Implement the additive graph-backed API specified in:
+Milestone 10 is implemented. The next slice is Milestone 11 — in-memory checkpoint proof.
+
+Implement thread isolation, replay, and resume contracts as specified in:
 
 ```text
-docs/energy_aware_chat_milestone_10_graph_api_spec.md
+docs/energy_aware_chat_sdd.md  (section 9)
 ```
 
-and constrained by:
-
-```text
-docs/energy_aware_chat_milestone_10_provider_context_addendum.md
-```
-
-The next slice must keep current routes as rollback surfaces, execute one graph only, expose stable IDs and Energy Card v2, represent `awaiting_evidence` without fabrication, and remain deterministic/keyless in CI.
-
-Milestone 10 should use provider-neutral selector contracts when this can be done without scope inflation. It must not claim complete Kimi K3/GPT-5.6 integration, context compaction, UI selection, or committee/adaptive multi-agent behavior.
+The checkpoint slice must prove safe replay/resume without persistence, test thread isolation, and add checkpoint wiring to the graph runtime before PostgreSQL saver work in M13.
 
 ## Provider and context architecture
 
