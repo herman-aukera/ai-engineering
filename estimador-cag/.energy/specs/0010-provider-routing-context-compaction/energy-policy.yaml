@@ -1,0 +1,97 @@
+spec_id: 0010-provider-routing-context-compaction
+version: 1.0.0
+status: architecture-only
+
+hard_constraints:
+  - id: provider_capability_must_be_verified
+    description: Unsupported or unknown provider capabilities fail closed.
+    weight: 100
+  - id: provider_output_is_not_authority
+    description: Every provider result re-enters product critics and the deterministic decider.
+    weight: 100
+  - id: no_silent_premium_escalation
+    description: OpenAI or another premium provider requires an explicit budget and recorded reason.
+    weight: 100
+  - id: immutable_source_of_truth
+    description: Compaction never replaces raw events, artifacts, evidence, or decisions.
+    weight: 100
+  - id: no_secret_compaction
+    description: Durable summaries must not contain raw secret values.
+    weight: 100
+  - id: no_hidden_chain_of_thought_persistence
+    description: Persist conclusions, evidence, and concise reasoning summaries, not hidden chain of thought.
+    weight: 100
+  - id: bounded_multi_agent
+    description: Multi-agent fan-out requires explicit concurrency, time, cost, and tool budgets.
+    weight: 100
+  - id: deterministic_boss_owns_disposition
+    description: Consensus or model confidence cannot override hard policy.
+    weight: 100
+  - id: spec_0009_provider_neutral
+    description: The sandboxed-tool adapter remains independent from live provider routing.
+    weight: 100
+  - id: no_premature_eacore_extraction
+    description: Runtime extraction requires stable semantic overlap proven in EACODE and EACHAT.
+    weight: 100
+
+soft_constraints:
+  - id: deepseek_default
+    description: Prefer DeepSeek for normal cost-sensitive workloads.
+    weight: 20
+  - id: kimi_preferred_frontier
+    description: Prefer Kimi for user-selected frontier/open-model workloads when capabilities are available.
+    weight: 20
+  - id: openai_premium_escalation
+    description: Reserve GPT-5.6 for explicit premium or unresolved high-stakes escalation.
+    weight: 25
+  - id: medium_context_default
+    description: Use medium context profile for normal workloads.
+    weight: 15
+  - id: preserve_cache_economics
+    description: Avoid unnecessary provider/model switching and record cache invalidation.
+    weight: 10
+  - id: measurable_multi_agent_gain
+    description: Enable multi-agent mode only when benchmarks justify its extra cost and complexity.
+    weight: 20
+
+energy_dimensions:
+  correctness:
+    weight: 0.25
+  hard_constraint_satisfaction:
+    weight: 0.25
+  evidence_integrity:
+    weight: 0.15
+  context_fidelity:
+    weight: 0.15
+  cost_efficiency:
+    weight: 0.10
+  latency:
+    weight: 0.05
+  maintainability:
+    weight: 0.05
+
+decision_rules:
+  accept:
+    requires:
+      - all_hard_constraints_pass
+      - capability_snapshot_verified
+      - budget_satisfied
+      - loss_audit_passed_when_compacted
+  repair:
+    when:
+      - supported_combination_can_be_reselected
+      - summary_can_be_rehydrated
+      - provider_schema_can_be_repaired_within_budget
+  reject:
+    when:
+      - unknown_capability
+      - unsupported_effort
+      - hard_constraint_violation
+      - secret_persistence_detected
+      - premium_budget_missing
+  escalate:
+    when:
+      - high_stakes_provider_disagreement
+      - repeated_non_improving_repair
+      - multi_agent_disagreement_on_hard_constraint
+      - compaction_loss_audit_failure_cannot_be_repaired
