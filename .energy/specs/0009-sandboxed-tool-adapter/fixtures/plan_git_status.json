@@ -1,0 +1,22 @@
+{
+  "plan_id": "plan-def456abc1234567",
+  "proposal_id": "proposal-git-status-001",
+  "policy_id": "eacode-controlled-execution",
+  "policy_version": "1.0.0",
+  "repository_root": "/tmp/eacode-test",
+  "working_directory": "/tmp/eacode-test",
+  "executable": "git",
+  "arguments": ["status", "--short"],
+  "risk": "high",
+  "disposition": "human_required",
+  "requires_human_authorization": true,
+  "reasons": ["executable_requires_human:git"],
+  "timeout_seconds": 30,
+  "max_output_chars": 512,
+  "environment_names": [],
+  "declared_paths": [],
+  "execution_mode": "fake",
+  "plan_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "rollback_summary": "Read-only status command; no repository mutation.",
+  "execution_performed": false
+}

@@ -1,0 +1,22 @@
+{
+  "plan_id": "plan-abc123def4567890",
+  "proposal_id": "proposal-pytest-001",
+  "policy_id": "eacode-controlled-execution",
+  "policy_version": "1.0.0",
+  "repository_root": "/tmp/eacode-test",
+  "working_directory": "/tmp/eacode-test",
+  "executable": "pytest",
+  "arguments": ["-q", "tests/test_example.py"],
+  "risk": "medium",
+  "disposition": "allow_fake",
+  "requires_human_authorization": false,
+  "reasons": ["general_runtime:pytest"],
+  "timeout_seconds": 30,
+  "max_output_chars": 256,
+  "environment_names": ["PYTHONUNBUFFERED"],
+  "declared_paths": ["tests/test_example.py"],
+  "execution_mode": "fake",
+  "plan_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "rollback_summary": "No repository mutation is performed.",
+  "execution_performed": false
+}

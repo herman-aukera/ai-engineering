@@ -1,0 +1,144 @@
+# Spec 0009 — Energy Policy
+# Sandboxed Tool Adapter: real process execution under strict policy and authorization
+
+policy_id: eacode-sandboxed-tool-adapter
+version: 0.1.0
+owner: EACODE
+status: implementation-in-progress
+depends_on:
+  - spec: "0007"
+    contract: controlled_execution
+  - spec: "0008"
+    contract: execution_authorization
+
+thresholds:
+  accept_max_soft_energy: 120
+  repair_min_soft_energy: 121
+  reject_on_any_hard_reject: true
+  reject_on_missing_required_evidence: false
+
+hard_constraints:
+  adapter_disabled_by_default:
+    description: "Real process execution must be explicitly enabled."
+    penalty: 1000
+    decision: reject
+    required_evidence:
+      - sandboxed_tool_config
+    repair_hint: "Set enabled=True in SandboxedToolConfig or pass --live-tool."
+
+  no_shell_execution:
+    description: "Never use shell=True, shell interpreter, or command-string concatenation."
+    penalty: 1000
+    decision: reject
+    required_evidence:
+      - process_creation_audit
+    repair_hint: "Use subprocess.Popen with args list and shell=False."
+
+  pre_start_verification:
+    description: "Revalidate plan hash, revision, paths, symlinks, and authorization immediately before process start."
+    penalty: 1000
+    decision: reject
+    required_evidence:
+      - pre_start_verification_log
+    repair_hint: "Call the independent verifier before every execution."
+
+  minimal_environment:
+    description: "Build process environment from explicit name allowlist only."
+    penalty: 1000
+    decision: reject
+    required_evidence:
+      - environment_audit
+    repair_hint: "Only pass allowlisted environment variable names."
+
+  output_redaction:
+    description: "Redact secret-like patterns from stdout and stderr before persistence."
+    penalty: 500
+    decision: reject
+    required_evidence:
+      - redaction_log
+    repair_hint: "Apply _redact() to all output chunks."
+
+  process_tree_cleanup:
+    description: "Terminate the complete process tree on timeout or cancellation."
+    penalty: 1000
+    decision: reject
+    required_evidence:
+      - cleanup_log
+    repair_hint: "Use taskkill /F /T on Windows or killpg on Unix."
+
+  no_git_mutation:
+    description: "Never execute git commit, push, merge, rebase, reset, clean, checkout, switch, restore, or cherry-pick."
+    penalty: 1000
+    decision: reject
+    required_evidence:
+      - executable_policy_check
+    repair_hint: "Block all denied git subcommands in the adapter."
+
+  no_self_approval:
+    description: "The adapter produces evidence only; it never authorizes its own execution."
+    penalty: 1000
+    decision: reject
+    required_evidence:
+      - authorization_receipt
+    repair_hint: "Require a valid consumed authorization receipt from Spec 0008."
+
+  deterministic_ci:
+    description: "CI must use FakeToolAdapter only; no real process execution in CI."
+    penalty: 1000
+    decision: reject
+    required_evidence:
+      - ci_config
+    repair_hint: "Keep FakeToolAdapter as the CI default."
+
+soft_constraints:
+  platform_documentation:
+    description: "Document platform-specific limitations honestly."
+    penalty: 50
+    decision: repair_if_threshold_exceeded
+    repair_hint: "Add platform notes for Windows/Unix differences."
+
+  failure_injection_coverage:
+    description: "Cover timeout, cancellation, non-zero exit, oversized output, secret-like output, path race, and unavailable rollback."
+    penalty: 50
+    decision: repair_if_threshold_exceeded
+    repair_hint: "Add failure injection test cases."
+
+evidence_types:
+  sandboxed_tool_config:
+    required_format: json
+    trusted: true
+  process_creation_audit:
+    required_format: text
+    trusted: true
+  pre_start_verification_log:
+    required_format: text
+    trusted: true
+  environment_audit:
+    required_format: text
+    trusted: true
+  redaction_log:
+    required_format: text
+    trusted: true
+  cleanup_log:
+    required_format: text
+    trusted: true
+  executable_policy_check:
+    required_format: text
+    trusted: true
+  authorization_receipt:
+    required_format: json
+    trusted: true
+  ci_config:
+    required_format: text
+    trusted: true
+
+required_acceptance_evidence:
+  - sandboxed_tool_config
+  - process_creation_audit
+  - pre_start_verification_log
+  - environment_audit
+  - redaction_log
+  - cleanup_log
+  - executable_policy_check
+  - authorization_receipt
+  - ci_config

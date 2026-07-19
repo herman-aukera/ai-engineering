@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "receipt_id": "receipt-auth-git-status",
+  "authorization_id": "auth-git-status",
+  "actor": "gonzalo",
+  "plan_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "accepted_revision": 3,
+  "nonce_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "consumed_at": "2026-07-19T20:05:00Z",
+  "execution_performed": false
+}
