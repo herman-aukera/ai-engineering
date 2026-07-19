@@ -1,26 +1,31 @@
-# Estimador CAG
+# Estimador CAG — Durable Energy-Aware Estimation
 
-## Current Session 13 status
-
-Current branch:
+## Current working state
 
 ```text
-gg-session-13/pre-work
+Current incubator branch: gg-session-13/plus
+Verified V3 foundation checkpoint before this documentation update:
+0700b9bf396ed8a59c1e9a250f7a5ffad65c4278
+Draft PR: #10
+Frozen teacher-facing branch: session-13/pre-work
 ```
 
-Teacher-facing branch:
+The mandatory Session 13 branch remains frozen. The Plus branch is additive, draft, and unmerged.
 
-```text
-session-13/pre-work
-```
+## Product objective
 
-Current focus:
+Transform project transcripts into evidence-backed software estimates while preserving:
 
-> Replace the Session 12 hand-written agent loop with a typed, persistent, and
-> observable LangGraph workflow while preserving the existing external
-> estimation contract.
+- typed contracts;
+- deterministic arithmetic;
+- durable LangGraph execution;
+- human authority;
+- replay safety;
+- provider/tool budgets;
+- explicit Critic/Boss policy;
+- sanitized trace and audit evidence.
 
-## Mandatory graph
+## Mandatory Session 13 graph
 
 ```text
 START
@@ -32,155 +37,227 @@ START
   -> END
 ```
 
-The mandatory path remains sequential. Parallel fan-out, advanced recovery, and
-human intervention are deliberately deferred to the Plus roadmap.
+The mandatory path uses typed shared state, reducer-backed fields, PostgreSQL `AsyncPostgresSaver`, stable thread identity, FastAPI integration, deterministic fakes for CI, and sanitized Logfire spans.
 
-## Public API integration
+## Session 13 Plus reviewed product
 
-The graph is exposed through the additive endpoint:
+The Plus path adds:
+
+- canonical V2 estimation lifecycle;
+- editable structure and final-estimate gates;
+- revision guards;
+- component-level parallel retrieval with sequential rollback;
+- selective recovery;
+- typed Critic findings;
+- deterministic Boss routing;
+- bounded retry/fallback/tool/cost/latency policy;
+- serializable provider circuits;
+- checkpoint history;
+- scenario branching and comparison;
+- sanitized audit export;
+- legacy/graph rollout controls.
+
+## V3 foundation
+
+Implemented:
 
 ```text
-POST /api/v1/estimate/graph
+app/schemas/v3_routing.py
+app/services/v3_complexity_router.py
+app/schemas/v3_energy.py
+app/services/v3_estimation_energy.py
+tests/test_session13_plus_v3_routing.py
+tests/test_session13_plus_v3_energy.py
+docs/session13_plus_v3_foundation.md
 ```
 
-The existing estimation endpoint and Streamlit path were not silently replaced
-during the mandatory milestone. This preserves rollback and allows
-compatibility to be proven before broader migration.
+The current V3 foundation provides:
 
-The graph endpoint receives a transcript and returns a structured estimate with
-a terminal status. Graph internals are not leaked into the business-backend
-contract.
+- strict immutable C0–C5 complexity records;
+- deterministic 0–100 dimensions;
+- C5 mandatory human-review invariant;
+- per-stage provider/model/mode/effort/budget plans;
+- stable route-plan IDs;
+- evidence-integrity metadata;
+- immutable estimate candidate references;
+- deterministic constraint-energy snapshots;
+- candidate fingerprints;
+- non-improving repair classification;
+- replay-safe decision entries;
+- Estimate Energy Card projection.
 
-## Shared state
+Not yet implemented in the operational graph:
 
-`app/generation/graph/state.py` defines checkpoint-safe typed state containing:
+- semantic complexity classifier;
+- graph-state route-plan integration;
+- typed classifier-to-structure `Command` handover;
+- native module-to-task generation;
+- task-level `Send` fan-out;
+- task-level recovery;
+- reliability analyst;
+- final task-hours editor;
+- background streaming/activity;
+- pooled checkpointer migration;
+- complete Logfire hierarchy;
+- matched model calibration.
 
-- transcript and estimation identity;
-- structured requirements;
-- classified components;
-- provenance-rich budget matches;
-- deterministic component estimates;
-- consolidated estimate and status;
-- structured issues;
-- domain trace events;
-- sanitized provider metadata;
-- execution metadata.
+## Provider selector policy
 
-Reducer-backed fields include:
+Read the canonical policy:
 
-- `budget_matches`;
-- `errors`;
-- `trace_events`.
+```text
+docs/energy_aware_model_context_and_multiagent_policy.md
+```
 
-Nodes return partial updates. Reducer-backed nodes return only newly generated
-entries, not the complete accumulated list.
+User-facing provider choices:
 
-## Node responsibilities
+```text
+Auto
+DeepSeek
+Kimi
+OpenAI
+```
 
-| Node | Responsibility |
-| --- | --- |
-| `extract_requirements` | Convert the transcript into atomic structured requirements |
-| `classify_components` | Group requirements into implementation components |
-| `search_budgets` | Retrieve reference evidence sequentially per component |
-| `generate_estimate` | Calculate hours and totals deterministically in Python |
-| `validate_and_consolidate` | Apply invariants and set terminal status |
+Defaults:
 
-Model and retrieval access is hidden behind injected ports. Deterministic fakes
-are used in normal CI; concrete adapters are used at runtime.
+```text
+provider = DeepSeek
+reasoning = medium
+context detail = medium
+```
+
+Common reasoning intent:
+
+```text
+minimal
+medium
+max
+```
+
+Initial provider families:
+
+| Provider | Minimal | Medium | Max |
+|---|---|---|---|
+| DeepSeek | V4 Flash non-thinking | V4 Flash/Pro high by stage | V4 Pro max |
+| Kimi | K2.6 instant or K2.7 Code | calibrated K2.6/K2.7 | K3 max |
+| OpenAI | GPT-5.6 Luna | GPT-5.6 Terra | GPT-5.6 Sol max |
+
+The table is a routing policy prior, not proof of universal model superiority. Runtime adapters must verify availability and supported effort values.
+
+### Kimi K3
+
+Architecture requirements:
+
+- model identifier `kimi-k3` after reachability verification;
+- 1M context and native multimodality metadata;
+- max effort at launch;
+- do not assume low/high modes until capability discovery confirms them;
+- avoid switching into K3 mid-session without a clean checkpoint and normalized compacted handoff;
+- enforce explicit behavioral boundaries and least privilege.
+
+### GPT-5.6
+
+Architecture recognizes Luna, Terra, and Sol as cost/capability tiers. Premium or exceptional routes require explicit budget and capability verification. Do not invent API identifiers or unsupported effort modes.
+
+## Context compaction
+
+User selector:
+
+```text
+Context detail: minimal | medium | max
+```
+
+Every compacted context must preserve:
+
+- objective and working mode;
+- hard constraints and authority boundaries;
+- accepted and rejected decisions;
+- evidence references;
+- current candidate/state;
+- unresolved issues;
+- budgets/provider route;
+- current checkpoint/revision;
+- branch and exact SHA;
+- last green tests and CI;
+- next action;
+- rollback and claim boundaries.
+
+A summary is not the source of truth. Checkpoints, evidence, immutable candidates, and decision records remain authoritative.
+
+## Session 14 continuation
+
+Session 14 should start from the current verified `gg-session-13/plus` head on a separate branch:
+
+```text
+session-14/pre-work
+```
+
+Mandatory Session 14 scope:
+
+- supervisor constructed manually with `StateGraph` and typed `Command`;
+- requirements extractor with no business tools;
+- budget searcher with only `search_budgets`;
+- estimate generator with only `calculate_estimate`;
+- coherence validator with only `validate_estimate`;
+- supervisor with no business tools;
+- typed shared state and reducer;
+- persistent low-confidence `interrupt()`;
+- `awaiting_human_review` response;
+- approve/adjust/reject resume from the same checkpoint/thread;
+- complete pause/resume trace.
+
+The mandatory task is completed before provider-selector, compaction, competition, or broader portfolio extensions.
+
+## Public API and execution semantics
+
+The mandatory graph endpoint remains additive. V2 lifecycle routes and the reviewed Control Room remain documented under `docs/session13_plus_v2_*`.
+
+Execution semantics:
+
+- new run starts a new thread;
+- incomplete run resumes the same thread;
+- completed duplicate returns stored terminal state;
+- replay requires explicit checkpoint identity;
+- recalculation uses a new thread;
+- human actions require revision checks.
 
 ## Persistence
 
-The graph uses `AsyncPostgresSaver` with the existing project PostgreSQL
-database.
-
-Application lifecycle responsibilities are:
-
-1. Open the checkpointer during FastAPI lifespan.
-2. Run checkpointer setup.
-3. Compile the graph with the saver.
-4. Invoke with a stable storage-safe thread identifier.
-5. Close resources during shutdown.
-
-The implementation includes close/reopen/reread evidence proving that state can
-be recovered without executing completed nodes again.
-
-## Execution semantics
-
-- New execution: starts a new thread.
-- Resume: continues only an incomplete thread.
-- Completed duplicate: returns the existing terminal result idempotently.
-- Replay: requires an explicit checkpoint identity.
-- Recalculation: uses a new thread.
-
-These semantics prevent accumulator reducers from appending historical values a
-second time.
+The reviewed graph uses PostgreSQL checkpoints. Application lifecycle owns saver initialization and shutdown. Real close/reopen evidence remains separate from in-memory demo composition.
 
 ## Observability
 
-Logfire is used for hosted telemetry.
+Telemetry must contain safe identifiers, counts, route IDs, budgets, status, duration, token/cost summaries, and state-delta keys.
 
-Each execution produces:
+Exclude:
 
-- one root span named `session13.graph.run`;
-- five child spans named `session13.graph.node`;
-- sanitized identifiers, counts, status, and totals;
-- no transcript, prompt, provider response, API token, or database DSN.
+- transcript;
+- attachment bodies;
+- prompts;
+- raw model responses;
+- hidden reasoning;
+- API keys;
+- database DSNs.
 
-The domain trace stored in graph state is separate from telemetry spans and
-operational logs.
+Domain events, logs, and telemetry spans are distinct records.
 
-Final trace identifier:
+## Local deterministic validation
 
-```text
-019f66df5be5e9f5db11c167f81b79dd
-```
-
-Logfire project:
-
-https://logfire-eu.pydantic.dev/herman-aukera/starter-project
-
-## Evidence files
-
-```text
-artifacts/session13/complex_graph_execution_deterministic.json
-artifacts/session13/postgres_persistence_proof.json
-artifacts/session13/live_postgres_logfire_trace_summary.json
-artifacts/session13/live_provider_smoke/REPORT.md
-artifacts/session13/live_provider_smoke/metadata.json
-artifacts/session13/live_provider_smoke/results.csv
-```
-
-The auxiliary live-provider smoke completed operationally, but its historical
-Session 06 latency and memory-drift thresholds did not pass. That result is
-preserved honestly and is not treated as a mandatory Session 13 acceptance
-gate.
-
-The Session 13 Plus credentialed runtime gate is independent of that historical
-stress suite. GitHub Actions run `29526996872` completed bounded DeepSeek and
-Kimi turns and requested a remote Logfire flush. The sanitized evidence and
-claim boundary are documented in
-`docs/session13_plus_live_runtime_evidence.md`.
-
-## Deterministic validation
+From `estimador-cag`:
 
 ```zsh
-cd /workspaces/ai-engineering/estimador-cag
-
 uv run ruff check app scripts tests evals
 
 find app scripts tests evals -name '*.py' -type f -print0 |
   xargs -0 uv run python -m py_compile
 
-OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
+OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test \
+  uv run pytest -q
 ```
 
-## Session 13 documentation
+Normal CI is deterministic and keyless. Live provider, PostgreSQL, browser, and hosted-trace proofs are bounded, manual/integration evidence and must be sanitized.
 
-- `docs/session13_task13_compliance.md`
-- `docs/session13_plus_roadmap.md`
-- `docs/session13_presentation_guide_es.md`
-
-### Session 13 Plus control room
+## Control Room and evaluation
 
 ```zsh
 uv run streamlit run app/ui/review_control_room.py
@@ -188,8 +265,7 @@ uv run python -m evals.session13_plus_parallel_retrieval_benchmark
 uv run python -m evals.session13_plus_evaluation_matrix
 ```
 
-For a keyless local API/UI journey using the production reviewed router, service
-and graph with deterministic adapters:
+Keyless demo composition:
 
 ```zsh
 uv run uvicorn scripts.session13_plus_demo_api:app --port 8001
@@ -197,56 +273,25 @@ ESTIMADOR_BACKEND_URL=http://localhost:8001 \
   uv run streamlit run app/ui/review_control_room.py
 ```
 
-This demo uses an in-memory saver and is not a substitute for the separate real
-PostgreSQL restart proof.
+The in-memory demo does not substitute for real PostgreSQL restart evidence.
 
-The reviewed API requires the PostgreSQL-backed application runtime. Sequential
-retrieval remains the default rollback; opt into the measured Plus fan-out with
-`GRAPH_RETRIEVAL_MODE=parallel`. See
-`docs/session13_plus_teacher_superiority_matrix.md` for evidence and limitations.
+## Documentation entry points
 
-## Historical Session 12 agentic work
+- `CLAUDE.md`
+- `docs/energy_aware_model_context_and_multiagent_policy.md`
+- `docs/session13_plus_v3_foundation.md`
+- `docs/session13_plus_v2_architecture.md`
+- `docs/session13_plus_v2_api.md`
+- `docs/session13_plus_v2_product_journey.md`
+- `docs/session13_plus_roadmap.md`
+- `docs/session13_task13_compliance.md`
+- `docs/HISTORICAL_SESSIONS.md`
 
-The Session 12 — hand-written agent loop is preserved from branch
-`gg-session-12/pre-work`.
+## Security and Git safety
 
-Session 12 agentic handoff:
-
-- `docs/session12_agentic_handoff.md`
-- `docs/session12_task12_compliance.md`
-
-## Historical Session 10 retrieval background
-
-The historical retrieval stack remains available:
-
-| Layer | Files |
-| --- | --- |
-| Fusion | `app/embedding_pipeline/fusion.py` |
-| Reranking | `app/embedding_pipeline/reranker.py` |
-| Search API | `POST /search` |
-| Evaluation | `evals/session10_retrieval/` |
-
-Historical A/B/C/D matrix:
-
-| Config | Search | Reranking |
-| --- | --- | --- |
-| A | Vector | No |
-| B | Hybrid | No |
-| C | Vector | Yes |
-| D | Hybrid | Yes |
-
-Historical runner:
-
-```zsh
-uv run python -m evals.session10_retrieval.run   --output evals/session10_retrieval/results.json   --report evals/session10_retrieval/REPORT.md   --k 5   --recall-k 8
-```
-
-The report distinguished `result budget precision@5` from
-`unique budget precision@5`. The corpus has only four budgets, eight component
-chunks, and seven clean queries plus challenge cases, so the result does not
-prove hybrid retrieval or reranking superiority.
-
-Historical provider policy: prefer DeepSeek first and use Kimi only as fallback
-or comparison.
-
-Historical notes remain indexed in `docs/HISTORICAL_SESSIONS.md`.
+- Never commit `.env`, real API keys, copied credentials, raw provider output, prompts, hidden reasoning, or connection strings.
+- Do not merge or rewrite frozen/course branches without explicit authorization.
+- Do not force push.
+- Do not manufacture green by weakening tests.
+- Keep substantial source/Markdown edits out of interactive Zsh; use the editor or reviewed patches.
+- Never put Markdown fences inside shell heredocs.
