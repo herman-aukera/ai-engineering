@@ -9,16 +9,17 @@
 | Branch | `EACHAT` |
 | PR | #5, open, unmerged |
 | Milestone 9 code checkpoint | `dd79bf4befd625ce673242e843c14a023c0862d6` |
-| Latest Milestone 9 CI | run `29608614284`, success |
-| Deterministic tests | 519 passed |
-| SDD version | 1.0.0 |
+| Milestone 9 deterministic tests | 519 passed |
+| Provider/context architecture checkpoint | `57438c5fa4068bf7d4fab1e9d10d5527128a45ca` |
+| Latest exact-head CI | runs `29689906124` and `29689906247`, success |
+| SDD version | 1.1.0 |
 | Claim status | `release_claims_blocked_missing_evidence`; `measurement_only_no_quality_claim` |
 
-This SDD is the canonical engineering control document for EACHAT. Detailed state, policy, and architecture documents remain supporting specifications.
+This SDD is the canonical engineering control document for EACHAT. Detailed state, policy, provider/context and architecture documents remain supporting specifications.
 
 ## 2. Product definition and boundary
 
-EACHAT evaluates answer candidates against explicit hard and soft constraints before presenting a final answer. Deterministic Python owns evidence sufficiency, authoritative energy, budgets, and final disposition. Models may propose candidates or observations but cannot override hard constraints.
+EACHAT is a general-purpose Energy Aware Chat application. It evaluates answer candidates against explicit hard and soft constraints before presenting a final answer. Deterministic Python owns evidence sufficiency, authoritative energy, budgets, and final disposition. Models may propose candidates or observations but cannot override hard constraints.
 
 Supported dispositions:
 
@@ -26,9 +27,15 @@ Supported dispositions:
 accept | repair | clarify | reject | refuse | escalate
 ```
 
-EACHAT owns chat interpretation, grounding, candidate generation, critics, scoring, repair, clarification, refusal, escalation, provider orchestration, chat persistence, Energy Cards, API, UI, and chat evaluations.
+EACHAT owns chat interpretation, grounding, candidate generation, critics, scoring, repair, clarification, refusal, escalation, provider orchestration, chat persistence, context-compaction roadmap, Energy Cards, API, UI, and chat evaluations.
 
-EACHAT does not own shell execution, repository mutation, patch application, IDE adapters, EACODE rollback, or speculative shared-core runtime contracts.
+EACHAT does not own shell execution, repository mutation, patch application, IDE adapters, EACODE rollback, estimation-specific Session 13 semantics, or speculative shared-core runtime contracts.
+
+Portfolio relationship:
+
+- EACODE is a separate local coding-governance layer for specifications, patches, tests and commands used by Claude Code, Cline, Aider and similar clients.
+- Session 13 Plus is coursework and a source of graph, critic/boss, persistence, human-gate and observability patterns; its estimation arithmetic remains coursework-local.
+- EACORE may remain documentation and shared architecture until two independently proven products justify runtime extraction.
 
 ## 3. Current architecture
 
@@ -56,6 +63,34 @@ START
 
 The public deterministic and live chat routes still call the legacy sequential agents. The graph is internally executable and CI-validated but is not yet the public API source of execution truth.
 
+### 3.3 Target provider/context front end
+
+The provider-neutral routing contract is documented, not yet fully implemented:
+
+```text
+provider: auto | deepseek | kimi | openai
+effort: fast | balanced | max
+context: minimal | balanced | max
+orchestration: single | critic | committee | adaptive
+```
+
+Current intended policy:
+
+- DeepSeek is the cost-effective default.
+- Kimi K3 is the user-preferred quality candidate after account-visible API capability verification; it is not benchmark-proven best.
+- GPT-5.6 is the premium option.
+- reasoning effort and context compaction are independent selectors;
+- automatic routing, committee/adaptive orchestration and provider escalation require dedicated budgets, tests and fixed benchmarks.
+
+Canonical provider/context documents:
+
+```text
+../ENERGY_AWARE_PROVIDER_ROUTING_README.md
+docs/energy_aware_chat_provider_context_spec.md
+docs/energy_aware_chat_milestone_10_provider_context_addendum.md
+../docs/ENERGY_AWARE_PORTFOLIO_README.md
+```
+
 ## 4. Implemented requirements
 
 | Capability | Status | Evidence level |
@@ -64,7 +99,7 @@ The public deterministic and live chat routes still call the legacy sequential a
 | Replay-safe reducers and canonical serialization | implemented | L2 |
 | Interpretation and versioned request policy | implemented | L2 |
 | Explicit evidence routing | implemented | L2 |
-| Deterministic and live-provider adapter contracts | implemented | L2 deterministic; live graph not yet proven |
+| Deterministic and provider-backed candidate adapter contracts | implemented | L2 deterministic; live graph not yet proven |
 | Provider token/cost/latency/retry budgets | implemented | L2 |
 | Candidate-linked critic panels | implemented | L2 |
 | Candidate- and policy-linked energy scores | implemented | L2 |
@@ -76,6 +111,7 @@ The public deterministic and live chat routes still call the legacy sequential a
 | Safe final-answer projection | implemented in graph | L2 |
 | Rejected candidate body suppression | implemented | L2 |
 | No-external-provider and no-tool execution markers | implemented | L2 |
+| Provider/context/multi-agent architecture | documented | L2 documentation CI; runtime pending |
 
 ## 5. Partial requirements
 
@@ -86,17 +122,29 @@ The public deterministic and live chat routes still call the legacy sequential a
 | Human control | clarify/escalate dispositions exist | interrupts, revision-guarded actions, trusted actor and resume |
 | Evidence | references and project retrieval | evidence bodies, content hashes, verification, freshness enforcement and citation validation |
 | Observability | typed domain events and provider metrics | node spans, operational metrics, checkpoint telemetry and dashboards |
-| UI | legacy demo and Streamlit | graph-backed Control Room, thread history, human controls and browser proof |
-| Live providers | adapter seam exists | bounded graph-backed DeepSeek/Kimi evidence |
-| Evaluation | deterministic repair benchmark exists | quality rubric and controlled live comparison |
+| UI | legacy demo and Streamlit | graph-backed Control Room, provider/effort/context selectors, thread history, human controls and browser proof |
+| Live providers | existing DeepSeek/Kimi seam and provider-neutral architecture | graph-backed DeepSeek proof, verified Kimi K3 model discovery/adapter, GPT-5.6 adapter and sanitized live evidence |
+| Context management | profile and snapshot architecture | compaction implementation, persistence, drift tests, rollback and UI control |
+| Multi-agent | generator/critic graph pattern and documented modes | distinct single/committee/adaptive execution, budgets, quorum and benchmark evidence |
+| Evaluation | deterministic repair benchmark exists | quality rubric and controlled cross-provider/orchestration comparison |
 
 ## 6. Data and state contracts
 
-The graph state uses schema and contract version `1.0.0`. New Milestone 9 fields are additive:
+The graph state uses schema and contract version `1.0.0`. Milestone 9 fields are additive:
 
 - `decision_ledger_entries` — append by `ledger_entry_id`;
 - `energy_card_v2` — singular replacement;
 - `final_projection` — singular replacement.
+
+Future routing/context contracts must be additive or versioned and should record:
+
+- requested and served provider/model profiles;
+- capability-catalog version;
+- effort, context and orchestration profiles;
+- fallback/escalation reason;
+- safe provider metrics;
+- context snapshot ID/revision when compaction actually runs;
+- limitations and unverified-capability warnings.
 
 ### 6.1 Ledger integrity
 
@@ -128,6 +176,11 @@ Identical replay is idempotent. Conflicting reuse of a ledger ID fails closed.
 5. Provider output cannot bypass critics, score, decision, ledger, or projection.
 6. Refusal is a request-policy disposition; rejection is a candidate disposition.
 7. Unsafe rejected candidate text is not emitted as the final answer.
+8. Model compatibility is filtered before cost/quality routing.
+9. Cross-provider fallback is explicit, privacy-preserving and ledgered; silent fallback is forbidden.
+10. Provider marketing does not establish product quality or routing superiority.
+11. Multi-agent expansion is bounded and justified by energy, risk or uncertainty thresholds.
+12. Context summaries cannot override pinned facts, hard constraints, exact identifiers, evidence or ledger records.
 
 ## 8. Human authority model
 
@@ -141,7 +194,7 @@ disabled | required | risk_based
 
 Human actions must include expected revision, typed action, safe reason, trusted actor when productionized, and idempotent resume semantics. Clarify and escalate currently terminate without durable resume.
 
-## 9. Persistence and replay model
+## 9. Persistence, replay and compaction model
 
 Current replay proof is in-memory only. Completed states with a final projection short-circuit without duplicating provider calls, decisions, ledger entries, or trace events.
 
@@ -153,7 +206,12 @@ Target sequence:
 4. PostgreSQL saver;
 5. additive migration and rollback;
 6. retention and redaction enforcement;
-7. restart proof.
+7. restart proof;
+8. revisioned context snapshots;
+9. minimal/balanced/max compaction with pinned facts and exact references;
+10. contradiction/drift rejection and snapshot rollback.
+
+Context compaction must preserve exact constraints, identifiers, failures, evidence references, ledger links, accepted decisions and unresolved work. It never persists hidden chain-of-thought or secrets.
 
 ## 10. Evidence, trace, and audit model
 
@@ -162,13 +220,14 @@ Target sequence:
 - Domain trace events describe safe actions and observations.
 - Decision Ledger entries are authoritative decision history.
 - Energy Card v2 is a user-facing projection.
+- Context snapshots are revisioned memory projections, not authority over source records.
 - A future audit packet will be an allow-listed reviewer artifact.
 
 Hidden chain-of-thought, prompts, credentials, raw environment dumps, and raw provider transcripts are excluded from all user-facing audit surfaces.
 
 ## 11. Security and privacy
 
-Current Milestone 9 controls:
+Current controls:
 
 - evidence bodies excluded;
 - exact reference hashes only;
@@ -177,6 +236,16 @@ Current Milestone 9 controls:
 - rejected unsafe candidate text suppressed;
 - no-tool-execution marker recorded;
 - provider credentials are not state fields.
+
+Future routing/compaction controls:
+
+- allow-listed model catalog;
+- no arbitrary caller-supplied model IDs;
+- provider privacy/data-handling compatibility filter;
+- no silent cross-provider fallback;
+- no secrets or raw environment dumps in summaries;
+- version/hash/source-range metadata for context snapshots;
+- rollback to the previous trusted snapshot.
 
 Before persistence, EACHAT still requires a formal retention matrix, redaction tests, deletion/expiry behavior, and trusted actor model.
 
@@ -195,20 +264,36 @@ Milestone 9 tests cover:
 - replay idempotency;
 - external-evidence wait behavior.
 
-Remote evidence: 519 tests passed in GitHub Actions run `29608614284`.
+Milestone 9 remote evidence: 519 tests passed.
+
+The provider/context documentation checkpoint passed exact-head CI runs `29689906124` and `29689906247`. It does not prove provider adapters, compaction or multi-agent runtime behavior.
+
+Future tests must cover selector validation, model catalog allow-listing, unsupported capability failure, no silent fallback, routing budgets, compaction invariants, pinned-fact preservation, summary drift rejection, multi-agent termination and ledger projection.
 
 ## 13. Migration and rollback
 
 Milestone 9 is additive. Legacy `EnergyCard` and existing public routes remain unchanged.
 
-Rollback boundary:
+Provider/context migration is staged:
 
-1. revert graph finalization routing;
-2. retain existing state fixture compatibility;
-3. ignore additive Milestone 9 fields in older readers;
-4. return to the pre-Milestone 9 graph checkpoint if required.
+1. provider-neutral selector/catalog contracts;
+2. preserve current DeepSeek seam through an adapter;
+3. safe requested/served metadata;
+4. verified Kimi K3 discovery and adapter;
+5. GPT-5.6 adapter with premium budget;
+6. context snapshot contracts and persistence;
+7. UI selectors;
+8. adaptive/committee modes behind feature flags;
+9. fixed benchmark before default/claim changes.
 
-No persisted records exist yet, so no data migration is required for this milestone.
+Rollback:
+
+- return to existing DeepSeek seam;
+- disable provider adapters independently;
+- disable auto/adaptive/committee modes;
+- retain previous trusted context snapshot;
+- ignore additive fields in older readers;
+- never rewrite ledger history.
 
 ## 14. Cross-project adoption
 
@@ -218,25 +303,35 @@ Adopted now:
 
 - Session 13 sanitized audit projection principles;
 - EACODE append-only ledger integrity;
-- EACODE SHA-256 labels and trust/redaction metadata.
+- EACODE SHA-256 labels and trust/redaction metadata;
+- provider-neutral profile vocabulary as documentation;
+- context-compaction architecture as documentation;
+- Session 13 multi-agent patterns as deferred product-local architecture;
+- EACORE documentation-first extraction rule.
 
 Deferred:
 
 - Session 13 revision-guarded human gates;
 - Session 13 durable PostgreSQL checkpoints;
-- EACODE reviewer manifest and recovery packet.
+- EACODE reviewer manifest and recovery packet;
+- Kimi K3 and GPT-5.6 product adapters;
+- persistent context compaction;
+- committee/adaptive orchestration.
 
 Rejected:
 
 - shell/repository execution in chat;
 - estimation-specific arithmetic and schemas;
-- premature EACORE extraction.
+- premature EACORE runtime extraction;
+- guessed Kimi K3 identifiers;
+- silent provider fallback;
+- unbounded multi-agent execution.
 
 ## 15. Claim boundary
 
 Allowed:
 
-> EACHAT has a CI-validated deterministic LangGraph core with typed state, evidence routing, provider budgets, bounded repair, six deterministic dispositions, an append-only Decision Ledger, Energy Card v2, and safe final-answer projection.
+> EACHAT has a CI-validated deterministic LangGraph core with typed state, evidence routing, provider budgets, bounded repair, six deterministic dispositions, an append-only Decision Ledger, Energy Card v2, and safe final-answer projection. It also has a documented provider-neutral routing, context-compaction and bounded multi-agent architecture for DeepSeek, Kimi K3 and GPT-5.6.
 
 Blocked:
 
@@ -244,7 +339,10 @@ Blocked:
 - persistent orchestration;
 - complete human-in-the-loop support;
 - live graph provider proof;
-- quality improvement over plain DeepSeek;
+- all three providers implemented in the product;
+- Kimi K3 objectively best;
+- automatic routing or multi-agent quality improvement;
+- context compaction eliminating context rot;
 - public deployment;
 - production readiness or telemetry.
 
@@ -254,20 +352,28 @@ Blocked:
 |---|---|
 | 0–8 graph foundation and decision semantics | complete, L2 |
 | 9 ledger, Energy Card v2, final projection | complete, L2 |
-| 10 graph-backed API | next |
+| 10 graph-backed API with provider-neutral contract boundary | next |
 | 11 in-memory checkpoint proof | pending |
 | 12 human gates | pending |
 | 13 PostgreSQL persistence | pending |
 | 14 observability | pending |
 | 15 evidence/citation hardening | pending |
 | 16 graph-backed UI | pending |
-| 17 live providers | pending |
-| 18 quality evaluation | pending |
-| 19 deployment | pending |
-| 20 release audit | pending |
+| 17 provider catalog, Kimi K3 and GPT-5.6 adapters | architecture documented; implementation pending |
+| 18 context compaction and bounded multi-agent modes | architecture documented; implementation pending |
+| 19 quality evaluation | pending |
+| 20 deployment | pending |
+| 21 release audit | pending |
 
 ## 17. Next exact slice acceptance
 
-The next slice is defined in `docs/energy_aware_chat_milestone_10_graph_api_spec.md`.
+The next slice is defined in:
+
+```text
+docs/energy_aware_chat_milestone_10_graph_api_spec.md
+docs/energy_aware_chat_milestone_10_provider_context_addendum.md
+```
 
 The graph-backed API may not become the default until deterministic parity, no-double-execution proof, feature-flag rollback, safe pending-evidence behavior, and remote CI are green.
+
+Milestone 10 must remain truthful: provider-neutral contract readiness is allowed, but full Kimi K3/GPT-5.6 integration, context compaction and committee/adaptive execution remain later evidence-gated slices.
