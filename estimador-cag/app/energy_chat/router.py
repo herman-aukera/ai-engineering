@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
 
 from app.energy_chat import baseline, benchmark, fixed_benchmark, live_agent
 from app.energy_chat.agent import run_energy_aware_chat_agent
+from app.energy_chat.api_v2_contracts import (
+    EnergyChatV2Request,
+    EnergyChatV2Response,
+    ProviderUnavailableError,
+    UnsupportedProfileError,
+)
+from app.energy_chat.candidate_provider import ProviderBudgetExceededError
 from app.energy_chat.contracts import (
     DeepSeekBaselineRequest,
     DeepSeekBaselineResult,
@@ -27,6 +34,7 @@ from app.energy_chat.contracts import (
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
 from app.energy_chat.evidence import build_evidence_bundle
 from app.energy_chat.fixed_benchmark import FixedBenchmarkRunResult
+from app.energy_chat.graph_application import build_v2_error_detail, run_graph_chat_v2
 from app.energy_chat.rag import retrieve_project_context
 from app.energy_chat.source_guard import classify_source_need
 
@@ -161,3 +169,108 @@ def get_fixed_energy_chat_benchmark_report() -> str:
     return fixed_benchmark.render_fixed_benchmark_markdown(
         fixed_benchmark.run_fixed_benchmark()
     )
+
+
+# ── Milestone 10: graph-backed V2 routes ─────────────────────────────────
+
+
+@router.post("/v2/chat", response_model=EnergyChatV2Response)
+def chat_v2_deterministic(request: EnergyChatV2Request) -> EnergyChatV2Response:
+    """Run the deterministic graph-backed chat path.
+
+    Provider-free, keyless, CI-safe. One request invokes exactly one graph
+    execution. Existing legacy routes remain unchanged as rollback surfaces.
+    """
+    try:
+        return run_graph_chat_v2(request)
+    except ProviderUnavailableError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=build_v2_error_detail(
+                "provider_unavailable",
+                exc.detail,
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+            ).model_dump(),
+        )
+    except UnsupportedProfileError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=build_v2_error_detail(
+                f"unsupported_{exc.field}",
+                exc.detail,
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+            ).model_dump(),
+        )
+    except ProviderBudgetExceededError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=build_v2_error_detail(
+                "provider_budget_exceeded",
+                str(exc),
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+            ).model_dump(),
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail=build_v2_error_detail(
+                "internal_error",
+                "Graph execution failed. See server logs for details.",
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+            ).model_dump(),
+        )
+
+
+@router.post("/v2/chat/live", response_model=EnergyChatV2Response)
+def chat_v2_live(request: EnergyChatV2Request) -> EnergyChatV2Response:
+    """Run the live bounded graph-backed chat path.
+
+    Uses the existing DeepSeek/Kimi provider seam. Opt-in, monkeypatchable.
+    Normal CI tests inject fake providers; real credentials are never required.
+    """
+    try:
+        return run_graph_chat_v2(request)
+    except ProviderUnavailableError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=build_v2_error_detail(
+                "provider_unavailable",
+                exc.detail,
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+            ).model_dump(),
+        )
+    except UnsupportedProfileError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=build_v2_error_detail(
+                f"unsupported_{exc.field}",
+                exc.detail,
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+            ).model_dump(),
+        )
+    except ProviderBudgetExceededError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=build_v2_error_detail(
+                "provider_budget_exceeded",
+                str(exc),
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+            ).model_dump(),
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail=build_v2_error_detail(
+                "internal_error",
+                "Graph execution failed. See server logs for details.",
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+            ).model_dump(),
+        )
