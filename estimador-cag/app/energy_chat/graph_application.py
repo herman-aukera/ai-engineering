@@ -6,6 +6,8 @@ Response authority comes from graph state and Decision Ledger.
 
 from __future__ import annotations
 
+import hashlib  # noqa: F401
+
 from app.energy_chat.api_v2_contracts import (
     EnergyChatV2ErrorDetail,
     EnergyChatV2Request,
