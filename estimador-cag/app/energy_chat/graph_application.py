@@ -6,19 +6,23 @@ Response authority comes from graph state and Decision Ledger.
 
 from __future__ import annotations
 
-from app.energy_chat.api_v2_contracts import EnergyChatV2ErrorDetail
-from app.energy_chat.api_v2_contracts import EnergyChatV2Request
-from app.energy_chat.api_v2_contracts import EnergyChatV2Response
-from app.energy_chat.api_v2_contracts import IDFactory
-from app.energy_chat.api_v2_contracts import ProviderMetricsSummary
-from app.energy_chat.api_v2_contracts import ProviderUnavailableError
-from app.energy_chat.api_v2_contracts import UUID4IDFactory
-from app.energy_chat.api_v2_contracts import UnsupportedProfileError
-from app.energy_chat.candidate_provider import BaselineCandidateProvider
-from app.energy_chat.candidate_provider import CandidateProvider
-from app.energy_chat.candidate_provider import DeterministicCandidateProvider
-from app.energy_chat.candidate_provider import ProviderBudget
-from app.energy_chat.candidate_provider import ProviderBudgetExceededError
+from app.energy_chat.api_v2_contracts import (
+    EnergyChatV2ErrorDetail,
+    EnergyChatV2Request,
+    EnergyChatV2Response,
+    IDFactory,
+    ProviderMetricsSummary,
+    ProviderUnavailableError,
+    UnsupportedProfileError,
+    UUID4IDFactory,
+)
+from app.energy_chat.candidate_provider import (
+    BaselineCandidateProvider,
+    CandidateProvider,
+    DeterministicCandidateProvider,
+    ProviderBudget,
+    ProviderBudgetExceededError,
+)
 from app.energy_chat.graph_runtime import run_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
 

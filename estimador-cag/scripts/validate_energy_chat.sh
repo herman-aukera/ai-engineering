@@ -33,9 +33,6 @@ ENERGY_CHAT_SCRIPT_TARGETS=(
 echo "=== ENERGY CHAT VALIDATION: RUFF FIX ==="
 uv run ruff check --fix app tests energy_chat_streamlit_app.py "${ENERGY_CHAT_SCRIPT_TARGETS[@]}"
 
-echo "=== ENERGY CHAT VALIDATION: RUFF FIX DIFF ==="
-git diff -- app tests energy_chat_streamlit_app.py 2>/dev/null || true
-
 echo "=== ENERGY CHAT VALIDATION: RUFF CHECK ==="
 uv run ruff check app tests energy_chat_streamlit_app.py "${ENERGY_CHAT_SCRIPT_TARGETS[@]}"
 
