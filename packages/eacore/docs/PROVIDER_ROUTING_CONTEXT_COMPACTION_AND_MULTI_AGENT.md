@@ -1,9 +1,9 @@
 # Provider Routing, Context Compaction, and Multi-Agent Portfolio Architecture
 
-**Status:** architecture decision and product guidance  
-**Effective date:** 2026-07-19  
-**Shared runtime status:** not implemented  
-**Owner:** EACORE documentation and contract governance  
+**Status:** architecture decision and product guidance
+**Effective date:** 2026-07-19
+**Shared runtime status:** not implemented
+**Owner:** EACORE documentation and contract governance
 **Product implementation owners:** EACODE, EACHAT, and each coursework branch
 
 ## 1. Executive decision
@@ -11,9 +11,12 @@
 The portfolio will support three primary providers:
 
 1. **DeepSeek** as the default cost/performance route.
-2. **Kimi** as the frontier open-model route, beginning with Kimi K3.
+2. **Kimi** as the preferred frontier open-model route, beginning with Kimi K3.
 3. **OpenAI** as the premium reference and escalation route, beginning with the
    GPT-5.6 family.
+
+"Preferred" is a portfolio policy, not a claim that one provider wins every
+benchmark or product scenario.
 
 The product UI and APIs must separate:
 
@@ -39,8 +42,9 @@ Verified official models:
 - `deepseek-v4-pro`.
 
 Both support 1M context, thinking and non-thinking modes, tools, and structured
-JSON. Thinking effort supports `high` and `max`. Lower effort values are mapped
-up by the provider rather than representing distinct native levels.
+JSON. Thinking effort supports `high` and `max`. Lower requested effort values
+are mapped upward by the provider rather than representing distinct native
+levels.
 
 Portfolio mapping:
 
@@ -56,7 +60,7 @@ claim that it wins every benchmark.
 
 ### 2.2 Kimi
 
-Kimi K3 was officially released on 2026-07-16. Moonshot describes it as a
+Kimi K3 was officially introduced on 2026-07-17. Moonshot describes it as a
 2.8T-parameter, natively multimodal model with a 1M-token context window for
 long-horizon coding, knowledge work, and deep reasoning.
 
@@ -64,9 +68,9 @@ Official API model ID:
 
 - `kimi-k3`.
 
-At launch, Kimi K3 uses `max` thinking effort. Moonshot announced low and high
-effort modes for later releases. Until the official API exposes and verifies
-those modes, the capability registry must represent:
+At launch, Kimi K3 uses `max` thinking effort. Moonshot announced low- and
+high-effort modes for later releases. Until the official API exposes and
+verifies those modes, the capability registry must represent:
 
 | Execution profile | Kimi model | Status |
 |---|---|---|
@@ -193,7 +197,7 @@ No silent fallback is allowed.
 - token price;
 - repair history;
 - provider reliability;
-- current benchmark/evaluation evidence.
+- current benchmark and evaluation evidence.
 
 ### Decision sequence
 
@@ -216,8 +220,6 @@ route.
 ### 5.1 EACODE
 
 EACODE may become a local, continuously running Energy-Aware coding gateway.
-
-Possible topology:
 
 ```text
 Claude Code / Cline / Aider / IDE / local client
@@ -248,14 +250,12 @@ coding-specific decisions. EACORE must not own them.
 An Anthropic-compatible or OpenAI-compatible local endpoint may be designed
 later so external coding clients can use EACODE as a gateway. That compatibility
 surface requires its own specification, authentication, streaming, tool-call,
-error, and cancellation tests.
+error, cancellation, and rollback tests.
 
 ### 5.2 EACHAT
 
 EACHAT should be an Energy-Aware general-purpose chat product with a familiar
 ChatGPT-style interface.
-
-Possible topology:
 
 ```text
 user request
@@ -279,7 +279,7 @@ Recommended critics:
 - consistency;
 - usefulness;
 - verbosity and structure;
-- provider cost/latency.
+- provider cost and latency.
 
 EACHAT owns the chat UX, memory, retrieval, answer repair, refusals, and Energy
 Card.
@@ -413,7 +413,7 @@ portfolio when agents have independent roles and produce inspectable evidence.
 | EACHAT | parallel grounding, safety, instruction, consistency, and usefulness critics |
 | Coursework | parallel nodes, bounded retries, fallback, Boss routing, and human gates |
 | Evals | same prompt across providers, independent graders, disagreement analysis |
-| Context compaction | summary generator plus factuality/coverage validator |
+| Context compaction | summary generator plus factuality and coverage validator |
 
 ### Bad applications
 
@@ -452,8 +452,8 @@ Record:
 - latency;
 - estimated cost;
 - compaction count;
-- context before/after;
-- summary version/hash;
+- context before and after;
+- summary version and hash;
 - multi-agent fan-out and completion;
 - final product decision.
 
@@ -467,7 +467,7 @@ Do not record keys or hidden reasoning.
 4. Fake-provider contract tests.
 5. Structured compaction records and fixtures.
 6. Context-profile tests.
-7. One product-local UI/CLI selector.
+7. One product-local UI or CLI selector.
 8. Provider smoke tests outside deterministic CI.
 9. Multi-agent critic pilot with bounded concurrency.
 10. Cross-product extraction only after two products prove equivalent contracts.
@@ -475,7 +475,7 @@ Do not record keys or hidden reasoning.
 ## 10. Official sources
 
 - Moonshot Kimi K3 release:
-  https://www.kimi.com/blog/kimi-k3
+  https://www.kimi.com/en/blog/kimi-k3
 - Kimi API platform:
   https://platform.kimi.ai/
 - DeepSeek Claude Code integration:
