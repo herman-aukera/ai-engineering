@@ -7,13 +7,13 @@ Response authority comes from graph state and Decision Ledger.
 from __future__ import annotations
 
 from app.energy_chat.api_v2_contracts import (
+    EnergyChatV2ErrorDetail,
     EnergyChatV2Request,
     EnergyChatV2Response,
-    EnergyChatV2ErrorDetail,
     IDFactory,
-    UUID4IDFactory,
     ProviderMetricsSummary,
     ProviderUnavailableError,
+    UUID4IDFactory,
     UnsupportedProfileError,
 )
 from app.energy_chat.candidate_provider import (
