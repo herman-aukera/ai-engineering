@@ -1,170 +1,169 @@
-# AI Engineering Coursework
+# AI Engineering Coursework and Energy-Aware Product Incubators
 
-This repository contains the LIDR AI Engineering coursework.
+This repository contains the LIDR AI Engineering coursework and the living Energy-Aware product incubators derived from it.
 
-## Current submission
-
-Active project:
+## Current branch
 
 ```text
-estimador-cag/
+EACODE
 ```
 
-Current branch:
+`EACODE` is a long-lived incubator branch. PR #4 remains open and draft and must not be merged into `main` as a routine coursework delivery.
+
+## Current product
+
+### Energy Aware Code
+
+EACODE supervises coding agents, repositories, proposed commands, repair loops, evidence, and human authorization.
 
 ```text
-gg-pre-session-06-cag-stress-test
+specification + policy + candidate + evidence
+    -> critics
+    -> constraint-energy score
+    -> deterministic boss/decider
+    -> accept | repair | reject | clarify | escalate
+    -> bounded action or human gate
+    -> normalized evidence and decision ledger
 ```
 
-Current deliverable:
+Current product README:
 
 ```text
-Session 06 — CAG stress test baseline
+estimador-cag/README_EACODE.md
 ```
 
-## What this branch delivers
-
-This branch adds a measurable stress baseline for the existing CAG system.
-
-The goal is not to implement RAG yet. The goal is to measure where the current Cache Augmented Generation approach starts to degrade under longer conversations, larger attachments, and repeated load.
-
-## Required deliverables
+Claude Code project memory:
 
 ```text
-estimador-cag/evals/stress/REPORT.md
-estimador-cag/evals/stress/results.csv
+estimador-cag/CLAUDE.md
 ```
 
-The committed deterministic stress run contains 900 data rows plus a header.
+Current delegated implementation charter:
 
 ```text
-3 scenarios × 5 attachment sizes × 3 repeats × 20 turns = 900 rows
+estimador-cag/docs/eacode_phase3c_claude_deepseek_handoff.md
 ```
 
-A bounded live provider smoke was also run locally with DeepSeek.
+## Energy-Aware product family
+
+| Product or track | Responsibility |
+|---|---|
+| EACODE | Coding-agent, repository, command, evidence, repair, and authorization supervision |
+| EACHAT | General conversational answer generation, criticism, repair, grounding, memory, and chat UI |
+| LIDR tasks and Session 13 Plus | Exact mandatory coursework, with isolated and evidenced extra work |
+| EACORE | Optional common architecture/contracts after stable overlap is proven in at least two products |
+
+Session 13 Plus supplies useful supervisor/boss, interrupt, retry, trace, and multi-agent patterns. Domain-specific estimation logic remains in the task branch.
+
+Canonical cross-product architecture:
 
 ```text
-3 scenarios × 5 attachment sizes × 3 repeats × 2 turns = 90 rows
+estimador-cag/docs/energy_aware_product_family_provider_and_context_strategy.md
 ```
 
-The live smoke was kept as local validation evidence. It is not committed because the required deliverable is the report and CSV in evals/stress/.
+## Provider and model strategy
 
-## Main Session 06 additions
+The planned provider-neutral selector is:
 
 ```text
-estimador-cag/evals/stress/scenarios.py
-estimador-cag/evals/stress/metrics.py
-estimador-cag/evals/stress/run.py
-estimador-cag/evals/stress/fixtures/build_pdfs.py
-estimador-cag/evals/stress/results.csv
-estimador-cag/evals/stress/REPORT.md
+provider: auto | deepseek | kimi | openai
+profile: minimal | medium | max
+context_profile: minimal | medium | max
 ```
 
-The stress runner measures:
+Policy intent:
 
-* latency vs tokens
-* cumulative cost vs turn
-* fact recall vs conversation length
-* attachment size impact
-* cache hit kind
-* tier used
-* per turn token and cost metadata
+- **DeepSeek** is the default cost-sensitive provider using V4 Flash or V4 Pro.
+- **Kimi** is the user-preferred frontier/open-model provider, with Kimi K3 as the max path.
+- **OpenAI GPT-5.6** is an explicit budget-gated premium escalation using Luna, Terra, or Sol.
 
-## Instrumentation
+Provider capabilities differ. The selector must use a versioned capability registry and must reject unsupported combinations rather than inventing uniform reasoning levels.
 
-Each conversational estimate exposes a turn_observed object with:
+The SDD packet is:
 
 ```text
-turn_index
-session_id
-enriched_transcript_chars
-attachments_total_chars
-messages_in_window
-anchors_count
-summary_chars
-tokens_in
-tokens_out
-cost_usd
-latency_ms
-cache_hit_kind
-last_resolved_tier
+estimador-cag/.energy/specs/0010-provider-routing-context-compaction/
 ```
 
-## Validation
+## Context compaction
 
-Local validation completed:
+Long-running product and coursework workflows must preserve:
 
 ```text
-ruff clean
-py_compile clean
-232 pytest tests passed
+immutable raw events and artifacts
+-> typed canonical state
+-> versioned hierarchical summaries
+-> bounded recent working window
+-> evidence rehydration
 ```
 
-GitHub Actions normal CI is green.
+User profiles:
 
-Normal CI uses dummy provider keys for deterministic test execution. Real provider validation is available through the manual workflow:
+- `minimal`: objective, hard constraints, current state, blocker, next action;
+- `medium`: minimal plus decision/evidence digest and relevant pivots;
+- `max`: medium plus hierarchical history and broader evidence retrieval within budget.
+
+Summaries never replace source-of-truth evidence. Secrets and hidden chain of thought are never persisted.
+
+## Multi-agent policy
+
+Multi-agent orchestration is encouraged when independent parallel critics, alternative proposals, retrieval, security review, provider comparison, or benchmark evaluation create measurable value.
+
+Required controls:
+
+- typed shared state;
+- bounded fan-out;
+- deterministic aggregation;
+- disagreement records;
+- cost, time, tool, and concurrency budgets;
+- no concurrent edits to one working tree;
+- no agent self-approval;
+- deterministic boss owns final disposition.
+
+## Current implementation boundary
+
+Implemented and remotely CI validated on EACODE:
+
+- deterministic Energy-Aware judge;
+- evidence integrity, hashing, recovery, manifests, and retention;
+- persistent LangGraph orchestration with SQLite restart/resume;
+- human clarification and escalation;
+- controlled command planning and fake/dry-run evidence;
+- one-time execution authorization and replay protection.
+
+Next implementation slice:
 
 ```text
-Live provider smoke - Estimador CAG
+Spec 0009 — disabled-by-default sandboxed tool adapter
 ```
 
-That workflow uses GitHub Actions repository secrets:
-
-```text
-DEEPSEEK_API_KEY
-KIMI_API_KEY
-```
+Provider routing, context-compaction runtime, and multi-agent execution remain later slices and must not be mixed into Spec 0009.
 
 ## Repository map
 
 ```text
 .
-├── estimador-cag/      Active estimator project
-├── docs/               Shared notes and sample files
-├── scripts/            Helper scripts
-├── docker-compose.yml  Root compose file
-└── README.md           Current repository review guide
+├── estimador-cag/
+│   ├── CLAUDE.md
+│   ├── README_EACODE.md
+│   ├── .energy/specs/
+│   ├── docs/
+│   ├── energy_core/
+│   ├── app/
+│   ├── evals/
+│   └── tests/
+├── docs/
+├── scripts/
+├── docker-compose.yml
+└── README.md
 ```
 
-The old duplicate estimator/ project folder has been removed from this branch.
+## Safety and evidence rules
 
-## Run the active project
-
-```bash
-cd /workspaces/ai-engineering
-
-docker compose up -d redis
-
-cd estimador-cag
-uv sync --extra dev
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-## Run the mandatory stress runner
-
-With the backend running:
-
-```bash
-cd /workspaces/ai-engineering/estimador-cag
-
-uv run python -m evals.stress.run \
-  --http http://localhost:8000 \
-  --scenarios growing,pivot,contradiction \
-  --attachment-sizes 0,5,20,50,100 \
-  --repeats 3 \
-  --output evals/stress/results.csv
-```
-
-## Run local gates
-
-```bash
-cd /workspaces/ai-engineering/estimador-cag
-
-uv run ruff check app evals tests
-uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
-DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
-```
-
-## Notes
-
-The committed full stress report is deterministic by design to avoid 900 live LLM calls. A smaller live DeepSeek smoke was run locally to verify the real provider path.
+- Mandatory coursework requirements come before optional extras.
+- Extra work must be isolated, reversible, and evidence-backed.
+- Deterministic CI uses fake providers and fake tools.
+- Live provider and real tool validation are explicit manual smokes.
+- No automatic commit, push, merge, reset, clean, or force-push.
+- No secrets in repository files, logs, screenshots, summaries, or evidence.
+- Do not claim runtime capability, safety, or benchmark superiority without matching evidence.
