@@ -22,59 +22,44 @@ Read and follow:
 
 Use current repository state, tests, command output, and CI as stronger evidence than documentation.
 
-## Current recovery status
+## Current implementation status
 
 ```text
-Spec 0007 — deterministic controlled planning and fake/dry-run evidence: COMPLETE at L2
-Spec 0008 — logical-revision authorization and persistent interrupt: COMPLETE at L2
-Spec 0009 — sandboxed-tool implementation and deterministic tests: IMPLEMENTED at L2; SECURITY REPAIR REQUIRED
-Spec 0010 — provider registry and deterministic selector: PARTIALLY IMPLEMENTED; CAPABILITY FACT REPAIR REQUIRED
-Context compaction runtime: LOCAL INTERRUPTED WORK MAY EXIST; NOT REMOTELY PROVEN
-Multi-agent runtime: NOT IMPLEMENTED IN EACODE
+Spec 0007 — deterministic controlled planning and fake/dry-run evidence: COMPLETE L2
+Spec 0008 — logical-revision authorization and persistent interrupt: COMPLETE L2
+Spec 0009 — sandboxed-tool adapter: IMPLEMENTED L3 (live-intent guard, re-redaction, snapshot binding)
+Spec 0010 — provider registry, selector, compaction, adapter, multi-agent: IMPLEMENTED
 ```
 
-Do not repeat these unsupported claims:
+Recovery R0-R8 complete. EACODE at `dd1844c`. CI green. 357/358 tests (1 pre-existing Windows symlink).
 
-- PR #12 was merged;
-- Spec 0009 has complete live/manual evidence;
-- real-process sandboxing is proven safe;
-- exact Git-repository snapshot authorization exists;
-- Spec 0010 runtime is complete;
-- provider catalog values are current merely because tests pass;
-- context compaction is complete;
-- Kimi K3 is objectively superior.
+### Spec 0009 security repairs (R4, 2026-07-20)
 
-PR #12 remains an open draft according to current GitHub metadata. Spec 0009 code is integrated into EACODE, but that is not equivalent to PR #12 being merged.
+- Live-execution intent guard: `dry_run`/`fake` plans rejected by SandboxedToolAdapter
+- Final-assembly re-redaction on all output paths (timeout, cancel, normal)
+- Repository snapshot binding via `SandboxedToolConfig.repository_snapshot`
+- Authorization receipt `execution_performed=True` rejected before execution
 
-## Mandatory recovery order
+### Spec 0010 runtime modules (2026-07-20)
 
-```text
-R0 stop or close all competing Claude/agent sessions
-R1 inspect local EACODE status and preserve interrupted local files
-R2 compare local HEAD and diff with origin/EACODE without reset/clean/restore
-R3 repair provider capability facts, contracts, and tests from current official sources
-R4 repair Spec 0009 live-intent, exact repository-snapshot, cleanup,
-   cancellation, truncation, redaction, and receipt-provenance invariants through red tests
-R5 run focused and full deterministic gates
-R6 request explicit user approval before commit or push
-R7 resume context-compaction contracts as a separate slice
-R8 start a fresh provider session for Kimi K3 rather than switching inside a damaged session
-```
+| Module | What | Tests |
+|---|---|---|
+| `provider_registry.py` | 11 curated models across 4 surfaces, deterministic selector, budget | 51 |
+| `context_compaction.py` | CompactionRecord, engine, loss auditor, staleness, contradictions | 23 |
+| `provider_adapter.py` | FakeProviderAdapter, ProviderExecutionEvidence, served-model metadata | 10 |
+| `multi_agent.py` | AgentTask, budgets, DisagreementRecord, DeterministicBoss | 15 |
 
-Do not continue context-compaction or multi-agent implementation until R3 and R4 are green.
+All modules are additive, deterministic, keyless, and CI-validated. No live API calls.
 
-## Critical Spec 0009 invariants to repair
+### Not implemented in EACODE
 
-- A plan whose execution mode is `dry_run` or `fake` must never start a real process.
-- Real execution needs an explicit typed live-execution intent and authority transition.
-- Authorization must bind to an exact repository snapshot, not only an integer revision.
-- The snapshot must cover HEAD, tree, staged diff, unstaged diff, and untracked state/digest.
-- Process-tree cleanup must be verified, not assumed.
-- Cancellation must be observed promptly while the process is running.
-- Output truncation flags must be accurate.
-- Redaction must be safe across chunk boundaries and rerun on assembled output.
-- Receipt provenance or authoritative-store verification must prevent fabricated in-memory receipts.
-- Cleanup uncertainty fails closed.
+- Live provider adapters (DeepSeek, Kimi Code, OpenAI) — manual smoke only
+- Product UI and selector controls
+- EACORE extraction
+
+### Claim boundary
+
+Do not claim: PR merged, production readiness, live provider proof, Kimi K3 superiority, safe sandboxing for untrusted code, complete manual evidence.
 
 ## Provider policy and current correction boundary
 
