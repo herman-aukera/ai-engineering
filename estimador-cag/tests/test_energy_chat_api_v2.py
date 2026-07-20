@@ -202,7 +202,7 @@ def test_v2_deterministic_route_calls_graph_exactly_once(monkeypatch) -> None:
         return original_run(state, provider=provider, budget=budget, repair_strategy=repair_strategy)
 
     monkeypatch.setattr(
-        "app.energy_chat.graph_application.run_energy_chat_graph",
+        "app.energy_chat.graph_runtime.run_energy_chat_graph",
         counting_run,
     )
 
@@ -308,8 +308,9 @@ def test_v2_repair_projection_includes_counts_and_outcomes() -> None:
     response = client.post(
         "/energy-chat/v2/chat",
         json={
-            "user_message": "Review this release-readiness answer",
-            "draft_answer": "Start with tests.",
+            "user_message": "Review this release-readiness answer — it must include deployment evidence and a next action.",
+            "required_constraints": ["deployment evidence"],
+            "required_sections": ["Decision", "Evidence", "Next action"],
         },
     )
 
