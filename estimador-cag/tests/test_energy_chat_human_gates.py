@@ -67,7 +67,6 @@ def test_clarify_disposition_triggers_human_interrupt() -> None:
     """When the decision is clarify, the graph must interrupt for human action
     rather than recording the decision and terminating."""
     from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
-    from app.energy_chat.human_gate import enable_human_gates
 
     checkpointer = InMemoryCheckpointer()
     graph = build_energy_chat_graph(
@@ -153,7 +152,6 @@ def test_resume_from_interrupt_with_human_action() -> None:
     config = {"configurable": {"thread_id": "thread-resume"}}
     payload = _runtime_payload(state)
 
-    import builtins
     first = graph.invoke(payload, config)
     # Filter LangGraph-internal keys before domain validation
     known_fields = set(EnergyChatGraphState.model_fields)
