@@ -3,11 +3,9 @@
 All tests are deterministic — no live API calls, no provider keys required.
 """
 
-from __future__ import annotations
+from __future__ import annotations  # noqa: I001
 
-from datetime import datetime
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 
