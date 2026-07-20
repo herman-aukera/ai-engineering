@@ -71,7 +71,6 @@ def test_replay_same_thread_is_idempotent() -> None:
 
     checkpointer = InMemoryCheckpointer()
     graph = build_energy_chat_graph(checkpointer=checkpointer.langgraph_saver)
-    provider = DeterministicCandidateProvider()
     state = _state()
 
     config = {"configurable": {"thread_id": "thread-replay"}}
@@ -164,8 +163,10 @@ def test_provider_not_called_again_on_replay(monkeypatch) -> None:
             return DeterministicCandidateProvider().generate(request)
 
     checkpointer = InMemoryCheckpointer()
-    graph = build_energy_chat_graph(checkpointer=checkpointer.langgraph_saver)
     provider = CountingProvider()
+    graph = build_energy_chat_graph(
+        provider=provider, checkpointer=checkpointer.langgraph_saver
+    )
     state = _state(thread_id="thread-no-double-call")
 
     config = {"configurable": {"thread_id": "thread-no-double-call"}}
