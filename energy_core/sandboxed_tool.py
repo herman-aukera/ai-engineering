@@ -160,8 +160,6 @@ class SandboxedToolAdapter:
 
             stdout_chunks: list[str] = []
             stderr_chunks: list[str] = []
-            stdout_len = 0
-            stderr_len = 0
             stdout_truncated = False
             stderr_truncated = False
             redacted = False
