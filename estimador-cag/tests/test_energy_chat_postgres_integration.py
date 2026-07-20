@@ -15,7 +15,7 @@ from app.energy_chat.checkpoint_postgres import (
     CheckpointRetentionPolicy,
     PostgresCheckpointer,
 )
-from app.energy_chat.graph_runtime import build_energy_chat_graph, run_energy_chat_graph
+from app.energy_chat.graph_runtime import build_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
 
 POSTGRES_URL = os.environ.get("EACHAT_POSTGRES_URL", "")
