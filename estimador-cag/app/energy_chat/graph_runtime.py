@@ -396,26 +396,6 @@ def build_energy_chat_graph(
     builder.add_edge("generate_candidate", "run_critic_panel")
     builder.add_edge("run_critic_panel", "calculate_energy")
     builder.add_edge("calculate_energy", "decide_candidate")
-    builder.add_conditional_edges(
-        "decide_candidate",
-        _route_decision,
-        {
-            "end": "record_decision",
-            "repair": "plan_repair",
-            "finalize": "finalize_repair",
-            "human": "request_human_action",
-        },
-    )
-    builder.add_conditional_edges(
-        "plan_repair",
-        _repair_plan_route,
-        {"apply": "apply_repair", "end": "record_decision"},
-    )
-    builder.add_edge("apply_repair", "run_critic_panel")
-    builder.add_edge("finalize_repair", "record_decision")
-    builder.add_edge("request_human_action", "record_decision")
-    builder.add_edge("record_decision", "build_final_projection")
-    builder.add_edge("build_final_projection", END)
 
     # ── decision routing closure (captures human_gate_mode) ──────────
 
@@ -447,6 +427,26 @@ def build_energy_chat_graph(
             return "human"
         return "end"
 
+    builder.add_conditional_edges(
+        "decide_candidate",
+        _route_decision,
+        {
+            "end": "record_decision",
+            "repair": "plan_repair",
+            "finalize": "finalize_repair",
+            "human": "request_human_action",
+        },
+    )
+    builder.add_conditional_edges(
+        "plan_repair",
+        _repair_plan_route,
+        {"apply": "apply_repair", "end": "record_decision"},
+    )
+    builder.add_edge("apply_repair", "run_critic_panel")
+    builder.add_edge("finalize_repair", "record_decision")
+    builder.add_edge("request_human_action", "record_decision")
+    builder.add_edge("record_decision", "build_final_projection")
+    builder.add_edge("build_final_projection", END)
     return builder.compile(checkpointer=checkpointer)
 
 

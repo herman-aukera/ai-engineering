@@ -7,6 +7,7 @@ import pytest
 from app.energy_chat.candidate_provider import DeterministicCandidateProvider
 from app.energy_chat.graph_runtime import build_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
+from app.energy_chat.human_gate import HumanActionRequest, StaleHumanActionError
 
 
 def _state(**overrides: object) -> EnergyChatGraphState:
@@ -200,7 +201,7 @@ def test_stale_human_action_is_rejected() -> None:
 def _validate_action_revision(
     action: HumanActionRequest, *, current_revision: int
 ) -> None:
-    from app.energy_chat.human_gate import StaleHumanActionError
+    from app.energy_chat.human_gate import HumanActionRequest, StaleHumanActionError
 
     if action.expected_revision != current_revision:
         raise StaleHumanActionError(
