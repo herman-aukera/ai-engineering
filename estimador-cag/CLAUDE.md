@@ -20,13 +20,19 @@ Use current repository state, tests, command output, and CI as stronger evidence
 
 ## Current implementation priority
 
-The active delegated implementation slice remains:
-
 ```text
-Spec 0009 — disabled-by-default sandboxed tool adapter
+Spec 0009 — disabled-by-default sandboxed tool adapter — COMPLETE (2026-07-20)
 ```
 
-Spec 0010 is architecture guidance and a future implementation packet. Do not mix live provider routing, context-compaction runtime, or multi-agent execution into Spec 0009.
+Completed under PR #12, merged into EACODE at `2150d13`. CI green. Manual `--live-tool` smoke proven on Windows 11. Threat model and claim boundary updated.
+
+Next slice per implementation order (@docs/energy_aware_product_family_provider_and_context_strategy.md §8):
+
+```text
+Provider capability registry and selector (Spec 0010 runtime)
+```
+
+Spec 0010 is architecture guidance and a future implementation packet. Do not mix live provider routing, context-compaction runtime, or multi-agent execution into completed Specs 0007-0009.
 
 ## Product family
 
