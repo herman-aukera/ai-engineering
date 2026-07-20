@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EACHAT V2 — Graph-Backed Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111827; --panel: #172033; --panel-2: #0f172a;
+      --border: #334155; --text: #e5e7eb; --muted: #94a3b8;
+      --accent: #38bdf8; --ok: #10b981; --warn: #f59e0b; --bad: #ef4444;
+    }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 72px; }
+    h1, h2, h3 { margin: 0 0 10px; }
+    p { color: var(--muted); line-height: 1.5; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 20px; }
+    .card { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+    label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.85rem; }
+    textarea, input, select { width: 100%; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--border); background: #020617; color: var(--text); padding: 10px; font: inherit; }
+    textarea { min-height: 80px; resize: vertical; }
+    button { cursor: pointer; border: 1px solid #2563eb; background: #1d4ed8; color: white; padding: 10px 16px; margin: 10px 6px 0 0; border-radius: 10px; font-weight: 700; }
+    button.secondary { background: #0f172a; border-color: var(--border); }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #020617; border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-height: 100px; color: #dbeafe; font-size: 0.9rem; }
+    .pill { display: inline-flex; gap: 6px; align-items: center; border-radius: 999px; padding: 6px 10px; border: 1px solid var(--border); background: #020617; color: var(--muted); margin: 3px 6px 3px 0; font-size: 0.82rem; }
+    .pill.ok { color: #d1fae5; border-color: #065f46; background: #064e3b; }
+    .pill.warn { color: #fef3c7; border-color: #92400e; background: #78350f; }
+    .pill.bad { color: #fee2e2; border-color: #991b1b; background: #7f1d1d; }
+    .answer { background: #020617; border: 1px solid var(--border); border-radius: 12px; padding: 14px; line-height: 1.5; white-space: pre-wrap; }
+    .small { font-size: 0.82rem; color: var(--muted); }
+    .selectors { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+    .metric-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+    .metric-row span:first-child { color: var(--muted); }
+    .thread-list { max-height: 200px; overflow-y: auto; }
+    .thread-item { cursor: pointer; padding: 6px 10px; border-radius: 8px; margin: 3px 0; background: #020617; border: 1px solid var(--border); font-size: 0.85rem; }
+    .thread-item:hover { border-color: var(--accent); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>EACHAT V2 ⚡ Graph-Backed Demo</h1>
+  <p>V2 API: one graph execution per request. Energy Card v2, Decision Ledger, provider metrics. Legacy routes unchanged.</p>
+
+  <section class="card">
+    <h2>Request</h2>
+    <label for="question">Question</label>
+    <textarea id="question">Is deployment evidence mandatory for the Energy Aware Chat final project MVP?</textarea>
+
+    <div class="selectors">
+      <div><label for="mode">Mode</label><select id="mode"><option>project</option><option>chat_lite</option><option>research</option><option>tutor</option></select></div>
+      <div><label for="provider">Provider</label><select id="provider"><option value="deepseek" selected>DeepSeek (default)</option><option value="auto">Auto (uncalibrated)</option><option value="kimi">Kimi (deferred)</option><option value="openai">OpenAI (deferred)</option></select></div>
+      <div><label for="effort">Effort</label><select id="effort"><option value="balanced" selected>Balanced</option><option value="fast">Fast</option><option value="max">Max</option></select></div>
+      <div><label for="context">Context</label><select id="context"><option value="balanced" selected>Balanced</option><option value="minimal">Minimal (unsupported)</option><option value="max">Max (unsupported)</option></select></div>
+    </div>
+
+    <div class="selectors" style="margin-top:6px">
+      <div><label for="thread">Thread ID (for replay)</label><input id="thread" type="text" placeholder="auto-generated" /></div>
+      <div><label for="execution">Execution</label><select id="execution"><option value="deterministic" selected>Deterministic (CI-safe)</option><option value="live">Live (bounded)</option></select></div>
+    </div>
+
+    <div style="margin-top:10px">
+      <button onclick="sendRequest()">Send (V2 Graph)</button>
+      <button class="secondary" onclick="replayThread()">Replay Thread</button>
+      <button class="secondary" onclick="clearOutput()">Clear</button>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Response</h2>
+      <div id="status"></div>
+      <div id="answer" class="answer" style="min-height:60px"></div>
+    </section>
+
+    <section class="card">
+      <h2>Energy Card v2</h2>
+      <div id="energyCard"></div>
+    </section>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Provider Metrics</h2>
+      <div id="metrics"></div>
+    </section>
+    <section class="card">
+      <h2>Ledger & Trace</h2>
+      <div id="ledger"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Thread History</h2>
+    <div id="threadHistory" class="thread-list"></div>
+  </section>
+</main>
+
+<script>
+  const THREADS = [];
+
+  function endpoint() {
+    return document.getElementById('execution').value === 'live'
+      ? '/energy-chat/v2/chat/live' : '/energy-chat/v2/chat';
+  }
+
+  function buildPayload() {
+    const p = {
+      user_message: document.getElementById('question').value,
+      mode: document.getElementById('mode').value,
+      provider_preference: document.getElementById('provider').value,
+      effort_profile: document.getElementById('effort').value,
+      context_profile: document.getElementById('context').value,
+      execution_profile: document.getElementById('execution').value === 'live' ? 'live_bounded' : 'deterministic'
+    };
+    const tid = document.getElementById('thread').value.trim();
+    if (tid) p.thread_id = tid;
+    return p;
+  }
+
+  async function sendRequest() {
+    const payload = buildPayload();
+    const resp = await fetch(endpoint(), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    THREADS.push({ thread_id: data.thread_id, request_id: data.request_id, time: new Date().toLocaleTimeString(), status: data.graph_status });
+    render(data, resp.status);
+    renderThreads();
+  }
+
+  async function replayThread() {
+    const tid = document.getElementById('thread').value.trim();
+    if (!tid) { alert('Enter a Thread ID to replay'); return; }
+    const resp = await fetch(endpoint(), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_message: document.getElementById('question').value, thread_id: tid })
+    });
+    render(await resp.json(), resp.status);
+  }
+
+  function render(data, status) {
+    document.getElementById('status').innerHTML = status === 200
+      ? `<span class="pill ok">${data.graph_status}</span>`
+      : `<span class="pill bad">HTTP ${status}: ${data.detail?.error || 'error'}</span>`;
+
+    if (data.awaiting_evidence) {
+      document.getElementById('answer').textContent = '⏳ Awaiting external evidence — no candidate generated.';
+    } else if (data.final_answer) {
+      document.getElementById('answer').textContent = data.final_answer;
+    } else {
+      document.getElementById('answer').textContent = '(no answer)';
+    }
+
+    // Energy Card v2
+    const card = data.energy_card_v2;
+    if (card) {
+      document.getElementById('energyCard').innerHTML =
+        `<div class="metric-row"><span>Decision</span><span class="pill ${card.decision === 'accept' ? 'ok' : 'warn'}">${card.decision}</span></div>
+         <div class="metric-row"><span>Hard constraints</span><span>${card.hard_constraints_passed ? '✅ passed' : '❌ violated'}</span></div>
+         <div class="metric-row"><span>Energy before</span><span>${card.energy_before}</span></div>
+         <div class="metric-row"><span>Energy after</span><span>${card.energy_after} (Δ${card.energy_delta})</span></div>
+         <div class="metric-row"><span>Repairs</span><span>${card.repair_attempts} (${(card.repair_outcomes||[]).join(', ') || 'none'})</span></div>
+         <div class="metric-row"><span>Policy</span><span>${card.policy_rule_id} v${card.policy_version}</span></div>
+         <div class="metric-row"><span>Ledger entry</span><span class="small">${card.ledger_entry_id}</span></div>`;
+    } else {
+      document.getElementById('energyCard').innerHTML = '<span class="small">(no Energy Card v2)</span>';
+    }
+
+    // Metrics
+    const m = data.provider_metrics_summary || {};
+    document.getElementById('metrics').innerHTML =
+      `<div class="metric-row"><span>Provider</span><span>${data.served_provider || 'none'} / ${data.served_model || 'none'}</span></div>
+       <div class="metric-row"><span>Requested</span><span>${data.requested_provider}</span></div>
+       <div class="metric-row"><span>Fallback</span><span>${data.fallback_used ? '⚠️ yes' : 'no'}</span></div>
+       <div class="metric-row"><span>Calls</span><span>${m.provider_call_count || 0}</span></div>
+       <div class="metric-row"><span>Cost</span><span>$${(m.total_cost_usd || 0).toFixed(4)}</span></div>
+       <div class="metric-row"><span>Latency</span><span>${m.total_latency_ms || 0}ms</span></div>
+       <div class="metric-row"><span>Routing</span><span class="small">${data.routing_reason || ''}</span></div>`;
+
+    // Ledger
+    const ids = data.ledger_entry_ids || [];
+    document.getElementById('ledger').innerHTML =
+      `<div class="metric-row"><span>Ledger entries</span><span>${ids.length}</span></div>
+       <div class="metric-row"><span>Evidence refs</span><span>${(data.evidence_refs||[]).length}</span></div>
+       <div class="metric-row"><span>Candidates</span><span>${data.candidate_count}</span></div>
+       <div class="metric-row"><span>Repairs</span><span>${data.repair_count}</span></div>
+       <div class="metric-row"><span>Markers</span><span>${(data.execution_markers||[]).join(', ') || 'none'}</span></div>
+       <div class="metric-row"><span>Limitations</span><span class="small">${(data.limitations||[]).join('; ') || 'none'}</span></div>`;
+  }
+
+  function renderThreads() {
+    document.getElementById('threadHistory').innerHTML = THREADS.map(t =>
+      `<div class="thread-item" onclick="document.getElementById('thread').value='${t.thread_id}'">
+        <span>${t.time}</span> — <span class="pill ok">${t.status}</span> <span class="small">${t.thread_id}</span>
+      </div>`
+    ).reverse().join('');
+  }
+
+  function clearOutput() {
+    document.getElementById('status').innerHTML = '';
+    document.getElementById('answer').textContent = '';
+    document.getElementById('energyCard').innerHTML = '';
+    document.getElementById('metrics').innerHTML = '';
+    document.getElementById('ledger').innerHTML = '';
+  }
+</script>
+</body>
+</html>

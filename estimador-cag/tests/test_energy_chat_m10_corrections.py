@@ -145,3 +145,14 @@ def test_v2_deterministic_route_replay_is_idempotent() -> None:
     assert body1["ledger_entry_ids"] == body2["ledger_entry_ids"]
     assert body1["final_answer"] == body2["final_answer"]
     assert body1["candidate_count"] == body2["candidate_count"]
+
+
+# ── M16: V2 demo route ────────────────────────────────────────────────────
+
+
+def test_v2_demo_route_is_registered() -> None:
+    """The V2 graph-backed demo must be served at /energy-chat/v2/demo."""
+    response = client.get("/energy-chat/v2/demo")
+    assert response.status_code == 200
+    assert "EACHAT V2" in response.text
+    assert "Graph-Backed Demo" in response.text

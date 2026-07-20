@@ -60,6 +60,13 @@ def metrics():
 DOCS_DIR = Path(__file__).resolve().parents[1] / "docs"
 DEMO_HTML_PATH = DOCS_DIR / "sse_demo.html"
 ENERGY_CHAT_DEMO_HTML_PATH = DOCS_DIR / "energy_chat_demo.html"
+ENERGY_CHAT_V2_DEMO_HTML_PATH = DOCS_DIR / "energy_chat_v2_demo.html"
+
+
+@app.get("/energy-chat/v2/demo", include_in_schema=False)
+def energy_chat_v2_browser_demo() -> FileResponse:
+    """Serve the V2 graph-backed Energy Aware Chat browser demo."""
+    return FileResponse(ENERGY_CHAT_V2_DEMO_HTML_PATH)
 
 
 @app.get("/energy-chat/demo", include_in_schema=False)
