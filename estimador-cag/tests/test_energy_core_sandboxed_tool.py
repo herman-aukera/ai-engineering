@@ -207,10 +207,16 @@ def test_wrong_receipt_plan_hash_rejected_by_adapter(tmp_path: Path) -> None:
 def test_stale_revision_receipt_rejected_by_adapter(tmp_path: Path) -> None:
     """Adapter must reject authorization receipt with stale revision."""
     plan = _git_status_plan(tmp_path)
-    authorization = _authorization(
-        plan, plan_hash=plan.plan_hash, expected_revision=2, accepted_revision=2
+    # Create receipt manually with stale revision (bypasses consume which would reject)
+    receipt = AuthorizationReceipt(
+        receipt_id="receipt-stale",
+        authorization_id="auth-stale",
+        actor="gonzalo",
+        plan_hash=plan.plan_hash,
+        accepted_revision=2,
+        nonce_hash="abc123",
+        consumed_at=datetime(2026, 7, 19, 20, 5, tzinfo=UTC),
     )
-    receipt = _consumed_receipt(plan, authorization)
     # Current revision is 3, receipt says 2
     config = _config(tmp_path, current_revision=3)
     adapter = FailureInjectingAdapter(config)
@@ -266,8 +272,9 @@ def test_stale_repository_revision_rejected(tmp_path: Path) -> None:
 
 def test_replayed_authorization_rejected(tmp_path: Path) -> None:
     """Consumed authorization must not be reusable."""
-    plan = _pytest_plan(tmp_path)
-    authorization = _authorization(plan)
+    # Authorization replay protection is tested at the Spec 0008 layer
+    plan = _git_status_plan(tmp_path)
+    authorization = _authorization(plan, plan_hash=plan.plan_hash)
     context = _context()
 
     # First consumption succeeds
@@ -340,17 +347,18 @@ def test_environment_leakage_prevented(tmp_path: Path) -> None:
 
 def test_unknown_environment_name_denied_in_plan(tmp_path: Path) -> None:
     """Environment names not in allowlist cause plan denial."""
-    with pytest.raises((ValueError, ValidationError)):
-        build_execution_plan(
-            CommandProposal(
-                proposal_id="proposal-env-leak",
-                executable="pytest",
-                arguments=["-q"],
-                working_directory=".",
-                environment_names=["OPENAI_API_KEY"],
-            ),
-            repository_root=tmp_path,
-        )
+    plan = build_execution_plan(
+        CommandProposal(
+            proposal_id="proposal-env-leak",
+            executable="pytest",
+            arguments=["-q"],
+            working_directory=".",
+            environment_names=["OPENAI_API_KEY"],
+        ),
+        repository_root=tmp_path,
+    )
+    assert plan.disposition == "deny"
+    assert any("environment_not_allowlisted" in r for r in plan.reasons)
 
 
 # ------------------------------------------------------------------
@@ -580,16 +588,17 @@ def test_cleanup_failure_evidence_status_conflict(tmp_path: Path) -> None:
 
 def test_unsupported_executable_rejected(tmp_path: Path) -> None:
     """Executables not in the allowlist must be denied."""
-    with pytest.raises(ValueError, match="executable_not_allowlisted"):
-        build_execution_plan(
-            CommandProposal(
-                proposal_id="proposal-unknown",
-                executable="unknown_tool",
-                arguments=[],
-                working_directory=".",
-            ),
-            repository_root=tmp_path,
-        )
+    plan = build_execution_plan(
+        CommandProposal(
+            proposal_id="proposal-unknown",
+            executable="unknown_tool",
+            arguments=[],
+            working_directory=".",
+        ),
+        repository_root=tmp_path,
+    )
+    assert plan.disposition == "deny"
+    assert any("executable_not_allowlisted" in r for r in plan.reasons)
 
 
 def test_denied_executable_never_reaches_adapter(tmp_path: Path) -> None:
