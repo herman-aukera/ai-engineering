@@ -35,7 +35,7 @@
 | 17. Provider catalog and live adapters | implemented | ProviderModelCapability typed records with source refs and verification dates; DeepSeek V4 Flash/Pro verified, Kimi K3 and GPT-5.6 Luna/Terra/Sol documented; resolve_effort_profile() finds cheapest verified model; catalog wired into live provider selection; fails closed on unverified combinations; 8 tests, green CI |
 | 18. Context compaction and multi-agent profiles | implemented | ContextCompactionPolicy per profile (minimal 4K/2 turns, balanced 16K/8 turns, max 64K/24 turns), ContextSnapshot with revision/hash drift detection, MultiAgentBudget per mode (single/critic/committee/adaptive with agent counts and token/cost/deadline ceilings), profile resolution functions, 10 tests, green CI |
 | 19. Quality evaluation | implemented | QualityRubric (8 weighted dimensions), QualityBenchmarkCase with gold expectations, evaluate_quality_case() per-case scoring, build_quality_benchmark_run() aggregation; measurement_only_no_quality_claim; 8 tests; cross-provider comparison requires credentialed adapters (M17) |
-| 20–21. Deployment and release audit | pending | operational proof before claim changes |
+| 20–21. Deployment and release audit | implemented | ReleaseAudit with 8 evidence-gated claim boundaries (3 allowed, 5 blocked_missing_evidence), deployment readiness check (CI/test/secret/docker gates), deterministic and CI-safe; 8 tests, green CI |
 
 ## Next exact milestone
 
