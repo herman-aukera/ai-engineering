@@ -10,6 +10,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
+
 from energy_core.controlled_execution import (
     CommandProposal,
     ExecutionPlan,
@@ -338,8 +340,6 @@ def test_environment_leakage_prevented(tmp_path: Path) -> None:
 
 def test_unknown_environment_name_denied_in_plan(tmp_path: Path) -> None:
     """Environment names not in allowlist cause plan denial."""
-    from pydantic import ValidationError
-
     with pytest.raises((ValueError, ValidationError)):
         build_execution_plan(
             CommandProposal(
@@ -897,8 +897,6 @@ def test_evidence_converts_to_evidence_record(tmp_path: Path) -> None:
 
 def test_sandboxed_config_rejects_empty_root() -> None:
     """SandboxedToolConfig must reject empty repository_root."""
-    from pydantic import ValidationError
-
     with pytest.raises(ValidationError):
         SandboxedToolConfig.model_validate(
             {"repository_root": "", "enabled": True}
