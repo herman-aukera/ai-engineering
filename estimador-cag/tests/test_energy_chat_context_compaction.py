@@ -5,10 +5,7 @@ from app.energy_chat.context_compaction import (
     resolve_compaction_policy,
     resolve_multi_agent_budget,
 )
-
-
 # ── compaction policies ─────────────────────────────────────────────────
-
 
 def test_minimal_policy_retains_core_constraints() -> None:
     policy = resolve_compaction_policy("minimal")
