@@ -27,6 +27,7 @@ from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
 from app.energy_chat.graph_runtime import run_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
 from app.energy_chat.human_gate import HumanGateMode
+from app.energy_chat.provider_catalog import resolve_effort_profile
 
 
 def run_graph_chat_v2(
@@ -125,26 +126,44 @@ def _resolve_provider(request: EnergyChatV2Request) -> CandidateProvider:
     """Select the provider adapter from the explicit execution profile.
 
     deterministic → always DeterministicCandidateProvider (CI-safe, keyless).
-    live_bounded → BaselineCandidateProvider for deepseek/auto; fail closed for kimi/openai.
+    live_bounded → validates against provider catalog; fails closed when no
+    verified model supports the requested provider + effort combination.
     """
 
     if request.execution_profile == "deterministic":
         return DeterministicCandidateProvider()
 
-    # live_bounded
+    # live_bounded — validate against catalog
     if request.provider_preference == "auto":
         raise ProviderUnavailableError(
             provider="auto",
             detail="Automatic provider routing is not calibrated; controlled evals are deferred to a later milestone. Use deepseek (default) explicitly.",
         )
+
+    # Check catalog for a verified model matching provider + effort
+    resolved = resolve_effort_profile(
+        request.provider_preference, request.effort_profile
+    )
+    if resolved is None:
+        available = "deepseek (verified: flash fast/balanced, pro balanced/max)"
+        raise ProviderUnavailableError(
+            provider=request.provider_preference,
+            detail=(
+                f"Provider '{request.provider_preference}' with effort "
+                f"'{request.effort_profile}' has no verified model in the catalog. "
+                f"Available: {available}."
+            ),
+        )
+
+    # deepseek is the only verified provider currently — use existing seam
     if request.provider_preference == "deepseek":
         return BaselineCandidateProvider()
 
     raise ProviderUnavailableError(
         provider=request.provider_preference,
         detail=(
-            f"Provider '{request.provider_preference}' requires a credentialed adapter "
-            "that is deferred to a later milestone. Available: deepseek (default)."
+            f"Provider '{request.provider_preference}' has a catalog entry but "
+            "no credentialed adapter is implemented yet. Available: deepseek (verified)."
         ),
     )
 
