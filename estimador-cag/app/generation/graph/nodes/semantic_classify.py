@@ -13,6 +13,7 @@ from app.services.v3_complexity_router import (
 )
 from app.services.v3_semantic_classifier import (
     FakeSemanticClassifier,
+    SemanticClassifier,
     arbitrate_classification,
 )
 
@@ -58,15 +59,17 @@ def _estimate_signals(transcript: str) -> ComplexitySignals:
     )
 
 
-def build_semantic_classify_node() -> SemanticClassifyNode:
+def build_semantic_classify_node(
+    classifier: SemanticClassifier | None = None,
+) -> SemanticClassifyNode:
     """Build a node that classifies complexity and stores assessments in state.
 
-    The node uses the deterministic :class:`FakeSemanticClassifier` by default.
-    When a real LLM classifier is wired in (S3+), the node signature stays the
-    same — only the injected classifier changes.
+    When no *classifier* is supplied the node uses :class:`FakeSemanticClassifier`
+    so deterministic CI never depends on a live model.  Pass a
+    :class:`LiveSemanticClassifier` instance for real LLM classification.
     """
 
-    classifier = FakeSemanticClassifier()
+    resolved = classifier if classifier is not None else FakeSemanticClassifier()
 
     async def semantic_classify(
         state: ReviewedEstimationGraphState,
@@ -97,8 +100,8 @@ def build_semantic_classify_node() -> SemanticClassifyNode:
                 },
             )
 
-        # 1. Semantic (fake) classifier
-        semantic_assessment = classifier.classify(transcript)
+        # 1. Semantic classifier (fake or live, depending on injection)
+        semantic_assessment = resolved.classify(transcript)
         semantic_dict = semantic_assessment.model_dump(mode="json")
 
         # 2. Deterministic baseline

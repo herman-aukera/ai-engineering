@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import re
 from copy import deepcopy
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+from pydantic import BaseModel
 
 from app.schemas.v3_classifier import (
     ClassifierArbitration,
@@ -13,7 +15,18 @@ from app.schemas.v3_classifier import (
 )
 from app.schemas.v3_routing import ComplexityAssessment, ComplexityLevel
 
+if TYPE_CHECKING:
+    from app.services.litellm_provider import LiteLLMProvider
+
 FAKE_CLASSIFIER_VERSION = "session13-v3-semantic-fake-1.0.0"
+LIVE_CLASSIFIER_VERSION = "session13-v3-semantic-deepseek-flash-1.0.0"
+
+_CLASSIFY_SYSTEM_PROMPT = (
+    "You are a project-complexity classifier. "
+    "Read the transcript and produce a SemanticAssessment. "
+    "Classify complexity conservatively — default to lower tiers when uncertain. "
+    "Return only valid JSON matching the schema. No markdown, no prose."
+)
 
 _SECURITY_RISK_INDICATORS = frozenset({"security", "compliance"})
 _COMPLEXITY_ORDER: dict[ComplexityLevel, int] = {
@@ -71,6 +84,67 @@ class FakeSemanticClassifier:
             rationale="Deterministic fake classifier — no semantic analysis performed.",
             classifier_version=FAKE_CLASSIFIER_VERSION,
         )
+
+
+class LiveSemanticClassifier:
+    """Semantic classifier backed by a live LLM via LiteLLM structured completion.
+
+    The classifier uses ``complete_structured_messages`` with
+    :class:`SemanticAssessment` as the response model.  Provider, tier, and
+    model are owned by the injected provider — this adapter is provider-agnostic.
+    """
+
+    def __init__(
+        self,
+        provider: LiteLLMProvider,
+        *,
+        tier: str = "flash",
+        max_tokens: int = 1_200,
+    ) -> None:
+        self._provider = provider
+        self._tier = tier
+        self._max_tokens = max_tokens
+        self.calls: list[str] = []
+
+    def classify(self, transcript: str) -> SemanticAssessment:
+        """Call the LLM and return a validated :class:`SemanticAssessment`."""
+        self.calls.append(transcript)
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": _CLASSIFY_SYSTEM_PROMPT},
+            {"role": "user", "content": transcript},
+        ]
+        result: dict = self._provider.complete_structured_messages(
+            messages=messages,
+            tier=self._tier,
+            response_model=SemanticAssessment,
+            max_tokens=self._max_tokens,
+        )
+        validated: BaseModel = result["result"]
+        if not isinstance(validated, SemanticAssessment):
+            raise RuntimeError(
+                f"Provider returned {type(validated).__name__} instead of SemanticAssessment"
+            )
+        return validated
+
+
+def probe_model_reachable(
+    provider: LiteLLMProvider,
+    *,
+    tier: str = "flash",
+) -> bool:
+    """Lightweight capability probe: can we get a visible response from this tier?
+
+    Returns ``True`` if the tier responds with visible content, ``False``
+    otherwise.  Used as a gate before promoting a model from ``documented`` to
+    ``reachable`` in the registry lifecycle.
+    """
+    verification = provider.verify_visible_output(
+        tier=tier,
+        transcription="Hello. Respond with the single word: reachable.",
+        system_prompt="You are a connectivity probe. Answer only: reachable.",
+        max_tokens=32,
+    )
+    return bool(verification.get("reliable"))
 
 
 def _policy_prefix(version: str) -> str | None:
