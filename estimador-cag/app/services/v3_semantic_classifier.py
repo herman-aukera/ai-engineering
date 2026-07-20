@@ -187,6 +187,8 @@ def arbitrate_classification(
     sem_rank = _COMPLEXITY_ORDER[semantic.level]
 
     security_flagged = _has_security_risk(semantic.signals)
+    low_confidence = semantic.confidence < 0.6
+    rank_gap = abs(det_rank - sem_rank)
 
     # C5 lock — deterministic C5 is never downgraded.
     if deterministic.level == "C5":
@@ -198,6 +200,21 @@ def arbitrate_classification(
                 "semantic classifier assessed " + semantic.level + "."
             ),
             human_review_required=True,
+            deterministic_assessment_ref=deterministic.classifier_version,
+            semantic_assessment_ref=semantic.classifier_version,
+        )
+
+    # Low-confidence gate — semantic output with confidence < 0.6
+    # cannot silently control routing.
+    if low_confidence and sem_rank > det_rank:
+        return ClassifierArbitration(
+            arbitrated_level=deterministic.level,
+            resolution="deterministic_override",
+            resolution_reason=(
+                f"Semantic classifier reported {semantic.level} with low confidence "
+                f"({semantic.confidence}); retaining deterministic {deterministic.level}."
+            ),
+            human_review_required=security_flagged or rank_gap > 1,
             deterministic_assessment_ref=deterministic.classifier_version,
             semantic_assessment_ref=semantic.classifier_version,
         )
@@ -214,16 +231,21 @@ def arbitrate_classification(
             semantic_assessment_ref=semantic.classifier_version,
         )
 
+    # Disagreement > 1 C-level forces human review.
+    force_review = security_flagged or rank_gap > 1
+
     if sem_rank > det_rank:
         return ClassifierArbitration(
             arbitrated_level=semantic.level,
             resolution="semantic_escalation",
             resolution_reason=(
                 f"Semantic classifier assessed {semantic.level} "
-                f"(above deterministic {deterministic.level}): "
+                f"(above deterministic {deterministic.level}"
+                + (f", {rank_gap}-level disagreement" if rank_gap > 1 else "")
+                + "): "
                 + (semantic.rationale[:200] if len(semantic.rationale) > 200 else semantic.rationale)
             ),
-            human_review_required=security_flagged or semantic.level == "C5",
+            human_review_required=force_review or semantic.level == "C5",
             deterministic_assessment_ref=deterministic.classifier_version,
             semantic_assessment_ref=semantic.classifier_version,
         )
@@ -235,7 +257,7 @@ def arbitrate_classification(
             f"Deterministic structural evidence places complexity at "
             f"{deterministic.level} (above semantic {semantic.level})."
         ),
-        human_review_required=security_flagged or deterministic.human_review_required,
+        human_review_required=force_review or deterministic.human_review_required,
         deterministic_assessment_ref=deterministic.classifier_version,
         semantic_assessment_ref=semantic.classifier_version,
     )

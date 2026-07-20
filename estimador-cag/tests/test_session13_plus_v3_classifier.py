@@ -469,6 +469,126 @@ def test_arbitration_rejects_mismatched_policy_prefix() -> None:
 
 
 # ---------------------------------------------------------------------------
+# 5a. R2a — authoritative route plan reflects arbitrated level
+# ---------------------------------------------------------------------------
+
+def test_route_plan_reflects_arbitrated_level_not_deterministic() -> None:
+    """When arbitration escalates, the route plan must use the arbitrated level."""
+    from app.schemas.v3_classifier import SemanticAssessment, SemanticSignals
+    from app.schemas.v3_routing import ComplexityAssessment
+    from app.services.v3_complexity_router import build_model_routing_plan
+    from app.services.v3_semantic_classifier import arbitrate_classification
+
+    # Deterministic says C2, semantic says C4 → arbitrated is C4.
+    deterministic = ComplexityAssessment(
+        level="C2", score=35, confidence=0.9,
+        dimensions={"scope": 15, "integrations": 5, "risk": 5, "ambiguity": 5, "evidence": 3, "input": 2},
+        classifier_version="deterministic-1.0.0",
+    )
+    semantic = SemanticAssessment(
+        level="C4", confidence=0.75,
+        signals=SemanticSignals(domain_category="infra", primary_modality="code_heavy",
+                                transcript_quality="conversational",
+                                risk_indicators=["data_loss"],
+                                complexity_hints=["distributed"]),
+        rationale="Distributed migration with data-loss risk.",
+        classifier_version="semantic-1.0.0",
+    )
+    arbitrated = arbitrate_classification(deterministic=deterministic, semantic=semantic)
+    assert arbitrated.arbitrated_level == "C4"
+
+    # Build a route plan from the arbitrated level, not the deterministic.
+    arbitrated_assessment = ComplexityAssessment(
+        level=arbitrated.arbitrated_level, score=deterministic.score,
+        confidence=deterministic.confidence, dimensions=deterministic.dimensions,
+        classifier_version=deterministic.classifier_version,
+        human_review_required=arbitrated.human_review_required,
+    )
+    plan = build_model_routing_plan(arbitrated_assessment)
+    # C4 structure route uses deepseek-v4-pro, not flash.
+    assert plan.routes_by_stage["structure"].model == "deepseek-v4-pro"
+
+
+# ---------------------------------------------------------------------------
+# 5b. R2b — arbitration safety: low confidence and disagreement gates
+# ---------------------------------------------------------------------------
+
+def test_low_confidence_semantic_forces_deterministic_override() -> None:
+    """When semantic confidence < 0.6, the deterministic level must dominate."""
+    from app.schemas.v3_classifier import SemanticAssessment, SemanticSignals
+    from app.schemas.v3_routing import ComplexityAssessment
+    from app.services.v3_semantic_classifier import arbitrate_classification
+
+    deterministic = ComplexityAssessment(
+        level="C2", score=35, confidence=0.9,
+        dimensions={"scope": 10, "integrations": 5, "risk": 5, "ambiguity": 5, "evidence": 5, "input": 5},
+        classifier_version="deterministic-1.0.0",
+    )
+    semantic = SemanticAssessment(
+        level="C5", confidence=0.45,  # Low confidence
+        signals=SemanticSignals(domain_category="web", primary_modality="text",
+                                transcript_quality="well_structured"),
+        rationale="Might be very complex, but I'm not sure.",
+        classifier_version="semantic-1.0.0",
+    )
+    result = arbitrate_classification(deterministic=deterministic, semantic=semantic)
+    # Low-confidence semantic C5 must NOT escalate.
+    assert result.arbitrated_level == "C2"
+    assert result.resolution == "deterministic_override"
+    assert "low confidence" in result.resolution_reason.lower()
+
+
+def test_disagreement_greater_than_one_level_forces_human_review() -> None:
+    """When semantic and deterministic disagree by > 1 C-level, human review is required."""
+    from app.schemas.v3_classifier import SemanticAssessment, SemanticSignals
+    from app.schemas.v3_routing import ComplexityAssessment
+    from app.services.v3_semantic_classifier import arbitrate_classification
+
+    deterministic = ComplexityAssessment(
+        level="C1", score=15, confidence=0.9,
+        dimensions={"scope": 5, "integrations": 5, "risk": 0, "ambiguity": 0, "evidence": 3, "input": 2},
+        classifier_version="deterministic-1.0.0",
+    )
+    semantic = SemanticAssessment(
+        level="C4", confidence=0.85,  # Confident but 3 levels above
+        signals=SemanticSignals(domain_category="infra", primary_modality="code_heavy",
+                                transcript_quality="conversational"),
+        rationale="This is a complex distributed system.",
+        classifier_version="semantic-1.0.0",
+    )
+    result = arbitrate_classification(deterministic=deterministic, semantic=semantic)
+    # Disagreement > 1 level must force human review.
+    assert result.human_review_required is True
+    assert "disagreement" in result.resolution_reason.lower()
+
+
+def test_arbitration_stable_reason_codes_are_machine_readable() -> None:
+    """Resolution values must be stable enum-like strings for checkpoint safety."""
+    from app.schemas.v3_classifier import SemanticAssessment, SemanticSignals
+    from app.schemas.v3_routing import ComplexityAssessment
+    from app.services.v3_semantic_classifier import arbitrate_classification
+
+    deterministic = ComplexityAssessment(
+        level="C3", score=50, confidence=0.85,
+        dimensions={"scope": 15, "integrations": 10, "risk": 5, "ambiguity": 10, "evidence": 5, "input": 5},
+        classifier_version="deterministic-1.0.0",
+    )
+    semantic = SemanticAssessment(
+        level="C5", confidence=0.9,
+        signals=SemanticSignals(domain_category="infra", primary_modality="mixed",
+                                risk_indicators=["security"],
+                                transcript_quality="well_structured"),
+        rationale="Security-critical infrastructure.",
+        classifier_version="semantic-1.0.0",
+    )
+    result = arbitrate_classification(deterministic=deterministic, semantic=semantic)
+    # Resolution must be one of the three stable values.
+    assert result.resolution in {"consensus", "semantic_escalation", "deterministic_override"}
+    assert len(result.resolution_reason) > 0
+    assert isinstance(result.resolution_reason, str)
+
+
+# ---------------------------------------------------------------------------
 # 6. Semantic classify graph node — isolated from the full graph
 # ---------------------------------------------------------------------------
 

@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from typing import cast
 
 from app.generation.graph.review_state import ReviewedEstimationGraphState
-from app.schemas.v3_routing import ComplexitySignals
+from app.schemas.v3_routing import ComplexityAssessment, ComplexitySignals
 from app.services.v3_complexity_router import (
     assess_complexity,
     build_model_routing_plan,
@@ -116,8 +116,19 @@ def build_semantic_classify_node(
         )
         arbitrated_dict = arbitrated.model_dump(mode="json")
 
-        # 4. Route plan from the arbitrated level
-        route_plan = build_model_routing_plan(deterministic)
+        # 4. Route plan from the arbitrated (authoritative) level
+        authoritative = ComplexityAssessment(
+            level=arbitrated.arbitrated_level,
+            score=deterministic.score,
+            confidence=deterministic.confidence,
+            dimensions=deterministic.dimensions,
+            reasons=deterministic.reasons,
+            missing_information=deterministic.missing_information,
+            detected_languages=deterministic.detected_languages,
+            classifier_version=deterministic.classifier_version,
+            human_review_required=arbitrated.human_review_required,
+        )
+        route_plan = build_model_routing_plan(authoritative)
         route_plan_dict = route_plan.model_dump(mode="json")
 
         return cast(
