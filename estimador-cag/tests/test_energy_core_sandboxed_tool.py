@@ -6,8 +6,8 @@ The deterministic fake adapter path (FakeToolAdapter) remains the CI default.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
+import json
 from pathlib import Path
 
 import pytest
