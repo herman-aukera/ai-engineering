@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.energy_chat.audit_models import EnergyCardV2
 from app.energy_chat.contracts import Mode, SourceNeedResult
@@ -56,7 +56,10 @@ class EnergyChatV2Request(BaseModel):
     """Graph-backed V2 request with provider-neutral selector contracts.
 
     All selector fields are additive. The underlying graph owns domain truth.
+    Unknown fields are rejected to prevent silent misconfiguration.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     user_message: str = Field(min_length=1, max_length=10000)
     mode: Mode = "project"

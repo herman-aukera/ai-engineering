@@ -112,7 +112,12 @@ def _resolve_provider(request: EnergyChatV2Request) -> CandidateProvider:
         return DeterministicCandidateProvider()
 
     # live_bounded
-    if request.provider_preference in ("auto", "deepseek"):
+    if request.provider_preference == "auto":
+        raise ProviderUnavailableError(
+            provider="auto",
+            detail="Automatic provider routing is not calibrated; controlled evals are deferred to a later milestone. Use deepseek (default) explicitly.",
+        )
+    if request.provider_preference == "deepseek":
         return BaselineCandidateProvider()
 
     raise ProviderUnavailableError(
@@ -156,11 +161,16 @@ def _project_v2_response(
     is_deterministic = request.execution_profile == "deterministic"
     metrics_list = result.provider_metrics
 
-    if is_deterministic or not metrics_list:
+    if is_deterministic:
         served_provider = "deterministic_local"
         served_model = "energy-chat-template-v1"
         fallback_used = False
         routing_reason = "deterministic profile uses local template provider"
+    elif not metrics_list:
+        served_provider = "none"
+        served_model = None
+        fallback_used = False
+        routing_reason = "awaiting evidence — no provider call was made"
     else:
         last = metrics_list[-1]
         served_provider = last.provider

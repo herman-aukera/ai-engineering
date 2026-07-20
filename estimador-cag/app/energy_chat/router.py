@@ -182,6 +182,8 @@ def chat_v2_deterministic(request: EnergyChatV2Request) -> EnergyChatV2Response:
     execution. Existing legacy routes remain unchanged as rollback surfaces.
     """
     try:
+        # Route owns the execution profile — ignore caller-supplied value
+        request.execution_profile = "deterministic"
         return run_graph_chat_v2(request)
     except ProviderUnavailableError as exc:
         raise HTTPException(
@@ -233,6 +235,8 @@ def chat_v2_live(request: EnergyChatV2Request) -> EnergyChatV2Response:
     Normal CI tests inject fake providers; real credentials are never required.
     """
     try:
+        # Route owns the execution profile — ignore caller-supplied value
+        request.execution_profile = "live_bounded"
         return run_graph_chat_v2(request)
     except ProviderUnavailableError as exc:
         raise HTTPException(
