@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from app.energy_chat.observability import CheckpointTelemetry
-from app.energy_chat.observability import GraphExecutionMetrics
-from app.energy_chat.observability import NodeSpan
-from app.energy_chat.observability import compute_graph_execution_metrics
+from app.energy_chat.observability import (
+    CheckpointTelemetry,
+    compute_graph_execution_metrics,
+    GraphExecutionMetrics,
+    NodeSpan,
+)
 
 
 def test_node_span_records_timing() -> None:
