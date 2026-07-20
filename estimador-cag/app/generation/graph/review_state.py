@@ -88,3 +88,7 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     scenario_id: str
     parent_estimation_id: str
     parent_checkpoint_id: str
+    semantic_assessment: dict[str, object]
+    v3_complexity: dict[str, object]
+    arbitrated_assessment: dict[str, object]
+    v3_route_plan: dict[str, object]

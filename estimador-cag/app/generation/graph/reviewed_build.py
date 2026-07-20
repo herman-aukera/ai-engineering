@@ -33,6 +33,9 @@ from app.generation.graph.nodes.reviewed_validation import (
 from app.generation.graph.nodes.selective_recovery import (
     build_selective_recovery_node,
 )
+from app.generation.graph.nodes.semantic_classify import (
+    build_semantic_classify_node,
+)
 from app.generation.graph.nodes.structure_review import build_structure_review_node
 from app.generation.graph.observability import (
     NOOP_GRAPH_TRACER,
@@ -389,6 +392,15 @@ def build_reviewed_estimation_graph(
             tracer=tracer,
         ),
     )
+    builder.add_node(
+        "semantic_classify",
+        _instrument(
+            graph_name=REVIEWED_GRAPH_NAME,
+            node_name="semantic_classify",
+            node=build_semantic_classify_node(),
+            tracer=tracer,
+        ),
+    )
     builder.add_node("structure_phase", structure_subgraph)
     builder.add_node("estimation_phase", estimation_subgraph)
     builder.add_node("review_policy_phase", review_policy_subgraph)
@@ -422,7 +434,8 @@ def build_reviewed_estimation_graph(
     )
 
     builder.add_edge(START, "reformulate_request")
-    builder.add_edge("reformulate_request", "structure_phase")
+    builder.add_edge("reformulate_request", "semantic_classify")
+    builder.add_edge("semantic_classify", "structure_phase")
     builder.add_conditional_edges(
         "structure_phase",
         _parent_structure_route,
