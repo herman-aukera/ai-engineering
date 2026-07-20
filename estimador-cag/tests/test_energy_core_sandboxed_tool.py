@@ -278,7 +278,6 @@ def test_replayed_authorization_rejected(tmp_path: Path) -> None:
     assert consumed.consumed is True
 
     # Second consumption with already-consumed nonce hash must fail
-    decision = consume_execution_authorization
     with pytest.raises(PermissionError):
         consume_execution_authorization(plan, consumed, updated_context)
 
@@ -311,8 +310,6 @@ def test_path_traversal_rejected(tmp_path: Path) -> None:
 def test_symlink_escape_rejected(tmp_path: Path) -> None:
     """Symlink pointing outside root must be rejected."""
     plan = _pytest_plan(tmp_path)
-    config = _config(tmp_path)
-    adapter = SandboxedToolAdapter(config)
 
     # The path verification happens inside invoke().
     # With FailureInjectingAdapter we test the path verification logic.
@@ -802,9 +799,9 @@ def test_deterministic_fake_adapter_remains_ci_default(tmp_path: Path) -> None:
 
 def test_fake_adapter_rejects_real_mode(tmp_path: Path) -> None:
     """FakeToolAdapter must reject execution_mode other than fake."""
-    from energy_core.controlled_execution import ExecutionPlan as EP
+    from energy_core.controlled_execution import ExecutionPlan
 
-    plan = EP(
+    plan = ExecutionPlan(
         plan_id="plan-test",
         proposal_id="proposal-test",
         policy_id="test",
