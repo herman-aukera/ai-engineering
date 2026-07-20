@@ -47,10 +47,12 @@ def test_supervisor_digest_is_bounded_and_excludes_sensitive_content() -> None:
                     "text": sensitive_text,
                 }
             ],
+            "requirements_extraction_completed": True,
             "budget_matches": [
                 {"budget_id": "budget-1", "raw_content": sensitive_text},
                 {"budget_id": "budget-2", "raw_content": sensitive_text},
             ],
+            "budget_search_completed": True,
             "estimate": {"total_hours": 120},
             "validation": None,
             "confidence": 0.62,
@@ -62,7 +64,9 @@ def test_supervisor_digest_is_bounded_and_excludes_sensitive_content() -> None:
 
     assert digest.model_dump() == {
         "requirements_count": 1,
+        "requirements_extraction_completed": True,
         "budget_match_count": 2,
+        "budget_search_completed": True,
         "estimate_ready": True,
         "validation_ready": False,
         "confidence": 0.62,
@@ -75,3 +79,41 @@ def test_supervisor_digest_is_bounded_and_excludes_sensitive_content() -> None:
     assert sensitive_text not in serialized
     assert "raw_content" not in serialized
     assert "transcript" not in serialized
+
+
+def test_digest_distinguishes_not_started_from_completed_empty_stage() -> None:
+    shared_state: dict[str, object] = {
+        "requirements": [],
+        "budget_matches": [],
+        "estimate": None,
+        "validation": None,
+        "confidence": None,
+        "review_required": False,
+        "routing_steps": 0,
+        "status": "pending",
+    }
+
+    not_started = build_supervisor_digest(
+        {
+            **shared_state,
+            "requirements_extraction_completed": False,
+            "budget_search_completed": False,
+        }
+    )
+    completed_without_results = build_supervisor_digest(
+        {
+            **shared_state,
+            "requirements_extraction_completed": True,
+            "budget_search_completed": True,
+        }
+    )
+
+    assert not_started.requirements_count == 0
+    assert completed_without_results.requirements_count == 0
+    assert not_started.budget_match_count == 0
+    assert completed_without_results.budget_match_count == 0
+
+    assert not_started.requirements_extraction_completed is False
+    assert completed_without_results.requirements_extraction_completed is True
+    assert not_started.budget_search_completed is False
+    assert completed_without_results.budget_search_completed is True

@@ -45,7 +45,9 @@ class SupervisorStateDigest(StrictSession14Model):
     """A compact projection containing only routing-relevant signals."""
 
     requirements_count: int = Field(ge=0)
+    requirements_extraction_completed: bool = False
     budget_match_count: int = Field(ge=0)
+    budget_search_completed: bool = False
     estimate_ready: bool
     validation_ready: bool
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -69,7 +71,12 @@ def build_supervisor_digest(
 
     return SupervisorStateDigest(
         requirements_count=_list_size(state.get("requirements")),
+        requirements_extraction_completed=state.get(
+            "requirements_extraction_completed",
+            False,
+        ),
         budget_match_count=_list_size(state.get("budget_matches")),
+        budget_search_completed=state.get("budget_search_completed", False),
         estimate_ready=state.get("estimate") is not None,
         validation_ready=state.get("validation") is not None,
         confidence=state.get("confidence"),
