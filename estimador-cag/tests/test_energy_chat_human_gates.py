@@ -91,11 +91,11 @@ def test_clarify_disposition_triggers_human_interrupt() -> None:
     config = {"configurable": {"thread_id": "thread-clarify-interrupt"}}
     payload = _runtime_payload(state)
 
-    # First invocation should interrupt (return partial state)
     result = graph.invoke(payload, config)
-    domain = EnergyChatGraphState.model_validate(result)
-
-    # The status should indicate awaiting human action
+    known_fields = set(EnergyChatGraphState.model_fields)
+    domain = EnergyChatGraphState.model_validate(
+        {k: v for k, v in result.items() if k in known_fields}
+    )
     assert domain.status in ("awaiting_human", "evaluated")
     # If evaluated, the disposition wasn't clarify (acceptable)
     # If awaiting_human, the interrupt fired correctly
@@ -121,7 +121,10 @@ def test_interrupt_state_includes_human_action_request() -> None:
 
     config = {"configurable": {"thread_id": "thread-request"}}
     result = graph.invoke(_runtime_payload(state), config)
-    domain = EnergyChatGraphState.model_validate(result)
+    known_fields = set(EnergyChatGraphState.model_fields)
+    domain = EnergyChatGraphState.model_validate(
+        {k: v for k, v in result.items() if k in known_fields}
+    )
 
     if domain.status == "awaiting_human":
         assert domain.human_action_request is not None
@@ -158,7 +161,10 @@ def test_resume_from_interrupt_with_human_action() -> None:
 
     import builtins
     first = graph.invoke(payload, config)
-    domain = EnergyChatGraphState.model_validate(first)
+    # Filter LangGraph-internal keys before domain validation
+    known_fields = set(EnergyChatGraphState.model_fields)
+    first_filtered = {k: v for k, v in first.items() if k in known_fields}
+    domain = EnergyChatGraphState.model_validate(first_filtered)
 
     if domain.status == "awaiting_human":
         human_action = HumanActionRequest(
@@ -171,7 +177,8 @@ def test_resume_from_interrupt_with_human_action() -> None:
         from langgraph.types import Command
 
         resumed = graph.invoke(Command(resume=human_action), config)
-        resumed_domain = EnergyChatGraphState.model_validate(resumed)
+        resumed_filtered = {k: v for k, v in resumed.items() if k in known_fields}
+        resumed_domain = EnergyChatGraphState.model_validate(resumed_filtered)
 
         assert resumed_domain.status == "evaluated"
         assert resumed_domain.final_projection is not None
