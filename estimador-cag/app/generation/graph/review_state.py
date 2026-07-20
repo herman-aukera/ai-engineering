@@ -60,6 +60,7 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     human_review_mode: HumanReviewMode
     project_context: dict[str, object]
     reformulated_request: str
+    pre_reformulation_transcript: str
     v2_profile: str
     v2_modules: list[dict[str, object]]
     structure_review_revision: int
