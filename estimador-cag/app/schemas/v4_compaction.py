@@ -18,3 +18,8 @@ class CompactionMetadata(StrictV3Model):
     compacted_token_estimate: int = Field(ge=0)
     compaction_level: CompactionLevel
     compaction_version: str = Field(min_length=1, max_length=240)
+    source_fingerprint: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+        description="SHA-256 fingerprint of the source state before compaction.",
+    )

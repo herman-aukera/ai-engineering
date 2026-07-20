@@ -232,6 +232,92 @@ def test_compaction_never_creates_keys() -> None:
 
 
 # ---------------------------------------------------------------------------
+# 6. R5 — source fingerprint and freshness
+# ---------------------------------------------------------------------------
+
+def test_compaction_metadata_includes_source_fingerprint() -> None:
+    """Every compaction must record a source_fingerprint of the original state."""
+    from app.services.v4_compaction import compact_context
+
+    state = _full_state()
+    result = compact_context(state, level="minimal")
+
+    meta = result["compaction_metadata"]
+    assert "source_fingerprint" in meta
+    fingerprint = meta["source_fingerprint"]
+    assert isinstance(fingerprint, str)
+    assert len(fingerprint) == 64  # SHA-256 hex
+
+
+def test_compaction_fingerprint_is_deterministic() -> None:
+    """Same state produces the same fingerprint."""
+    from app.services.v4_compaction import compact_context
+
+    state = _full_state()
+    a = compact_context(state, level="medium")
+    b = compact_context(dict(state), level="medium")
+
+    assert a["compaction_metadata"]["source_fingerprint"] == b["compaction_metadata"]["source_fingerprint"]
+
+
+def test_stale_compaction_is_detected() -> None:
+    """A compacted state that no longer matches source must be detected as stale."""
+    from app.services.v4_compaction import compact_context, is_compaction_stale
+
+    original = _full_state()
+    compacted = compact_context(original, level="minimal")
+
+    # Not stale — fingerprint matches.
+    assert is_compaction_stale(original, compacted) is False
+
+    # Modify the original — now stale.
+    original["estimate"]["total_hours"] = 999.0
+    assert is_compaction_stale(original, compacted) is True
+
+
+def test_forced_recompaction_allows_re_compacting() -> None:
+    """force=True must allow re-compacting an already-compacted state."""
+    from app.services.v4_compaction import compact_context
+
+    state = _full_state()
+    first = compact_context(state, level="minimal")
+    # Without force, this is idempotent (returns same).
+    second_no_force = compact_context(first, level="minimal")
+    assert first == second_no_force
+
+    # With force, it must re-compact and produce a fresh metadata record.
+    second_forced = compact_context(first, level="minimal", force=True)
+    assert second_forced["compaction_metadata"] != first["compaction_metadata"]
+
+
+def test_compaction_preserves_hard_constraints_when_present() -> None:
+    """If hard_constraints is in state, minimal compaction must preserve it."""
+    from app.services.v4_compaction import compact_context
+
+    state = _full_state()
+    state["hard_constraints"] = ["C5 lock", "no model-authored arithmetic"]
+    result = compact_context(state, level="minimal")
+
+    assert "hard_constraints" in result
+    assert result["hard_constraints"] == state["hard_constraints"]
+
+
+def test_compaction_does_not_alias_input() -> None:
+    """Modifying the compacted result must not affect the original state."""
+    from copy import deepcopy
+
+    from app.services.v4_compaction import compact_context
+
+    original = _full_state()
+    original_copy = deepcopy(original)
+    result = compact_context(original, level="max")
+
+    # Modify the result — must not affect original.
+    result["transcript"] = "MODIFIED"
+    assert original["transcript"] == original_copy["transcript"]
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 

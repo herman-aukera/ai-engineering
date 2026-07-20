@@ -8,6 +8,7 @@ no-op.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from copy import deepcopy
 
@@ -55,6 +56,19 @@ _MINIMAL_DROP_KEYS = frozenset(
 
 # Fields whose text content is trimmed to _TRIM_LENGTH in minimal mode.
 _TEXT_KEYS = frozenset({"transcript", "reformulated_request"})
+
+
+def _fingerprint(state: dict[str, object]) -> str:
+    """SHA-256 fingerprint of a state dict for compaction integrity."""
+    try:
+        raw = json.dumps(state, ensure_ascii=False, sort_keys=True, default=str)
+    except (TypeError, ValueError):
+        raw = json.dumps(
+            {k: str(v) for k, v in state.items()},
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _estimate_tokens(state: dict[str, object]) -> int:
@@ -173,6 +187,7 @@ def compact_context(
     state: dict[str, object],
     *,
     level: CompactionLevel = "medium",
+    force: bool = False,
 ) -> dict[str, object]:
     """Return a compacted state dict that preserves the canonical required fields.
 
@@ -180,12 +195,13 @@ def compact_context(
     never fabricates keys that were absent.
 
     Idempotency: if *state* already carries a ``compaction_metadata`` record,
-    it is returned unchanged.
+    it is returned unchanged unless *force* is ``True``.
     """
-    if _already_compacted(state):
+    if _already_compacted(state) and not force:
         return state
 
     original_tokens = _estimate_tokens(state)
+    source_fp = _fingerprint(state)
     compacted = _COMPACTORS[level](state)
     compacted_tokens = _estimate_tokens(compacted)
 
@@ -194,6 +210,27 @@ def compact_context(
         compacted_token_estimate=compacted_tokens,
         compaction_level=level,
         compaction_version=COMPACTION_VERSION,
+        source_fingerprint=source_fp,
     ).model_dump(mode="json")
 
     return compacted
+
+
+def is_compaction_stale(
+    current_state: dict[str, object],
+    compacted_state: dict[str, object],
+) -> bool:
+    """Return ``True`` if the compacted state no longer matches the source.
+
+    Compares the ``source_fingerprint`` in compaction metadata against a
+    fresh fingerprint of *current_state*.  Useful for detecting stale
+    summaries before consuming a compacted context.
+    """
+    meta = compacted_state.get("compaction_metadata")
+    if not isinstance(meta, dict):
+        return False
+    stored_fp = meta.get("source_fingerprint")
+    if not isinstance(stored_fp, str) or not stored_fp:
+        return False
+    current_fp = _fingerprint(current_state)
+    return stored_fp != current_fp
