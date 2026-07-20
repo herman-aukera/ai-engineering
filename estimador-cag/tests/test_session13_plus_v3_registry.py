@@ -272,3 +272,152 @@ def test_capability_probe_runs_without_crashing(monkeypatch) -> None:
 
     # Without real credentials this will be False — that's fine.
     assert isinstance(reachable, bool)
+
+
+# ---------------------------------------------------------------------------
+# 5. R4a — lifecycle transition validation
+# ---------------------------------------------------------------------------
+
+def test_transition_follows_lifecycle_order() -> None:
+    """Transitions must follow documented → configured → ... → enabled."""
+    from app.services.v3_model_registry import transition_allowed
+
+    # Forward transitions are allowed.
+    assert transition_allowed("documented", "configured") is True
+    assert transition_allowed("configured", "reachable") is True
+    assert transition_allowed("reachable", "contract_verified") is True
+    assert transition_allowed("contract_verified", "benchmark_calibrated") is True
+    assert transition_allowed("benchmark_calibrated", "enabled") is True
+
+
+def test_transition_rejects_skip() -> None:
+    """Skipping lifecycle stages is not allowed."""
+    from app.services.v3_model_registry import transition_allowed
+
+    assert transition_allowed("documented", "enabled") is False
+    assert transition_allowed("documented", "contract_verified") is False
+
+
+def test_transition_allows_same_status() -> None:
+    """Staying at the same status is always allowed."""
+    from app.services.v3_model_registry import transition_allowed
+
+    for status in ("documented", "configured", "reachable", "enabled"):
+        assert transition_allowed(status, status) is True
+
+
+def test_transition_rejects_unknown_status() -> None:
+    """Unknown status values raise ValueError."""
+    from app.services.v3_model_registry import transition_allowed
+
+    with pytest.raises(ValueError):
+        transition_allowed("invalid", "enabled")
+
+
+def test_model_record_supports_disabled_state() -> None:
+    """ModelRecord must support a disabled calibration_status with reason."""
+    record = _model_record(
+        calibration_status="documented",
+        provider_model_id="disabled-model",
+    )
+    assert record.calibration_status == "documented"
+
+
+# ---------------------------------------------------------------------------
+# 6. R4b — registry-backed route resolution
+# ---------------------------------------------------------------------------
+
+def test_registry_backed_resolver_uses_registry_models() -> None:
+    """When a registry is provided, the resolver must use registered models."""
+    from app.schemas.v5_provider_selection import ProviderSelection
+    from app.services.v3_model_registry import ModelRegistry
+    from app.services.v5_provider_selector import resolve_provider_route
+
+    # Build a minimal registry with one enabled deepseek model.
+    flash = _model_record(calibration_status="enabled", availability="available")
+    pro = _model_record(
+        provider="deepseek", provider_model_id="deepseek-v4-pro",
+        display_name="DeepSeek V4 Pro", capability_tier="pro",
+        calibration_status="enabled", availability="available",
+    )
+    registry = ModelRegistry([flash, pro])
+
+    sel = ProviderSelection(provider="deepseek", reasoning="medium")
+    route = resolve_provider_route(
+        selection=sel, complexity_level="C4", stage="structure",
+        registry=registry,
+    )
+    # C4 should use pro tier when available.
+    assert route["provider"] == "deepseek"
+    assert route["model"] == "deepseek-v4-pro"
+
+
+def test_registry_backed_resolver_excludes_disabled_models() -> None:
+    """Models with calibration_status != enabled must be excluded from routing."""
+    from app.schemas.v5_provider_selection import ProviderSelection
+    from app.services.v3_model_registry import ModelRegistry
+    from app.services.v5_provider_selector import resolve_provider_route
+
+    disabled_pro = _model_record(
+        provider="deepseek", provider_model_id="deepseek-v4-pro",
+        display_name="DeepSeek V4 Pro", capability_tier="pro",
+        calibration_status="documented", availability="available",
+    )
+    flash = _model_record(calibration_status="enabled", availability="available")
+    registry = ModelRegistry([flash, disabled_pro])
+
+    sel = ProviderSelection(provider="deepseek")
+    route = resolve_provider_route(
+        selection=sel, complexity_level="C4", stage="structure",
+        registry=registry,
+    )
+    # Pro is disabled; must fall back to flash.
+    assert route["model"] == "deepseek-v4-flash"
+
+
+def test_registry_backed_resolver_excludes_unavailable_models() -> None:
+    """Models with availability != available must be excluded."""
+    from app.schemas.v5_provider_selection import ProviderSelection
+    from app.services.v3_model_registry import ModelRegistry
+    from app.services.v5_provider_selector import resolve_provider_route
+
+    unavailable = _model_record(
+        provider="moonshot", provider_model_id="kimi-k3",
+        display_name="Kimi K3", capability_tier="max",
+        calibration_status="enabled", availability="unavailable",
+    )
+    k26 = _model_record(
+        provider="moonshot", provider_model_id="kimi-k2.6",
+        display_name="Kimi K2.6", capability_tier="flash",
+        calibration_status="enabled", availability="available",
+    )
+    registry = ModelRegistry([unavailable, k26])
+
+    sel = ProviderSelection(provider="kimi")
+    route = resolve_provider_route(
+        selection=sel, complexity_level="C5", stage="structure",
+        registry=registry,
+    )
+    # K3 is unavailable; must use K2.6 (the only enabled + available kimi model).
+    assert route["model"] == "kimi-k2.6"
+
+
+# ---------------------------------------------------------------------------
+# 7. R4c — fail-closed behavior
+# ---------------------------------------------------------------------------
+
+def test_resolver_raises_when_no_eligible_route_exists() -> None:
+    """When no enabled + available model matches, raise ValueError with reason."""
+    from app.schemas.v5_provider_selection import ProviderSelection
+    from app.services.v3_model_registry import ModelRegistry
+    from app.services.v5_provider_selector import resolve_provider_route
+
+    # Empty registry — no models at all.
+    registry = ModelRegistry([])
+    sel = ProviderSelection(provider="kimi")
+
+    with pytest.raises(ValueError, match="eligible"):
+        resolve_provider_route(
+            selection=sel, complexity_level="C1", stage="structure",
+            registry=registry,
+        )

@@ -56,3 +56,29 @@ class ModelRegistry:
 
     def __len__(self) -> int:
         return len(self._records)
+
+
+_LIFECYCLE_ORDER: dict[str, int] = {
+    "documented": 0,
+    "configured": 1,
+    "reachable": 2,
+    "contract_verified": 3,
+    "benchmark_calibrated": 4,
+    "enabled": 5,
+}
+
+
+def transition_allowed(current: str, proposed: str) -> bool:
+    """Return True if the lifecycle transition is valid.
+
+    Transitions must follow the documented order.  Skipping stages is not
+    allowed.  Staying at the same status is always allowed.
+    """
+    current_rank = _LIFECYCLE_ORDER.get(current)
+    proposed_rank = _LIFECYCLE_ORDER.get(proposed)
+    if current_rank is None or proposed_rank is None:
+        raise ValueError(
+            f"Unknown calibration status: current={current!r}, proposed={proposed!r}"
+        )
+    # Same status or exactly one step forward.
+    return proposed_rank in (current_rank, current_rank + 1)
