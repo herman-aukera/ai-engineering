@@ -149,7 +149,7 @@ def test_resume_from_interrupt_with_human_action() -> None:
         thread_id="thread-resume",
         request_id="req-resume",
         trace_id="trace-resume",
-        user_request="",
+        user_request="help",
         mode="project",
     )
 
@@ -201,8 +201,6 @@ def test_stale_human_action_is_rejected() -> None:
 def _validate_action_revision(
     action: HumanActionRequest, *, current_revision: int
 ) -> None:
-    from app.energy_chat.human_gate import HumanActionRequest, StaleHumanActionError
-
     if action.expected_revision != current_revision:
         raise StaleHumanActionError(
             f"Expected revision {action.expected_revision} but state is at "
