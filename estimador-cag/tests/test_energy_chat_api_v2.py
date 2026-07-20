@@ -196,13 +196,13 @@ def test_v2_deterministic_route_calls_graph_exactly_once(monkeypatch) -> None:
         "app.energy_chat.graph_runtime", fromlist=["run_energy_chat_graph"]
     ).run_energy_chat_graph
 
-    def counting_run(state, *, provider=None, budget=None, repair_strategy=None):
+    def counting_run(state, *, provider=None, budget=None, repair_strategy=None, checkpointer=None, human_gate_mode="disabled"):
         nonlocal call_count
         call_count += 1
-        return original_run(state, provider=provider, budget=budget, repair_strategy=repair_strategy)
+        return original_run(state, provider=provider, budget=budget, repair_strategy=repair_strategy, checkpointer=checkpointer, human_gate_mode=human_gate_mode)
 
     monkeypatch.setattr(
-        "app.energy_chat.graph_runtime.run_energy_chat_graph",
+        "app.energy_chat.graph_application.run_energy_chat_graph",
         counting_run,
     )
 
