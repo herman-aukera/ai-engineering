@@ -6,48 +6,79 @@ Claude Code loads this file as project memory when started from `estimador-cag/`
 
 Read and follow:
 
+- @docs/eacode_provider_execution_rescue_audit_2026-07-20.md
 - @docs/eacode_phase3c_claude_deepseek_handoff.md
 - @docs/eacode_handoff_status.md
 - @docs/eacode_threat_model.md
 - @docs/energy_aware_product_family_provider_and_context_strategy.md
 - @.energy/specs/0007-controlled-execution-evidence/requirements.md
 - @.energy/specs/0008-execution-authorization/requirements.md
+- @.energy/specs/0009-sandboxed-tool-adapter/requirements.md
+- @.energy/specs/0009-sandboxed-tool-adapter/acceptance.md
 - @.energy/specs/0010-provider-routing-context-compaction/requirements.md
 - @.energy/specs/0010-provider-routing-context-compaction/design.md
+- @.energy/specs/0010-provider-routing-context-compaction/tasks.md
 - @.energy/specs/0010-provider-routing-context-compaction/acceptance.md
 
 Use current repository state, tests, command output, and CI as stronger evidence than documentation.
 
-## Current implementation priority
+## Current recovery status
 
 ```text
-Spec 0009 — disabled-by-default sandboxed tool adapter — COMPLETE (2026-07-20)
-Spec 0010 — provider capability registry and selector — COMPLETE (2026-07-20)
+Spec 0007 — deterministic controlled planning and fake/dry-run evidence: COMPLETE at L2
+Spec 0008 — logical-revision authorization and persistent interrupt: COMPLETE at L2
+Spec 0009 — sandboxed-tool implementation and deterministic tests: IMPLEMENTED at L2; SECURITY REPAIR REQUIRED
+Spec 0010 — provider registry and deterministic selector: PARTIALLY IMPLEMENTED; CAPABILITY FACT REPAIR REQUIRED
+Context compaction runtime: LOCAL INTERRUPTED WORK MAY EXIST; NOT REMOTELY PROVEN
+Multi-agent runtime: NOT IMPLEMENTED IN EACODE
 ```
 
-Spec 0009: PR #12, merged at `2150d13`. CI green. Manual `--live-tool` smoke proven on Windows 11. Threat model and claim boundary updated.
+Do not repeat these unsupported claims:
 
-Spec 0010 registry: merged at `14a9df4`. CI green. Provider-neutral selector with 7 curated models (DeepSeek v4-flash/v4-pro, Kimi k3/kimi-for-coding, OpenAI luna/terra/sol). CapabilityRegistry with deterministic profile resolution. ProviderSelector with budget-aware auto-routing and governed cross-provider fallback. 31 deterministic tests. No live API calls.
+- PR #12 was merged;
+- Spec 0009 has complete live/manual evidence;
+- real-process sandboxing is proven safe;
+- exact Git-repository snapshot authorization exists;
+- Spec 0010 runtime is complete;
+- provider catalog values are current merely because tests pass;
+- context compaction is complete;
+- Kimi K3 is objectively superior.
 
-Next slices per implementation order (@docs/energy_aware_product_family_provider_and_context_strategy.md §8):
+PR #12 remains an open draft according to current GitHub metadata. Spec 0009 code is integrated into EACODE, but that is not equivalent to PR #12 being merged.
+
+## Mandatory recovery order
 
 ```text
-Context compaction contracts and deterministic fixtures (Spec 0010 runtime)
-Multi-agent governance model (Spec 0010 runtime)
+R0 stop or close all competing Claude/agent sessions
+R1 inspect local EACODE status and preserve interrupted local files
+R2 compare local HEAD and diff with origin/EACODE without reset/clean/restore
+R3 repair provider capability facts, contracts, and tests from current official sources
+R4 repair Spec 0009 live-intent, exact repository-snapshot, cleanup,
+   cancellation, truncation, redaction, and receipt-provenance invariants through red tests
+R5 run focused and full deterministic gates
+R6 request explicit user approval before commit or push
+R7 resume context-compaction contracts as a separate slice
+R8 start a fresh provider session for Kimi K3 rather than switching inside a damaged session
 ```
 
-Spec 0010 is architecture guidance. Do not mix live provider routing, context-compaction runtime, or multi-agent execution into completed Specs 0007-0009.
+Do not continue context-compaction or multi-agent implementation until R3 and R4 are green.
 
-## Product family
+## Critical Spec 0009 invariants to repair
 
-- EACODE supervises coding agents, repositories, commands, evidence, repair, and authorization.
-- EACHAT supervises general-purpose conversational answers with chat-specific critics and memory.
-- LIDR tasks must perfect mandatory requirements first; extras must be isolated and evidenced.
-- EACORE is optional shared documentation/contracts until two products prove stable semantic overlap.
+- A plan whose execution mode is `dry_run` or `fake` must never start a real process.
+- Real execution needs an explicit typed live-execution intent and authority transition.
+- Authorization must bind to an exact repository snapshot, not only an integer revision.
+- The snapshot must cover HEAD, tree, staged diff, unstaged diff, and untracked state/digest.
+- Process-tree cleanup must be verified, not assumed.
+- Cancellation must be observed promptly while the process is running.
+- Output truncation flags must be accurate.
+- Redaction must be safe across chunk boundaries and rerun on assembled output.
+- Receipt provenance or authoritative-store verification must prevent fabricated in-memory receipts.
+- Cleanup uncertainty fails closed.
 
-## Provider policy
+## Provider policy and current correction boundary
 
-Provider-neutral public profiles:
+Public profiles remain:
 
 ```text
 provider: auto | deepseek | kimi | openai
@@ -55,23 +86,35 @@ profile: minimal | medium | max
 context_profile: minimal | medium | max
 ```
 
-Current policy intent:
+Policy intent:
 
-- DeepSeek is the default cost-sensitive provider.
-- Kimi is the user-preferred frontier/open-model provider; Kimi K3 is the max path.
+- DeepSeek remains the default cost-sensitive route.
+- Kimi is the user-preferred frontier/open-model route.
 - OpenAI GPT-5.6 is an explicit budget-gated premium escalation.
 
-Do not call Kimi K3 objectively superior without project benchmark evidence.
+Current provider facts must be refreshed before acceptance:
 
-Do not invent unsupported capability symmetry:
+- DeepSeek V4 Flash/Pro use current official 1M-context, output, cache, effort, and pricing data.
+- Kimi general API `kimi-k3` and Kimi Code `k3` are distinct surfaces.
+- Kimi Code currently exposes `k3`, `kimi-for-coding`, and `kimi-for-coding-highspeed` where entitled.
+- K3 currently supports low, high, and max effort in Kimi Code; do not retain the older max-only assumption.
+- GPT-5.6 Luna/Terra/Sol use current official context, output, effort, and pricing data.
+- A deterministic planned route is not evidence of the exact provider/model actually served.
 
-- DeepSeek effective thinking effort is high/max.
-- Kimi K3 launches at max effort; lower effort availability must be discovered.
-- GPT-5.6 Luna/Terra/Sol support none/low/medium/high/xhigh/max through the API.
+A fresh Kimi-backed Claude Code session may map the main model to K3 at max effort and the lower-cost subagent/Haiku role to `kimi-for-coding`. Do not claim `kimi-for-coding` has a provider-native low-effort control unless current capability discovery proves it.
+
+## Product family
+
+- EACODE supervises coding agents, repositories, commands, evidence, repair, and authorization.
+- EACHAT supervises general-purpose conversational answers with chat-specific critics and memory.
+- LIDR tasks perfect mandatory requirements first; extras remain isolated and evidenced.
+- EACORE extraction remains gated by equivalent stable semantics in at least two products.
+
+Do not import task-specific estimation semantics or EACHAT chat semantics into EACODE.
 
 ## Context policy
 
-Every future long-running workflow must preserve:
+Every future long-running workflow preserves:
 
 ```text
 immutable raw events
@@ -81,7 +124,7 @@ immutable raw events
 + evidence rehydration
 ```
 
-Never replace raw evidence with a summary. Never persist secrets or hidden chain of thought. Preserve hard constraints, decisions, evidence references, conflicts, open questions, next actions, hashes, and rollback/rehydration references.
+Never replace raw evidence with a summary. Never persist secrets or hidden chain of thought. Preserve hard constraints, decisions, evidence references, conflicts, open questions, next actions, hashes, repository revisions, and rollback/rehydration references.
 
 ## Multi-agent policy
 
@@ -100,13 +143,32 @@ Required:
 
 ## Git and terminal rules
 
-- Do not modify `EACODE` directly; use the designated worktree branch.
-- Do not merge, force-push, reset, clean, switch, or delete branches without explicit user authorization.
-- Do not auto-commit or auto-push.
+- The user explicitly authorizes the current rescue/audit work on `EACODE`.
+- Do not create another branch or worktree unless the user asks.
+- Do not merge, force-push, reset, clean, restore, switch, rebase, or delete branches.
+- Do not auto-commit or auto-push. Request explicit approval after green gates and diff review.
+- Do not overwrite uncommitted interrupted work before inspecting it.
 - Do not use `set -e` or `set -euo pipefail` in user-pasteable terminal blocks.
 - Never place Markdown fences inside shell heredocs.
 - Never print or persist API key values.
 - Deterministic CI uses fake providers and fake tools only.
+- Live provider and live-process checks are opt-in manual evidence.
+
+## First response contract
+
+Before editing implementation files, report:
+
+1. current directory, branch, local HEAD, remote HEAD, and working-tree status;
+2. all uncommitted files and which appear to come from the interrupted session;
+3. drift against this recovery boundary;
+4. provider-fact corrections required;
+5. Spec 0009 red-test plan;
+6. exact first recovery slice;
+7. files expected to change;
+8. rollback boundary;
+9. whether any stop condition applies.
+
+Then proceed with the smallest safe red/green repair slice unless a stop condition applies.
 
 ## Response footer
 
@@ -116,8 +178,11 @@ End implementation responses with:
 Decider verdict:
 Evidence used:
 Current branch and SHA:
+Local diff state:
 Execution mode proven:
+Provider mode proven:
 Energy delta summary:
 Checkpoint state:
-Next exact command or slice:
+Next exact slice:
+User approval required:
 ```
