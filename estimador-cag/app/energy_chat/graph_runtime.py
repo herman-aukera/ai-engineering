@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Any, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from app.energy_chat.audit_models import (
     DecisionLedgerEntry,
@@ -165,8 +166,14 @@ def build_energy_chat_graph(
     provider: CandidateProvider | None = None,
     budget: ProviderBudget | None = None,
     repair_strategy: RepairStrategy | None = None,
+    checkpointer: BaseCheckpointSaver | None = None,
 ):
-    """Compile the provider-injected graph with one bounded repair loop."""
+    """Compile the provider-injected graph with one bounded repair loop.
+
+    When *checkpointer* is provided (e.g. an InMemoryCheckpointer's saver),
+    the graph checkpoints after every node and supports thread-isolated
+    replay and resume through LangGraph's configurable thread_id.
+    """
 
     active_provider = provider or DeterministicCandidateProvider()
     active_budget = budget or ProviderBudget()
@@ -365,7 +372,7 @@ def build_energy_chat_graph(
     builder.add_edge("finalize_repair", "record_decision")
     builder.add_edge("record_decision", "build_final_projection")
     builder.add_edge("build_final_projection", END)
-    return builder.compile()
+    return builder.compile(checkpointer=checkpointer)
 
 
 def run_energy_chat_graph(
@@ -374,12 +381,25 @@ def run_energy_chat_graph(
     provider: CandidateProvider | None = None,
     budget: ProviderBudget | None = None,
     repair_strategy: RepairStrategy | None = None,
+    checkpointer: BaseCheckpointSaver | None = None,
 ) -> EnergyChatGraphState:
-    """Run the graph and validate its complete domain state output."""
+    """Run the graph and validate its complete domain state output.
+
+    When *checkpointer* is provided, the graph uses LangGraph's thread-isolated
+    checkpointing. The caller's *state.thread_id* is used as the configurable
+    thread key so that replay and resume are thread-scoped.
+    """
+
+    config: dict[str, object] | None = None
+    if checkpointer is not None:
+        config = {"configurable": {"thread_id": state.thread_id}}
 
     result = build_energy_chat_graph(
-        provider=provider, budget=budget, repair_strategy=repair_strategy
-    ).invoke(_runtime_payload(state))
+        provider=provider,
+        budget=budget,
+        repair_strategy=repair_strategy,
+        checkpointer=checkpointer,
+    ).invoke(_runtime_payload(state), config)
     return EnergyChatGraphState.model_validate(result)
 
 
