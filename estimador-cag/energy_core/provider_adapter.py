@@ -9,8 +9,6 @@ Spec 0010 Slice E — additive module.
 from __future__ import annotations
 
 import hashlib
-import json
-from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Literal, Protocol
 
@@ -19,10 +17,8 @@ from pydantic import Field
 from energy_core.models import EnergyModel
 from energy_core.provider_registry import (
     CapabilityRegistry,
-    ModelCapability,
     ProviderSelection,
     ProviderSelector,
-    ResolvedProvider,
 )
 
 ProviderAttemptStatus = Literal["success", "failed", "timed_out", "circuit_open"]
