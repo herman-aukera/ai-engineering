@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import Field
@@ -89,8 +89,7 @@ class CompactionRecord(EnergyModel):
 
     def is_stale(self, *, max_age_days: int = 90) -> bool:
         """Return True if this record is older than max_age_days."""
-        from datetime import UTC, datetime as dt
-        now = dt.now(UTC)
+        now = datetime.now(UTC)
         age = now - self.created_at.replace(tzinfo=None).replace(tzinfo=UTC) if self.created_at.tzinfo is None else now - self.created_at
         return age.days > max_age_days
 
@@ -295,7 +294,6 @@ class LossAuditor:
         source_evidence: set[str] = set()
         source_constraints: set[str] = set()
         source_rehydration: set[str] = set()
-        source_questions: set[str] = set()
 
         for rec in original_records:
             for d in rec.accepted_decisions:

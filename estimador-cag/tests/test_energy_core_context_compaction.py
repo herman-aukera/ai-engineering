@@ -3,9 +3,7 @@
 Deterministic — no live API calls, no provider keys required.
 """
 
-from __future__ import annotations  # noqa: I001
-
-import pytest
+from __future__ import annotations
 
 from energy_core.context_compaction import (
     ArtifactRef,
@@ -17,10 +15,6 @@ from energy_core.context_compaction import (
     EventRange,
     EvidenceRef,
     LossAuditor,
-    _dedup_by_id,
-    _estimate_tokens_after,
-    _fields_for_profile,
-    _sha256_json,
 )
 
 
@@ -289,7 +283,7 @@ def test_contradiction_detection() -> None:
 
 def test_staleness_detection() -> None:
     """CompactionRecord staleness must be detectable."""
-    from datetime import UTC, datetime, timedelta
+    from datetime import UTC, datetime
 
     old = _record(1, created_at=datetime(2020, 1, 1, tzinfo=UTC))
     assert old.is_stale() is True, "Record from 2020 must be stale"
