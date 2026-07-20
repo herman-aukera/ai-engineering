@@ -6,7 +6,6 @@ The deterministic fake adapter path (FakeToolAdapter) remains the CI default.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -33,7 +32,6 @@ from energy_core.sandboxed_tool import (
     SandboxedToolAdapter,
     SandboxedToolConfig,
 )
-from pydantic import ValidationError
 
 
 # ------------------------------------------------------------------
@@ -341,6 +339,8 @@ def test_environment_leakage_prevented(tmp_path: Path) -> None:
 
 def test_unknown_environment_name_denied_in_plan(tmp_path: Path) -> None:
     """Environment names not in allowlist cause plan denial."""
+    from pydantic import ValidationError
+
     with pytest.raises((ValueError, ValidationError)):
         build_execution_plan(
             CommandProposal(
@@ -668,6 +668,8 @@ def test_git_branch_delete_denied(tmp_path: Path) -> None:
 
 def test_evidence_serialization_round_trip(tmp_path: Path) -> None:
     """ExecutionEvidence must serialize and deserialize correctly."""
+    import json
+
     adapter = FailureInjectingAdapter(_config(tmp_path))
     plan = _pytest_plan(tmp_path)
     result = adapter.invoke(plan)
@@ -896,6 +898,8 @@ def test_evidence_converts_to_evidence_record(tmp_path: Path) -> None:
 
 def test_sandboxed_config_rejects_empty_root() -> None:
     """SandboxedToolConfig must reject empty repository_root."""
+    from pydantic import ValidationError
+
     with pytest.raises(ValidationError):
         SandboxedToolConfig.model_validate(
             {"repository_root": "", "enabled": True}
