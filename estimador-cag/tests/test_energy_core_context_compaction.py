@@ -3,7 +3,7 @@
 Deterministic — no live API calls, no provider keys required.
 """
 
-from __future__ import annotations
+from __future__ import annotations  # noqa: I001
 
 from energy_core.context_compaction import (
     ArtifactRef,
