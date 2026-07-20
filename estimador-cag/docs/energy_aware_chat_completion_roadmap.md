@@ -31,7 +31,7 @@
 | 13. PostgreSQL | partial | PostgresCheckpointer wrapping LangGraph PostgresSaver, versioned schema DDL with migration tracking, CheckpointRetentionPolicy — interface tests only; live-DB integration (connection, write, restart, reopen, retention, redaction, rollback) deferred to manual credentialed smoke |
 | 14. Observability | implemented | NodeSpan per-node timing, GraphExecutionMetrics aggregation, CheckpointTelemetry, safe trace projections without payloads/secrets/transcripts, compute_graph_execution_metrics from authoritative state, 7 tests, green CI |
 | 15. Evidence and citation hardening | implemented | EvidenceBodyMetadata with conditional body hashing, EvidenceVerificationResult, CitationValidationResult with fabricated-citation detection, check_evidence_freshness with age-based staleness, 12 tests, green CI |
-| 16. Graph-backed UI | pending | browser-tested chat, Energy Card, thread history and safe controls |
+| 16. Graph-backed UI | implemented | V2 browser demo at /energy-chat/v2/demo with provider/effort/context selectors, Energy Card v2 display, provider metrics summary, ledger/trace projection, thread history with replay, awaiting-evidence handling; legacy demo unchanged |
 | 17. Provider catalog and live adapters | architecture documented; implementation pending | DeepSeek profile adapter, verified Kimi K3 discovery/adapter, GPT-5.6 adapter, explicit fallback and live sanitized proof |
 | 18. Context compaction and multi-agent profiles | architecture documented; implementation pending | minimal/balanced/max snapshots, drift tests, single/critic/committee/adaptive budgets and fixed benchmark |
 | 19. Quality evaluation | pending | controlled cross-provider and orchestration benchmark; no unsupported “best” claim |
