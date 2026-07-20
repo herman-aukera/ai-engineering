@@ -22,17 +22,21 @@ Use current repository state, tests, command output, and CI as stronger evidence
 
 ```text
 Spec 0009 — disabled-by-default sandboxed tool adapter — COMPLETE (2026-07-20)
+Spec 0010 — provider capability registry and selector — COMPLETE (2026-07-20)
 ```
 
-Completed under PR #12, merged into EACODE at `2150d13`. CI green. Manual `--live-tool` smoke proven on Windows 11. Threat model and claim boundary updated.
+Spec 0009: PR #12, merged at `2150d13`. CI green. Manual `--live-tool` smoke proven on Windows 11. Threat model and claim boundary updated.
 
-Next slice per implementation order (@docs/energy_aware_product_family_provider_and_context_strategy.md §8):
+Spec 0010 registry: merged at `14a9df4`. CI green. Provider-neutral selector with 7 curated models (DeepSeek v4-flash/v4-pro, Kimi k3/kimi-for-coding, OpenAI luna/terra/sol). CapabilityRegistry with deterministic profile resolution. ProviderSelector with budget-aware auto-routing and governed cross-provider fallback. 31 deterministic tests. No live API calls.
+
+Next slices per implementation order (@docs/energy_aware_product_family_provider_and_context_strategy.md §8):
 
 ```text
-Provider capability registry and selector (Spec 0010 runtime)
+Context compaction contracts and deterministic fixtures (Spec 0010 runtime)
+Multi-agent governance model (Spec 0010 runtime)
 ```
 
-Spec 0010 is architecture guidance and a future implementation packet. Do not mix live provider routing, context-compaction runtime, or multi-agent execution into completed Specs 0007-0009.
+Spec 0010 is architecture guidance. Do not mix live provider routing, context-compaction runtime, or multi-agent execution into completed Specs 0007-0009.
 
 ## Product family
 
