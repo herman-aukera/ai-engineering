@@ -30,7 +30,7 @@
 | 12. Human gates | implemented | HumanActionRequest with revision guard, interrupt on clarify/escalate via LangGraph interrupt(), Command(resume=) support, StaleHumanActionError for stale actions, 6 focused tests, green CI |
 | 13. PostgreSQL | implemented | PostgresCheckpointer wrapping LangGraph PostgresSaver, versioned schema DDL with migration tracking, CheckpointRetentionPolicy (per-thread limits, optional TTL), REDACTED_STATE_FIELDS for sensitive-field exclusion, pool configuration, 8 interface tests, green CI (InMemoryCheckpointer in CI) |
 | 14. Observability | implemented | NodeSpan per-node timing, GraphExecutionMetrics aggregation, CheckpointTelemetry, safe trace projections without payloads/secrets/transcripts, compute_graph_execution_metrics from authoritative state, 7 tests, green CI |
-| 15. Evidence and citation hardening | pending | body hashes where permitted, verification, freshness and citation validation |
+| 15. Evidence and citation hardening | implemented | EvidenceBodyMetadata with conditional body hashing, EvidenceVerificationResult, CitationValidationResult with fabricated-citation detection, check_evidence_freshness with age-based staleness, 12 tests, green CI |
 | 16. Graph-backed UI | pending | browser-tested chat, Energy Card, thread history and safe controls |
 | 17. Provider catalog and live adapters | architecture documented; implementation pending | DeepSeek profile adapter, verified Kimi K3 discovery/adapter, GPT-5.6 adapter, explicit fallback and live sanitized proof |
 | 18. Context compaction and multi-agent profiles | architecture documented; implementation pending | minimal/balanced/max snapshots, drift tests, single/critic/committee/adaptive budgets and fixed benchmark |
