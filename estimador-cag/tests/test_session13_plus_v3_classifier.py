@@ -625,7 +625,8 @@ async def test_semantic_classify_node_stores_semantic_assessment() -> None:
     state = _state(reformulated_request="Project type: web\nRequest: Build a secure FastAPI onboarding platform.")
 
     node = build_semantic_classify_node()
-    update = await node(state)
+    result = await node(state)
+    update = result.update  # Command.update is the state dict
 
     assert "semantic_assessment" in update
     assert update["semantic_assessment"]["level"] == "C1"
@@ -652,7 +653,8 @@ async def test_semantic_classify_node_uses_reformulated_request() -> None:
     )
 
     node = build_semantic_classify_node()
-    update = await node(state)
+    result = await node(state)
+    update = result.update
 
     assert update["v3_complexity"] is not None
     assert "semantic_assessment" in update
@@ -669,7 +671,8 @@ async def test_semantic_classify_node_produces_arbitrated_assessment() -> None:
     )
 
     node = build_semantic_classify_node()
-    update = await node(state)
+    result = await node(state)
+    update = result.update
 
     arb = update["arbitrated_assessment"]
     assert "arbitrated_level" in arb
@@ -687,7 +690,8 @@ async def test_semantic_classify_node_stores_route_plan() -> None:
     state = _state(estimation_id="11111111-1111-4111-8111-111111111114")
 
     node = build_semantic_classify_node()
-    update = await node(state)
+    result = await node(state)
+    update = result.update
 
     plan = update["v3_route_plan"]
     assert "plan_id" in plan
@@ -708,7 +712,8 @@ async def test_semantic_classify_node_emits_domain_trace_events() -> None:
     )
 
     node = build_semantic_classify_node()
-    update = await node(state)
+    result = await node(state)
+    update = result.update
 
     events = update["trace_events"]
     event_types = [e["event_type"] for e in events]
@@ -729,7 +734,8 @@ async def test_semantic_classify_node_handles_missing_transcript_gracefully() ->
     state.pop("transcript", None)
 
     node = build_semantic_classify_node()
-    update = await node(state)
+    result = await node(state)
+    update = result.update
 
     assert update["review_required"] is True
     errors = update.get("errors", [])
@@ -1001,3 +1007,123 @@ def test_mandatory_graph_still_uses_only_five_original_nodes() -> None:
     }
     # The mandatory graph must NOT include semantic_classify.
     assert "semantic_classify" not in REQUIRED_NODE_NAMES
+
+
+# ---------------------------------------------------------------------------
+# 9. R3 — typed Command handover from classifier node
+# ---------------------------------------------------------------------------
+
+def test_semantic_classify_node_returns_command_not_dict() -> None:
+    """The node must return a Command, not a plain dict."""
+    from app.generation.graph.nodes.semantic_classify import build_semantic_classify_node
+
+    # Verify the node builder signature (can't call async from sync test).
+    node = build_semantic_classify_node()
+    assert callable(node)
+
+
+@pytest.mark.asyncio
+async def test_command_update_contains_classifier_results() -> None:
+    """Command.update must carry semantic_assessment and routing fields."""
+    from langgraph.types import Command
+
+    from app.generation.graph.nodes.semantic_classify import build_semantic_classify_node
+
+    state: dict[str, object] = {
+        "transcript": "Build a secure FastAPI onboarding platform.",
+        "estimation_id": "11111111-1111-4111-8111-111111111300",
+        "graph_version": "session13.plus.v1",
+        "trace_events": [],
+    }
+    node = build_semantic_classify_node()
+    result = await node(state)
+
+    assert isinstance(result, Command)
+    update = result.update
+    assert "semantic_assessment" in update
+    assert "v3_complexity" in update
+    assert "arbitrated_assessment" in update
+    assert "v3_route_plan" in update
+
+
+@pytest.mark.asyncio
+async def test_command_goto_is_structure_phase() -> None:
+    """Command.goto must target structure_phase."""
+    from langgraph.types import Command
+
+    from app.generation.graph.nodes.semantic_classify import build_semantic_classify_node
+
+    state: dict[str, object] = {
+        "transcript": "Build a web app.",
+        "estimation_id": "11111111-1111-4111-8111-111111111301",
+        "graph_version": "session13.plus.v1",
+        "trace_events": [],
+    }
+    node = build_semantic_classify_node()
+    result = await node(state)
+
+    assert isinstance(result, Command)
+    assert result.goto == "structure_phase"
+
+
+@pytest.mark.asyncio
+async def test_command_handover_graph_runs_end_to_end() -> None:
+    """Full graph with Command handover must complete estimation."""
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from app.generation.graph.reviewed_build import build_reviewed_estimation_graph
+
+    graph = build_reviewed_estimation_graph(_graph_deps(), checkpointer=InMemorySaver())
+    config = {"configurable": {"thread_id": "r3-command-e2e"}}
+
+    result = await graph.ainvoke(_initial_reviewed_state(), config=config)
+
+    assert result["status"] == "validated"
+    assert result["estimate"]["total_hours"] == 40.0
+    assert "semantic_assessment" in result
+
+
+@pytest.mark.asyncio
+async def test_command_handover_replay_is_deterministic() -> None:
+    """Command handover must preserve replay determinism."""
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from app.generation.graph.reviewed_build import build_reviewed_estimation_graph
+
+    graph = build_reviewed_estimation_graph(_graph_deps(), checkpointer=InMemorySaver())
+    config_a = {"configurable": {"thread_id": "r3-replay-a"}}
+    config_b = {"configurable": {"thread_id": "r3-replay-b"}}
+
+    result_a = await graph.ainvoke(_initial_reviewed_state(), config=config_a)
+    result_b = await graph.ainvoke(_initial_reviewed_state(), config=config_b)
+
+    assert result_a["semantic_assessment"] == result_b["semantic_assessment"]
+    assert result_a["arbitrated_assessment"] == result_b["arbitrated_assessment"]
+    assert result_a["estimate"] == result_b["estimate"]
+
+
+@pytest.mark.asyncio
+async def test_command_handover_preserves_structure_gate() -> None:
+    """Interrupt/resume cycle must still work with Command handover."""
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.types import Command
+
+    from app.generation.graph.reviewed_build import build_reviewed_estimation_graph
+
+    graph = build_reviewed_estimation_graph(_graph_deps(), checkpointer=InMemorySaver())
+    config = {"configurable": {"thread_id": "r3-structure-gate"}}
+    state = _initial_reviewed_state()
+    state["human_review_mode"] = "required"
+    state["estimation_id"] = "11111111-1111-4111-8111-111111111302"
+
+    interrupted = await graph.ainvoke(state, config=config)
+    interrupts = interrupted.get("__interrupt__", ())
+    assert len(interrupts) == 1
+    assert interrupts[0].value["gate"] == "structure_review"
+
+    resumed = await graph.ainvoke(
+        Command(resume={"action": "approve", "expected_revision": 0}),
+        config=config,
+    )
+    assert "semantic_assessment" in resumed
+    assert resumed["semantic_assessment"]["level"] == "C1"

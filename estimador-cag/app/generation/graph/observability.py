@@ -8,6 +8,7 @@ from functools import lru_cache
 from typing import Protocol, cast
 
 import logfire
+from langgraph.types import Command
 
 from app.generation.graph.review_state import ReviewedEstimationGraphState
 from app.generation.graph.state import EstimationGraphState
@@ -113,22 +114,23 @@ def _list_count(value: object) -> int:
 def _record_update_attributes(
     *,
     span: GraphSpan,
-    update: EstimationGraphState | ReviewedEstimationGraphState,
+    update: EstimationGraphState | ReviewedEstimationGraphState | Command,
 ) -> None:
+    state_update = update.update if isinstance(update, Command) else update
     span.set_attribute(
         "state_delta_keys",
-        sorted(update.keys()),
+        sorted(state_update.keys()) if hasattr(state_update, "keys") else [],
     )
     span.set_attribute(
         "error_count",
-        _list_count(update.get("errors")),
+        _list_count(state_update.get("errors")),
     )
     span.set_attribute(
         "trace_event_count",
-        _list_count(update.get("trace_events")),
+        _list_count(state_update.get("trace_events")),
     )
 
-    status = update.get("status")
+    status = state_update.get("status")
     if isinstance(status, str):
         span.set_attribute("status", status)
 
@@ -170,11 +172,16 @@ def instrument_reviewed_graph_node(
     node: ReviewedGraphNode,
     tracer: GraphTracer,
 ) -> ReviewedGraphNode:
-    """Wrap one Plus node while preserving the reviewed-state schema."""
+    """Wrap one Plus node while preserving the reviewed-state schema.
+
+    If the wrapped node returns a :class:`Command`, the instrumentation
+    reads ``Command.update`` for span attributes and passes the Command
+    through unchanged so routing (``goto``) works correctly.
+    """
 
     async def instrumented_node(
         state: ReviewedEstimationGraphState,
-    ) -> ReviewedEstimationGraphState:
+    ) -> ReviewedEstimationGraphState | Command:
         with tracer.span(
             NODE_SPAN_NAME,
             graph_name=graph_name,

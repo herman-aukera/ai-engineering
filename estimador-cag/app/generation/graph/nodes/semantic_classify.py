@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import cast
+
+from langgraph.types import Command
 
 from app.generation.graph.review_state import ReviewedEstimationGraphState
 from app.schemas.v3_routing import ComplexityAssessment, ComplexitySignals
@@ -19,7 +20,7 @@ from app.services.v3_semantic_classifier import (
 
 SemanticClassifyNode = Callable[
     [ReviewedEstimationGraphState],
-    Awaitable[ReviewedEstimationGraphState],
+    Awaitable[Command],
 ]
 
 NODE_NAME = "semantic_classify"
@@ -76,9 +77,8 @@ def build_semantic_classify_node(
     ) -> ReviewedEstimationGraphState:
         transcript = _effective_transcript(state)
         if not transcript:
-            return cast(
-                ReviewedEstimationGraphState,
-                {
+            return Command(
+                update={
                     "review_required": True,
                     "errors": [
                         {
@@ -98,6 +98,7 @@ def build_semantic_classify_node(
                         }
                     ],
                 },
+                goto="structure_phase",
             )
 
         # 1. Semantic classifier (fake or live, depending on injection)
@@ -131,9 +132,8 @@ def build_semantic_classify_node(
         route_plan = build_model_routing_plan(authoritative)
         route_plan_dict = route_plan.model_dump(mode="json")
 
-        return cast(
-            ReviewedEstimationGraphState,
-            {
+        return Command(
+            update={
                 "semantic_assessment": semantic_dict,
                 "v3_complexity": deterministic_dict,
                 "arbitrated_assessment": arbitrated_dict,
@@ -162,6 +162,7 @@ def build_semantic_classify_node(
                     }
                 ],
             },
+            goto="structure_phase",
         )
 
     return semantic_classify
