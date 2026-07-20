@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from app.energy_chat.observability import (
     CheckpointTelemetry,
+    compute_graph_execution_metrics,
     GraphExecutionMetrics,
     NodeSpan,
-    compute_graph_execution_metrics,
 )
 
 
