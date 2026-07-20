@@ -177,7 +177,7 @@ def check_deployment_readiness(
     return {
         "ci_green": ci_green,
         "deterministic_tests_passing": deterministic_tests_passing,
-        "secrets_scan_clean": secrets_scan_clear,
+        "secrets_scan_clean": secrets_scan_clean,
         "docker_config_exists": docker_config_exists,
         "ready": all([ci_green, deterministic_tests_passing, secrets_scan_clean]),
     }
