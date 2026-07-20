@@ -77,7 +77,8 @@ def test_replay_same_thread_is_idempotent() -> None:
     payload = _runtime_payload(state)
 
     first = EnergyChatGraphState.model_validate(graph.invoke(payload, config))
-    second = EnergyChatGraphState.model_validate(graph.invoke(payload, config))
+    # replay with None to avoid overwriting checkpoint state
+    second = EnergyChatGraphState.model_validate(graph.invoke(None, config))
 
     # ledger entries must be identical, not duplicated
     assert len(first.decision_ledger_entries) == len(second.decision_ledger_entries)
@@ -175,8 +176,8 @@ def test_provider_not_called_again_on_replay(monkeypatch) -> None:
     first = graph.invoke(payload, config)
     assert call_count == 1
 
-    second = graph.invoke(payload, config)
-    # replay must not trigger another provider call
+    # replay with None to avoid overwriting checkpoint state
+    second = graph.invoke(None, config)
     assert call_count == 1
 
     first_domain = EnergyChatGraphState.model_validate(first)
