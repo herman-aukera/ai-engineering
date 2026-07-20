@@ -34,7 +34,7 @@
 | 16. Graph-backed UI | implemented | V2 browser demo at /energy-chat/v2/demo with provider/effort/context selectors, Energy Card v2 display, provider metrics summary, ledger/trace projection, thread history with replay, awaiting-evidence handling; legacy demo unchanged |
 | 17. Provider catalog and live adapters | implemented | ProviderModelCapability typed records with source refs and verification dates; DeepSeek V4 Flash/Pro verified, Kimi K3 and GPT-5.6 Luna/Terra/Sol documented; resolve_effort_profile() finds cheapest verified model; catalog wired into live provider selection; fails closed on unverified combinations; 8 tests, green CI |
 | 18. Context compaction and multi-agent profiles | implemented | ContextCompactionPolicy per profile (minimal 4K/2 turns, balanced 16K/8 turns, max 64K/24 turns), ContextSnapshot with revision/hash drift detection, MultiAgentBudget per mode (single/critic/committee/adaptive with agent counts and token/cost/deadline ceilings), profile resolution functions, 10 tests, green CI |
-| 19. Quality evaluation | pending | controlled cross-provider and orchestration benchmark; no unsupported “best” claim |
+| 19. Quality evaluation | implemented | QualityRubric (8 weighted dimensions), QualityBenchmarkCase with gold expectations, evaluate_quality_case() per-case scoring, build_quality_benchmark_run() aggregation; measurement_only_no_quality_claim; 8 tests; cross-provider comparison requires credentialed adapters (M17) |
 | 20–21. Deployment and release audit | pending | operational proof before claim changes |
 
 ## Next exact milestone
