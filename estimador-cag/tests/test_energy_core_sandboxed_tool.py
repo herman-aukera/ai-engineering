@@ -957,9 +957,9 @@ def test_build_evidence_with_receipt_checks_hash(tmp_path: Path) -> None:
 
 def test_dry_run_plan_rejected_by_real_adapter(tmp_path: Path) -> None:
     """A plan with execution_mode=dry_run must be rejected by SandboxedToolAdapter."""
-    from energy_core.controlled_execution import ExecutionPlan as EP
+    from energy_core.controlled_execution import ExecutionPlan
 
-    plan = EP(
+    plan = ExecutionPlan(
         plan_id="plan-dry",
         proposal_id="prop-dry",
         policy_id="test",
@@ -985,9 +985,9 @@ def test_dry_run_plan_rejected_by_real_adapter(tmp_path: Path) -> None:
 
 def test_fake_mode_plan_rejected_by_real_adapter(tmp_path: Path) -> None:
     """A plan with execution_mode=fake must be rejected by SandboxedToolAdapter."""
-    from energy_core.controlled_execution import ExecutionPlan as EP
+    from energy_core.controlled_execution import ExecutionPlan
 
-    plan = EP(
+    plan = ExecutionPlan(
         plan_id="plan-fake",
         proposal_id="prop-fake",
         policy_id="test",
