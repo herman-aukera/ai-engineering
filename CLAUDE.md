@@ -28,14 +28,14 @@ Do not modify `EACODE`, `gg-session-13/plus`, `main` or `finalproject-GGC` while
 
 ## Current task
 
-Milestone 10 (graph-backed API) is implemented at `9aa1e09347734c3323436fea0c9bb2ef437fb209`. The next slice is Milestone 11: in-memory checkpoint proof.
+Milestones 10–15 are implemented. M10 corrections applied. M13 is partial (no live-DB proof). Next actionable slice: Milestone 16 (graph-backed UI) after correction gate is green.
 
 ```text
-POST /energy-chat/v2/chat        — implemented, deterministic
-POST /energy-chat/v2/chat/live   — implemented, live bounded
+POST /energy-chat/v2/chat        — deterministic, owns execution profile, checkpointed
+POST /energy-chat/v2/chat/live   — live bounded, owns execution profile, bounded provider
 ```
 
-Each V2 route invokes one graph execution. Legacy routes remain rollback surfaces. No silent fallback or double execution. Provider-neutral selector contracts are validated; only balanced context and critic orchestration are active.
+Each V2 route invokes one graph execution with route-owned profile. Legacy routes remain rollback surfaces. No silent fallback or double execution. Provider-neutral selector contracts validated; only balanced context and critic orchestration active. auto provider fails explicitly. Unknown fields rejected. Deterministic route uses in-memory checkpointing for replay idempotency.
 
 ## Model and selector policy
 

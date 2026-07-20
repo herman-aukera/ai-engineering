@@ -23,8 +23,10 @@ from app.energy_chat.candidate_provider import (
     ProviderBudget,
     ProviderBudgetExceededError,
 )
+from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
 from app.energy_chat.graph_runtime import run_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
+from app.energy_chat.human_gate import HumanGateMode
 
 
 def run_graph_chat_v2(
@@ -32,8 +34,16 @@ def run_graph_chat_v2(
     *,
     provider: CandidateProvider | None = None,
     id_factory: IDFactory | None = None,
+    checkpointer: InMemoryCheckpointer | None = None,
+    human_gate_mode: HumanGateMode = "disabled",
 ) -> EnergyChatV2Response:
-    """One V2 request → exactly one graph execution → authoritative V2 response."""
+    """One V2 request → exactly one graph execution → authoritative V2 response.
+
+    When the execution profile is deterministic, an InMemoryCheckpointer is
+    created automatically for thread isolation and replay support.
+    Human gates default to disabled; set to ``"required"`` to enable
+    interrupt/resume on clarify and escalate dispositions.
+    """
 
     active_id_factory = id_factory or UUID4IDFactory()
 
@@ -49,7 +59,15 @@ def run_graph_chat_v2(
     resolved_provider = provider or _resolve_provider(request)
     budget = _resolve_budget(request)
 
-    # 4. Build initial graph state
+    # 4. Resolve checkpointer — deterministic always gets in-memory checkpointing
+    active_checkpointer = checkpointer
+    saver = None
+    if request.execution_profile == "deterministic":
+        if active_checkpointer is None:
+            active_checkpointer = InMemoryCheckpointer()
+        saver = active_checkpointer.langgraph_saver
+
+    # 5. Build initial graph state
     state = EnergyChatGraphState(
         thread_id=thread_id,
         request_id=request_id,
@@ -60,19 +78,21 @@ def run_graph_chat_v2(
         constraints=request.required_constraints,
     )
 
-    # 5. Execute graph exactly once
+    # 6. Execute graph exactly once
     try:
         result = run_energy_chat_graph(
             state,
             provider=resolved_provider,
             budget=budget,
+            checkpointer=saver,
+            human_gate_mode=human_gate_mode,
         )
     except ProviderBudgetExceededError:
         raise
     except Exception:
         raise
 
-    # 6. Project authoritative response
+    # 7. Project authoritative response
     return _project_v2_response(result, request)
 
 

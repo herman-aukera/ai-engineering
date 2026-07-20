@@ -112,3 +112,36 @@ def test_awaiting_evidence_response_is_honest_about_no_provider() -> None:
     assert body["awaiting_evidence"] is True
     # No candidate was generated, so no provider was called
     assert body["candidate_count"] == 0
+
+
+# ── M11 wiring: V2 deterministic route uses checkpointing ──────────────────
+
+
+def test_v2_deterministic_route_replay_is_idempotent() -> None:
+    """The deterministic V2 route must use checkpointing so replay with the
+    same thread_id returns the same result without duplicate work."""
+    response1 = client.post(
+        "/energy-chat/v2/chat",
+        json={
+            "user_message": "Explain the graph backbone architecture.",
+            "thread_id": "thread-replay-v2",
+        },
+    )
+    assert response1.status_code == 200
+    body1 = response1.json()
+
+    # Replay with same thread_id
+    response2 = client.post(
+        "/energy-chat/v2/chat",
+        json={
+            "user_message": "Explain the graph backbone architecture.",
+            "thread_id": "thread-replay-v2",
+        },
+    )
+    assert response2.status_code == 200
+    body2 = response2.json()
+
+    # Same ledger entries, same final answer
+    assert body1["ledger_entry_ids"] == body2["ledger_entry_ids"]
+    assert body1["final_answer"] == body2["final_answer"]
+    assert body1["candidate_count"] == body2["candidate_count"]
