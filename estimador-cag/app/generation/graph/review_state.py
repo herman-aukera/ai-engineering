@@ -6,6 +6,10 @@ from typing import Annotated, Literal, TypedDict
 
 from app.generation.graph.state import EstimationGraphState
 from app.schemas.human_review import HumanReviewMode
+from app.schemas.session14_supervision import (
+    RouteReasonCode,
+    SupervisorDestination,
+)
 
 StructureReviewStatus = Literal[
     "not_requested",
@@ -26,6 +30,16 @@ RecoveryStatus = Literal[
 RecoveryRoute = Literal["complete", "recalculate"]
 FinalReviewRoute = Literal["complete", "stop", "recover"]
 BossRoute = Literal["final_review", "recover", "stop"]
+
+Session14AgentId = Literal[
+    "supervisor",
+    "requirements_extractor",
+    "budget_searcher",
+    "estimate_generator",
+    "coherence_validator",
+    "human_review_gate",
+    "finalize",
+]
 
 
 def merge_parallel_retrieval_results(
@@ -54,6 +68,54 @@ class StructureReviewRecord(TypedDict, total=False):
     revision: int
 
 
+class AgentContribution(TypedDict):
+    """One replay-safe, sanitized specialist contribution."""
+
+    contribution_id: str
+    agent_id: Session14AgentId
+    sequence: int
+    summary: str
+    state_delta_keys: list[str]
+
+
+def merge_agent_contributions(
+    current: list[AgentContribution],
+    incoming: list[AgentContribution],
+) -> list[AgentContribution]:
+    """Merge identical replays once and reject conflicting identifier reuse."""
+
+    by_id: dict[str, AgentContribution] = {}
+
+    for contribution in [*current, *incoming]:
+        contribution_id = contribution["contribution_id"].strip()
+        if not contribution_id:
+            raise ValueError("contribution_id must not be blank")
+
+        candidate = AgentContribution(
+            contribution_id=contribution_id,
+            agent_id=contribution["agent_id"],
+            sequence=contribution["sequence"],
+            summary=contribution["summary"],
+            state_delta_keys=list(contribution["state_delta_keys"]),
+        )
+        existing = by_id.get(contribution_id)
+
+        if existing is not None and existing != candidate:
+            raise ValueError(
+                f"conflicting contribution_id: {contribution_id}"
+            )
+
+        by_id[contribution_id] = candidate
+
+    return sorted(
+        by_id.values(),
+        key=lambda contribution: (
+            contribution["sequence"],
+            contribution["contribution_id"],
+        ),
+    )
+
+
 class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     """Plus state fields layered on the frozen mandatory graph contract."""
 
@@ -79,7 +141,10 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     active_provider: str
     provider_circuits: dict[str, dict[str, object]]
     execution_budgets: dict[str, object]
-    parallel_retrieval_results: Annotated[list[dict[str, object]], merge_parallel_retrieval_results]
+    parallel_retrieval_results: Annotated[
+        list[dict[str, object]],
+        merge_parallel_retrieval_results,
+    ]
     final_review_revision: int
     final_review_status: str
     final_review_route: FinalReviewRoute
@@ -88,3 +153,25 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     scenario_id: str
     parent_estimation_id: str
     parent_checkpoint_id: str
+
+
+class Session14EstimationGraphState(
+    ReviewedEstimationGraphState,
+    total=False,
+):
+    """Supervisor state layered additively on the Session 13 Plus contract."""
+
+    requirements_extraction_completed: bool
+    budget_search_completed: bool
+    validation: dict[str, object] | None
+    confidence: float | None
+    routing_steps: int
+    max_routing_steps: int
+    current_agent: Session14AgentId | None
+    previous_agent: Session14AgentId | None
+    next_agent: SupervisorDestination | None
+    route_reason_code: RouteReasonCode | None
+    agent_contributions: Annotated[
+        list[AgentContribution],
+        merge_agent_contributions,
+    ]
