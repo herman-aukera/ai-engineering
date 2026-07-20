@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal, TypedDict
 
-from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.graph import END, START, StateGraph
 
 from app.energy_chat.audit_models import (
     DecisionLedgerEntry,
