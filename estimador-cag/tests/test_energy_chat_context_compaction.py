@@ -1,6 +1,10 @@
 """Milestone 18: context compaction policies and multi-agent budget models."""
 
-from app.energy_chat.context_compaction import ContextSnapshot, resolve_compaction_policy, resolve_multi_agent_budget
+from app.energy_chat.context_compaction import (
+    ContextSnapshot,
+    resolve_compaction_policy,
+    resolve_multi_agent_budget,
+)
 
 
 # ── compaction policies ─────────────────────────────────────────────────
