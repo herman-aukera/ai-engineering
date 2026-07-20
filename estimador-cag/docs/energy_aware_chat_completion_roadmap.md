@@ -26,7 +26,7 @@
 | 8. Complete decision semantics | complete | six deterministic dispositions, versioned request rules, precedence, rule IDs and transitions |
 | 9. Ledger and Energy Card v2 | complete | append-only ledger, reference integrity metadata, safe final answer, Energy Card v2, replay/conflict tests, remote CI green |
 | 10. Graph-backed API | implemented | additive V2 routes at `/energy-chat/v2/chat` and `/energy-chat/v2/chat/live`, stable IDs, one canonical graph execution, provider-neutral selector contracts, no double execution, no silent legacy fallback, deterministic CI-safe route, live bounded route, awaiting-evidence representation, safe error mapping, legacy route regression tests |
-| 11. In-memory checkpoint proof | pending | thread isolation, replay and resume contracts |
+| 11. In-memory checkpoint proof | complete | InMemoryCheckpointer wrapping LangGraph MemorySaver, thread isolation, replay idempotency, checkpoint retrieval, no-duplicate-provider-call proof, 6 focused tests |
 | 12. Human gates | pending | revision-guarded clarify/escalate interrupt and resume |
 | 13. PostgreSQL | pending | migrations, rollback, retention, redaction and restart proof |
 | 14. Observability | pending | graph spans, metrics, safe traces and dashboards |
