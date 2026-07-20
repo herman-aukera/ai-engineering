@@ -4,7 +4,7 @@ All tests use FailureInjectingAdapter — no real OS processes are created.
 The deterministic fake adapter path (FakeToolAdapter) remains the CI default.
 """
 
-from __future__ import annotations
+from __future__ import annotations  # noqa: I001
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
