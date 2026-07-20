@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from app.energy_chat.candidate_provider import DeterministicCandidateProvider
 from app.energy_chat.graph_runtime import build_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
 from app.energy_chat.human_gate import HumanActionRequest, StaleHumanActionError
@@ -38,8 +37,6 @@ def _runtime_payload(state: EnergyChatGraphState) -> dict[str, object]:
 
 def test_human_action_request_model_exists() -> None:
     """HumanActionRequest must exist with action, reason, and revision fields."""
-    from app.energy_chat.human_gate import HumanActionRequest
-
     action = HumanActionRequest(
         action_id="ha-1",
         action="clarify_response",
@@ -53,7 +50,6 @@ def test_human_action_request_model_exists() -> None:
 
 def test_human_action_rejects_invalid_action_type() -> None:
     """HumanActionRequest must reject unknown action types."""
-    from app.energy_chat.human_gate import HumanActionRequest
 
     with pytest.raises(Exception):
         HumanActionRequest(
@@ -140,14 +136,12 @@ def test_resume_from_interrupt_with_human_action() -> None:
     """After an interrupt, invoking with Command(resume=human_action) must
     continue the graph and produce a completed state."""
     from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
-    from app.energy_chat.human_gate import HumanActionRequest
 
     checkpointer = InMemoryCheckpointer()
     graph = build_energy_chat_graph(
         checkpointer=checkpointer.langgraph_saver,
         human_gate_mode="required",
     )
-    # Use a request that forces clarification via missing intent
     state = _state(
         thread_id="thread-resume",
         request_id="req-resume",
@@ -191,9 +185,6 @@ def test_stale_human_action_is_rejected() -> None:
     """A human action targeting an older revision must be rejected with a
     typed error. Actions must reference the expected_revision from the
     interrupt they are responding to."""
-    from app.energy_chat.human_gate import HumanActionRequest
-    from app.energy_chat.human_gate import StaleHumanActionError
-
     action = HumanActionRequest(
         action_id="ha-stale",
         action="clarify_response",
