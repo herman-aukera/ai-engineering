@@ -1,6 +1,10 @@
 """Milestone 14: observability — spans, metrics, and safe trace projections."""
 
-from app.energy_chat.observability import CheckpointTelemetry, compute_graph_execution_metrics, GraphExecutionMetrics, NodeSpan
+from app.energy_chat.observability import (
+    CheckpointTelemetry,
+    NodeSpan,
+    compute_graph_execution_metrics,
+)
 
 
 def test_node_span_records_timing() -> None:
