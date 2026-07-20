@@ -6,6 +6,7 @@ from typing import Annotated, Any, Literal, TypedDict
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import interrupt
 
 from app.energy_chat.audit_models import (
     DecisionLedgerEntry,
@@ -51,6 +52,11 @@ from app.energy_chat.graph_state import (
     TraceEvent,
     append_unique_records,
     append_unique_values,
+)
+from app.energy_chat.human_gate import (
+    HumanActionRequest,
+    HumanGateMode,
+    enable_human_gates,
 )
 from app.energy_chat.repair_nodes import (
     RepairStrategy,
@@ -158,6 +164,9 @@ class EnergyChatRuntimeState(TypedDict):
     energy_card: EnergyCard | None
     energy_card_v2: EnergyCardV2 | None
     final_projection: FinalAnswerProjection | None
+    human_action_request: HumanActionRequest | None
+    human_action_result: HumanActionRequest | None
+    human_action_turn: int
     status: GraphStatus
 
 
@@ -167,12 +176,17 @@ def build_energy_chat_graph(
     budget: ProviderBudget | None = None,
     repair_strategy: RepairStrategy | None = None,
     checkpointer: BaseCheckpointSaver | None = None,
+    human_gate_mode: HumanGateMode = "disabled",
 ):
     """Compile the provider-injected graph with one bounded repair loop.
 
     When *checkpointer* is provided (e.g. an InMemoryCheckpointer's saver),
     the graph checkpoints after every node and supports thread-isolated
     replay and resume through LangGraph's configurable thread_id.
+
+    When *human_gate_mode* is ``"required"``, clarify and escalate dispositions
+    interrupt the graph for human action instead of terminating. Resume is
+    revision-guarded through the HumanActionRequest.expected_revision field.
     """
 
     active_provider = provider or DeterministicCandidateProvider()
@@ -289,6 +303,33 @@ def build_energy_chat_graph(
             "trace_events": delta.trace_events,
         }
 
+    def human_action_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
+        domain = _domain_state(state)
+        turn = domain.human_action_turn + 1
+        last_decision = domain.decision_outcomes[-1]
+        action_type: str = "clarify_response"
+        if last_decision.disposition == "escalate":
+            action_type = "escalate_response"
+        request = HumanActionRequest(
+            action_id=f"{domain.trace_id}:human:{turn}",
+            action=action_type,  # type: ignore[arg-type]
+            reason=f"Decision {last_decision.decision_id} requires human action: {last_decision.reason}",
+            expected_revision=turn,
+        )
+        # Interrupt and wait for human. On resume, the caller passes
+        # Command(resume=human_action) with the response.
+        response = interrupt(request)
+        if not isinstance(response, HumanActionRequest):
+            raise ValueError(
+                f"Human gate resume requires a HumanActionRequest, got {type(response).__name__}"
+            )
+        return {
+            "human_action_request": request,
+            "human_action_result": response,
+            "human_action_turn": turn,
+            "status": "evaluated",
+        }
+
     def ledger_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
         delta = record_decision(_domain_state(state))
         return {
@@ -329,6 +370,7 @@ def build_energy_chat_graph(
     builder.add_node("plan_repair", repair_plan_node)
     builder.add_node("apply_repair", repair_apply_node)
     builder.add_node("finalize_repair", repair_finalize_node)
+    builder.add_node("request_human_action", human_action_node)
     builder.add_node("record_decision", ledger_node)
     builder.add_node("build_final_projection", projection_node)
 
@@ -356,11 +398,12 @@ def build_energy_chat_graph(
     builder.add_edge("calculate_energy", "decide_candidate")
     builder.add_conditional_edges(
         "decide_candidate",
-        _decision_route,
+        _route_decision,
         {
             "end": "record_decision",
             "repair": "plan_repair",
             "finalize": "finalize_repair",
+            "human": "request_human_action",
         },
     )
     builder.add_conditional_edges(
@@ -370,8 +413,40 @@ def build_energy_chat_graph(
     )
     builder.add_edge("apply_repair", "run_critic_panel")
     builder.add_edge("finalize_repair", "record_decision")
+    builder.add_edge("request_human_action", "record_decision")
     builder.add_edge("record_decision", "build_final_projection")
     builder.add_edge("build_final_projection", END)
+
+    # ── decision routing closure (captures human_gate_mode) ──────────
+
+    def _route_decision(
+        state: EnergyChatRuntimeState,
+    ) -> Literal["end", "repair", "finalize", "human"]:
+        domain_state = _domain_state(state)
+        active_candidate_id = domain_state.active_candidate_id
+        if active_candidate_id is None:
+            return "end"
+        decision = next(
+            item
+            for item in reversed(domain_state.decision_outcomes)
+            if item.candidate_id == active_candidate_id
+        )
+        repaired_candidate = any(
+            request.target_candidate_id == active_candidate_id
+            for request in domain_state.repair_requests
+        )
+        if repaired_candidate:
+            return "finalize"
+        if decision.disposition == "repair":
+            return (
+                "repair" if domain_state.retry_budget.remaining > 0 else "finalize"
+            )
+        if decision.disposition in ("clarify", "escalate") and enable_human_gates(
+            human_gate_mode
+        ):
+            return "human"
+        return "end"
+
     return builder.compile(checkpointer=checkpointer)
 
 
@@ -382,6 +457,7 @@ def run_energy_chat_graph(
     budget: ProviderBudget | None = None,
     repair_strategy: RepairStrategy | None = None,
     checkpointer: BaseCheckpointSaver | None = None,
+    human_gate_mode: HumanGateMode = "disabled",
 ) -> EnergyChatGraphState:
     """Run the graph and validate its complete domain state output.
 
@@ -399,6 +475,7 @@ def run_energy_chat_graph(
         budget=budget,
         repair_strategy=repair_strategy,
         checkpointer=checkpointer,
+        human_gate_mode=human_gate_mode,
     ).invoke(_runtime_payload(state), config)
     return EnergyChatGraphState.model_validate(result)
 
@@ -413,25 +490,6 @@ def _evidence_route(state: EnergyChatRuntimeState) -> EvidenceRoute:
     if source_need is None:
         raise ValueError("Evidence need is missing at the conditional route")
     return select_evidence_route(source_need)
-
-
-def _decision_route(state: EnergyChatRuntimeState) -> Literal["end", "repair", "finalize"]:
-    domain_state = _domain_state(state)
-    active_candidate_id = domain_state.active_candidate_id
-    decision = next(
-        item
-        for item in reversed(domain_state.decision_outcomes)
-        if item.candidate_id == active_candidate_id
-    )
-    repaired_candidate = any(
-        request.target_candidate_id == active_candidate_id
-        for request in domain_state.repair_requests
-    )
-    if repaired_candidate:
-        return "finalize"
-    if decision.disposition == "repair":
-        return "repair" if domain_state.retry_budget.remaining > 0 else "finalize"
-    return "end"
 
 
 def _repair_plan_route(state: EnergyChatRuntimeState) -> Literal["apply", "end"]:

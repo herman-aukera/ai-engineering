@@ -27,6 +27,7 @@ from app.energy_chat.contracts import (
     RequestPolicyAssessment,
     SourceNeedResult,
 )
+from app.energy_chat.human_gate import HumanActionRequest
 
 GRAPH_STATE_SCHEMA_VERSION = "1.0.0"
 GRAPH_STATE_CONTRACT_VERSION = "1.0.0"
@@ -226,6 +227,9 @@ class EnergyChatGraphState(GraphStateRecord):
     energy_card: EnergyCard | None = None
     energy_card_v2: EnergyCardV2 | None = None
     final_projection: FinalAnswerProjection | None = None
+    human_action_request: HumanActionRequest | None = None
+    human_action_result: HumanActionRequest | None = None
+    human_action_turn: int = Field(default=0, ge=0)
     status: GraphStatus = "received"
 
     @model_validator(mode="after")
