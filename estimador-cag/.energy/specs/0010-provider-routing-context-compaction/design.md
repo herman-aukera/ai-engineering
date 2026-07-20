@@ -1,18 +1,21 @@
 # Spec 0010 — Design
 
+Status: partial runtime implementation under rescue
+
 ## 1. Architectural position
 
-Spec 0010 is an application and infrastructure boundary above product-local critics and below UI or external agent adapters.
+Spec 0010 is an application and infrastructure boundary above product-local critics and below UI or external coding-agent adapters.
 
 ```text
 User or agent request
-    -> SelectionRequest
+    -> ProviderSelection
     -> CapabilityRegistry
-    -> RoutingPolicy
+    -> deterministic RoutingPolicy
     -> ProviderPlan
-    -> ProviderAdapter
+    -> optional ProviderAdapter
     -> Candidate
-    -> product-local critics and Energy decider
+    -> product-local critics
+    -> Energy score and deterministic decider
 ```
 
 Context management is orthogonal:
@@ -26,9 +29,36 @@ raw events + artifacts + decisions + evidence
     -> provider request
 ```
 
-The provider never owns the final product decision.
+The provider never owns final product authority. A model proposes; EACODE validates, criticizes, repairs, gates, and records evidence.
 
-## 2. Proposed contracts
+Spec 0009 process execution remains provider-neutral and cannot receive authority from provider routing.
+
+## 2. Current implementation boundary
+
+Remote EACODE currently contains:
+
+- strict provider-selection and model-capability contracts;
+- a deterministic curated registry;
+- profile-to-model resolution;
+- DeepSeek-default auto selection;
+- deterministic fallback metadata;
+- deterministic capability hashes;
+- keyless tests.
+
+It does not yet contain accepted evidence for:
+
+- current provider catalog accuracy;
+- live provider adapters;
+- exact served-model metadata;
+- retry/circuit state;
+- critic re-entry after fallback;
+- context-compaction runtime;
+- selector UI;
+- multi-agent runtime.
+
+Local interrupted context-compaction work may exist and must be audited before reuse.
+
+## 3. Core contracts
 
 ```python
 class ProviderSelection:
@@ -36,13 +66,18 @@ class ProviderSelection:
     profile: Literal["minimal", "medium", "max"]
     context_profile: Literal["minimal", "medium", "max"]
     fallback_policy: Literal["none", "same_provider", "governed_cross_provider"]
+    expected_input_tokens: int
+    expected_cached_input_tokens: int
+    expected_output_tokens: int
     max_cost_usd: Decimal
     max_latency_ms: int | None
+    premium_reason: str | None
 
 class ModelCapability:
     provider: str
     surface: str
     model_id: str
+    aliases: tuple[str, ...]
     model_family: str
     context_window: int
     max_output_tokens: int
@@ -54,24 +89,53 @@ class ModelCapability:
     supports_vision: bool
     supports_prompt_cache: bool
     pricing: PricingSnapshot
+    price_unit: str
     availability_state: str
+    entitlement_state: str
     verified_at: datetime
+    source_id: str
     source_version: str
+    freshness_state: str
 
 class ProviderPlan:
     selection: ProviderSelection
     resolved_provider: str
+    resolved_surface: str
     resolved_model_id: str
     reasoning_mode: str
     reasoning_effort: str
-    estimated_cost_ceiling_usd: Decimal
+    estimated_input_cost_usd: Decimal
+    estimated_output_cost_usd: Decimal
+    estimated_total_cost_usd: Decimal
     fallback_steps: tuple[FallbackStep, ...]
     capability_snapshot_hash: str
+
+class ProviderExecutionEvidence:
+    requested_provider: str
+    requested_profile: str
+    planned_provider: str
+    planned_model_id: str
+    planned_effort: str
+    served_provider: str
+    served_model_id: str
+    served_effort: str
+    safe_provider_request_ref: str | None
+    attempts: tuple[ProviderAttempt, ...]
+    circuit_state: str
+    tokens: TokenUsage
+    latency_ms: int
+    cost_usd: Decimal
+    candidate_ref: str
+    critic_evidence_refs: tuple[str, ...]
+    final_decision_ref: str
 
 class CompactionRecord:
     summary_id: str
     source_event_range: EventRange
     source_hashes: tuple[str, ...]
+    repository_snapshot_ref: str
+    policy_version: str
+    schema_version: str
     compaction_profile: str
     objective: str
     hard_constraints: tuple[str, ...]
@@ -90,68 +154,105 @@ class CompactionRecord:
 
 Contracts remain product-local until equivalent EACODE and EACHAT semantics are proven.
 
-## 3. Capability resolution
+## 4. Capability resolution
 
-### DeepSeek
+### DeepSeek API
 
-- minimal: `deepseek-v4-flash`, thinking disabled;
-- medium: `deepseek-v4-flash`, thinking enabled, effective effort `high`;
-- max: `deepseek-v4-pro`, thinking enabled, effort `max`.
+Initial product mapping:
 
-The resolver records that DeepSeek maps compatibility `low` and `medium` efforts to `high`.
+- minimal: V4 Flash, non-thinking;
+- medium: V4 Flash, thinking with effective effort `high`;
+- max: V4 Pro, thinking with effort `max`.
 
-### Kimi
+The curated manifest must use current official 1M-context, maximum-output, cache, and pricing data. Compatibility effort values that map to `high` or `max` must not be presented as independent native capabilities.
 
-Kimi has two surfaces:
+### Kimi surfaces
 
-- general API IDs such as `kimi-k3`;
-- Kimi Code IDs `k3`, `kimi-for-coding`, and `kimi-for-coding-highspeed`.
+Treat general API and Kimi Code as separate surfaces.
 
-K3 launches at max effort. Lower profiles must resolve to another compatible model or be disabled until K3 exposes the requested effort. The system must not silently pretend that `medium` K3 exists.
+General API includes:
 
-### OpenAI
+- `kimi-k3`.
 
-- minimal: `gpt-5.6-luna`, effort `none` or `low`;
-- medium: `gpt-5.6-terra`, effort `medium`;
-- max: `gpt-5.6-sol`, effort `max`.
+Kimi Code includes:
 
-Pro or multi-agent/ultra modes are separate premium capabilities and require explicit support, access, and budgets.
+- `k3` for Kimi K3;
+- `kimi-for-coding` for Kimi K2.7 Code;
+- `kimi-for-coding-highspeed` where entitled.
 
-## 4. Routing policy
+Current Kimi Code K3 effort values are `low`, `high`, and `max`, with `max` as the default. The earlier max-only launch assumption is obsolete.
+
+Recommended EACODE coding-agent mapping:
+
+- minimal: `kimi-for-coding` or high-speed entitlement variant;
+- medium: `k3` at `high` or `kimi-for-coding`, selected by budget and task class;
+- max: `k3` or `k3[1m]` at `max`, subject to entitlement and current capability discovery.
+
+Turning thinking off or changing model/effort can alter routing and cache compatibility. Start a fresh provider session and supply normalized compacted context when switching.
+
+### OpenAI API
+
+Initial mapping:
+
+- minimal: GPT-5.6 Luna, effort `none` or `low`;
+- medium: GPT-5.6 Terra, effort `medium`;
+- max: GPT-5.6 Sol, effort `max`.
+
+Use current official context, maximum-output, and pricing data. Premium, Pro, or multi-agent modes remain separate authorized capabilities.
+
+## 5. Routing policy
 
 ```text
 explicit provider
-    -> validate capability and budget
+    -> validate capability, freshness, entitlement, budget, and policy
 
-auto + normal complexity
+auto + normal cost-sensitive work
     -> DeepSeek
 
-auto + quality/open-frontier preference
+auto + explicit open-frontier preference
     -> Kimi
 
 auto + unresolved high-stakes disagreement
-    -> require explicit premium escalation
+    -> require explicit premium escalation reason and budget
     -> OpenAI only after authorization
 ```
 
-Fallback does not bypass critics. Every result re-enters the same product-local evaluation path.
+Every fallback candidate re-enters product-local critics and the deterministic decider.
 
-## 5. Multi-agent design
+A planned route is not execution proof. Exact served metadata comes only from a provider response and sanitized execution evidence.
+
+## 6. Budget design
+
+Estimate cost using:
+
+```text
+uncached_input_tokens * uncached_input_price
++ cached_input_tokens * cached_input_price
++ expected_output_tokens * output_price
+```
+
+All prices must use explicit units and source versions. Budget enforcement applies to every provider.
+
+Do not use a hidden constant such as “assume 100K input tokens.” Token assumptions are typed request data and appear in the decision record.
+
+## 7. Multi-agent design
 
 ```text
 Supervisor
-    -> parallel Critic A: correctness
-    -> parallel Critic B: constraints
-    -> parallel Critic C: security
-    -> parallel Critic D: cost/latency
+    -> independent Critic A: correctness
+    -> independent Critic B: constraints
+    -> independent Critic C: security
+    -> independent Critic D: cost/latency
     -> deterministic aggregation
-    -> disagreement and energy delta
+    -> disagreement record and energy delta
     -> repair, human gate, or final decision
 ```
 
-Parallelism is allowed only for independent work. Shared mutable worktrees are forbidden. Each branch records task ownership and output hashes.
+Parallelism is allowed only for independent work. Shared mutable worktrees are forbidden. Each task records ownership and output hashes.
 
-## 6. Context compaction design
+Before enabling multi-agent mode, establish a single-agent quality, safety, cost, and latency baseline. Disable multi-agent mode when no measurable benefit is shown.
+
+## 8. Context-compaction design
 
 ### Memory tiers
 
@@ -166,74 +267,110 @@ Parallelism is allowed only for independent work. Shared mutable worktrees are f
 
 | Profile | Working summary | Recent window | Retrieval | Intended use |
 |---|---|---|---|---|
-| minimal | objective, constraints, state, blocker, next action | small | strict on-demand | fast/high-volume |
-| medium | minimal plus decisions, evidence digest, pivots | moderate | normal | default |
+| minimal | objective, hard constraints, current state, blocker, next action | small | strict on demand | fast/high-volume |
+| medium | minimal plus decisions, evidence digest, and pivots | moderate | normal | default |
 | max | medium plus hierarchical history and broader evidence index | large but bounded | aggressive rehydration | difficult/high-stakes |
 
 ### Trigger and hysteresis
 
-Compaction begins above a high threshold and does not repeat until context falls below a lower threshold. Example defaults should be tested rather than hard-coded as universal truth.
+Compaction begins above a tested high threshold and does not repeat until context falls below a lower threshold.
+
+Example fixture values—not universal constants:
 
 ```text
 trigger: >= 70% of provider budget
 release: <= 45% after compaction
 ```
 
+### Freshness
+
+A compacted record becomes stale when any protected identity changes:
+
+- branch;
+- HEAD/tree/worktree snapshot;
+- product policy version;
+- graph version;
+- schema version;
+- source hash set.
+
 ### Loss audit
 
-Fixtures must verify preservation of:
+Fixtures verify preservation of:
 
 - hard constraints;
 - accepted and rejected decisions;
 - evidence IDs and hashes;
-- current revision;
+- current revision and repository snapshot;
 - unresolved blockers;
-- user preferences relevant to the task;
+- relevant user preferences;
 - rollback and rehydration references.
 
 A failed audit invalidates the summary and requires rehydration or a safer profile.
 
-## 7. Cache-aware model switching
+## 9. Cache-aware provider switching
 
-Provider/model switching may invalidate cache economics and semantics. The router shall:
+Provider/model/effort switching may invalidate cache economics and semantics. The router shall:
 
 - record the switch;
 - start a new provider session where required;
+- build a normalized provider-neutral handoff;
 - reuse only provider-compatible cached context;
 - preserve canonical product state independently of provider cache;
-- measure cache hit, tokens, latency, and cost before and after switching.
+- measure cache hits, tokens, latency, and cost before and after switching.
 
-## 8. Failure handling
+Do not carry an incomplete DeepSeek agent session directly into Kimi K3. Checkpoint repository state and start a clean Kimi session.
 
-- unavailable model: fail closed or use an authorized fallback;
-- unsupported effort: reject selection, do not coerce invisibly;
+## 10. Spec 0009 dependency
+
+Provider routing cannot repair or bypass process-execution authority.
+
+Before live tool evidence is accepted:
+
+- fake/dry-run plans cannot become real execution;
+- live execution has an explicit typed intent;
+- authorization binds to a complete repository snapshot;
+- receipt provenance is verified;
+- cancellation is promptly observed;
+- process-tree cleanup is demonstrably checked;
+- output truncation and redaction are safe across chunks and final assembly;
+- cleanup uncertainty fails closed.
+
+## 11. Failure handling
+
+- stale or unavailable model: fail closed or use an authorized fallback;
+- unsupported or unentitled effort: reject selection;
 - budget exceeded: clarify or escalate;
-- provider schema failure: repair within budget, then fallback or stop;
+- provider schema failure: bounded repair, then fallback or stop;
 - repeated provider failure: open circuit breaker;
-- compaction loss audit failure: rehydrate and block final acceptance;
+- DNS/name-resolution failure: record infrastructure failure; do not classify it as exhausted credit;
+- compaction loss-audit failure: rehydrate and block acceptance;
 - multi-agent disagreement: preserve findings and route to boss/human policy.
 
-## 9. Observability
+## 12. Observability
 
 Record:
 
-- requested and served provider/model/profile;
-- capability snapshot hash;
+- requested, planned, and served provider/model/profile;
+- capability snapshot hash and source version;
 - reasoning mode and effort;
-- fallback reason;
-- attempts and circuit state;
+- fallback reason and attempts;
+- retry and circuit state;
 - token and cost estimates and actuals;
+- provider/session switch events;
 - compaction profile and token reduction;
 - source hashes and loss-audit result;
 - critic disagreement and final deterministic disposition.
 
-## 10. Migration and rollback
+## 13. Migration and rollback
 
-Initial implementation must be additive:
+Implementation remains additive:
 
 - retain existing provider configuration;
-- add the registry behind a feature flag;
-- run shadow selection before serving it;
 - keep fake adapters as deterministic CI defaults;
+- repair the registry behind tests before live use;
+- run shadow selection before serving it;
+- keep live provider adapters opt-in;
 - permit rollback to the previous fixed routing ladder;
-- never require Spec 0010 to complete Spec 0009.
+- never require Spec 0010 to complete or authorize Spec 0009;
+- inspect interrupted local compaction work before reuse;
+- request user approval before commit or push during rescue.
