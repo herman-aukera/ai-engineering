@@ -1,9 +1,10 @@
 # EACODE Handoff Status
 
-Date: 2026-07-17  
+Date: 2026-07-20  
 Repository: `herman-aukera/ai-engineering`  
 Branch: `EACODE`  
-PR: #4, open draft, do not merge as routine coursework
+PR: #4 (EACODE deterministic judge, open draft), #12 (Spec 0009 sandboxed tool adapter, open draft)  
+Do not merge as routine coursework
 
 ## Current maturity
 
@@ -12,7 +13,7 @@ PR: #4, open draft, do not merge as routine coursework
 - Phase 2: persistent deterministic LangGraph judge, SQLite restart, human clarification/escalation — complete.
 - Phase 3A / Spec 0007: controlled planning plus dry-run/fake execution evidence — complete and L2 validated.
 - Phase 3B / Spec 0008: revision-guarded one-time execution authorization — complete and L2 validated.
-- Phase 3C: real sandboxed tool adapter — not implemented; delegation target.
+- Phase 3C / Spec 0009: disabled-by-default sandboxed real-process tool adapter — implemented, CI-validated (L3); manual smoke pending local Python/uv.
 - Provider actors and autonomous repair — not implemented.
 
 ## Completed deterministic boundary
@@ -47,9 +48,33 @@ PR: #4, open draft, do not merge as routine coursework
 - cancellation and fail-closed paths;
 - `execution_authorized` and `execution_performed` preserved as distinct facts.
 
+### Spec 0009
+
+- SandboxedToolConfig with enabled=False by default; explicit opt-in required for real execution;
+- independent pre-start verifier re-validates plan disposition, authorization receipt (plan_hash, revision, execution_performed), executable allowlist/denylist, and git subcommand restrictions;
+- safe process creation via subprocess.Popen with args list, shell=False, stdin=DEVNULL;
+- minimal environment construction from name allowlist only (plus PATH and SYSTEMROOT);
+- threaded concurrent stdout/stderr streaming with per-chunk redaction and per-stream output budget tracking;
+- wall-clock timeout enforcement with process-tree cleanup (taskkill on Windows, killpg on Unix);
+- cancellation support via threading.Event;
+- RealToolResult recording exit_code, duration_ms, timed_out, cancelled, process_tree_cleaned, cleanup_error, failure_class, stdout_truncated, stderr_truncated, redacted;
+- ExecutionEvidence with execution_performed=True for real executions;
+- FailureInjectingAdapter for deterministic CI with 6 injection modes (timeout, cancellation, non_zero_exit, oversized_output, secret_output, cleanup_failure);
+- SandboxedToolAdapter implements ToolPort-compatible invoke(plan, authorization_receipt=None) -> RealToolResult;
+- CLI with --live-tool gate and --authorization-receipt support;
+- 52 deterministic tests covering all 22 TDD scenarios;
+- 11 git subcommands denied; no commit, push, merge, reset, clean, checkout, restore, rebase, cherry-pick, or force-push path.
+
 ## Validation evidence
 
-Remote CI run `29610664941` validated final head `3c136659bba9612e27a5a9e97957b0c13f0fa70d` and passed:
+Spec 0009 CI (PR #12) validated head `6342a39` and passed:
+- Ruff;
+- Python compilation;
+- Energy Core boundary check;
+- full test suite, including all 52 sandboxed-tool-adapter tests and all existing Spec 0007/0008 tests;
+- canonical Energy Core full gate.
+
+Earlier EACODE baseline CI run `29610664941` validated head `3c136659bba9612e27a5a9e97957b0c13f0fa70d` and passed:
 
 - Ruff;
 - Python compilation;
@@ -69,12 +94,14 @@ Allowed:
 - EACODE can consume one exact trusted authorization tied to plan hash, revision, scope, actor, expiry, nonce, reason, and rollback acknowledgement.
 - EACODE persists authorization interrupts and resumes across SQLite process restart.
 - EACODE reevaluates normalized evidence through the existing Python decider.
-- The controlled-execution and authorization boundary is remotely CI validated.
+- EACODE can execute a single validated command under strict policy and authorization, producing bounded, redacted, typed execution evidence (Spec 0009, disabled by default).
+- The controlled-execution, authorization, and sandboxed-execution boundary is remotely CI validated.
 
 Not allowed:
 
-- safe real shell/tool execution;
-- production sandboxing;
+- production sandboxing (containers, VMs, jails);
+- guaranteed process-tree cleanup on all platforms;
+- elimination of TOCTOU path races;
 - provider integration;
 - autonomous repair quality;
 - benchmark superiority;
@@ -83,24 +110,12 @@ Not allowed:
 
 ## Delegated next slice
 
-Phase 3C — Real Sandboxed Tool Adapter.
+The Spec 0009 implementation is CI-validated. Remaining work:
 
-The delegated implementation must:
-
-1. preserve the current `ToolPort` and all strict Spec 0007/0008 contracts;
-2. require a valid consumed authorization receipt for human-gated plans;
-3. never use `shell=True` or shell interpolation;
-4. construct a minimal allow-listed environment;
-5. revalidate repository root, working directory, paths, and symlinks immediately before process start;
-6. enforce timeout, cancellation, and process-tree cleanup;
-7. stream bounded output through redaction before persistence;
-8. record partial failure, exit code, duration, hashes, truncation, rollback availability, and authorization references;
-9. remain disabled by default and absent from deterministic CI execution;
-10. use fake tools in CI and a separate explicit manual `--live-tool` smoke for real process proof;
-11. implement failure injection for timeout, cancellation, non-zero exit, oversized output, secret-like output, path race, and unavailable rollback;
-12. add no commit, push, merge, reset, clean, checkout, or force-push capability.
-
-This slice requires a local coding agent because it needs operating-system process control, filesystem race inspection, repeated local tests, and manual sanitized tool evidence.
+1. Manual `--live-tool` smoke with harmless repository-local command (blocked: Python/uv not installed locally);
+2. Timeout and process-tree cleanup demonstration on real OS processes;
+3. Provider capability registry and selector (Spec 0010 runtime);
+4. Context compaction contracts and deterministic fixtures (Spec 0010 runtime).
 
 ## Resume commands
 
