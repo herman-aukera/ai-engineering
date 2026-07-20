@@ -67,6 +67,7 @@ class SandboxedToolConfig(EnergyModel):
             "push", "rebase", "reset", "restore", "switch",
         ]
     )
+    repository_snapshot: dict[str, str] | None = Field(default=None)
 
 
 class RealToolResult(EnergyModel):
@@ -214,12 +215,12 @@ class SandboxedToolAdapter:
                 stderr_thread.join(timeout=5)
 
                 duration_ms = int((time.monotonic() - started_at) * 1000)
-                stdout, stdout_trunc = _truncate(
-                    "".join(stdout_chunks), plan.max_output_chars
-                )
-                stderr, stderr_trunc = _truncate(
-                    "".join(stderr_chunks), plan.max_output_chars
-                )
+                # Final-assembly re-redaction
+                out_text, out_red2 = _redact("".join(stdout_chunks))
+                err_text, err_red2 = _redact("".join(stderr_chunks))
+                redacted = redacted or out_red2 or err_red2
+                stdout, stdout_trunc = _truncate(out_text, plan.max_output_chars)
+                stderr, stderr_trunc = _truncate(err_text, plan.max_output_chars)
 
                 return RealToolResult(
                     stdout=stdout,
@@ -245,12 +246,12 @@ class SandboxedToolAdapter:
                     pass
 
                 duration_ms = int((time.monotonic() - started_at) * 1000)
-                stdout, stdout_trunc = _truncate(
-                    "".join(stdout_chunks), plan.max_output_chars
-                )
-                stderr, stderr_trunc = _truncate(
-                    "".join(stderr_chunks), plan.max_output_chars
-                )
+                # Final-assembly re-redaction
+                out_text, out_red2 = _redact("".join(stdout_chunks))
+                err_text, err_red2 = _redact("".join(stderr_chunks))
+                redacted = redacted or out_red2 or err_red2
+                stdout, stdout_trunc = _truncate(out_text, plan.max_output_chars)
+                stderr, stderr_trunc = _truncate(err_text, plan.max_output_chars)
 
                 return RealToolResult(
                     stdout=stdout,
@@ -273,6 +274,10 @@ class SandboxedToolAdapter:
 
             stdout_text = "".join(stdout_chunks)
             stderr_text = "".join(stderr_chunks)
+            # Final-assembly re-redaction to catch cross-chunk secrets
+            stdout_text, stdout_redacted2 = _redact(stdout_text)
+            stderr_text, stderr_redacted2 = _redact(stderr_text)
+            redacted = redacted or stdout_redacted2 or stderr_redacted2
             stdout, stdout_trunc = _truncate(stdout_text, plan.max_output_chars)
             stderr, stderr_trunc = _truncate(stderr_text, plan.max_output_chars)
 
@@ -410,6 +415,13 @@ def _verify_pre_start(
     if plan.execution_performed:
         raise PermissionError("Plan has already been executed.")
 
+    # Live-execution intent guard: dry_run/fake plans must never start real process
+    if plan.execution_mode in ("dry_run", "fake"):
+        raise PermissionError(
+            f"Plan execution_mode={plan.execution_mode} cannot invoke real process. "
+            "Real execution requires an explicit live-execution intent."
+        )
+
     # Authorization check for human-gated plans
     if plan.requires_human_authorization:
         if authorization_receipt is None:
@@ -438,6 +450,24 @@ def _verify_pre_start(
         subcommand = plan.arguments[0].lower()
         if subcommand in config.denied_git_subcommands:
             raise PermissionError(f"Git subcommand denied: {subcommand}")
+
+    # Repository snapshot binding
+    if config.repository_snapshot:
+        import subprocess as sp
+        try:
+            actual_head = sp.run(
+                ["git", "rev-parse", "HEAD"],
+                capture_output=True, text=True, timeout=5,
+                cwd=config.repository_root,
+            ).stdout.strip()
+        except Exception:
+            actual_head = ""
+        expected_head = config.repository_snapshot.get("head_sha", "")
+        if expected_head and actual_head != expected_head:
+            raise PermissionError(
+                f"Repository snapshot mismatch: expected HEAD {expected_head}, "
+                f"got {actual_head}"
+            )
 
 
 def _resolve_executable(executable: str) -> str:
@@ -577,13 +607,63 @@ class FailureInjectingAdapter(SandboxedToolAdapter):
         """Return a deterministic fake result based on injection flags.
 
         Does not create any real OS process. Used for deterministic CI testing.
+        Skips the execution_mode guard since no real process is started.
         """
         if not self.config.enabled:
             raise PermissionError(
                 "SandboxedToolAdapter is disabled. Set config.enabled=True."
             )
 
-        _verify_pre_start(plan, self.config, authorization_receipt)
+        # Skip execution_mode guard — FailureInjectingAdapter never creates real processes
+        if plan.disposition == "deny":
+            raise PermissionError(
+                f"Execution denied by policy: {', '.join(plan.reasons)}"
+            )
+        if plan.execution_performed:
+            raise PermissionError("Plan has already been executed.")
+        # Authorization receipt checks still apply
+        if plan.requires_human_authorization:
+            if authorization_receipt is None:
+                raise PermissionError(
+                    "Human-gated plan requires a consumed authorization receipt."
+                )
+            if authorization_receipt.plan_hash != plan.plan_hash:
+                raise PermissionError("Receipt plan_hash mismatch.")
+            if authorization_receipt.execution_performed:
+                raise PermissionError(
+                    "Authorization receipt has execution_performed=True."
+                )
+            if authorization_receipt.accepted_revision != self.config.current_revision:
+                raise PermissionError(
+                    f"Authorization receipt revision {authorization_receipt.accepted_revision} "
+                    f"does not match current revision {self.config.current_revision}."
+                )
+        # Executable checks
+        executable_lower = plan.executable.lower()
+        if executable_lower in self.config.denied_executables:
+            raise PermissionError(f"Executable denied: {plan.executable}")
+        if executable_lower == "git" and plan.arguments:
+            subcommand = plan.arguments[0].lower()
+            if subcommand in self.config.denied_git_subcommands:
+                raise PermissionError(f"Git subcommand denied: {subcommand}")
+        # Repository snapshot check
+        if self.config.repository_snapshot:
+            import subprocess as sp
+            try:
+                actual_head = sp.run(
+                    ["git", "rev-parse", "HEAD"],
+                    capture_output=True, text=True, timeout=5,
+                    cwd=self.config.repository_root,
+                ).stdout.strip()
+            except Exception:
+                actual_head = ""
+            expected_head = self.config.repository_snapshot.get("head_sha", "")
+            if expected_head and actual_head != expected_head:
+                raise PermissionError(
+                    f"Repository snapshot mismatch: expected HEAD {expected_head}, "
+                    f"got {actual_head}"
+                )
+
         Path(self.config.repository_root)
 
         if self._inject_timeout:

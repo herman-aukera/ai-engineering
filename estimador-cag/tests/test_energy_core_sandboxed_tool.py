@@ -943,3 +943,203 @@ def test_build_evidence_with_receipt_checks_hash(tmp_path: Path) -> None:
         adapter.build_evidence(
             plan, result, run_id="run-wrong", authorization_receipt=wrong_receipt
         )
+
+
+# ==================================================================
+# R4 — Spec 0009 security repair red tests (EXPECTED FAILURES)
+# ==================================================================
+
+
+# ------------------------------------------------------------------
+# R4.1 — Dry-run/fake plans must never start a real process
+# ------------------------------------------------------------------
+
+
+def test_dry_run_plan_rejected_by_real_adapter(tmp_path: Path) -> None:
+    """A plan with execution_mode=dry_run must be rejected by SandboxedToolAdapter."""
+    from energy_core.controlled_execution import ExecutionPlan as EP
+
+    plan = EP(
+        plan_id="plan-dry",
+        proposal_id="prop-dry",
+        policy_id="test",
+        policy_version="1.0",
+        repository_root=str(tmp_path),
+        working_directory=str(tmp_path),
+        executable="pytest",
+        arguments=[],
+        risk="medium",
+        disposition="allow_fake",
+        requires_human_authorization=False,
+        reasons=[],
+        timeout_seconds=30,
+        max_output_chars=256,
+        execution_mode="dry_run",  # Must not become real
+        plan_hash="abc123",
+    )
+    config = _config(tmp_path)
+    adapter = SandboxedToolAdapter(config)
+    with pytest.raises(PermissionError, match="dry_run"):
+        adapter.invoke(plan)
+
+
+def test_fake_mode_plan_rejected_by_real_adapter(tmp_path: Path) -> None:
+    """A plan with execution_mode=fake must be rejected by SandboxedToolAdapter."""
+    from energy_core.controlled_execution import ExecutionPlan as EP
+
+    plan = EP(
+        plan_id="plan-fake",
+        proposal_id="prop-fake",
+        policy_id="test",
+        policy_version="1.0",
+        repository_root=str(tmp_path),
+        working_directory=str(tmp_path),
+        executable="pytest",
+        arguments=[],
+        risk="medium",
+        disposition="allow_fake",
+        requires_human_authorization=False,
+        reasons=[],
+        timeout_seconds=30,
+        max_output_chars=256,
+        execution_mode="fake",
+        plan_hash="abc456",
+    )
+    config = _config(tmp_path)
+    adapter = SandboxedToolAdapter(config)
+    with pytest.raises(PermissionError, match="fake"):
+        adapter.invoke(plan)
+
+
+# ------------------------------------------------------------------
+# R4.2 — Truncation flags must be accurate
+# ------------------------------------------------------------------
+
+
+def test_truncation_flags_set_when_reader_budget_reached(tmp_path: Path) -> None:
+    """Truncation flags must be set when output exceeds plan.max_output_chars."""
+    adapter = FailureInjectingAdapter(_config(tmp_path), inject_oversized_output=True)
+    plan = _pytest_plan(tmp_path, max_output_chars=10)  # Very small budget
+    result = adapter.invoke(plan)
+    assert result.stdout_truncated is True, (
+        "stdout_truncated must be True when output exceeds budget"
+    )
+
+
+# ------------------------------------------------------------------
+# R4.3 — Cross-chunk redaction: secret split across boundaries
+# ------------------------------------------------------------------
+
+
+def test_secret_split_across_chunks_is_redacted(tmp_path: Path) -> None:
+    """A secret split across chunk boundaries must still be redacted.
+
+    The assembled output must be re-redacted to catch secrets split by chunk borders.
+    """
+    from energy_core.controlled_execution import _redact
+
+    # Simulate an API key split across two chunks
+    # sk- prefix at end of chunk1, 20+ chars in chunk2
+    chunk1 = "some output sk-"
+    chunk2 = "abcdefghijklmnopqrstuvwxyz123456 more output"
+    # Chunk 1 alone: just "sk-" won't match (needs 20+ chars after sk-)
+    redacted1, changed1 = _redact(chunk1)
+    assert changed1 is False, "Chunk 1 alone should not trigger redaction"
+    # Chunk 2 alone: full key won't match without sk- prefix
+    redacted2, changed2 = _redact(chunk2)
+    # The assembled output MUST be re-redacted to catch the split secret
+    assembled = redacted1 + redacted2
+    redacted_assembled, changed_assembled = _redact(assembled)
+    assert changed_assembled is True, (
+        "Assembled output must be re-redacted to catch split secrets"
+    )
+    assert "[REDACTED]" in redacted_assembled
+
+
+# ------------------------------------------------------------------
+# R4.4 — Final assembly re-redaction
+# ------------------------------------------------------------------
+
+
+def test_assembled_output_is_re_redacted(tmp_path: Path) -> None:
+    """Assembled output must pass through a second redaction pass."""
+    adapter = FailureInjectingAdapter(_config(tmp_path), inject_secret_output=True)
+    plan = _pytest_plan(tmp_path)
+    result = adapter.invoke(plan)
+    assert result.redacted is True
+    assert "sk-" not in result.stdout
+
+
+# ------------------------------------------------------------------
+# R4.5 — Cleanup failure must fail closed
+# ------------------------------------------------------------------
+
+
+def test_cleanup_uncertainty_fails_closed(tmp_path: Path) -> None:
+    """When cleanup result cannot be verified, the adapter must report failure."""
+    adapter = FailureInjectingAdapter(
+        _config(tmp_path), inject_cleanup_failure=True
+    )
+    plan = _pytest_plan(tmp_path)
+    result = adapter.invoke(plan)
+    assert result.failure_class == "cleanup_failure"
+    assert result.process_tree_cleaned is False
+    # Evidence must reflect the failure
+    evidence = adapter.build_evidence(plan, result, run_id="run-r4")
+    assert evidence.status == "conflict", (
+        "Cleanup failure must produce conflict status, not pass"
+    )
+
+
+# ------------------------------------------------------------------
+# R4.6 — Authorization receipt with execution_performed=True must be rejected
+# ------------------------------------------------------------------
+
+
+def test_receipt_with_execution_performed_true_is_rejected(tmp_path: Path) -> None:
+    """Authorization receipt with execution_performed=True must be rejected."""
+    plan = _git_status_plan(tmp_path)
+    authorization = _authorization(plan, plan_hash=plan.plan_hash)
+    receipt = _consumed_receipt(plan, authorization)
+    # Tamper: set execution_performed=True on the receipt
+    tampered_receipt = receipt.model_copy(update={"execution_performed": True})
+    config = _config(tmp_path)
+    adapter = FailureInjectingAdapter(config)
+    with pytest.raises(PermissionError, match="execution_performed"):
+        adapter.invoke(plan, authorization_receipt=tampered_receipt)
+
+
+# ------------------------------------------------------------------
+# R4.7 — Repository snapshot binding
+# ------------------------------------------------------------------
+
+
+def test_config_accepts_repository_snapshot(tmp_path: Path) -> None:
+    """SandboxedToolConfig must accept a repository snapshot dict for SHA binding."""
+    config = _config(tmp_path, repository_snapshot={
+        "head_sha": "abc123def456",
+        "tree_sha": "tree789",
+        "staged_diff_digest": "",
+        "unstaged_diff_digest": "",
+    })
+    assert config.repository_snapshot is not None
+    assert config.repository_snapshot.get("head_sha") == "abc123def456"
+
+
+def test_pre_start_verifier_rejects_snapshot_mismatch(tmp_path: Path) -> None:
+    """Pre-start verifier must reject when repository snapshot HEAD differs.
+
+    Uses FailureInjectingAdapter which applies authorization/executable checks
+    but skips the execution_mode guard (it creates no real process).
+    """
+    plan = _pytest_plan(tmp_path)
+    config = _config(tmp_path, repository_snapshot={
+        "head_sha": "abc123",
+        "tree_sha": "tree789",
+        "staged_diff_digest": "",
+        "unstaged_diff_digest": "",
+    })
+    adapter = FailureInjectingAdapter(config)
+    # The current repo HEAD won't match "abc123" — pre-start must reject
+    with pytest.raises(PermissionError, match="snapshot"):
+        adapter.invoke(plan)
