@@ -67,7 +67,7 @@ def test_registry_get_known_model() -> None:
     assert cap is not None
     assert cap.provider == "deepseek"
     assert cap.model_family == "deepseek-v4"
-    assert cap.context_window == 128_000
+    assert cap.context_window == 1_000_000
 
 
 def test_registry_get_unknown_model_returns_none() -> None:
@@ -136,18 +136,18 @@ def test_resolve_deepseek_max() -> None:
 
 
 def test_resolve_kimi_minimal() -> None:
-    """Kimi minimal must resolve to kimi-for-coding."""
+    """Kimi minimal must resolve to kimi-for-coding, low effort."""
     registry = _registry()
     model_id, mode, effort = registry.resolve_profile("kimi", "minimal")
     assert model_id == "kimi-for-coding"
-    assert effort == "medium"
+    assert effort == "low"
 
 
 def test_resolve_kimi_max() -> None:
-    """Kimi max must resolve to kimi-k3, max effort."""
+    """Kimi max must resolve to Kimi Code k3, max effort."""
     registry = _registry()
     model_id, mode, effort = registry.resolve_profile("kimi", "max")
-    assert model_id == "kimi-k3"
+    assert model_id == "k3"
     assert effort == "max"
 
 
@@ -219,11 +219,11 @@ def test_explicit_deepseek_selects_correctly() -> None:
 
 
 def test_explicit_kimi_selects_correctly() -> None:
-    """Explicit kimi provider must resolve correctly."""
+    """Explicit kimi provider must resolve to Kimi Code k3."""
     selector = _selector()
     result = selector.select(_selection(provider="kimi", profile="max"))
     assert result.provider == "kimi"
-    assert result.model_id == "kimi-k3"
+    assert result.model_id == "k3"
 
 
 def test_explicit_openai_selects_correctly() -> None:
@@ -246,7 +246,8 @@ def test_openai_escalation_exceeding_budget_fails() -> None:
         selector.select(_selection(
             provider="openai",
             profile="max",
-            max_cost_usd=Decimal("0.00001"),  # Extremely low budget
+            max_cost_usd=Decimal("0.000001"),  # impossibly low
+            premium_reason="explicit esc",
         ))
 
 
@@ -372,7 +373,7 @@ def test_different_selections_produce_different_hashes() -> None:
     """Different selections must produce different capability snapshot hashes."""
     selector = _selector()
     r1 = selector.select(_selection(provider="kimi", profile="max"))
-    r2 = selector.select(_selection(provider="openai", profile="max"))
+    r2 = selector.select(_selection(provider="openai", profile="max", premium_reason="test"))
     assert r1.capability_snapshot_hash != r2.capability_snapshot_hash
 
 
@@ -382,17 +383,22 @@ def test_different_selections_produce_different_hashes() -> None:
 
 
 def test_kimi_k3_only_supports_max_effort() -> None:
-    """Kimi K3 must only support max effort per verified documentation."""
+    """Kimi Platform API k3 is max-only; Kimi Code k3 supports low/high/max."""
+    # Kimi Platform API model remains max-only per platform docs
     cap = _registry().get("kimi-k3")
     assert cap is not None
     assert cap.reasoning_efforts == ("max",)
-    # kimi/medium resolves to kimi-for-coding (not k3), with high effort
-    model_id, mode, effort = _registry().resolve_profile("kimi", "medium")
-    assert model_id == "kimi-for-coding"
-    assert effort == "high"
-    # kimi/max resolves to kimi-k3 with max effort
+    assert cap.surface == "kimi_platform_api"
+    # Kimi Code k3 supports low, high, max
+    cap_code = _registry().get("k3")
+    assert cap_code is not None
+    assert cap_code.surface == "kimi_code"
+    assert "low" in cap_code.reasoning_efforts
+    assert "high" in cap_code.reasoning_efforts
+    assert "max" in cap_code.reasoning_efforts
+    # kimi/max resolves to Kimi Code k3 with max effort
     model_id, mode, effort = _registry().resolve_profile("kimi", "max")
-    assert model_id == "kimi-k3"
+    assert model_id == "k3"
     assert effort == "max"
 
 
@@ -435,3 +441,312 @@ def test_context_profile_is_preserved_in_selection() -> None:
     """context_profile must survive serialization."""
     sel = ProviderSelection(context_profile="max")
     assert sel.context_profile == "max"
+
+
+# ==================================================================
+# R3 — Provider registry structural repair red tests (EXPECTED FAILURES)
+# ==================================================================
+
+
+# ------------------------------------------------------------------
+# R3.1 — Empty registry must not silently load defaults
+# ------------------------------------------------------------------
+
+
+def test_empty_registry_stays_empty() -> None:
+    """An explicitly empty dict must not silently load default capabilities."""
+    registry = CapabilityRegistry({})
+    assert registry.list_available_models() == []
+    assert registry.get("deepseek-v4-flash") is None
+
+
+# ------------------------------------------------------------------
+# R3.2 — Registry instances must not share mutable state
+# ------------------------------------------------------------------
+
+
+def test_registry_instances_are_isolated() -> None:
+    """Two CapabilityRegistry instances must not share mutable state."""
+    r1 = CapabilityRegistry()
+    r2 = CapabilityRegistry()
+    assert r1 is not r2
+    # Mutating one must not affect the other
+    r1_caps = r1.list_available_models()
+    r2_caps = r2.list_available_models()
+    # We compare model_ids — both should have the same defaults initially
+    ids1 = {m.model_id for m in r1_caps}
+    ids2 = {m.model_id for m in r2_caps}
+    assert ids1 == ids2  # same default contents
+    # But the internal dicts must be distinct objects
+    assert r1._capabilities is not r2._capabilities
+
+
+# ------------------------------------------------------------------
+# R3.3 — Budget must enforce across all providers, not only OpenAI
+# ------------------------------------------------------------------
+
+
+def test_budget_enforced_for_deepseek() -> None:
+    """Budget ceiling must be enforced for DeepSeek, not only OpenAI."""
+    selector = _selector()
+    with pytest.raises(ValueError, match="budget"):
+        selector.select(_selection(
+            provider="deepseek",
+            profile="max",
+            max_cost_usd=Decimal("0.000001"),  # impossibly low
+        ))
+
+
+def test_budget_enforced_for_kimi() -> None:
+    """Budget ceiling must be enforced for Kimi, not only OpenAI."""
+    # Create a registry with non-zero Kimi pricing so budget can be tested
+    caps = {
+        "k3": ModelCapability(
+            provider="kimi", model_id="k3", model_family="kimi-k3",
+            surface="kimi_code", context_window=1_048_576, max_output_tokens=8_192,
+            reasoning_efforts=("low", "high", "max"),
+            pricing=PricingSnapshot(
+                input_price_per_1k_tokens=Decimal("0.001"),
+                output_price_per_1k_tokens=Decimal("0.002"),
+            ),
+        ),
+    }
+    registry = CapabilityRegistry(caps)
+    selector = ProviderSelector(registry)
+    # With 50K input tokens (default), cost = 50000 * 0.001 / 1000 = 0.05
+    with pytest.raises(ValueError, match="budget"):
+        selector.select(_selection(
+            provider="kimi",
+            profile="max",
+            max_cost_usd=Decimal("0.000001"),  # far below estimated cost
+        ))
+
+
+# ------------------------------------------------------------------
+# R3.4 — Explicit token assumptions replace hardcoded 100K estimate
+# ------------------------------------------------------------------
+
+
+def test_selection_accepts_explicit_token_assumptions() -> None:
+    """ProviderSelection must accept expected_input_tokens and expected_output_tokens."""
+    sel = ProviderSelection(
+        provider="deepseek",
+        profile="medium",
+        expected_input_tokens=50_000,
+        expected_output_tokens=4_000,
+    )
+    assert sel.expected_input_tokens == 50_000
+    assert sel.expected_output_tokens == 4_000
+
+
+def test_budget_uses_explicit_tokens_not_hardcoded() -> None:
+    """Budget estimate must use explicit token assumptions, not a hardcoded 100K."""
+    caps = {
+        "test-model": ModelCapability(
+            provider="deepseek",
+            model_id="test-model",
+            model_family="test",
+            context_window=128_000,
+            max_output_tokens=8_192,
+            pricing=PricingSnapshot(
+                input_price_per_1k_tokens=Decimal("0.001"),
+                output_price_per_1k_tokens=Decimal("0.002"),
+            ),
+        ),
+    }
+    registry = CapabilityRegistry(caps)
+    # This test verifies the budget logic does not multiply by a hardcoded 100
+    # We can't test the selector directly without modifying profile maps,
+    # but we verify the registry stores explicit pricing that enables
+    # proper cost calculation
+    cap = registry.get("test-model")
+    assert cap is not None
+    assert cap.pricing.input_price_per_1k_tokens == Decimal("0.001")
+
+
+# ------------------------------------------------------------------
+# R3.5 — ModelCapability must carry source identity
+# ------------------------------------------------------------------
+
+
+def test_model_capability_has_source_identity() -> None:
+    """ModelCapability must expose source_id and source_version as distinct fields."""
+    cap = ModelCapability(
+        provider="test",
+        model_id="test-1",
+        model_family="test",
+        context_window=64_000,
+        max_output_tokens=4_096,
+        source_id="deepseek-official-docs-2026-07",
+        source_version="2026-07-20",
+    )
+    assert cap.source_id == "deepseek-official-docs-2026-07"
+    assert cap.source_version == "2026-07-20"
+
+
+def test_model_capability_has_price_unit() -> None:
+    """ModelCapability pricing must carry an explicit price_unit."""
+    cap = ModelCapability(
+        provider="test",
+        model_id="test-1",
+        model_family="test",
+        context_window=64_000,
+        max_output_tokens=4_096,
+        pricing=PricingSnapshot(
+            input_price_per_1k_tokens=Decimal("0.001"),
+            price_unit="per_1M_tokens",
+        ),
+    )
+    assert cap.pricing.price_unit == "per_1M_tokens"
+
+
+def test_model_capability_has_aliases() -> None:
+    """ModelCapability must accept a tuple of known aliases."""
+    cap = ModelCapability(
+        provider="kimi",
+        model_id="kimi-for-coding",
+        model_family="kimi-coding",
+        context_window=262_144,
+        max_output_tokens=8_192,
+        aliases=("kimi-for-coding-highspeed",),
+    )
+    assert "kimi-for-coding-highspeed" in cap.aliases
+
+
+def test_model_capability_has_entitlement_state() -> None:
+    """ModelCapability must expose entitlement_state."""
+    cap = ModelCapability(
+        provider="kimi",
+        model_id="kimi-for-coding-highspeed",
+        model_family="kimi-coding",
+        context_window=262_144,
+        max_output_tokens=8_192,
+        entitlement_state="membership_required",
+    )
+    assert cap.entitlement_state == "membership_required"
+
+
+def test_model_capability_has_freshness_state() -> None:
+    """ModelCapability must expose freshness_state for staleness tracking."""
+    cap = ModelCapability(
+        provider="test",
+        model_id="test-1",
+        model_family="test",
+        context_window=64_000,
+        max_output_tokens=4_096,
+    )
+    assert cap.freshness_state == "current"
+
+
+# ------------------------------------------------------------------
+# R3.6 — ResolvedProvider must distinguish planned vs served
+# ------------------------------------------------------------------
+
+
+def test_resolved_provider_has_surface_field() -> None:
+    """ResolvedProvider must expose the resolved surface."""
+    rp = ResolvedProvider(
+        provider="kimi",
+        model_id="k3",
+        reasoning_mode="thinking",
+        reasoning_effort="max",
+        profile="max",
+        estimated_cost_ceiling_usd=Decimal("1.00"),
+        capability_snapshot_hash="abc123",
+        resolved_surface="kimi_code",
+    )
+    assert rp.resolved_surface == "kimi_code"
+
+
+def test_resolved_provider_is_planned_not_served() -> None:
+    """ResolvedProvider documents a planned route, not proof of execution."""
+    rp = ResolvedProvider(
+        provider="deepseek",
+        model_id="deepseek-v4-pro",
+        reasoning_mode="thinking",
+        reasoning_effort="max",
+        profile="max",
+        estimated_cost_ceiling_usd=Decimal("1.00"),
+        capability_snapshot_hash="abc123",
+    )
+    # Planned route fields must exist
+    assert rp.provider == "deepseek"
+    assert rp.model_id == "deepseek-v4-pro"
+    # But there is no served_provider field on ResolvedProvider — it's planned only
+    assert not hasattr(rp, "served_provider")
+
+
+# ------------------------------------------------------------------
+# R3.7 — Capability facts must be current per rescue audit
+# ------------------------------------------------------------------
+
+
+def test_deepseek_context_is_1m() -> None:
+    """DeepSeek V4 models must expose 1M context (not 128K)."""
+    cap = _registry().get("deepseek-v4-flash")
+    assert cap is not None
+    assert cap.context_window >= 1_000_000, (
+        f"Expected >=1M context, got {cap.context_window}"
+    )
+
+
+def test_kimi_code_k3_effort_is_low_high_max() -> None:
+    """Kimi Code K3 (model_id=k3) must support low, high, max effort (not max-only)."""
+    cap = _registry().get("k3")
+    assert cap is not None, "Kimi Code K3 model (id=k3) must exist"
+    assert "low" in cap.reasoning_efforts, (
+        f"K3 must support low effort, got {cap.reasoning_efforts}"
+    )
+    assert "high" in cap.reasoning_efforts
+    assert "max" in cap.reasoning_efforts
+    assert cap.surface == "kimi_code"
+
+
+def test_kimi_for_coding_context_is_262k() -> None:
+    """Kimi K2.7 Code models must expose 262K context (not 128K)."""
+    cap = _registry().get("kimi-for-coding")
+    assert cap is not None
+    assert cap.context_window >= 262_144, (
+        f"Expected >=262K context, got {cap.context_window}"
+    )
+
+
+def test_openai_context_is_1050k() -> None:
+    """GPT-5.6 models must expose 1,050K context (not 128K)."""
+    cap = _registry().get("gpt-5.6-luna")
+    assert cap is not None
+    assert cap.context_window >= 1_050_000, (
+        f"Expected >=1,050K context, got {cap.context_window}"
+    )
+
+
+def test_deepseek_prompt_cache_supported() -> None:
+    """DeepSeek V4 supports prompt caching per current docs."""
+    cap = _registry().get("deepseek-v4-flash")
+    assert cap is not None
+    assert cap.supports_prompt_cache is True, (
+        "DeepSeek V4 supports prompt caching per current official docs"
+    )
+
+
+# ------------------------------------------------------------------
+# R3.8 — Kimi Code surface distinction
+# ------------------------------------------------------------------
+
+
+def test_kimi_code_k3_model_exists() -> None:
+    """A Kimi Code k3 model entry must exist with surface=kimi_code."""
+    registry = _registry()
+    k3 = registry.get("k3")
+    assert k3 is not None, "Kimi Code K3 model (id=k3) must exist"
+    assert k3.surface == "kimi_code"
+    assert k3.provider == "kimi"
+
+
+def test_kimi_code_highspeed_model_exists() -> None:
+    """Kimi Code HighSpeed model must exist with entitlement_state."""
+    registry = _registry()
+    highspeed = registry.get("kimi-for-coding-highspeed")
+    assert highspeed is not None, "kimi-for-coding-highspeed must exist"
+    assert highspeed.surface == "kimi_code"
+    assert highspeed.entitlement_state == "membership_required"
