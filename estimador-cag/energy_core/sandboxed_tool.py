@@ -452,8 +452,9 @@ def _resolve_executable(executable: str) -> str:
 
 def _resolve_working_dir(plan: ExecutionPlan, root: Path) -> Path:
     """Resolve working directory within repository root."""
+    resolved_root = root.resolve(strict=True)
     try:
-        return _resolve_within(root, root, plan.working_directory, must_exist=True)
+        return _resolve_within(resolved_root, resolved_root, plan.working_directory, must_exist=True)
     except ValueError as exc:
         raise PermissionError(str(exc)) from exc
 
