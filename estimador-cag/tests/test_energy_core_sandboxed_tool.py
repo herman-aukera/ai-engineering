@@ -10,7 +10,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-
 from energy_core.controlled_execution import (
     CommandProposal,
     ExecutionPlan,
