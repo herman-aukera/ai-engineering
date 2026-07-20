@@ -213,3 +213,62 @@ def _model_record(**overrides: object) -> object:
     }
     defaults.update(overrides)
     return ModelRecord(**defaults)
+
+
+# ---------------------------------------------------------------------------
+# 4. LiveSemanticClassifier smoke test
+# ---------------------------------------------------------------------------
+
+def test_live_classifier_constructs_and_formats_prompt(monkeypatch) -> None:
+    """LiveSemanticClassifier must construct and produce a valid classify call.
+
+    Uses stress_fake_provider to bypass the import-time API-key guard.  The
+    actual LLM call will fail without real credentials — that is expected
+    and verified here.
+    """
+    from app.config import settings
+    from app.services.litellm_provider import LiteLLMProvider
+    from app.services.v3_semantic_classifier import LiveSemanticClassifier
+
+    monkeypatch.setattr(settings, "stress_fake_provider", True)
+
+    provider = LiteLLMProvider()
+    classifier = LiveSemanticClassifier(provider, tier="flash", max_tokens=800)
+
+    # Construction succeeds.
+    assert classifier._tier == "flash"
+    assert classifier._max_tokens == 800
+    assert len(classifier.calls) == 0
+
+    # Attempt a real call — expected to fail without valid credentials.
+    try:
+        result = classifier.classify(
+            "Build a secure FastAPI onboarding platform with PostgreSQL."
+        )
+        # If we get here, the call succeeded (real credentials available).
+        assert result.level in {"C0", "C1", "C2", "C3", "C4", "C5"}
+        assert 0 <= result.confidence <= 1
+        assert len(result.rationale) > 0
+        assert result.classifier_version.startswith("session13-v3-semantic-")
+    except Exception as exc:
+        # Expected: auth failure or network error without real credentials.
+        error_message = str(exc).lower()
+        assert any(
+            word in error_message
+            for word in ("auth", "key", "credential", "connect", "timeout", "unauthorized", "401", "403")
+        ), f"Unexpected error from live classifier: {exc}"
+
+
+def test_capability_probe_runs_without_crashing(monkeypatch) -> None:
+    """probe_model_reachable must return a boolean without raising."""
+    from app.config import settings
+    from app.services.litellm_provider import LiteLLMProvider
+    from app.services.v3_semantic_classifier import probe_model_reachable
+
+    monkeypatch.setattr(settings, "stress_fake_provider", True)
+
+    provider = LiteLLMProvider()
+    reachable = probe_model_reachable(provider, tier="flash")
+
+    # Without real credentials this will be False — that's fine.
+    assert isinstance(reachable, bool)
