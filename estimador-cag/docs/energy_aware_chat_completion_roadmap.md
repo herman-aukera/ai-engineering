@@ -33,7 +33,7 @@
 | 15. Evidence and citation hardening | implemented | EvidenceBodyMetadata with conditional body hashing, EvidenceVerificationResult, CitationValidationResult with fabricated-citation detection, check_evidence_freshness with age-based staleness, 12 tests, green CI |
 | 16. Graph-backed UI | implemented | V2 browser demo at /energy-chat/v2/demo with provider/effort/context selectors, Energy Card v2 display, provider metrics summary, ledger/trace projection, thread history with replay, awaiting-evidence handling; legacy demo unchanged |
 | 17. Provider catalog and live adapters | implemented | ProviderModelCapability typed records with source refs and verification dates; DeepSeek V4 Flash/Pro verified, Kimi K3 and GPT-5.6 Luna/Terra/Sol documented; resolve_effort_profile() finds cheapest verified model; catalog wired into live provider selection; fails closed on unverified combinations; 8 tests, green CI |
-| 18. Context compaction and multi-agent profiles | architecture documented; implementation pending | minimal/balanced/max snapshots, drift tests, single/critic/committee/adaptive budgets and fixed benchmark |
+| 18. Context compaction and multi-agent profiles | implemented | ContextCompactionPolicy per profile (minimal 4K/2 turns, balanced 16K/8 turns, max 64K/24 turns), ContextSnapshot with revision/hash drift detection, MultiAgentBudget per mode (single/critic/committee/adaptive with agent counts and token/cost/deadline ceilings), profile resolution functions, 10 tests, green CI |
 | 19. Quality evaluation | pending | controlled cross-provider and orchestration benchmark; no unsupported “best” claim |
 | 20–21. Deployment and release audit | pending | operational proof before claim changes |
 
