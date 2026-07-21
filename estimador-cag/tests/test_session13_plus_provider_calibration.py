@@ -103,3 +103,89 @@ def test_fake_classifier_always_available_for_ci() -> None:
 
     assert result.level == "C1"
     assert result.confidence > 0
+
+
+# ---------------------------------------------------------------------------
+# Registry seeding and provider routing matrix
+# ---------------------------------------------------------------------------
+
+def test_seeded_registry_contains_all_documented_providers() -> None:
+    """Seeded registry must contain DeepSeek, Kimi, and OpenAI entries."""
+    from app.services.v3_registry_seed import build_seeded_registry
+
+    registry = build_seeded_registry()
+
+    deepseek = registry.list_by_provider("deepseek")
+    kimi = registry.list_by_provider("moonshot")
+    openai_models = registry.list_by_provider("openai")
+
+    assert len(deepseek) >= 2  # Flash + Pro
+    assert len(kimi) >= 3      # K2.6 + K2.7 Code + K3
+    assert len(openai_models) >= 3  # Luna + Terra + Sol
+
+
+def test_seeded_registry_routing_covers_all_complexity_levels() -> None:
+    """Registry-backed routing for enabled providers covers all complexity levels."""
+    from app.schemas.v5_provider_selection import ProviderSelection
+    from app.services.v3_registry_seed import build_seeded_registry
+    from app.services.v5_provider_selector import resolve_provider_route
+
+    registry = build_seeded_registry()
+
+    # DeepSeek and Kimi have enabled models — routing must succeed.
+    for provider in ("deepseek", "kimi"):
+        sel = ProviderSelection(provider=provider)
+        for level in ("C0", "C1", "C2", "C3", "C4", "C5"):
+            route = resolve_provider_route(
+                selection=sel, complexity_level=level, stage="structure",
+                registry=registry,
+            )
+            assert route["provider"] in ("deepseek", "moonshot")
+            assert route["model"]
+            assert route["effort"] in ("none", "high", "max")
+
+    # OpenAI is documented but not enabled — routing must fail closed.
+    sel = ProviderSelection(provider="openai")
+    with pytest.raises(ValueError, match="eligible"):
+        resolve_provider_route(
+            selection=sel, complexity_level="C1", stage="structure",
+            registry=registry,
+        )
+
+
+def test_kimi_k3_is_documented_not_enabled() -> None:
+    """Kimi K3 must be documented, not enabled (not yet reachable)."""
+    from app.services.v3_registry_seed import build_seeded_registry
+
+    registry = build_seeded_registry()
+    k3 = registry.lookup(provider="moonshot", provider_model_id="kimi-k3")
+
+    assert k3 is not None
+    assert k3.calibration_status == "documented"
+    assert k3.reasoning_efforts == ["max"]
+
+
+def test_gpt56_family_is_documented_not_enabled() -> None:
+    """GPT-5.6 models are documented, pending reachability verification."""
+    from app.services.v3_registry_seed import build_seeded_registry
+
+    registry = build_seeded_registry()
+    sol = registry.lookup(provider="openai", provider_model_id="gpt-5.6-sol")
+
+    assert sol is not None
+    assert sol.calibration_status == "documented"
+    assert sol.context_window == 200_000
+
+
+def test_registry_seed_is_deterministic() -> None:
+    """Two calls to build_seeded_registry must produce identical registries."""
+    from app.services.v3_registry_seed import build_seeded_registry
+
+    a = build_seeded_registry()
+    b = build_seeded_registry()
+
+    assert len(a) == len(b)
+    for provider in ("deepseek", "moonshot", "openai"):
+        a_models = a.list_by_provider(provider)
+        b_models = b.list_by_provider(provider)
+        assert len(a_models) == len(b_models)

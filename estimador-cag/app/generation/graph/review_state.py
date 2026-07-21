@@ -95,3 +95,4 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     v3_route_plan: dict[str, object]
     provider_selection: dict[str, object]
     reliability_report: dict[str, object]
+    proposal: dict[str, object]

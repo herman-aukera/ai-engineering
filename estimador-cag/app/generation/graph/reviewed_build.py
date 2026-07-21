@@ -21,7 +21,11 @@ from app.generation.graph.nodes.parallel_retrieval import (
     build_parallel_retrieval_nodes,
     parallel_retrieval_dispatch,
 )
+from app.generation.graph.nodes.proposal import build_proposal_node
 from app.generation.graph.nodes.reformulate_request import build_reformulate_request_node
+from app.generation.graph.nodes.reliability_analyst import (
+    build_reliability_analyst_node,
+)
 from app.generation.graph.nodes.review_policy import (
     build_boss_action_node,
     build_deterministic_boss_node,
@@ -35,9 +39,6 @@ from app.generation.graph.nodes.selective_recovery import (
 )
 from app.generation.graph.nodes.semantic_classify import (
     build_semantic_classify_node,
-)
-from app.generation.graph.nodes.reliability_analyst import (
-    build_reliability_analyst_node,
 )
 from app.generation.graph.nodes.structure_review import build_structure_review_node
 from app.generation.graph.observability import (
@@ -483,7 +484,17 @@ def build_reviewed_estimation_graph(
         },
     )
     builder.add_edge("final_recovery_phase", "review_policy_phase")
-    builder.add_edge("final_consolidation", END)
+    builder.add_node(
+        "proposal",
+        _instrument(
+            graph_name=REVIEWED_GRAPH_NAME,
+            node_name="proposal",
+            node=build_proposal_node(),
+            tracer=tracer,
+        ),
+    )
+    builder.add_edge("final_consolidation", "proposal")
+    builder.add_edge("proposal", END)
 
     return builder.compile(
         checkpointer=checkpointer,
