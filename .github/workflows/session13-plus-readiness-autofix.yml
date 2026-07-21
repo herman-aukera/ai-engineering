@@ -8,11 +8,14 @@ on:
       - .github/workflows/session13-plus-readiness-autofix.yml
       - estimador-cag/app/config.py
       - estimador-cag/app/schemas/provider_readiness.py
+      - estimador-cag/app/schemas/v3_registry.py
+      - estimador-cag/app/schemas/v3_routing.py
       - estimador-cag/app/services/provider_readiness.py
       - estimador-cag/app/services/stage_routing_runtime.py
       - estimador-cag/app/generation/graph/observability.py
       - estimador-cag/app/generation/graph/review_state.py
       - estimador-cag/app/generation/graph/reviewed_runtime.py
+      - estimador-cag/scripts/provider_readiness_benchmark.py
       - estimador-cag/tests/test_session13_plus_provider_readiness.py
       - estimador-cag/tests/test_session13_plus_stage_routing_runtime.py
   workflow_dispatch:
@@ -47,11 +50,14 @@ jobs:
           uv run ruff check --fix \
             app/config.py \
             app/schemas/provider_readiness.py \
+            app/schemas/v3_registry.py \
+            app/schemas/v3_routing.py \
             app/services/provider_readiness.py \
             app/services/stage_routing_runtime.py \
             app/generation/graph/observability.py \
             app/generation/graph/review_state.py \
             app/generation/graph/reviewed_runtime.py \
+            scripts/provider_readiness_benchmark.py \
             tests/test_session13_plus_provider_readiness.py \
             tests/test_session13_plus_stage_routing_runtime.py
           uv run ruff check app tests evals streamlit_app.py > /tmp/readiness-ruff.log 2>&1 || {
@@ -77,9 +83,10 @@ jobs:
       - name: Commit normalization
         if: success()
         run: |
+          rm -f .readiness-ruff-error.log
           git config user.name "GPT-5.6 Readiness"
           git config user.email "actions@users.noreply.github.com"
-          git add estimador-cag
+          git add estimador-cag .readiness-ruff-error.log
           if git diff --cached --quiet; then
             echo "No Ruff normalization changes"
           else
