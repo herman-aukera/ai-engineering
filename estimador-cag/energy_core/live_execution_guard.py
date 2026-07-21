@@ -14,23 +14,46 @@ from energy_core.models import EnergyModel
 
 
 class AuthorizationReceiptStore(Protocol):
-    """Authoritative source used to reject fabricated receipt objects."""
+    """Authoritative source used to reject fabricated or replayed receipts."""
 
     def get(self, receipt_id: str) -> AuthorizationReceipt | None:
         """Return the authoritative receipt or ``None``."""
 
+    def is_execution_reserved(self, receipt_id: str) -> bool:
+        """Return whether the single process attempt was atomically reserved."""
+
 
 class InMemoryAuthorizationReceiptStore:
-    """Explicit receipt store for deterministic tests and bounded manual runs."""
+    """Explicit test store; production execution uses persistent authority."""
 
-    def __init__(self, receipts: list[AuthorizationReceipt] | None = None) -> None:
+    def __init__(
+        self,
+        receipts: list[AuthorizationReceipt] | None = None,
+        *,
+        reserved_receipt_ids: list[str] | None = None,
+    ) -> None:
         self._receipts = {receipt.receipt_id: receipt for receipt in receipts or []}
+        self._reserved = set(reserved_receipt_ids or [])
 
     def get(self, receipt_id: str) -> AuthorizationReceipt | None:
         return self._receipts.get(receipt_id)
 
-    def put(self, receipt: AuthorizationReceipt) -> None:
+    def is_execution_reserved(self, receipt_id: str) -> bool:
+        return receipt_id in self._reserved
+
+    def put(self, receipt: AuthorizationReceipt, *, reserved: bool = False) -> None:
         self._receipts[receipt.receipt_id] = receipt
+        if reserved:
+            self._reserved.add(receipt.receipt_id)
+
+    def reserve_execution(self, receipt_id: str) -> AuthorizationReceipt:
+        receipt = self.get(receipt_id)
+        if receipt is None:
+            raise PermissionError("Authorization receipt does not exist.")
+        if receipt_id in self._reserved:
+            raise PermissionError("Authorization receipt already reserved.")
+        self._reserved.add(receipt_id)
+        return receipt
 
 
 class LiveExecutionPolicy(EnergyModel):
@@ -118,6 +141,10 @@ def verify_live_pre_start(
     authoritative = receipt_store.get(authorization_receipt.receipt_id)
     if authoritative is None or authoritative != authorization_receipt:
         raise PermissionError("Authorization receipt provenance verification failed.")
+    if not receipt_store.is_execution_reserved(authorization_receipt.receipt_id):
+        raise PermissionError(
+            "Authorization receipt execution attempt is not atomically reserved."
+        )
     if authorization_receipt.plan_hash != plan.base_plan_hash:
         raise PermissionError("Authorization receipt plan_hash mismatch.")
     if authorization_receipt.accepted_revision != policy.current_revision:
