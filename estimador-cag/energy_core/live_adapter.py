@@ -129,7 +129,6 @@ class DeepSeekAdapter(BaseLiveAdapter):
     """Opt-in DeepSeek API adapter.
 
     Requires DEEPSEEK_API_KEY and enabled=True.
-    Calls the DeepSeek chat completions endpoint.
     """
 
     def _call_provider(
@@ -139,114 +138,154 @@ class DeepSeekAdapter(BaseLiveAdapter):
         messages: list[dict[str, str]] | None,
         api_key: str,
     ) -> ProviderExecutionEvidence:
-        """Make a real DeepSeek API call and return served-model evidence."""
-        msgs = messages or [{"role": "user", "content": "Hello"}]
-        body = json.dumps({
-            "model": planned.model_id,
-            "messages": msgs,
-            "max_tokens": min(selection.expected_output_tokens, 4096),
-            "temperature": 0.0 if planned.reasoning_mode == "non-thinking" else 0.7,
-        }).encode("utf-8")
-
         base_url = self.config.api_base_url or "https://api.deepseek.com"
-        url = f"{base_url}/v1/chat/completions"
+        return _openai_compatible_call(
+            planned, selection, messages, api_key, base_url, self._registry
+        )
 
-        started = time.monotonic()
-        try:
-            req = urllib.request.Request(url, data=body, method="POST")
-            req.add_header("Authorization", f"Bearer {api_key}")
-            req.add_header("Content-Type", "application/json")
-            resp = urllib.request.urlopen(req, timeout=selection.max_latency_ms or 60000)
-            raw = resp.read().decode("utf-8")
-            data = json.loads(raw)
-            elapsed_ms = int((time.monotonic() - started) * 1000)
 
-            usage = data.get("usage", {})
-            tokens = TokenUsage(
-                input_tokens=usage.get("prompt_tokens", 0),
-                cached_input_tokens=usage.get("prompt_cache_hit_tokens", 0),
-                output_tokens=usage.get("completion_tokens", 0),
-            )
+class KimiCodeAdapter(BaseLiveAdapter):
+    """Opt-in Kimi Code adapter.
 
-            cap = self._registry.get(planned.model_id)
-            cost = Decimal("0.0")
-            if cap is not None:
-                uncached = max(0, tokens.input_tokens - tokens.cached_input_tokens)
-                cost = (
-                    Decimal(str(uncached)) * cap.pricing.input_price_per_1k_tokens
-                    + Decimal(str(tokens.cached_input_tokens)) * cap.pricing.cached_input_price_per_1k_tokens
-                    + Decimal(str(tokens.output_tokens)) * cap.pricing.output_price_per_1k_tokens
-                ) / 1000
+    Requires KIMI_API_KEY and enabled=True.
+    Calls the Kimi Code (Moonshot) chat completions endpoint.
+    Membership-based billing — pricing in registry may be zero for entitled users.
+    Model/effort switches invalidate prompt-cache; start a fresh session.
+    """
 
-            served_model = data.get("model", planned.model_id)
+    def _call_provider(
+        self,
+        planned: ResolvedProvider,
+        selection: ProviderSelection,
+        messages: list[dict[str, str]] | None,
+        api_key: str,
+    ) -> ProviderExecutionEvidence:
+        base_url = self.config.api_base_url or "https://api.moonshot.cn"
+        return _openai_compatible_call(
+            planned, selection, messages, api_key, base_url, self._registry
+        )
 
-            return ProviderExecutionEvidence(
-                requested_provider=selection.provider,
-                requested_profile=selection.profile,
-                planned_provider=planned.provider,
-                planned_model_id=planned.model_id,
-                planned_effort=planned.reasoning_effort,
-                served_provider=planned.provider,
-                served_model_id=served_model,
-                served_effort=planned.reasoning_effort,
-                safe_provider_request_ref=data.get("id", ""),
-                attempts=(
-                    ProviderAttempt(
-                        attempt_index=0,
-                        provider=planned.provider,
-                        model_id=served_model,
-                        status="success",
-                        latency_ms=elapsed_ms,
-                        tokens=tokens,
-                        cost_usd=cost,
-                    ),
+
+# ------------------------------------------------------------------
+# Shared OpenAI-compatible HTTP call helper
+# ------------------------------------------------------------------
+
+
+def _openai_compatible_call(
+    planned: ResolvedProvider,
+    selection: ProviderSelection,
+    messages: list[dict[str, str]] | None,
+    api_key: str,
+    base_url: str,
+    registry: CapabilityRegistry,
+) -> ProviderExecutionEvidence:
+    """Make an OpenAI-compatible chat completions call and return evidence."""
+    msgs = messages or [{"role": "user", "content": "Hello"}]
+    body = json.dumps({
+        "model": planned.model_id,
+        "messages": msgs,
+        "max_tokens": min(selection.expected_output_tokens, 4096),
+        "temperature": 0.0 if planned.reasoning_mode == "non-thinking" else 0.7,
+    }).encode("utf-8")
+
+    url = f"{base_url}/v1/chat/completions"
+    started = time.monotonic()
+
+    try:
+        req = urllib.request.Request(url, data=body, method="POST")
+        req.add_header("Authorization", f"Bearer {api_key}")
+        req.add_header("Content-Type", "application/json")
+        resp = urllib.request.urlopen(req, timeout=selection.max_latency_ms or 60000)
+        raw = resp.read().decode("utf-8")
+        data = json.loads(raw)
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+
+        usage = data.get("usage", {})
+        tokens = TokenUsage(
+            input_tokens=usage.get("prompt_tokens", 0),
+            cached_input_tokens=usage.get("prompt_cache_hit_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+        )
+
+        cap = registry.get(planned.model_id)
+        cost = Decimal("0.0")
+        if cap is not None:
+            uncached = max(0, tokens.input_tokens - tokens.cached_input_tokens)
+            cost = (
+                Decimal(str(uncached)) * cap.pricing.input_price_per_1k_tokens
+                + Decimal(str(tokens.cached_input_tokens)) * cap.pricing.cached_input_price_per_1k_tokens
+                + Decimal(str(tokens.output_tokens)) * cap.pricing.output_price_per_1k_tokens
+            ) / 1000
+
+        served_model = data.get("model", planned.model_id)
+
+        return ProviderExecutionEvidence(
+            requested_provider=selection.provider,
+            requested_profile=selection.profile,
+            planned_provider=planned.provider,
+            planned_model_id=planned.model_id,
+            planned_effort=planned.reasoning_effort,
+            served_provider=planned.provider,
+            served_model_id=served_model,
+            served_effort=planned.reasoning_effort,
+            safe_provider_request_ref=data.get("id", ""),
+            attempts=(
+                ProviderAttempt(
+                    attempt_index=0,
+                    provider=planned.provider,
+                    model_id=served_model,
+                    status="success",
+                    latency_ms=elapsed_ms,
+                    tokens=tokens,
+                    cost_usd=cost,
                 ),
-                circuit_state="closed",
-                tokens=tokens,
-                latency_ms=elapsed_ms,
-                cost_usd=cost,
-                capability_snapshot_hash=planned.capability_snapshot_hash,
-                fallback_used=planned.fallback_used,
-                execution_performed=True,
-            )
+            ),
+            circuit_state="closed",
+            tokens=tokens,
+            latency_ms=elapsed_ms,
+            cost_usd=cost,
+            capability_snapshot_hash=planned.capability_snapshot_hash,
+            fallback_used=planned.fallback_used,
+            execution_performed=True,
+        )
 
-        except (urllib.error.HTTPError, urllib.error.URLError) as exc:
-            elapsed_ms = int((time.monotonic() - started) * 1000)
-            return ProviderExecutionEvidence(
-                requested_provider=selection.provider,
-                requested_profile=selection.profile,
-                planned_provider=planned.provider,
-                planned_model_id=planned.model_id,
-                attempts=(
-                    ProviderAttempt(
-                        attempt_index=0,
-                        provider=planned.provider,
-                        model_id=planned.model_id,
-                        status="failed",
-                        latency_ms=elapsed_ms,
-                        error_message=str(exc),
-                    ),
+    except (urllib.error.HTTPError, urllib.error.URLError) as exc:
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        return ProviderExecutionEvidence(
+            requested_provider=selection.provider,
+            requested_profile=selection.profile,
+            planned_provider=planned.provider,
+            planned_model_id=planned.model_id,
+            attempts=(
+                ProviderAttempt(
+                    attempt_index=0,
+                    provider=planned.provider,
+                    model_id=planned.model_id,
+                    status="failed",
+                    latency_ms=elapsed_ms,
+                    error_message=str(exc),
                 ),
-                circuit_state="open",
-                execution_performed=False,
-            )
-        except Exception as exc:
-            elapsed_ms = int((time.monotonic() - started) * 1000)
-            return ProviderExecutionEvidence(
-                requested_provider=selection.provider,
-                requested_profile=selection.profile,
-                planned_provider=planned.provider,
-                planned_model_id=planned.model_id,
-                attempts=(
-                    ProviderAttempt(
-                        attempt_index=0,
-                        provider=planned.provider,
-                        model_id=planned.model_id,
-                        status="timed_out" if "timeout" in str(exc).lower() else "failed",
-                        latency_ms=elapsed_ms,
-                        error_message=str(exc),
-                    ),
+            ),
+            circuit_state="open",
+            execution_performed=False,
+        )
+    except Exception as exc:
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        return ProviderExecutionEvidence(
+            requested_provider=selection.provider,
+            requested_profile=selection.profile,
+            planned_provider=planned.provider,
+            planned_model_id=planned.model_id,
+            attempts=(
+                ProviderAttempt(
+                    attempt_index=0,
+                    provider=planned.provider,
+                    model_id=planned.model_id,
+                    status="timed_out" if "timeout" in str(exc).lower() else "failed",
+                    latency_ms=elapsed_ms,
+                    error_message=str(exc),
                 ),
-                circuit_state="open",
-                execution_performed=False,
-            )
+            ),
+            circuit_state="open",
+            execution_performed=False,
+        )
