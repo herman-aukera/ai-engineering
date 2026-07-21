@@ -22,6 +22,9 @@ class ReviewedGraphStartRequest(StrictReviewedPayload):
     transcript: str = Field(min_length=20, max_length=50_000)
     human_review_mode: HumanReviewMode = "risk_based"
     estimation_id: UUID | None = None
+    provider: str | None = Field(default=None, max_length=120)
+    reasoning: str | None = Field(default=None, max_length=120)
+    context_detail: str | None = Field(default=None, max_length=120)
 
 
 class ReviewedGraphResumeRequest(StructureReviewDecision):

@@ -91,6 +91,9 @@ class ReviewedGraphEstimationApplication(Protocol):
         project_context: dict[str, object] | None = None,
         execution_budgets: dict[str, object] | None = None,
         execution_metadata: dict[str, object] | None = None,
+        provider: str | None = None,
+        reasoning: str | None = None,
+        context_detail: str | None = None,
     ) -> ReviewedGraphRun:
         """Start a reviewed graph and return either a pause or terminal state."""
 
@@ -229,6 +232,12 @@ class ReviewedGraphEstimationService:
             initial_state["project_context"] = project_context
         if execution_metadata is not None:
             initial_state["execution_metadata"] = execution_metadata
+        if provider is not None or reasoning is not None or context_detail is not None:
+            initial_state["provider_selection"] = {
+                "provider": provider or "deepseek",
+                "reasoning": reasoning or "medium",
+                "context_detail": context_detail or "medium",
+            }
         result = await self.graph.ainvoke(
             initial_state,
             config=_config(thread_id),

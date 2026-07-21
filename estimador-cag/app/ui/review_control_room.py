@@ -75,6 +75,9 @@ def start_reviewed_execution(
     transcript: str,
     human_review_mode: str,
     estimation_id: str | None = None,
+    provider: str | None = None,
+    reasoning: str | None = None,
+    context_detail: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "transcript": transcript.strip(),
@@ -83,6 +86,12 @@ def start_reviewed_execution(
     normalized_id = (estimation_id or "").strip()
     if normalized_id:
         payload["estimation_id"] = normalized_id
+    if provider:
+        payload["provider"] = provider
+    if reasoning:
+        payload["reasoning"] = reasoning
+    if context_detail:
+        payload["context_detail"] = context_detail
     response = requests.post(
         build_reviewed_start_url(),
         json=payload,

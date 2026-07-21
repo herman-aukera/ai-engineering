@@ -91,6 +91,9 @@ async def start_reviewed_graph_estimation(
             transcript=payload.transcript,
             human_review_mode=payload.human_review_mode,
             estimation_id=payload.estimation_id,
+            provider=payload.provider,
+            reasoning=payload.reasoning,
+            context_detail=payload.context_detail,
         )
         return reviewed_graph_response_from_run(run)
     except ValidationError as exc:
