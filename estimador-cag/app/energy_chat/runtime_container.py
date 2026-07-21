@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from threading import RLock
-from typing import Any
+from typing import Any, Protocol
 
 from langgraph.types import Command
 
@@ -24,6 +24,30 @@ from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
 from app.energy_chat.graph_runtime import build_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
 from app.energy_chat.human_gate import HumanActionRequest, validate_human_action
+
+
+class CheckpointBackend(Protocol):
+    """Minimum backend contract shared by in-memory and PostgreSQL storage."""
+
+    @property
+    def langgraph_saver(self) -> Any: ...
+
+    @staticmethod
+    def config(thread_id: str, checkpoint_namespace: str = "") -> dict[str, Any]: ...
+
+    def get_state(
+        self,
+        thread_id: str,
+        *,
+        checkpoint_namespace: str = "",
+    ) -> EnergyChatGraphState | None: ...
+
+    def get_checkpoint_id(
+        self,
+        thread_id: str,
+        *,
+        checkpoint_namespace: str = "",
+    ) -> str | None: ...
 
 
 class ThreadCheckpointNotFoundError(LookupError):
@@ -49,7 +73,7 @@ class ThreadExecutionRecord:
 
 @dataclass
 class HumanThreadSession:
-    """Process-local metadata for one deterministic human interrupt lifecycle."""
+    """Metadata for one human interrupt lifecycle."""
 
     request: EnergyChatV2Request
     request_fingerprint: str
@@ -58,12 +82,12 @@ class HumanThreadSession:
 
 
 class EnergyChatApplicationRuntime:
-    """Replaceable process-local owner of checkpoints and human sessions."""
+    """Replaceable owner of checkpoints, replay metadata, and human sessions."""
 
     def __init__(
         self,
         *,
-        checkpointer: InMemoryCheckpointer | None = None,
+        checkpointer: CheckpointBackend | None = None,
         id_factory: IDFactory | None = None,
     ) -> None:
         self.checkpointer = checkpointer or InMemoryCheckpointer()
@@ -77,15 +101,22 @@ class EnergyChatApplicationRuntime:
         request: EnergyChatV2Request,
         execution_profile: ExecutionProfile,
     ) -> EnergyChatV2Response:
-        """Execute once or replay an identical completed thread request."""
+        """Execute once or replay an identical checkpointed request."""
 
         materialized = self._materialize_request(request, execution_profile)
         fingerprint = _request_fingerprint(materialized, execution_profile)
         thread_id = _required_thread_id(materialized)
 
         with self._lock:
-            self._reject_human_thread_collision(thread_id)
-            existing = self._records.get(thread_id)
+            human_session = self._human_sessions.get(thread_id) or self._recover_human_session(
+                thread_id
+            )
+            if human_session is not None:
+                raise ThreadCheckpointConflictError(
+                    "Thread already belongs to a human-gated execution."
+                )
+
+            existing = self._records.get(thread_id) or self._recover_record(thread_id)
             if existing is not None:
                 if existing.request_fingerprint != fingerprint:
                     raise ThreadCheckpointConflictError(
@@ -119,11 +150,13 @@ class EnergyChatApplicationRuntime:
         thread_id = _required_thread_id(materialized)
 
         with self._lock:
-            if thread_id in self._records:
+            if self._records.get(thread_id) or self._recover_record(thread_id):
                 raise ThreadCheckpointConflictError(
                     "Thread already belongs to a non-human execution. Use a new thread_id."
                 )
-            existing = self._human_sessions.get(thread_id)
+            existing = self._human_sessions.get(thread_id) or self._recover_human_session(
+                thread_id
+            )
             if existing is not None:
                 if existing.request_fingerprint != fingerprint:
                     raise ThreadCheckpointConflictError(
@@ -166,7 +199,9 @@ class EnergyChatApplicationRuntime:
         """Validate and resume one authoritative pending human interrupt."""
 
         with self._lock:
-            session = self._human_sessions.get(thread_id)
+            session = self._human_sessions.get(thread_id) or self._recover_human_session(
+                thread_id
+            )
             if session is None:
                 raise ThreadCheckpointNotFoundError(thread_id)
             if session.completed or session.pending_action is None:
@@ -202,23 +237,26 @@ class EnergyChatApplicationRuntime:
             )
 
     def get_thread_state(self, thread_id: str) -> EnergyChatV2ThreadStateResponse:
-        """Return safe metadata for the latest process-local checkpoint."""
+        """Return safe metadata for the latest checkpoint."""
 
         with self._lock:
-            human_session = self._human_sessions.get(thread_id)
+            human_session = self._human_sessions.get(thread_id) or self._recover_human_session(
+                thread_id
+            )
             if human_session is not None:
                 state = self.checkpointer.get_state(thread_id)
                 if state is None:
                     raise ThreadCheckpointNotFoundError(thread_id)
-                pending = human_session.pending_action
                 return _thread_state_response(
                     state,
                     checkpoint_id=self.checkpointer.get_checkpoint_id(thread_id),
-                    pending_action=pending,
+                    pending_action=human_session.pending_action,
                     completed=human_session.completed,
                 )
 
-            self._require_record(thread_id)
+            record = self._records.get(thread_id) or self._recover_record(thread_id)
+            if record is None:
+                raise ThreadCheckpointNotFoundError(thread_id)
             state = self.checkpointer.get_state(thread_id)
             if state is None:
                 raise ThreadCheckpointNotFoundError(thread_id)
@@ -231,11 +269,58 @@ class EnergyChatApplicationRuntime:
         """Project the saved checkpoint without invoking graph or provider code."""
 
         with self._lock:
-            human_session = self._human_sessions.get(thread_id)
+            human_session = self._human_sessions.get(thread_id) or self._recover_human_session(
+                thread_id
+            )
             if human_session is not None:
                 return self._project_human_session(thread_id, human_session, replayed=True)
-            record = self._require_record(thread_id)
+            record = self._records.get(thread_id) or self._recover_record(thread_id)
+            if record is None:
+                raise ThreadCheckpointNotFoundError(thread_id)
             return self._replay_locked(thread_id, record)
+
+    def _recover_human_session(self, thread_id: str) -> HumanThreadSession | None:
+        state = self.checkpointer.get_state(thread_id)
+        if state is None:
+            return None
+        graph = self._human_graph()
+        pending = _pending_human_action(
+            graph.get_state(self.checkpointer.config(thread_id))
+        )
+        if pending is None and state.human_action_turn == 0:
+            return None
+        request = _request_from_state(state, human_gate=True)
+        session = HumanThreadSession(
+            request=request,
+            request_fingerprint=_request_fingerprint(request, "deterministic"),
+            pending_action=pending,
+            completed=pending is None,
+        )
+        self._human_sessions[thread_id] = session
+        return session
+
+    def _recover_record(self, thread_id: str) -> ThreadExecutionRecord | None:
+        state = self.checkpointer.get_state(thread_id)
+        if state is None or state.human_action_turn > 0:
+            return None
+        execution_profile: ExecutionProfile = (
+            "deterministic"
+            if all(
+                metric.provider in {"deterministic_local", "fake"}
+                for metric in state.provider_metrics
+            )
+            else "live_bounded"
+        )
+        request = _request_from_state(state, human_gate=False).model_copy(
+            update={"execution_profile": execution_profile}
+        )
+        record = ThreadExecutionRecord(
+            request=request,
+            execution_profile=execution_profile,
+            request_fingerprint=_request_fingerprint(request, execution_profile),
+        )
+        self._records[thread_id] = record
+        return record
 
     def _project_human_session(
         self,
@@ -282,18 +367,6 @@ class EnergyChatApplicationRuntime:
             replayed_from_checkpoint=True,
         )
 
-    def _require_record(self, thread_id: str) -> ThreadExecutionRecord:
-        record = self._records.get(thread_id)
-        if record is None:
-            raise ThreadCheckpointNotFoundError(thread_id)
-        return record
-
-    def _reject_human_thread_collision(self, thread_id: str) -> None:
-        if thread_id in self._human_sessions:
-            raise ThreadCheckpointConflictError(
-                "Thread already belongs to a human-gated execution."
-            )
-
     def _human_graph(self):
         return build_energy_chat_graph(
             provider=DeterministicCandidateProvider(),
@@ -315,6 +388,23 @@ class EnergyChatApplicationRuntime:
                 "execution_profile": execution_profile,
             }
         )
+
+
+def _request_from_state(
+    state: EnergyChatGraphState,
+    *,
+    human_gate: bool,
+) -> EnergyChatV2Request:
+    return EnergyChatV2Request(
+        user_message=state.user_request,
+        mode=state.mode,
+        required_constraints=state.constraints,
+        thread_id=state.thread_id,
+        request_id=state.request_id,
+        trace_id=state.trace_id,
+        execution_profile="deterministic",
+        human_gate=human_gate,
+    )
 
 
 def _pending_human_action(snapshot: Any) -> HumanActionRequest | None:
