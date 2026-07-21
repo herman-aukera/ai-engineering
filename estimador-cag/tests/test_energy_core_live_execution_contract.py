@@ -1,3 +1,5 @@
+"""Red-green contract tests for Spec 0009 live execution authority."""
+
 from __future__ import annotations
 
 import subprocess
