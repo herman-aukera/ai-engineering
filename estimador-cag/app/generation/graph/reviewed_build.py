@@ -36,6 +36,9 @@ from app.generation.graph.nodes.selective_recovery import (
 from app.generation.graph.nodes.semantic_classify import (
     build_semantic_classify_node,
 )
+from app.generation.graph.nodes.reliability_analyst import (
+    build_reliability_analyst_node,
+)
 from app.generation.graph.nodes.structure_review import build_structure_review_node
 from app.generation.graph.observability import (
     NOOP_GRAPH_TRACER,
@@ -408,6 +411,15 @@ def build_reviewed_estimation_graph(
     )
     builder.add_node("structure_phase", structure_subgraph)
     builder.add_node("estimation_phase", estimation_subgraph)
+    builder.add_node(
+        "reliability_analyst",
+        _instrument(
+            graph_name=REVIEWED_GRAPH_NAME,
+            node_name="reliability_analyst",
+            node=build_reliability_analyst_node(),
+            tracer=tracer,
+        ),
+    )
     builder.add_node("review_policy_phase", review_policy_subgraph)
     builder.add_node(
         "boss_action",
@@ -449,7 +461,8 @@ def build_reviewed_estimation_graph(
             "stop": END,
         },
     )
-    builder.add_edge("estimation_phase", "review_policy_phase")
+    builder.add_edge("estimation_phase", "reliability_analyst")
+    builder.add_edge("reliability_analyst", "review_policy_phase")
     builder.add_edge("review_policy_phase", "boss_action")
     builder.add_conditional_edges(
         "boss_action",

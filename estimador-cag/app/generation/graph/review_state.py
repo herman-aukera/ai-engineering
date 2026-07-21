@@ -94,3 +94,4 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     arbitrated_assessment: dict[str, object]
     v3_route_plan: dict[str, object]
     provider_selection: dict[str, object]
+    reliability_report: dict[str, object]
