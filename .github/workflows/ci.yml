@@ -75,7 +75,26 @@ jobs:
           TARGETS="app tests"
           test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
           test -d evals && TARGETS="$TARGETS evals"
-          uv run ruff check $TARGETS
+          uv run ruff check $TARGETS > /tmp/session13-ruff.log 2>&1 || {
+            cat /tmp/session13-ruff.log
+            false
+          }
+          cat /tmp/session13-ruff.log
+
+      - name: Persist Ruff failure
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
+        working-directory: .
+        run: |
+          cp /tmp/session13-ruff.log .session13-ruff-error.log
+          git config user.name "GPT-5.6 Stabilization"
+          git config user.email "actions@users.noreply.github.com"
+          git add .session13-ruff-error.log
+          if git diff --cached --quiet; then
+            echo "Ruff diagnostic unchanged"
+          else
+            git commit -m "chore(session13): capture Ruff failure"
+            git push origin HEAD:gg-session-13/plus-stabilization
+          fi
 
       - name: Compile Python
         run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
@@ -96,7 +115,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
         working-directory: .
         run: |
-          rm -f scripts/session13_plus_stabilize.py scripts/session13_plus_ci_boundary.py .github/workflows/session13-plus-stabilize.yml .session13-stabilization-error.log
+          rm -f scripts/session13_plus_stabilize.py scripts/session13_plus_ci_boundary.py .github/workflows/session13-plus-stabilize.yml .session13-stabilization-error.log .session13-ruff-error.log
           git config user.name "GPT-5.6 Stabilization"
           git config user.email "actions@users.noreply.github.com"
           git add .
