@@ -43,6 +43,7 @@ jobs:
             false
           }
           python scripts/session13_plus_ruff_repair.py
+          python scripts/session13_plus_test_repairs.py
           cat /tmp/session13-stabilize.log
 
       - name: Persist stabilization executor failure
@@ -75,6 +76,8 @@ jobs:
         run: |
           uv run ruff check --fix \
             app/routers/reviewed_graph_estimations.py \
+            app/services/audit_export.py \
+            app/services/v2_estimation_adapter.py \
             tests/test_session13_plus_provider_calibration.py \
             tests/test_session13_plus_reliability_analyst.py \
             tests/test_session13_plus_stabilization.py
@@ -148,6 +151,7 @@ jobs:
             scripts/session13_plus_stabilize.py \
             scripts/session13_plus_ci_boundary.py \
             scripts/session13_plus_ruff_repair.py \
+            scripts/session13_plus_test_repairs.py \
             .github/workflows/session13-plus-stabilize.yml \
             .session13-stabilization-error.log \
             .session13-ruff-error.log \
