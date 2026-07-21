@@ -2,9 +2,9 @@
 
 This module is distinct from the legacy human-gate authorization contract.
 It authorizes one bounded live transition for any non-denied execution plan,
-binds that authority to an exact repository snapshot, persists the resulting
-receipt in SQLite, detects record tampering, rejects nonce replay, and records
-execution consumption exactly once.
+binds authority to an exact repository snapshot, persists the receipt in
+SQLite, detects record tampering, rejects nonce replay, atomically reserves
+one process attempt, and records execution completion exactly once.
 """
 
 from __future__ import annotations
@@ -80,8 +80,9 @@ class LiveAuthorizationContext(EnergyModel):
 class LiveAuthorizationReceipt(AuthorizationReceipt):
     """Integrity-protected receipt persisted by the authoritative store."""
 
-    schema_version: str = "2.0.0"
+    schema_version: str = "2.1.0"
     repository_snapshot_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    execution_reserved: bool = False
     record_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
 
     @model_validator(mode="after")
@@ -97,7 +98,7 @@ class LiveAuthorizationReceipt(AuthorizationReceipt):
 
 
 class SQLiteLiveAuthorizationStore:
-    """Trusted SQLite authority store with nonce and execution replay guards."""
+    """Trusted SQLite authority store with replay and reservation guards."""
 
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path).resolve()
@@ -121,12 +122,26 @@ class SQLiteLiveAuthorizationStore:
                     accepted_revision INTEGER NOT NULL,
                     nonce_hash TEXT NOT NULL UNIQUE,
                     consumed_at TEXT NOT NULL,
+                    execution_reserved INTEGER NOT NULL DEFAULT 0,
                     execution_performed INTEGER NOT NULL CHECK (execution_performed IN (0, 1)),
                     repository_snapshot_hash TEXT NOT NULL,
                     record_hash TEXT NOT NULL
                 )
                 """
             )
+            columns = {
+                str(row["name"])
+                for row in connection.execute(
+                    "PRAGMA table_info(live_authorization_receipts)"
+                ).fetchall()
+            }
+            if "execution_reserved" not in columns:
+                connection.execute(
+                    """
+                    ALTER TABLE live_authorization_receipts
+                    ADD COLUMN execution_reserved INTEGER NOT NULL DEFAULT 0
+                    """
+                )
             connection.commit()
 
     def issue(self, receipt: LiveAuthorizationReceipt) -> LiveAuthorizationReceipt:
@@ -145,10 +160,11 @@ class SQLiteLiveAuthorizationStore:
                         accepted_revision,
                         nonce_hash,
                         consumed_at,
+                        execution_reserved,
                         execution_performed,
                         repository_snapshot_hash,
                         record_hash
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         receipt.receipt_id,
@@ -158,6 +174,7 @@ class SQLiteLiveAuthorizationStore:
                         receipt.accepted_revision,
                         receipt.nonce_hash,
                         receipt.consumed_at.isoformat(),
+                        int(receipt.execution_reserved),
                         int(receipt.execution_performed),
                         receipt.repository_snapshot_hash,
                         receipt.record_hash,
@@ -175,24 +192,10 @@ class SQLiteLiveAuthorizationStore:
 
     def get(self, receipt_id: str) -> LiveAuthorizationReceipt | None:
         with self._connect() as connection:
-            row = connection.execute(
-                """
-                SELECT receipt_id, authorization_id, actor, plan_hash,
-                       accepted_revision, nonce_hash, consumed_at,
-                       execution_performed, repository_snapshot_hash, record_hash
-                FROM live_authorization_receipts
-                WHERE receipt_id = ?
-                """,
-                (receipt_id,),
-            ).fetchone()
+            row = _select_receipt(connection, receipt_id)
         if row is None:
             return None
-        try:
-            return _receipt_from_row(row)
-        except (ValidationError, ValueError) as exc:
-            raise PermissionError(
-                "Live authorization receipt integrity verification failed."
-            ) from exc
+        return _validated_receipt_from_row(row)
 
     def nonce_consumed(self, nonce_hash: str) -> bool:
         with self._connect() as connection:
@@ -205,29 +208,21 @@ class SQLiteLiveAuthorizationStore:
             ).fetchone()
         return row is not None
 
-    def mark_executed(self, receipt_id: str) -> LiveAuthorizationReceipt:
-        """Mark one receipt executed exactly once and refresh its record hash."""
+    def is_execution_reserved(self, receipt_id: str) -> bool:
+        receipt = self.get(receipt_id)
+        return bool(receipt and receipt.execution_reserved)
+
+    def reserve_execution(self, receipt_id: str) -> LiveAuthorizationReceipt:
+        """Atomically claim the single process attempt before process creation."""
 
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            row = connection.execute(
-                """
-                SELECT receipt_id, authorization_id, actor, plan_hash,
-                       accepted_revision, nonce_hash, consumed_at,
-                       execution_performed, repository_snapshot_hash, record_hash
-                FROM live_authorization_receipts
-                WHERE receipt_id = ?
-                """,
-                (receipt_id,),
-            ).fetchone()
+            row = _select_receipt(connection, receipt_id)
             if row is None:
                 raise PermissionError("Live authorization receipt does not exist.")
-            try:
-                current = _receipt_from_row(row)
-            except (ValidationError, ValueError) as exc:
-                raise PermissionError(
-                    "Live authorization receipt integrity verification failed."
-                ) from exc
+            current = _validated_receipt_from_row(row)
+            if current.execution_reserved:
+                raise PermissionError("Live authorization receipt already reserved.")
             if current.execution_performed:
                 raise PermissionError("Live authorization receipt already executed.")
 
@@ -239,6 +234,50 @@ class SQLiteLiveAuthorizationStore:
                 accepted_revision=current.accepted_revision,
                 nonce_hash=current.nonce_hash,
                 consumed_at=current.consumed_at,
+                execution_reserved=True,
+                execution_performed=False,
+                repository_snapshot_hash=current.repository_snapshot_hash,
+            )
+            cursor = connection.execute(
+                """
+                UPDATE live_authorization_receipts
+                SET execution_reserved = 1, record_hash = ?
+                WHERE receipt_id = ?
+                  AND execution_reserved = 0
+                  AND execution_performed = 0
+                """,
+                (updated.record_hash, receipt_id),
+            )
+            if cursor.rowcount != 1:
+                raise PermissionError("Live authorization receipt already reserved.")
+            connection.commit()
+        return updated
+
+    def mark_executed(self, receipt_id: str) -> LiveAuthorizationReceipt:
+        """Mark one reserved receipt executed exactly once."""
+
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = _select_receipt(connection, receipt_id)
+            if row is None:
+                raise PermissionError("Live authorization receipt does not exist.")
+            current = _validated_receipt_from_row(row)
+            if not current.execution_reserved:
+                raise PermissionError(
+                    "Live authorization receipt must be reserved before execution."
+                )
+            if current.execution_performed:
+                raise PermissionError("Live authorization receipt already executed.")
+
+            updated = _build_receipt(
+                receipt_id=current.receipt_id,
+                authorization_id=current.authorization_id,
+                actor=current.actor,
+                plan_hash=current.plan_hash,
+                accepted_revision=current.accepted_revision,
+                nonce_hash=current.nonce_hash,
+                consumed_at=current.consumed_at,
+                execution_reserved=True,
                 execution_performed=True,
                 repository_snapshot_hash=current.repository_snapshot_hash,
             )
@@ -246,7 +285,9 @@ class SQLiteLiveAuthorizationStore:
                 """
                 UPDATE live_authorization_receipts
                 SET execution_performed = 1, record_hash = ?
-                WHERE receipt_id = ? AND execution_performed = 0
+                WHERE receipt_id = ?
+                  AND execution_reserved = 1
+                  AND execution_performed = 0
                 """,
                 (updated.record_hash, receipt_id),
             )
@@ -320,10 +361,37 @@ def issue_live_authorization(
         accepted_revision=context.current_revision,
         nonce_hash=nonce_hash,
         consumed_at=context.now,
+        execution_reserved=False,
         execution_performed=False,
         repository_snapshot_hash=snapshot.snapshot_hash,
     )
     return store.issue(receipt)
+
+
+def _select_receipt(
+    connection: sqlite3.Connection,
+    receipt_id: str,
+) -> sqlite3.Row | None:
+    return connection.execute(
+        """
+        SELECT receipt_id, authorization_id, actor, plan_hash,
+               accepted_revision, nonce_hash, consumed_at,
+               execution_reserved, execution_performed,
+               repository_snapshot_hash, record_hash
+        FROM live_authorization_receipts
+        WHERE receipt_id = ?
+        """,
+        (receipt_id,),
+    ).fetchone()
+
+
+def _validated_receipt_from_row(row: sqlite3.Row) -> LiveAuthorizationReceipt:
+    try:
+        return _receipt_from_row(row)
+    except (ValidationError, ValueError) as exc:
+        raise PermissionError(
+            "Live authorization receipt integrity verification failed."
+        ) from exc
 
 
 def _build_receipt(
@@ -335,6 +403,7 @@ def _build_receipt(
     accepted_revision: int,
     nonce_hash: str,
     consumed_at: datetime,
+    execution_reserved: bool,
     execution_performed: bool,
     repository_snapshot_hash: str,
 ) -> LiveAuthorizationReceipt:
@@ -346,6 +415,7 @@ def _build_receipt(
         "accepted_revision": accepted_revision,
         "nonce_hash": nonce_hash,
         "consumed_at": consumed_at,
+        "execution_reserved": execution_reserved,
         "execution_performed": execution_performed,
         "repository_snapshot_hash": repository_snapshot_hash,
     }
@@ -365,6 +435,7 @@ def _receipt_from_row(row: sqlite3.Row) -> LiveAuthorizationReceipt:
         accepted_revision=int(row["accepted_revision"]),
         nonce_hash=str(row["nonce_hash"]),
         consumed_at=datetime.fromisoformat(str(row["consumed_at"])),
+        execution_reserved=bool(row["execution_reserved"]),
         execution_performed=bool(row["execution_performed"]),
         repository_snapshot_hash=str(row["repository_snapshot_hash"]),
         record_hash=str(row["record_hash"]),
