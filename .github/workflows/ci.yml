@@ -109,7 +109,27 @@ jobs:
         run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
 
       - name: Deterministic tests
-        run: uv run pytest -q -m "not live_provider"
+        run: |
+          uv run pytest -q -m "not live_provider" > /tmp/session13-tests.log 2>&1 || {
+            cat /tmp/session13-tests.log
+            false
+          }
+          cat /tmp/session13-tests.log
+
+      - name: Persist deterministic test failure
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
+        working-directory: .
+        run: |
+          cp /tmp/session13-tests.log .session13-tests-error.log
+          git config user.name "GPT-5.6 Stabilization"
+          git config user.email "actions@users.noreply.github.com"
+          git add .session13-tests-error.log
+          if git diff --cached --quiet; then
+            echo "Test diagnostic unchanged"
+          else
+            git commit -m "chore(session13): capture test failure"
+            git push origin HEAD:gg-session-13/plus-stabilization
+          fi
 
       - name: Diff and secret gates
         working-directory: .
@@ -130,7 +150,8 @@ jobs:
             scripts/session13_plus_ruff_repair.py \
             .github/workflows/session13-plus-stabilize.yml \
             .session13-stabilization-error.log \
-            .session13-ruff-error.log
+            .session13-ruff-error.log \
+            .session13-tests-error.log
           git config user.name "GPT-5.6 Stabilization"
           git config user.email "actions@users.noreply.github.com"
           git add .
