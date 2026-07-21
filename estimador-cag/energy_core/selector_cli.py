@@ -9,7 +9,6 @@ Usage:
 from __future__ import annotations  # noqa: I001
 
 import argparse
-import json
 import sys
 
 from energy_core.selector_api import SelectRequest, SelectorAPI
