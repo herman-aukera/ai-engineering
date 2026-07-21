@@ -103,3 +103,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# Explicit trigger after the workflow became present on the branch.
