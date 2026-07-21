@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import cast
+from collections.abc import AsyncIterator
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import ValidationError
+from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from app.generation.graph.nodes.final_estimate_review import (
     StaleFinalEstimateReviewError,
@@ -334,3 +337,89 @@ async def inspect_reviewed_graph_estimation(
             status_code=502,
             detail="Failed to inspect reviewed graph estimation.",
         ) from exc
+
+
+@router.post("/estimate/graph/reviewed/stream")
+async def stream_reviewed_graph_estimation(
+    payload: ReviewedGraphStartRequest,
+    request: Request,
+) -> EventSourceResponse:
+    """Stream a reviewed graph execution as SSE events.
+
+    Each event carries the node name and state delta as JSON.
+    The final event is ``done`` with the complete state.
+    """
+    service: ReviewedGraphEstimationApplication = getattr(
+        request.app.state, "reviewed_graph_estimation_service", None
+    )
+    if service is None:
+        raise HTTPException(status_code=503, detail="Reviewed graph service unavailable.")
+
+    from uuid import uuid4
+
+    thread_id = f"estimate:{payload.estimation_id or uuid4()}"
+    config: dict[str, object] = {"configurable": {"thread_id": thread_id}}
+
+    from app.generation.graph.review_state import ReviewedEstimationGraphState
+    from app.generation.graph.state import new_estimation_graph_state
+    from app.schemas.review_policy import ExecutionBudgetSnapshot
+
+    initial_state = ReviewedEstimationGraphState(
+        **new_estimation_graph_state(
+            transcript=payload.transcript,
+            estimation_id=str(payload.estimation_id or uuid4()),
+            graph_version="session13.plus.v1",
+        )
+    )
+    initial_state.update(
+        {
+            "human_review_mode": payload.human_review_mode,
+            "structure_review_revision": 0,
+            "final_review_revision": 0,
+            "execution_budgets": ExecutionBudgetSnapshot().model_dump(mode="json"),
+        }
+    )
+    if payload.provider:
+        initial_state["provider_selection"] = {
+            "provider": payload.provider,
+            "reasoning": payload.reasoning or "medium",
+            "context_detail": payload.context_detail or "medium",
+        }
+
+    async def event_generator() -> AsyncIterator[ServerSentEvent]:
+        try:
+            async for event in service.graph.astream(
+                initial_state, config, stream_mode="updates"
+            ):
+                if isinstance(event, dict):
+                    for node_name, state_delta in event.items():
+                        safe_delta = _safe_json_delta(state_delta)
+                        yield ServerSentEvent(
+                            event=node_name,
+                            data=json.dumps(safe_delta, default=str),
+                        )
+            yield ServerSentEvent(event="done", data=json.dumps({"status": "completed"}))
+        except Exception as exc:
+            yield ServerSentEvent(
+                event="error",
+                data=json.dumps({"detail": str(exc)}),
+            )
+
+    return EventSourceResponse(event_generator())
+
+
+def _safe_json_delta(delta: Any) -> dict[str, Any]:
+    """Convert a state delta to a JSON-safe dict for SSE."""
+    if isinstance(delta, dict):
+        return {k: _safe_value(v) for k, v in delta.items()}
+    return {"value": str(delta)}
+
+
+def _safe_value(value: Any) -> Any:
+    if isinstance(value, (str, int, float, bool, type(None))):
+        return value
+    if isinstance(value, dict):
+        return {k: _safe_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_safe_value(v) for v in value]
+    return str(value)
