@@ -137,10 +137,31 @@ jobs:
       - name: Diff and secret gates
         working-directory: .
         run: |
-          git diff --check
-          if git diff | grep -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY'; then
-            echo "Potential secret in stabilization diff"
+          : > /tmp/session13-gates.log
+          git diff --check >> /tmp/session13-gates.log 2>&1 || {
+            cat /tmp/session13-gates.log
             false
+          }
+          if git diff | grep -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' >> /tmp/session13-gates.log; then
+            echo "Potential secret in stabilization diff" >> /tmp/session13-gates.log
+            cat /tmp/session13-gates.log
+            false
+          fi
+          echo "Diff and secret gates passed" | tee -a /tmp/session13-gates.log
+
+      - name: Persist final gate failure
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
+        working-directory: .
+        run: |
+          cp /tmp/session13-gates.log .session13-gates-error.log
+          git config user.name "GPT-5.6 Stabilization"
+          git config user.email "actions@users.noreply.github.com"
+          git add .session13-gates-error.log
+          if git diff --cached --quiet; then
+            echo "Gate diagnostic unchanged"
+          else
+            git commit -m "chore(session13): capture final gate failure"
+            git push origin HEAD:gg-session-13/plus-stabilization
           fi
 
       - name: Commit green stabilization
@@ -155,7 +176,8 @@ jobs:
             .github/workflows/session13-plus-stabilize.yml \
             .session13-stabilization-error.log \
             .session13-ruff-error.log \
-            .session13-tests-error.log
+            .session13-tests-error.log \
+            .session13-gates-error.log
           git config user.name "GPT-5.6 Stabilization"
           git config user.email "actions@users.noreply.github.com"
           git add .
