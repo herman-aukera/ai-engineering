@@ -1,0 +1,1972 @@
+estimador-cag/app/generation/graph/reviewed_build.py:1: trailing whitespace.
++"""Composable reviewed subgraphs for the Session 13 Plus control room."""
+estimador-cag/app/generation/graph/reviewed_build.py:2: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:3: trailing whitespace.
++from __future__ import annotations
+estimador-cag/app/generation/graph/reviewed_build.py:4: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:5: trailing whitespace.
++from typing import Literal
+estimador-cag/app/generation/graph/reviewed_build.py:6: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:7: trailing whitespace.
++from langgraph.checkpoint.base import BaseCheckpointSaver
+estimador-cag/app/generation/graph/reviewed_build.py:8: trailing whitespace.
++from langgraph.graph import END, START, StateGraph
+estimador-cag/app/generation/graph/reviewed_build.py:9: trailing whitespace.
++from langgraph.graph.state import CompiledStateGraph
+estimador-cag/app/generation/graph/reviewed_build.py:10: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:11: trailing whitespace.
++from app.generation.graph.nodes import (
+estimador-cag/app/generation/graph/reviewed_build.py:12: trailing whitespace.
++    build_classify_components_node,
+estimador-cag/app/generation/graph/reviewed_build.py:13: trailing whitespace.
++    build_extract_requirements_node,
+estimador-cag/app/generation/graph/reviewed_build.py:14: trailing whitespace.
++    build_generate_estimate_node,
+estimador-cag/app/generation/graph/reviewed_build.py:15: trailing whitespace.
++    build_search_budgets_node,
+estimador-cag/app/generation/graph/reviewed_build.py:16: trailing whitespace.
++)
+estimador-cag/app/generation/graph/reviewed_build.py:17: trailing whitespace.
++from app.generation.graph.nodes.final_estimate_review import (
+estimador-cag/app/generation/graph/reviewed_build.py:18: trailing whitespace.
++    build_final_estimate_review_node,
+estimador-cag/app/generation/graph/reviewed_build.py:19: trailing whitespace.
++)
+estimador-cag/app/generation/graph/reviewed_build.py:20: trailing whitespace.
++from app.generation.graph.nodes.parallel_retrieval import (
+estimador-cag/app/generation/graph/reviewed_build.py:21: trailing whitespace.
++    build_parallel_retrieval_nodes,
+estimador-cag/app/generation/graph/reviewed_build.py:22: trailing whitespace.
++    parallel_retrieval_dispatch,
+estimador-cag/app/generation/graph/reviewed_build.py:23: trailing whitespace.
++)
+estimador-cag/app/generation/graph/reviewed_build.py:24: trailing whitespace.
++from app.generation.graph.nodes.proposal import build_proposal_node
+estimador-cag/app/generation/graph/reviewed_build.py:25: trailing whitespace.
++from app.generation.graph.nodes.reformulate_request import build_reformulate_request_node
+estimador-cag/app/generation/graph/reviewed_build.py:26: trailing whitespace.
++from app.generation.graph.nodes.reliability_analyst import (
+estimador-cag/app/generation/graph/reviewed_build.py:27: trailing whitespace.
++    build_reliability_analyst_node,
+estimador-cag/app/generation/graph/reviewed_build.py:28: trailing whitespace.
++)
+estimador-cag/app/generation/graph/reviewed_build.py:29: trailing whitespace.
++from app.generation.graph.nodes.review_policy import (
+estimador-cag/app/generation/graph/reviewed_build.py:30: trailing whitespace.
++    build_boss_action_node,
+estimador-cag/app/generation/graph/reviewed_build.py:31: trailing whitespace.
++    build_deterministic_boss_node,
+estimador-cag/app/generation/graph/reviewed_build.py:32: trailing whitespace.
++    build_deterministic_critic_node,
+estimador-cag/app/generation/graph/reviewed_build.py:33: trailing whitespace.
++)
+estimador-cag/app/generation/graph/reviewed_build.py:34: trailing whitespace.
++from app.generation.graph.nodes.reviewed_validation import (
+estimador-cag/app/generation/graph/reviewed_build.py:35: trailing whitespace.
++    build_reviewed_validation_node,
+estimador-cag/app/generation/graph/reviewed_build.py:36: trailing whitespace.
++)
+estimador-cag/app/generation/graph/reviewed_build.py:37: trailing whitespace.
++from app.generation.graph.nodes.selective_recovery import (
+estimador-cag/app/generation/graph/reviewed_build.py:38: trailing whitespace.
++    build_selective_recovery_node,
+estimador-cag/app/generation/graph/reviewed_build.py:39: trailing whitespace.
++)
+estimador-cag/app/generation/graph/reviewed_build.py:40: trailing whitespace.
++from app.generation.graph.nodes.semantic_classify import (
+estimador-cag/app/generation/graph/reviewed_build.py:41: trailing whitespace.
++    build_semantic_classify_node,
+estimador-cag/app/generation/graph/reviewed_build.py:42: trailing whitespace.
++)
+estimador-cag/app/generation/graph/reviewed_build.py:43: trailing whitespace.
++from app.generation.graph.nodes.structure_review import build_structure_review_node
+estimador-cag/app/generation/graph/reviewed_build.py:44: trailing whitespace.
++from app.generation.graph.observability import (
+estimador-cag/app/generation/graph/reviewed_build.py:45: trailing whitespace.
++    NOOP_GRAPH_TRACER,
+estimador-cag/app/generation/graph/reviewed_build.py:46: trailing whitespace.
++    GraphTracer,
+estimador-cag/app/generation/graph/reviewed_build.py:47: trailing whitespace.
++    instrument_reviewed_graph_node,
+estimador-cag/app/generation/graph/reviewed_build.py:48: trailing whitespace.
++)
+estimador-cag/app/generation/graph/reviewed_build.py:49: trailing whitespace.
++from app.generation.graph.ports import GraphNodeDependencies
+estimador-cag/app/generation/graph/reviewed_build.py:50: trailing whitespace.
++from app.generation.graph.review_state import ReviewedEstimationGraphState
+estimador-cag/app/generation/graph/reviewed_build.py:51: trailing whitespace.
++from app.schemas.human_review import HumanReviewMode
+estimador-cag/app/generation/graph/reviewed_build.py:52: trailing whitespace.
++from app.services.selective_recovery import SelectiveRecoveryApplication
+estimador-cag/app/generation/graph/reviewed_build.py:53: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:54: trailing whitespace.
++REVIEWED_GRAPH_NAME = "session13_plus_reviewed_estimation_graph"
+estimador-cag/app/generation/graph/reviewed_build.py:55: trailing whitespace.
++STRUCTURE_SUBGRAPH_NAME = "session13_plus_structure_subgraph"
+estimador-cag/app/generation/graph/reviewed_build.py:56: trailing whitespace.
++ESTIMATION_SUBGRAPH_NAME = "session13_plus_estimation_subgraph"
+estimador-cag/app/generation/graph/reviewed_build.py:57: trailing whitespace.
++REVIEW_POLICY_SUBGRAPH_NAME = "session13_plus_review_policy_subgraph"
+estimador-cag/app/generation/graph/reviewed_build.py:58: trailing whitespace.
++FINAL_RECOVERY_SUBGRAPH_NAME = "session13_plus_final_recovery_subgraph"
+estimador-cag/app/generation/graph/reviewed_build.py:59: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:60: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:61: trailing whitespace.
++def _structure_route(
+estimador-cag/app/generation/graph/reviewed_build.py:62: trailing whitespace.
++    state: ReviewedEstimationGraphState,
+estimador-cag/app/generation/graph/reviewed_build.py:63: trailing whitespace.
++) -> Literal["continue", "stop", "regenerate"]:
+estimador-cag/app/generation/graph/reviewed_build.py:64: trailing whitespace.
++    return state.get("structure_route", "continue")
+estimador-cag/app/generation/graph/reviewed_build.py:65: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:66: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:67: trailing whitespace.
++def _parent_structure_route(
+estimador-cag/app/generation/graph/reviewed_build.py:68: trailing whitespace.
++    state: ReviewedEstimationGraphState,
+estimador-cag/app/generation/graph/reviewed_build.py:69: trailing whitespace.
++) -> Literal["continue", "stop"]:
+estimador-cag/app/generation/graph/reviewed_build.py:70: trailing whitespace.
++    return "stop" if state.get("structure_route") == "stop" else "continue"
+estimador-cag/app/generation/graph/reviewed_build.py:71: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:72: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:73: trailing whitespace.
++def _recovery_route(
+estimador-cag/app/generation/graph/reviewed_build.py:74: trailing whitespace.
++    state: ReviewedEstimationGraphState,
+estimador-cag/app/generation/graph/reviewed_build.py:75: trailing whitespace.
++) -> Literal["complete", "recalculate"]:
+estimador-cag/app/generation/graph/reviewed_build.py:76: trailing whitespace.
++    return state.get("recovery_route", "complete")
+estimador-cag/app/generation/graph/reviewed_build.py:77: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:78: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:79: trailing whitespace.
++def _final_review_route(
+estimador-cag/app/generation/graph/reviewed_build.py:80: trailing whitespace.
++    state: ReviewedEstimationGraphState,
+estimador-cag/app/generation/graph/reviewed_build.py:81: trailing whitespace.
++) -> Literal["complete", "stop", "recover"]:
+estimador-cag/app/generation/graph/reviewed_build.py:82: trailing whitespace.
++    return state.get("final_review_route", "complete")
+estimador-cag/app/generation/graph/reviewed_build.py:83: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:84: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:85: trailing whitespace.
++def _boss_route(
+estimador-cag/app/generation/graph/reviewed_build.py:86: trailing whitespace.
++    state: ReviewedEstimationGraphState,
+estimador-cag/app/generation/graph/reviewed_build.py:87: trailing whitespace.
++) -> Literal["final_review", "recover", "stop"]:
+estimador-cag/app/generation/graph/reviewed_build.py:88: trailing whitespace.
++    return state.get("boss_route", "final_review")
+estimador-cag/app/generation/graph/reviewed_build.py:89: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:90: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:91: trailing whitespace.
++def _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:92: trailing whitespace.
++    *,
+estimador-cag/app/generation/graph/reviewed_build.py:93: trailing whitespace.
++    graph_name: str,
+estimador-cag/app/generation/graph/reviewed_build.py:94: trailing whitespace.
++    node_name: str,
+estimador-cag/app/generation/graph/reviewed_build.py:95: trailing whitespace.
++    node,
+estimador-cag/app/generation/graph/reviewed_build.py:96: trailing whitespace.
++    tracer: GraphTracer,
+estimador-cag/app/generation/graph/reviewed_build.py:97: trailing whitespace.
++):
+estimador-cag/app/generation/graph/reviewed_build.py:98: trailing whitespace.
++    return instrument_reviewed_graph_node(
+estimador-cag/app/generation/graph/reviewed_build.py:99: trailing whitespace.
++        graph_name=graph_name,
+estimador-cag/app/generation/graph/reviewed_build.py:100: trailing whitespace.
++        node_name=node_name,
+estimador-cag/app/generation/graph/reviewed_build.py:101: trailing whitespace.
++        node=node,
+estimador-cag/app/generation/graph/reviewed_build.py:102: trailing whitespace.
++        tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:103: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:104: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:105: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:106: trailing whitespace.
++def build_structure_subgraph(
+estimador-cag/app/generation/graph/reviewed_build.py:107: trailing whitespace.
++    dependencies: GraphNodeDependencies,
+estimador-cag/app/generation/graph/reviewed_build.py:108: trailing whitespace.
++    *,
+estimador-cag/app/generation/graph/reviewed_build.py:109: trailing whitespace.
++    default_review_mode: HumanReviewMode = "risk_based",
+estimador-cag/app/generation/graph/reviewed_build.py:110: trailing whitespace.
++    tracer: GraphTracer = NOOP_GRAPH_TRACER,
+estimador-cag/app/generation/graph/reviewed_build.py:111: trailing whitespace.
++) -> CompiledStateGraph:
+estimador-cag/app/generation/graph/reviewed_build.py:112: trailing whitespace.
++    """Build structure extraction, classification, and durable human review."""
+estimador-cag/app/generation/graph/reviewed_build.py:113: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:114: trailing whitespace.
++    builder = StateGraph(ReviewedEstimationGraphState)
+estimador-cag/app/generation/graph/reviewed_build.py:115: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:116: trailing whitespace.
++        "extract_requirements",
+estimador-cag/app/generation/graph/reviewed_build.py:117: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:118: trailing whitespace.
++            graph_name=STRUCTURE_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:119: trailing whitespace.
++            node_name="extract_requirements",
+estimador-cag/app/generation/graph/reviewed_build.py:120: trailing whitespace.
++            node=build_extract_requirements_node(dependencies),
+estimador-cag/app/generation/graph/reviewed_build.py:121: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:122: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:123: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:124: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:125: trailing whitespace.
++        "classify_components",
+estimador-cag/app/generation/graph/reviewed_build.py:126: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:127: trailing whitespace.
++            graph_name=STRUCTURE_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:128: trailing whitespace.
++            node_name="classify_components",
+estimador-cag/app/generation/graph/reviewed_build.py:129: trailing whitespace.
++            node=build_classify_components_node(dependencies),
+estimador-cag/app/generation/graph/reviewed_build.py:130: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:131: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:132: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:133: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:134: trailing whitespace.
++        "structure_review",
+estimador-cag/app/generation/graph/reviewed_build.py:135: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:136: trailing whitespace.
++            graph_name=STRUCTURE_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:137: trailing whitespace.
++            node_name="structure_review",
+estimador-cag/app/generation/graph/reviewed_build.py:138: trailing whitespace.
++            node=build_structure_review_node(default_mode=default_review_mode),
+estimador-cag/app/generation/graph/reviewed_build.py:139: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:140: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:141: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:142: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:143: trailing whitespace.
++    builder.add_edge(START, "extract_requirements")
+estimador-cag/app/generation/graph/reviewed_build.py:144: trailing whitespace.
++    builder.add_edge("extract_requirements", "classify_components")
+estimador-cag/app/generation/graph/reviewed_build.py:145: trailing whitespace.
++    builder.add_edge("classify_components", "structure_review")
+estimador-cag/app/generation/graph/reviewed_build.py:146: trailing whitespace.
++    builder.add_conditional_edges(
+estimador-cag/app/generation/graph/reviewed_build.py:147: trailing whitespace.
++        "structure_review",
+estimador-cag/app/generation/graph/reviewed_build.py:148: trailing whitespace.
++        _structure_route,
+estimador-cag/app/generation/graph/reviewed_build.py:149: trailing whitespace.
++        {
+estimador-cag/app/generation/graph/reviewed_build.py:150: trailing whitespace.
++            "continue": END,
+estimador-cag/app/generation/graph/reviewed_build.py:151: trailing whitespace.
++            "stop": END,
+estimador-cag/app/generation/graph/reviewed_build.py:152: trailing whitespace.
++            "regenerate": "classify_components",
+estimador-cag/app/generation/graph/reviewed_build.py:153: trailing whitespace.
++        },
+estimador-cag/app/generation/graph/reviewed_build.py:154: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:155: trailing whitespace.
++    return builder.compile(name=STRUCTURE_SUBGRAPH_NAME)
+estimador-cag/app/generation/graph/reviewed_build.py:156: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:157: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:158: trailing whitespace.
++def build_estimation_subgraph(
+estimador-cag/app/generation/graph/reviewed_build.py:159: trailing whitespace.
++    dependencies: GraphNodeDependencies,
+estimador-cag/app/generation/graph/reviewed_build.py:160: trailing whitespace.
++    *,
+estimador-cag/app/generation/graph/reviewed_build.py:161: trailing whitespace.
++    recovery_application: SelectiveRecoveryApplication | None = None,
+estimador-cag/app/generation/graph/reviewed_build.py:162: trailing whitespace.
++    tracer: GraphTracer = NOOP_GRAPH_TRACER,
+estimador-cag/app/generation/graph/reviewed_build.py:163: trailing whitespace.
++    retrieval_mode: Literal["sequential", "parallel"] = "sequential",
+estimador-cag/app/generation/graph/reviewed_build.py:164: trailing whitespace.
++    retrieval_max_concurrency: int = 4,
+estimador-cag/app/generation/graph/reviewed_build.py:165: trailing whitespace.
++) -> CompiledStateGraph:
+estimador-cag/app/generation/graph/reviewed_build.py:166: trailing whitespace.
++    """Build deterministic estimation plus selective evidence recovery."""
+estimador-cag/app/generation/graph/reviewed_build.py:167: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:168: trailing whitespace.
++    builder = StateGraph(ReviewedEstimationGraphState)
+estimador-cag/app/generation/graph/reviewed_build.py:169: trailing whitespace.
++    if retrieval_mode == "sequential":
+estimador-cag/app/generation/graph/reviewed_build.py:170: trailing whitespace.
++        builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:171: trailing whitespace.
++            "search_budgets",
+estimador-cag/app/generation/graph/reviewed_build.py:172: trailing whitespace.
++            _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:173: trailing whitespace.
++                graph_name=ESTIMATION_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:174: trailing whitespace.
++                node_name="search_budgets",
+estimador-cag/app/generation/graph/reviewed_build.py:175: trailing whitespace.
++                node=build_search_budgets_node(dependencies),
+estimador-cag/app/generation/graph/reviewed_build.py:176: trailing whitespace.
++                tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:177: trailing whitespace.
++            ),
+estimador-cag/app/generation/graph/reviewed_build.py:178: trailing whitespace.
++        )
+estimador-cag/app/generation/graph/reviewed_build.py:179: trailing whitespace.
++    else:
+estimador-cag/app/generation/graph/reviewed_build.py:180: trailing whitespace.
++        fan_out, worker, fan_in = build_parallel_retrieval_nodes(
+estimador-cag/app/generation/graph/reviewed_build.py:181: trailing whitespace.
++            dependencies, max_concurrency=retrieval_max_concurrency
+estimador-cag/app/generation/graph/reviewed_build.py:182: trailing whitespace.
++        )
+estimador-cag/app/generation/graph/reviewed_build.py:183: trailing whitespace.
++        builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:184: trailing whitespace.
++            "parallel_retrieval_dispatch",
+estimador-cag/app/generation/graph/reviewed_build.py:185: trailing whitespace.
++            _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:186: trailing whitespace.
++                graph_name=ESTIMATION_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:187: trailing whitespace.
++                node_name="parallel_retrieval_dispatch",
+estimador-cag/app/generation/graph/reviewed_build.py:188: trailing whitespace.
++                node=parallel_retrieval_dispatch,
+estimador-cag/app/generation/graph/reviewed_build.py:189: trailing whitespace.
++                tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:190: trailing whitespace.
++            ),
+estimador-cag/app/generation/graph/reviewed_build.py:191: trailing whitespace.
++        )
+estimador-cag/app/generation/graph/reviewed_build.py:192: trailing whitespace.
++        builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:193: trailing whitespace.
++            "parallel_retrieval_worker",
+estimador-cag/app/generation/graph/reviewed_build.py:194: trailing whitespace.
++            _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:195: trailing whitespace.
++                graph_name=ESTIMATION_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:196: trailing whitespace.
++                node_name="parallel_retrieval_worker",
+estimador-cag/app/generation/graph/reviewed_build.py:197: trailing whitespace.
++                node=worker,
+estimador-cag/app/generation/graph/reviewed_build.py:198: trailing whitespace.
++                tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:199: trailing whitespace.
++            ),
+estimador-cag/app/generation/graph/reviewed_build.py:200: trailing whitespace.
++        )
+estimador-cag/app/generation/graph/reviewed_build.py:201: trailing whitespace.
++        builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:202: trailing whitespace.
++            "parallel_retrieval_merge",
+estimador-cag/app/generation/graph/reviewed_build.py:203: trailing whitespace.
++            _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:204: trailing whitespace.
++                graph_name=ESTIMATION_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:205: trailing whitespace.
++                node_name="parallel_retrieval_merge",
+estimador-cag/app/generation/graph/reviewed_build.py:206: trailing whitespace.
++                node=fan_in,
+estimador-cag/app/generation/graph/reviewed_build.py:207: trailing whitespace.
++                tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:208: trailing whitespace.
++            ),
+estimador-cag/app/generation/graph/reviewed_build.py:209: trailing whitespace.
++        )
+estimador-cag/app/generation/graph/reviewed_build.py:210: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:211: trailing whitespace.
++        "generate_estimate",
+estimador-cag/app/generation/graph/reviewed_build.py:212: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:213: trailing whitespace.
++            graph_name=ESTIMATION_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:214: trailing whitespace.
++            node_name="generate_estimate",
+estimador-cag/app/generation/graph/reviewed_build.py:215: trailing whitespace.
++            node=build_generate_estimate_node(dependencies),
+estimador-cag/app/generation/graph/reviewed_build.py:216: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:217: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:218: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:219: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:220: trailing whitespace.
++        "validate_initial",
+estimador-cag/app/generation/graph/reviewed_build.py:221: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:222: trailing whitespace.
++            graph_name=ESTIMATION_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:223: trailing whitespace.
++            node_name="validate_initial",
+estimador-cag/app/generation/graph/reviewed_build.py:224: trailing whitespace.
++            node=build_reviewed_validation_node(rebuild_aggregate=False),
+estimador-cag/app/generation/graph/reviewed_build.py:225: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:226: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:227: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:228: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:229: trailing whitespace.
++        "selective_recovery",
+estimador-cag/app/generation/graph/reviewed_build.py:230: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:231: trailing whitespace.
++            graph_name=ESTIMATION_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:232: trailing whitespace.
++            node_name="selective_recovery",
+estimador-cag/app/generation/graph/reviewed_build.py:233: trailing whitespace.
++            node=build_selective_recovery_node(recovery_application),
+estimador-cag/app/generation/graph/reviewed_build.py:234: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:235: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:236: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:237: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:238: trailing whitespace.
++        "recalculate_estimate",
+estimador-cag/app/generation/graph/reviewed_build.py:239: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:240: trailing whitespace.
++            graph_name=ESTIMATION_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:241: trailing whitespace.
++            node_name="recalculate_estimate",
+estimador-cag/app/generation/graph/reviewed_build.py:242: trailing whitespace.
++            node=build_generate_estimate_node(dependencies),
+estimador-cag/app/generation/graph/reviewed_build.py:243: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:244: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:245: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:246: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:247: trailing whitespace.
++        "validate_final",
+estimador-cag/app/generation/graph/reviewed_build.py:248: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:249: trailing whitespace.
++            graph_name=ESTIMATION_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:250: trailing whitespace.
++            node_name="validate_final",
+estimador-cag/app/generation/graph/reviewed_build.py:251: trailing whitespace.
++            node=build_reviewed_validation_node(rebuild_aggregate=True),
+estimador-cag/app/generation/graph/reviewed_build.py:252: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:253: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:254: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:255: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:256: trailing whitespace.
++    if retrieval_mode == "sequential":
+estimador-cag/app/generation/graph/reviewed_build.py:257: trailing whitespace.
++        builder.add_edge(START, "search_budgets")
+estimador-cag/app/generation/graph/reviewed_build.py:258: trailing whitespace.
++        builder.add_edge("search_budgets", "generate_estimate")
+estimador-cag/app/generation/graph/reviewed_build.py:259: trailing whitespace.
++    else:
+estimador-cag/app/generation/graph/reviewed_build.py:260: trailing whitespace.
++        builder.add_edge(START, "parallel_retrieval_dispatch")
+estimador-cag/app/generation/graph/reviewed_build.py:261: trailing whitespace.
++        builder.add_conditional_edges("parallel_retrieval_dispatch", fan_out)
+estimador-cag/app/generation/graph/reviewed_build.py:262: trailing whitespace.
++        builder.add_edge("parallel_retrieval_worker", "parallel_retrieval_merge")
+estimador-cag/app/generation/graph/reviewed_build.py:263: trailing whitespace.
++        builder.add_edge("parallel_retrieval_merge", "generate_estimate")
+estimador-cag/app/generation/graph/reviewed_build.py:264: trailing whitespace.
++    builder.add_edge("generate_estimate", "validate_initial")
+estimador-cag/app/generation/graph/reviewed_build.py:265: trailing whitespace.
++    builder.add_edge("validate_initial", "selective_recovery")
+estimador-cag/app/generation/graph/reviewed_build.py:266: trailing whitespace.
++    builder.add_conditional_edges(
+estimador-cag/app/generation/graph/reviewed_build.py:267: trailing whitespace.
++        "selective_recovery",
+estimador-cag/app/generation/graph/reviewed_build.py:268: trailing whitespace.
++        _recovery_route,
+estimador-cag/app/generation/graph/reviewed_build.py:269: trailing whitespace.
++        {
+estimador-cag/app/generation/graph/reviewed_build.py:270: trailing whitespace.
++            "complete": END,
+estimador-cag/app/generation/graph/reviewed_build.py:271: trailing whitespace.
++            "recalculate": "recalculate_estimate",
+estimador-cag/app/generation/graph/reviewed_build.py:272: trailing whitespace.
++        },
+estimador-cag/app/generation/graph/reviewed_build.py:273: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:274: trailing whitespace.
++    builder.add_edge("recalculate_estimate", "validate_final")
+estimador-cag/app/generation/graph/reviewed_build.py:275: trailing whitespace.
++    builder.add_edge("validate_final", END)
+estimador-cag/app/generation/graph/reviewed_build.py:276: trailing whitespace.
++    return builder.compile(name=ESTIMATION_SUBGRAPH_NAME)
+estimador-cag/app/generation/graph/reviewed_build.py:277: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:278: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:279: trailing whitespace.
++def build_review_policy_subgraph(
+estimador-cag/app/generation/graph/reviewed_build.py:280: trailing whitespace.
++    *,
+estimador-cag/app/generation/graph/reviewed_build.py:281: trailing whitespace.
++    tracer: GraphTracer = NOOP_GRAPH_TRACER,
+estimador-cag/app/generation/graph/reviewed_build.py:282: trailing whitespace.
++) -> CompiledStateGraph:
+estimador-cag/app/generation/graph/reviewed_build.py:283: trailing whitespace.
++    """Build typed Critic review followed by deterministic Boss routing."""
+estimador-cag/app/generation/graph/reviewed_build.py:284: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:285: trailing whitespace.
++    builder = StateGraph(ReviewedEstimationGraphState)
+estimador-cag/app/generation/graph/reviewed_build.py:286: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:287: trailing whitespace.
++        "deterministic_critic",
+estimador-cag/app/generation/graph/reviewed_build.py:288: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:289: trailing whitespace.
++            graph_name=REVIEW_POLICY_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:290: trailing whitespace.
++            node_name="deterministic_critic",
+estimador-cag/app/generation/graph/reviewed_build.py:291: trailing whitespace.
++            node=build_deterministic_critic_node(),
+estimador-cag/app/generation/graph/reviewed_build.py:292: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:293: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:294: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:295: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:296: trailing whitespace.
++        "deterministic_boss",
+estimador-cag/app/generation/graph/reviewed_build.py:297: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:298: trailing whitespace.
++            graph_name=REVIEW_POLICY_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:299: trailing whitespace.
++            node_name="deterministic_boss",
+estimador-cag/app/generation/graph/reviewed_build.py:300: trailing whitespace.
++            node=build_deterministic_boss_node(),
+estimador-cag/app/generation/graph/reviewed_build.py:301: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:302: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:303: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:304: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:305: trailing whitespace.
++    builder.add_edge(START, "deterministic_critic")
+estimador-cag/app/generation/graph/reviewed_build.py:306: trailing whitespace.
++    builder.add_edge("deterministic_critic", "deterministic_boss")
+estimador-cag/app/generation/graph/reviewed_build.py:307: trailing whitespace.
++    builder.add_edge("deterministic_boss", END)
+estimador-cag/app/generation/graph/reviewed_build.py:308: trailing whitespace.
++    return builder.compile(name=REVIEW_POLICY_SUBGRAPH_NAME)
+estimador-cag/app/generation/graph/reviewed_build.py:309: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:310: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:311: trailing whitespace.
++def build_final_recovery_subgraph(
+estimador-cag/app/generation/graph/reviewed_build.py:312: trailing whitespace.
++    dependencies: GraphNodeDependencies,
+estimador-cag/app/generation/graph/reviewed_build.py:313: trailing whitespace.
++    *,
+estimador-cag/app/generation/graph/reviewed_build.py:314: trailing whitespace.
++    recovery_application: SelectiveRecoveryApplication | None,
+estimador-cag/app/generation/graph/reviewed_build.py:315: trailing whitespace.
++    tracer: GraphTracer = NOOP_GRAPH_TRACER,
+estimador-cag/app/generation/graph/reviewed_build.py:316: trailing whitespace.
++) -> CompiledStateGraph:
+estimador-cag/app/generation/graph/reviewed_build.py:317: trailing whitespace.
++    """Run only selective recovery and deterministic recalculation after review."""
+estimador-cag/app/generation/graph/reviewed_build.py:318: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:319: trailing whitespace.
++    builder = StateGraph(ReviewedEstimationGraphState)
+estimador-cag/app/generation/graph/reviewed_build.py:320: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:321: trailing whitespace.
++        "human_requested_recovery",
+estimador-cag/app/generation/graph/reviewed_build.py:322: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:323: trailing whitespace.
++            graph_name=FINAL_RECOVERY_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:324: trailing whitespace.
++            node_name="human_requested_recovery",
+estimador-cag/app/generation/graph/reviewed_build.py:325: trailing whitespace.
++            node=build_selective_recovery_node(recovery_application),
+estimador-cag/app/generation/graph/reviewed_build.py:326: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:327: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:328: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:329: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:330: trailing whitespace.
++        "human_requested_recalculation",
+estimador-cag/app/generation/graph/reviewed_build.py:331: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:332: trailing whitespace.
++            graph_name=FINAL_RECOVERY_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:333: trailing whitespace.
++            node_name="human_requested_recalculation",
+estimador-cag/app/generation/graph/reviewed_build.py:334: trailing whitespace.
++            node=build_generate_estimate_node(dependencies),
+estimador-cag/app/generation/graph/reviewed_build.py:335: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:336: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:337: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:338: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:339: trailing whitespace.
++        "human_requested_validation",
+estimador-cag/app/generation/graph/reviewed_build.py:340: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:341: trailing whitespace.
++            graph_name=FINAL_RECOVERY_SUBGRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:342: trailing whitespace.
++            node_name="human_requested_validation",
+estimador-cag/app/generation/graph/reviewed_build.py:343: trailing whitespace.
++            node=build_reviewed_validation_node(rebuild_aggregate=True),
+estimador-cag/app/generation/graph/reviewed_build.py:344: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:345: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:346: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:347: trailing whitespace.
++    builder.add_edge(START, "human_requested_recovery")
+estimador-cag/app/generation/graph/reviewed_build.py:348: trailing whitespace.
++    builder.add_conditional_edges(
+estimador-cag/app/generation/graph/reviewed_build.py:349: trailing whitespace.
++        "human_requested_recovery",
+estimador-cag/app/generation/graph/reviewed_build.py:350: trailing whitespace.
++        _recovery_route,
+estimador-cag/app/generation/graph/reviewed_build.py:351: trailing whitespace.
++        {"complete": END, "recalculate": "human_requested_recalculation"},
+estimador-cag/app/generation/graph/reviewed_build.py:352: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:353: trailing whitespace.
++    builder.add_edge("human_requested_recalculation", "human_requested_validation")
+estimador-cag/app/generation/graph/reviewed_build.py:354: trailing whitespace.
++    builder.add_edge("human_requested_validation", END)
+estimador-cag/app/generation/graph/reviewed_build.py:355: trailing whitespace.
++    return builder.compile(name=FINAL_RECOVERY_SUBGRAPH_NAME)
+estimador-cag/app/generation/graph/reviewed_build.py:356: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:357: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:358: trailing whitespace.
++def build_reviewed_estimation_graph(
+estimador-cag/app/generation/graph/reviewed_build.py:359: trailing whitespace.
++    dependencies: GraphNodeDependencies,
+estimador-cag/app/generation/graph/reviewed_build.py:360: trailing whitespace.
++    *,
+estimador-cag/app/generation/graph/reviewed_build.py:361: trailing whitespace.
++    checkpointer: BaseCheckpointSaver | None = None,
+estimador-cag/app/generation/graph/reviewed_build.py:362: trailing whitespace.
++    default_review_mode: HumanReviewMode = "risk_based",
+estimador-cag/app/generation/graph/reviewed_build.py:363: trailing whitespace.
++    recovery_application: SelectiveRecoveryApplication | None = None,
+estimador-cag/app/generation/graph/reviewed_build.py:364: trailing whitespace.
++    tracer: GraphTracer = NOOP_GRAPH_TRACER,
+estimador-cag/app/generation/graph/reviewed_build.py:365: trailing whitespace.
++    retrieval_mode: Literal["sequential", "parallel"] = "sequential",
+estimador-cag/app/generation/graph/reviewed_build.py:366: trailing whitespace.
++    retrieval_max_concurrency: int = 4,
+estimador-cag/app/generation/graph/reviewed_build.py:367: trailing whitespace.
++    semantic_classifier=None,
+estimador-cag/app/generation/graph/reviewed_build.py:368: trailing whitespace.
++) -> CompiledStateGraph:
+estimador-cag/app/generation/graph/reviewed_build.py:369: trailing whitespace.
++    """Compose independently testable structure, estimation, and policy phases.
+estimador-cag/app/generation/graph/reviewed_build.py:370: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:371: trailing whitespace.
++    When *semantic_classifier* is provided it replaces the default
+estimador-cag/app/generation/graph/reviewed_build.py:372: trailing whitespace.
++    :class:`FakeSemanticClassifier` in the classify node.
+estimador-cag/app/generation/graph/reviewed_build.py:373: trailing whitespace.
++    """
+estimador-cag/app/generation/graph/reviewed_build.py:374: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:375: trailing whitespace.
++    structure_subgraph = build_structure_subgraph(
+estimador-cag/app/generation/graph/reviewed_build.py:376: trailing whitespace.
++        dependencies,
+estimador-cag/app/generation/graph/reviewed_build.py:377: trailing whitespace.
++        default_review_mode=default_review_mode,
+estimador-cag/app/generation/graph/reviewed_build.py:378: trailing whitespace.
++        tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:379: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:380: trailing whitespace.
++    estimation_subgraph = build_estimation_subgraph(
+estimador-cag/app/generation/graph/reviewed_build.py:381: trailing whitespace.
++        dependencies,
+estimador-cag/app/generation/graph/reviewed_build.py:382: trailing whitespace.
++        recovery_application=recovery_application,
+estimador-cag/app/generation/graph/reviewed_build.py:383: trailing whitespace.
++        tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:384: trailing whitespace.
++        retrieval_mode=retrieval_mode,
+estimador-cag/app/generation/graph/reviewed_build.py:385: trailing whitespace.
++        retrieval_max_concurrency=retrieval_max_concurrency,
+estimador-cag/app/generation/graph/reviewed_build.py:386: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:387: trailing whitespace.
++    review_policy_subgraph = build_review_policy_subgraph(tracer=tracer)
+estimador-cag/app/generation/graph/reviewed_build.py:388: trailing whitespace.
++    final_recovery_subgraph = build_final_recovery_subgraph(
+estimador-cag/app/generation/graph/reviewed_build.py:389: trailing whitespace.
++        dependencies,
+estimador-cag/app/generation/graph/reviewed_build.py:390: trailing whitespace.
++        recovery_application=recovery_application,
+estimador-cag/app/generation/graph/reviewed_build.py:391: trailing whitespace.
++        tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:392: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:393: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:394: trailing whitespace.
++    builder = StateGraph(ReviewedEstimationGraphState)
+estimador-cag/app/generation/graph/reviewed_build.py:395: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:396: trailing whitespace.
++        "reformulate_request",
+estimador-cag/app/generation/graph/reviewed_build.py:397: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:398: trailing whitespace.
++            graph_name=REVIEWED_GRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:399: trailing whitespace.
++            node_name="reformulate_request",
+estimador-cag/app/generation/graph/reviewed_build.py:400: trailing whitespace.
++            node=build_reformulate_request_node(),
+estimador-cag/app/generation/graph/reviewed_build.py:401: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:402: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:403: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:404: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:405: trailing whitespace.
++        "semantic_classify",
+estimador-cag/app/generation/graph/reviewed_build.py:406: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:407: trailing whitespace.
++            graph_name=REVIEWED_GRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:408: trailing whitespace.
++            node_name="semantic_classify",
+estimador-cag/app/generation/graph/reviewed_build.py:409: trailing whitespace.
++            node=build_semantic_classify_node(classifier=semantic_classifier),
+estimador-cag/app/generation/graph/reviewed_build.py:410: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:411: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:412: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:413: trailing whitespace.
++    builder.add_node("structure_phase", structure_subgraph)
+estimador-cag/app/generation/graph/reviewed_build.py:414: trailing whitespace.
++    builder.add_node("estimation_phase", estimation_subgraph)
+estimador-cag/app/generation/graph/reviewed_build.py:415: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:416: trailing whitespace.
++        "reliability_analyst",
+estimador-cag/app/generation/graph/reviewed_build.py:417: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:418: trailing whitespace.
++            graph_name=REVIEWED_GRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:419: trailing whitespace.
++            node_name="reliability_analyst",
+estimador-cag/app/generation/graph/reviewed_build.py:420: trailing whitespace.
++            node=build_reliability_analyst_node(),
+estimador-cag/app/generation/graph/reviewed_build.py:421: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:422: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:423: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:424: trailing whitespace.
++    builder.add_node("review_policy_phase", review_policy_subgraph)
+estimador-cag/app/generation/graph/reviewed_build.py:425: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:426: trailing whitespace.
++        "boss_action",
+estimador-cag/app/generation/graph/reviewed_build.py:427: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:428: trailing whitespace.
++            graph_name=REVIEWED_GRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:429: trailing whitespace.
++            node_name="boss_action",
+estimador-cag/app/generation/graph/reviewed_build.py:430: trailing whitespace.
++            node=build_boss_action_node(),
+estimador-cag/app/generation/graph/reviewed_build.py:431: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:432: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:433: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:434: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:435: trailing whitespace.
++        "final_estimate_review",
+estimador-cag/app/generation/graph/reviewed_build.py:436: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:437: trailing whitespace.
++            graph_name=REVIEWED_GRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:438: trailing whitespace.
++            node_name="final_estimate_review",
+estimador-cag/app/generation/graph/reviewed_build.py:439: trailing whitespace.
++            node=build_final_estimate_review_node(),
+estimador-cag/app/generation/graph/reviewed_build.py:440: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:441: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:442: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:443: trailing whitespace.
++    builder.add_node("final_recovery_phase", final_recovery_subgraph)
+estimador-cag/app/generation/graph/reviewed_build.py:444: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:445: trailing whitespace.
++        "final_consolidation",
+estimador-cag/app/generation/graph/reviewed_build.py:446: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:447: trailing whitespace.
++            graph_name=REVIEWED_GRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:448: trailing whitespace.
++            node_name="final_consolidation",
+estimador-cag/app/generation/graph/reviewed_build.py:449: trailing whitespace.
++            node=build_reviewed_validation_node(rebuild_aggregate=True),
+estimador-cag/app/generation/graph/reviewed_build.py:450: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:451: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:452: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:453: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:454: trailing whitespace.
++    builder.add_edge(START, "reformulate_request")
+estimador-cag/app/generation/graph/reviewed_build.py:455: trailing whitespace.
++    builder.add_edge("reformulate_request", "semantic_classify")
+estimador-cag/app/generation/graph/reviewed_build.py:456: trailing whitespace.
++    builder.add_conditional_edges(
+estimador-cag/app/generation/graph/reviewed_build.py:457: trailing whitespace.
++        "structure_phase",
+estimador-cag/app/generation/graph/reviewed_build.py:458: trailing whitespace.
++        _parent_structure_route,
+estimador-cag/app/generation/graph/reviewed_build.py:459: trailing whitespace.
++        {
+estimador-cag/app/generation/graph/reviewed_build.py:460: trailing whitespace.
++            "continue": "estimation_phase",
+estimador-cag/app/generation/graph/reviewed_build.py:461: trailing whitespace.
++            "stop": END,
+estimador-cag/app/generation/graph/reviewed_build.py:462: trailing whitespace.
++        },
+estimador-cag/app/generation/graph/reviewed_build.py:463: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:464: trailing whitespace.
++    builder.add_edge("estimation_phase", "reliability_analyst")
+estimador-cag/app/generation/graph/reviewed_build.py:465: trailing whitespace.
++    builder.add_edge("reliability_analyst", "review_policy_phase")
+estimador-cag/app/generation/graph/reviewed_build.py:466: trailing whitespace.
++    builder.add_edge("review_policy_phase", "boss_action")
+estimador-cag/app/generation/graph/reviewed_build.py:467: trailing whitespace.
++    builder.add_conditional_edges(
+estimador-cag/app/generation/graph/reviewed_build.py:468: trailing whitespace.
++        "boss_action",
+estimador-cag/app/generation/graph/reviewed_build.py:469: trailing whitespace.
++        _boss_route,
+estimador-cag/app/generation/graph/reviewed_build.py:470: trailing whitespace.
++        {
+estimador-cag/app/generation/graph/reviewed_build.py:471: trailing whitespace.
++            "final_review": "final_estimate_review",
+estimador-cag/app/generation/graph/reviewed_build.py:472: trailing whitespace.
++            "recover": "final_recovery_phase",
+estimador-cag/app/generation/graph/reviewed_build.py:473: trailing whitespace.
++            "stop": END,
+estimador-cag/app/generation/graph/reviewed_build.py:474: trailing whitespace.
++        },
+estimador-cag/app/generation/graph/reviewed_build.py:475: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:476: trailing whitespace.
++    builder.add_conditional_edges(
+estimador-cag/app/generation/graph/reviewed_build.py:477: trailing whitespace.
++        "final_estimate_review",
+estimador-cag/app/generation/graph/reviewed_build.py:478: trailing whitespace.
++        _final_review_route,
+estimador-cag/app/generation/graph/reviewed_build.py:479: trailing whitespace.
++        {
+estimador-cag/app/generation/graph/reviewed_build.py:480: trailing whitespace.
++            "complete": "final_consolidation",
+estimador-cag/app/generation/graph/reviewed_build.py:481: trailing whitespace.
++            "stop": END,
+estimador-cag/app/generation/graph/reviewed_build.py:482: trailing whitespace.
++            "recover": "final_recovery_phase",
+estimador-cag/app/generation/graph/reviewed_build.py:483: trailing whitespace.
++        },
+estimador-cag/app/generation/graph/reviewed_build.py:484: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:485: trailing whitespace.
++    builder.add_edge("final_recovery_phase", "review_policy_phase")
+estimador-cag/app/generation/graph/reviewed_build.py:486: trailing whitespace.
++    builder.add_node(
+estimador-cag/app/generation/graph/reviewed_build.py:487: trailing whitespace.
++        "proposal",
+estimador-cag/app/generation/graph/reviewed_build.py:488: trailing whitespace.
++        _instrument(
+estimador-cag/app/generation/graph/reviewed_build.py:489: trailing whitespace.
++            graph_name=REVIEWED_GRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:490: trailing whitespace.
++            node_name="proposal",
+estimador-cag/app/generation/graph/reviewed_build.py:491: trailing whitespace.
++            node=build_proposal_node(),
+estimador-cag/app/generation/graph/reviewed_build.py:492: trailing whitespace.
++            tracer=tracer,
+estimador-cag/app/generation/graph/reviewed_build.py:493: trailing whitespace.
++        ),
+estimador-cag/app/generation/graph/reviewed_build.py:494: trailing whitespace.
++    )
+estimador-cag/app/generation/graph/reviewed_build.py:495: trailing whitespace.
++    builder.add_edge("final_consolidation", "proposal")
+estimador-cag/app/generation/graph/reviewed_build.py:496: trailing whitespace.
++    builder.add_edge("proposal", END)
+estimador-cag/app/generation/graph/reviewed_build.py:497: trailing whitespace.
++
+estimador-cag/app/generation/graph/reviewed_build.py:498: trailing whitespace.
++    return builder.compile(
+estimador-cag/app/generation/graph/reviewed_build.py:499: trailing whitespace.
++        checkpointer=checkpointer,
+estimador-cag/app/generation/graph/reviewed_build.py:500: trailing whitespace.
++        name=REVIEWED_GRAPH_NAME,
+estimador-cag/app/generation/graph/reviewed_build.py:501: trailing whitespace.
++    )
+estimador-cag/app/routers/reviewed_graph_estimations.py:1: trailing whitespace.
++"""Additive API for durable Session 13 Plus human-review executions."""
+estimador-cag/app/routers/reviewed_graph_estimations.py:2: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:3: trailing whitespace.
++from __future__ import annotations
+estimador-cag/app/routers/reviewed_graph_estimations.py:4: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:5: trailing whitespace.
++import asyncio
+estimador-cag/app/routers/reviewed_graph_estimations.py:6: trailing whitespace.
++import json
+estimador-cag/app/routers/reviewed_graph_estimations.py:7: trailing whitespace.
++import logging
+estimador-cag/app/routers/reviewed_graph_estimations.py:8: trailing whitespace.
++from collections.abc import AsyncIterator, Mapping
+estimador-cag/app/routers/reviewed_graph_estimations.py:9: trailing whitespace.
++from typing import cast
+estimador-cag/app/routers/reviewed_graph_estimations.py:10: trailing whitespace.
++from uuid import UUID, uuid4
+estimador-cag/app/routers/reviewed_graph_estimations.py:11: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:12: trailing whitespace.
++from fastapi import APIRouter, Depends, HTTPException, Request
+estimador-cag/app/routers/reviewed_graph_estimations.py:13: trailing whitespace.
++from pydantic import ValidationError
+estimador-cag/app/routers/reviewed_graph_estimations.py:14: trailing whitespace.
++from sse_starlette.sse import EventSourceResponse, ServerSentEvent
+estimador-cag/app/routers/reviewed_graph_estimations.py:15: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:16: trailing whitespace.
++from app.generation.graph.nodes.final_estimate_review import (
+estimador-cag/app/routers/reviewed_graph_estimations.py:17: trailing whitespace.
++    StaleFinalEstimateReviewError,
+estimador-cag/app/routers/reviewed_graph_estimations.py:18: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:19: trailing whitespace.
++from app.generation.graph.nodes.structure_review import StaleStructureReviewError
+estimador-cag/app/routers/reviewed_graph_estimations.py:20: trailing whitespace.
++from app.generation.graph.review_state import ReviewedEstimationGraphState
+estimador-cag/app/routers/reviewed_graph_estimations.py:21: trailing whitespace.
++from app.generation.graph.state import new_estimation_graph_state
+estimador-cag/app/routers/reviewed_graph_estimations.py:22: trailing whitespace.
++from app.schemas.review_policy import ExecutionBudgetSnapshot
+estimador-cag/app/routers/reviewed_graph_estimations.py:23: trailing whitespace.
++from app.schemas.reviewed_graph_estimation import (
+estimador-cag/app/routers/reviewed_graph_estimations.py:24: trailing whitespace.
++    ReviewedAuditPacketResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:25: trailing whitespace.
++    ReviewedCheckpointHistoryResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:26: trailing whitespace.
++    ReviewedCheckpointResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:27: trailing whitespace.
++    ReviewedGraphExecutionResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:28: trailing whitespace.
++    ReviewedGraphFinalResumeRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:29: trailing whitespace.
++    ReviewedGraphResumeRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:30: trailing whitespace.
++    ReviewedGraphStartRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:31: trailing whitespace.
++    ReviewedScenarioBranchRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:32: trailing whitespace.
++    ReviewedScenarioComparisonRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:33: trailing whitespace.
++    ReviewedScenarioComparisonResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:34: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:35: trailing whitespace.
++from app.services.audit_export import build_estimation_audit_packet
+estimador-cag/app/routers/reviewed_graph_estimations.py:36: trailing whitespace.
++from app.services.graph_estimation import thread_id_from_estimation_id
+estimador-cag/app/routers/reviewed_graph_estimations.py:37: trailing whitespace.
++from app.services.reviewed_graph_estimation import (
+estimador-cag/app/routers/reviewed_graph_estimations.py:38: trailing whitespace.
++    ReviewedGraphEstimationApplication,
+estimador-cag/app/routers/reviewed_graph_estimations.py:39: trailing whitespace.
++    ReviewedGraphNotFoundError,
+estimador-cag/app/routers/reviewed_graph_estimations.py:40: trailing whitespace.
++    ReviewedGraphRun,
+estimador-cag/app/routers/reviewed_graph_estimations.py:41: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:42: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:43: trailing whitespace.
++logger = logging.getLogger(__name__)
+estimador-cag/app/routers/reviewed_graph_estimations.py:44: trailing whitespace.
++router = APIRouter(prefix="/api/v1", tags=["reviewed-estimations"])
+estimador-cag/app/routers/reviewed_graph_estimations.py:45: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:46: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:47: trailing whitespace.
++def get_reviewed_graph_estimation_service(
+estimador-cag/app/routers/reviewed_graph_estimations.py:48: trailing whitespace.
++    request: Request,
+estimador-cag/app/routers/reviewed_graph_estimations.py:49: trailing whitespace.
++) -> ReviewedGraphEstimationApplication:
+estimador-cag/app/routers/reviewed_graph_estimations.py:50: trailing whitespace.
++    service = getattr(
+estimador-cag/app/routers/reviewed_graph_estimations.py:51: trailing whitespace.
++        request.app.state,
+estimador-cag/app/routers/reviewed_graph_estimations.py:52: trailing whitespace.
++        "reviewed_graph_estimation_service",
+estimador-cag/app/routers/reviewed_graph_estimations.py:53: trailing whitespace.
++        None,
+estimador-cag/app/routers/reviewed_graph_estimations.py:54: trailing whitespace.
++    )
+estimador-cag/app/routers/reviewed_graph_estimations.py:55: trailing whitespace.
++    if service is None:
+estimador-cag/app/routers/reviewed_graph_estimations.py:56: trailing whitespace.
++        raise HTTPException(
+estimador-cag/app/routers/reviewed_graph_estimations.py:57: trailing whitespace.
++            status_code=503,
+estimador-cag/app/routers/reviewed_graph_estimations.py:58: trailing whitespace.
++            detail="Reviewed estimation graph service is not available.",
+estimador-cag/app/routers/reviewed_graph_estimations.py:59: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:60: trailing whitespace.
++    return cast(ReviewedGraphEstimationApplication, service)
+estimador-cag/app/routers/reviewed_graph_estimations.py:61: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:62: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:63: trailing whitespace.
++def reviewed_graph_response_from_run(
+estimador-cag/app/routers/reviewed_graph_estimations.py:64: trailing whitespace.
++    run: ReviewedGraphRun,
+estimador-cag/app/routers/reviewed_graph_estimations.py:65: trailing whitespace.
++) -> ReviewedGraphExecutionResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:66: trailing whitespace.
++    state = run.state
+estimador-cag/app/routers/reviewed_graph_estimations.py:67: trailing whitespace.
++    return ReviewedGraphExecutionResponse.model_validate(
+estimador-cag/app/routers/reviewed_graph_estimations.py:68: trailing whitespace.
++        {
+estimador-cag/app/routers/reviewed_graph_estimations.py:69: trailing whitespace.
++            "execution_status": run.execution_status,
+estimador-cag/app/routers/reviewed_graph_estimations.py:70: trailing whitespace.
++            "estimation_id": run.estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:71: trailing whitespace.
++            "thread_id": run.thread_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:72: trailing whitespace.
++            "graph_version": state.get("graph_version"),
+estimador-cag/app/routers/reviewed_graph_estimations.py:73: trailing whitespace.
++            "graph_status": state.get("status", "pending"),
+estimador-cag/app/routers/reviewed_graph_estimations.py:74: trailing whitespace.
++            "review_required": bool(state.get("review_required", False)),
+estimador-cag/app/routers/reviewed_graph_estimations.py:75: trailing whitespace.
++            "human_review_mode": state.get("human_review_mode", "risk_based"),
+estimador-cag/app/routers/reviewed_graph_estimations.py:76: trailing whitespace.
++            "structure_review_revision": state.get("structure_review_revision", 0),
+estimador-cag/app/routers/reviewed_graph_estimations.py:77: trailing whitespace.
++            "structure_review_status": state.get("structure_review_status"),
+estimador-cag/app/routers/reviewed_graph_estimations.py:78: trailing whitespace.
++            "final_review_revision": state.get("final_review_revision", 0),
+estimador-cag/app/routers/reviewed_graph_estimations.py:79: trailing whitespace.
++            "final_review_status": state.get("final_review_status"),
+estimador-cag/app/routers/reviewed_graph_estimations.py:80: trailing whitespace.
++            "next_nodes": list(run.next_nodes),
+estimador-cag/app/routers/reviewed_graph_estimations.py:81: trailing whitespace.
++            "interrupts": list(run.interrupts),
+estimador-cag/app/routers/reviewed_graph_estimations.py:82: trailing whitespace.
++            "state": dict(state),
+estimador-cag/app/routers/reviewed_graph_estimations.py:83: trailing whitespace.
++        }
+estimador-cag/app/routers/reviewed_graph_estimations.py:84: trailing whitespace.
++    )
+estimador-cag/app/routers/reviewed_graph_estimations.py:85: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:86: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:87: trailing whitespace.
++@router.post(
+estimador-cag/app/routers/reviewed_graph_estimations.py:88: trailing whitespace.
++    "/estimate/graph/reviewed/start",
+estimador-cag/app/routers/reviewed_graph_estimations.py:89: trailing whitespace.
++    response_model=ReviewedGraphExecutionResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:90: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:91: trailing whitespace.
++async def start_reviewed_graph_estimation(
+estimador-cag/app/routers/reviewed_graph_estimations.py:92: trailing whitespace.
++    payload: ReviewedGraphStartRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:93: trailing whitespace.
++    service: ReviewedGraphEstimationApplication = Depends(
+estimador-cag/app/routers/reviewed_graph_estimations.py:94: trailing whitespace.
++        get_reviewed_graph_estimation_service
+estimador-cag/app/routers/reviewed_graph_estimations.py:95: trailing whitespace.
++    ),
+estimador-cag/app/routers/reviewed_graph_estimations.py:96: trailing whitespace.
++) -> ReviewedGraphExecutionResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:97: trailing whitespace.
++    try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:98: trailing whitespace.
++        run = await service.start(
+estimador-cag/app/routers/reviewed_graph_estimations.py:99: trailing whitespace.
++            transcript=payload.transcript,
+estimador-cag/app/routers/reviewed_graph_estimations.py:100: trailing whitespace.
++            human_review_mode=payload.human_review_mode,
+estimador-cag/app/routers/reviewed_graph_estimations.py:101: trailing whitespace.
++            estimation_id=payload.estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:102: trailing whitespace.
++            provider=payload.provider,
+estimador-cag/app/routers/reviewed_graph_estimations.py:103: trailing whitespace.
++            reasoning=payload.reasoning,
+estimador-cag/app/routers/reviewed_graph_estimations.py:104: trailing whitespace.
++            context_detail=payload.context_detail,
+estimador-cag/app/routers/reviewed_graph_estimations.py:105: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:106: trailing whitespace.
++        return reviewed_graph_response_from_run(run)
+estimador-cag/app/routers/reviewed_graph_estimations.py:107: trailing whitespace.
++    except ValidationError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:108: trailing whitespace.
++        logger.exception("reviewed_graph_response_invalid")
+estimador-cag/app/routers/reviewed_graph_estimations.py:109: trailing whitespace.
++        raise HTTPException(
+estimador-cag/app/routers/reviewed_graph_estimations.py:110: trailing whitespace.
++            status_code=502,
+estimador-cag/app/routers/reviewed_graph_estimations.py:111: trailing whitespace.
++            detail="Reviewed graph produced an invalid response.",
+estimador-cag/app/routers/reviewed_graph_estimations.py:112: trailing whitespace.
++        ) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:113: trailing whitespace.
++    except Exception as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:114: trailing whitespace.
++        logger.exception("reviewed_graph_start_failed")
+estimador-cag/app/routers/reviewed_graph_estimations.py:115: trailing whitespace.
++        raise HTTPException(
+estimador-cag/app/routers/reviewed_graph_estimations.py:116: trailing whitespace.
++            status_code=502,
+estimador-cag/app/routers/reviewed_graph_estimations.py:117: trailing whitespace.
++            detail="Failed to start reviewed graph estimation.",
+estimador-cag/app/routers/reviewed_graph_estimations.py:118: trailing whitespace.
++        ) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:119: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:120: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:121: trailing whitespace.
++@router.post(
+estimador-cag/app/routers/reviewed_graph_estimations.py:122: trailing whitespace.
++    "/estimate/graph/reviewed/{estimation_id}/resume",
+estimador-cag/app/routers/reviewed_graph_estimations.py:123: trailing whitespace.
++    response_model=ReviewedGraphExecutionResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:124: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:125: trailing whitespace.
++async def resume_reviewed_graph_estimation(
+estimador-cag/app/routers/reviewed_graph_estimations.py:126: trailing whitespace.
++    estimation_id: UUID,
+estimador-cag/app/routers/reviewed_graph_estimations.py:127: trailing whitespace.
++    payload: ReviewedGraphResumeRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:128: trailing whitespace.
++    service: ReviewedGraphEstimationApplication = Depends(
+estimador-cag/app/routers/reviewed_graph_estimations.py:129: trailing whitespace.
++        get_reviewed_graph_estimation_service
+estimador-cag/app/routers/reviewed_graph_estimations.py:130: trailing whitespace.
++    ),
+estimador-cag/app/routers/reviewed_graph_estimations.py:131: trailing whitespace.
++) -> ReviewedGraphExecutionResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:132: trailing whitespace.
++    try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:133: trailing whitespace.
++        run = await service.resume_structure_review(
+estimador-cag/app/routers/reviewed_graph_estimations.py:134: trailing whitespace.
++            estimation_id=estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:135: trailing whitespace.
++            decision=payload,
+estimador-cag/app/routers/reviewed_graph_estimations.py:136: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:137: trailing whitespace.
++        return reviewed_graph_response_from_run(run)
+estimador-cag/app/routers/reviewed_graph_estimations.py:138: trailing whitespace.
++    except ReviewedGraphNotFoundError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:139: trailing whitespace.
++        raise HTTPException(status_code=404, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:140: trailing whitespace.
++    except StaleStructureReviewError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:141: trailing whitespace.
++        raise HTTPException(status_code=409, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:142: trailing whitespace.
++    except ValidationError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:143: trailing whitespace.
++        logger.exception("reviewed_graph_resume_response_invalid")
+estimador-cag/app/routers/reviewed_graph_estimations.py:144: trailing whitespace.
++        raise HTTPException(
+estimador-cag/app/routers/reviewed_graph_estimations.py:145: trailing whitespace.
++            status_code=502,
+estimador-cag/app/routers/reviewed_graph_estimations.py:146: trailing whitespace.
++            detail="Reviewed graph produced an invalid response.",
+estimador-cag/app/routers/reviewed_graph_estimations.py:147: trailing whitespace.
++        ) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:148: trailing whitespace.
++    except Exception as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:149: trailing whitespace.
++        logger.exception("reviewed_graph_resume_failed")
+estimador-cag/app/routers/reviewed_graph_estimations.py:150: trailing whitespace.
++        raise HTTPException(
+estimador-cag/app/routers/reviewed_graph_estimations.py:151: trailing whitespace.
++            status_code=502,
+estimador-cag/app/routers/reviewed_graph_estimations.py:152: trailing whitespace.
++            detail="Failed to resume reviewed graph estimation.",
+estimador-cag/app/routers/reviewed_graph_estimations.py:153: trailing whitespace.
++        ) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:154: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:155: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:156: trailing whitespace.
++@router.post(
+estimador-cag/app/routers/reviewed_graph_estimations.py:157: trailing whitespace.
++    "/estimate/graph/reviewed/{estimation_id}/resume/final",
+estimador-cag/app/routers/reviewed_graph_estimations.py:158: trailing whitespace.
++    response_model=ReviewedGraphExecutionResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:159: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:160: trailing whitespace.
++async def resume_final_reviewed_graph_estimation(
+estimador-cag/app/routers/reviewed_graph_estimations.py:161: trailing whitespace.
++    estimation_id: UUID,
+estimador-cag/app/routers/reviewed_graph_estimations.py:162: trailing whitespace.
++    payload: ReviewedGraphFinalResumeRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:163: trailing whitespace.
++    service: ReviewedGraphEstimationApplication = Depends(
+estimador-cag/app/routers/reviewed_graph_estimations.py:164: trailing whitespace.
++        get_reviewed_graph_estimation_service
+estimador-cag/app/routers/reviewed_graph_estimations.py:165: trailing whitespace.
++    ),
+estimador-cag/app/routers/reviewed_graph_estimations.py:166: trailing whitespace.
++) -> ReviewedGraphExecutionResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:167: trailing whitespace.
++    try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:168: trailing whitespace.
++        run = await service.resume_final_review(
+estimador-cag/app/routers/reviewed_graph_estimations.py:169: trailing whitespace.
++            estimation_id=estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:170: trailing whitespace.
++            decision=payload,
+estimador-cag/app/routers/reviewed_graph_estimations.py:171: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:172: trailing whitespace.
++        return reviewed_graph_response_from_run(run)
+estimador-cag/app/routers/reviewed_graph_estimations.py:173: trailing whitespace.
++    except ReviewedGraphNotFoundError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:174: trailing whitespace.
++        raise HTTPException(status_code=404, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:175: trailing whitespace.
++    except StaleFinalEstimateReviewError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:176: trailing whitespace.
++        raise HTTPException(status_code=409, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:177: trailing whitespace.
++    except ValidationError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:178: trailing whitespace.
++        logger.exception("reviewed_graph_final_resume_response_invalid")
+estimador-cag/app/routers/reviewed_graph_estimations.py:179: trailing whitespace.
++        raise HTTPException(
+estimador-cag/app/routers/reviewed_graph_estimations.py:180: trailing whitespace.
++            status_code=502,
+estimador-cag/app/routers/reviewed_graph_estimations.py:181: trailing whitespace.
++            detail="Reviewed graph produced an invalid response.",
+estimador-cag/app/routers/reviewed_graph_estimations.py:182: trailing whitespace.
++        ) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:183: trailing whitespace.
++    except Exception as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:184: trailing whitespace.
++        logger.exception("reviewed_graph_final_resume_failed")
+estimador-cag/app/routers/reviewed_graph_estimations.py:185: trailing whitespace.
++        raise HTTPException(
+estimador-cag/app/routers/reviewed_graph_estimations.py:186: trailing whitespace.
++            status_code=502,
+estimador-cag/app/routers/reviewed_graph_estimations.py:187: trailing whitespace.
++            detail="Failed to resume final estimate review.",
+estimador-cag/app/routers/reviewed_graph_estimations.py:188: trailing whitespace.
++        ) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:189: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:190: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:191: trailing whitespace.
++@router.get(
+estimador-cag/app/routers/reviewed_graph_estimations.py:192: trailing whitespace.
++    "/estimate/graph/reviewed/{estimation_id}/checkpoints",
+estimador-cag/app/routers/reviewed_graph_estimations.py:193: trailing whitespace.
++    response_model=ReviewedCheckpointHistoryResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:194: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:195: trailing whitespace.
++async def list_reviewed_checkpoints(
+estimador-cag/app/routers/reviewed_graph_estimations.py:196: trailing whitespace.
++    estimation_id: UUID,
+estimador-cag/app/routers/reviewed_graph_estimations.py:197: trailing whitespace.
++    limit: int = 50,
+estimador-cag/app/routers/reviewed_graph_estimations.py:198: trailing whitespace.
++    service: ReviewedGraphEstimationApplication = Depends(
+estimador-cag/app/routers/reviewed_graph_estimations.py:199: trailing whitespace.
++        get_reviewed_graph_estimation_service
+estimador-cag/app/routers/reviewed_graph_estimations.py:200: trailing whitespace.
++    ),
+estimador-cag/app/routers/reviewed_graph_estimations.py:201: trailing whitespace.
++) -> ReviewedCheckpointHistoryResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:202: trailing whitespace.
++    try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:203: trailing whitespace.
++        records = await service.checkpoint_history(
+estimador-cag/app/routers/reviewed_graph_estimations.py:204: trailing whitespace.
++            estimation_id=estimation_id, limit=limit
+estimador-cag/app/routers/reviewed_graph_estimations.py:205: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:206: trailing whitespace.
++        return ReviewedCheckpointHistoryResponse(
+estimador-cag/app/routers/reviewed_graph_estimations.py:207: trailing whitespace.
++            estimation_id=estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:208: trailing whitespace.
++            checkpoints=[
+estimador-cag/app/routers/reviewed_graph_estimations.py:209: trailing whitespace.
++                ReviewedCheckpointResponse(
+estimador-cag/app/routers/reviewed_graph_estimations.py:210: trailing whitespace.
++                    checkpoint_id=item.checkpoint_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:211: trailing whitespace.
++                    created_at=item.created_at,
+estimador-cag/app/routers/reviewed_graph_estimations.py:212: trailing whitespace.
++                    next_nodes=list(item.next_nodes),
+estimador-cag/app/routers/reviewed_graph_estimations.py:213: trailing whitespace.
++                    state=dict(item.state),
+estimador-cag/app/routers/reviewed_graph_estimations.py:214: trailing whitespace.
++                )
+estimador-cag/app/routers/reviewed_graph_estimations.py:215: trailing whitespace.
++                for item in records
+estimador-cag/app/routers/reviewed_graph_estimations.py:216: trailing whitespace.
++            ],
+estimador-cag/app/routers/reviewed_graph_estimations.py:217: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:218: trailing whitespace.
++    except (LookupError, ReviewedGraphNotFoundError) as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:219: trailing whitespace.
++        raise HTTPException(status_code=404, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:220: trailing whitespace.
++    except ValueError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:221: trailing whitespace.
++        raise HTTPException(status_code=422, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:222: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:223: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:224: trailing whitespace.
++@router.get(
+estimador-cag/app/routers/reviewed_graph_estimations.py:225: trailing whitespace.
++    "/estimate/graph/reviewed/{estimation_id}/checkpoints/{checkpoint_id}",
+estimador-cag/app/routers/reviewed_graph_estimations.py:226: trailing whitespace.
++    response_model=ReviewedCheckpointResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:227: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:228: trailing whitespace.
++async def inspect_reviewed_checkpoint(
+estimador-cag/app/routers/reviewed_graph_estimations.py:229: trailing whitespace.
++    estimation_id: UUID,
+estimador-cag/app/routers/reviewed_graph_estimations.py:230: trailing whitespace.
++    checkpoint_id: str,
+estimador-cag/app/routers/reviewed_graph_estimations.py:231: trailing whitespace.
++    service: ReviewedGraphEstimationApplication = Depends(
+estimador-cag/app/routers/reviewed_graph_estimations.py:232: trailing whitespace.
++        get_reviewed_graph_estimation_service
+estimador-cag/app/routers/reviewed_graph_estimations.py:233: trailing whitespace.
++    ),
+estimador-cag/app/routers/reviewed_graph_estimations.py:234: trailing whitespace.
++) -> ReviewedCheckpointResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:235: trailing whitespace.
++    try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:236: trailing whitespace.
++        item = await service.inspect_checkpoint(
+estimador-cag/app/routers/reviewed_graph_estimations.py:237: trailing whitespace.
++            estimation_id=estimation_id, checkpoint_id=checkpoint_id
+estimador-cag/app/routers/reviewed_graph_estimations.py:238: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:239: trailing whitespace.
++        return ReviewedCheckpointResponse(
+estimador-cag/app/routers/reviewed_graph_estimations.py:240: trailing whitespace.
++            checkpoint_id=item.checkpoint_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:241: trailing whitespace.
++            created_at=item.created_at,
+estimador-cag/app/routers/reviewed_graph_estimations.py:242: trailing whitespace.
++            next_nodes=list(item.next_nodes),
+estimador-cag/app/routers/reviewed_graph_estimations.py:243: trailing whitespace.
++            state=dict(item.state),
+estimador-cag/app/routers/reviewed_graph_estimations.py:244: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:245: trailing whitespace.
++    except (LookupError, ReviewedGraphNotFoundError) as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:246: trailing whitespace.
++        raise HTTPException(status_code=404, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:247: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:248: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:249: trailing whitespace.
++@router.post(
+estimador-cag/app/routers/reviewed_graph_estimations.py:250: trailing whitespace.
++    "/estimate/graph/reviewed/{estimation_id}/scenarios",
+estimador-cag/app/routers/reviewed_graph_estimations.py:251: trailing whitespace.
++    response_model=ReviewedGraphExecutionResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:252: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:253: trailing whitespace.
++async def branch_reviewed_scenario(
+estimador-cag/app/routers/reviewed_graph_estimations.py:254: trailing whitespace.
++    estimation_id: UUID,
+estimador-cag/app/routers/reviewed_graph_estimations.py:255: trailing whitespace.
++    payload: ReviewedScenarioBranchRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:256: trailing whitespace.
++    service: ReviewedGraphEstimationApplication = Depends(
+estimador-cag/app/routers/reviewed_graph_estimations.py:257: trailing whitespace.
++        get_reviewed_graph_estimation_service
+estimador-cag/app/routers/reviewed_graph_estimations.py:258: trailing whitespace.
++    ),
+estimador-cag/app/routers/reviewed_graph_estimations.py:259: trailing whitespace.
++) -> ReviewedGraphExecutionResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:260: trailing whitespace.
++    try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:261: trailing whitespace.
++        run = await service.branch_scenario(
+estimador-cag/app/routers/reviewed_graph_estimations.py:262: trailing whitespace.
++            estimation_id=estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:263: trailing whitespace.
++            checkpoint_id=payload.checkpoint_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:264: trailing whitespace.
++            scenario_id=payload.scenario_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:265: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:266: trailing whitespace.
++        return reviewed_graph_response_from_run(run)
+estimador-cag/app/routers/reviewed_graph_estimations.py:267: trailing whitespace.
++    except (LookupError, ReviewedGraphNotFoundError) as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:268: trailing whitespace.
++        raise HTTPException(status_code=404, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:269: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:270: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:271: trailing whitespace.
++@router.post(
+estimador-cag/app/routers/reviewed_graph_estimations.py:272: trailing whitespace.
++    "/estimate/graph/reviewed/scenarios/compare",
+estimador-cag/app/routers/reviewed_graph_estimations.py:273: trailing whitespace.
++    response_model=ReviewedScenarioComparisonResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:274: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:275: trailing whitespace.
++async def compare_reviewed_scenarios(
+estimador-cag/app/routers/reviewed_graph_estimations.py:276: trailing whitespace.
++    payload: ReviewedScenarioComparisonRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:277: trailing whitespace.
++    service: ReviewedGraphEstimationApplication = Depends(
+estimador-cag/app/routers/reviewed_graph_estimations.py:278: trailing whitespace.
++        get_reviewed_graph_estimation_service
+estimador-cag/app/routers/reviewed_graph_estimations.py:279: trailing whitespace.
++    ),
+estimador-cag/app/routers/reviewed_graph_estimations.py:280: trailing whitespace.
++) -> ReviewedScenarioComparisonResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:281: trailing whitespace.
++    comparison = await service.compare_scenarios(
+estimador-cag/app/routers/reviewed_graph_estimations.py:282: trailing whitespace.
++        left_estimation_id=payload.left_estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:283: trailing whitespace.
++        right_estimation_id=payload.right_estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:284: trailing whitespace.
++    )
+estimador-cag/app/routers/reviewed_graph_estimations.py:285: trailing whitespace.
++    return ReviewedScenarioComparisonResponse(
+estimador-cag/app/routers/reviewed_graph_estimations.py:286: trailing whitespace.
++        left_estimation_id=payload.left_estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:287: trailing whitespace.
++        right_estimation_id=payload.right_estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:288: trailing whitespace.
++        comparison=comparison,
+estimador-cag/app/routers/reviewed_graph_estimations.py:289: trailing whitespace.
++    )
+estimador-cag/app/routers/reviewed_graph_estimations.py:290: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:291: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:292: trailing whitespace.
++@router.get(
+estimador-cag/app/routers/reviewed_graph_estimations.py:293: trailing whitespace.
++    "/estimate/graph/reviewed/{estimation_id}/audit",
+estimador-cag/app/routers/reviewed_graph_estimations.py:294: trailing whitespace.
++    response_model=ReviewedAuditPacketResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:295: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:296: trailing whitespace.
++async def export_reviewed_audit_packet(
+estimador-cag/app/routers/reviewed_graph_estimations.py:297: trailing whitespace.
++    estimation_id: UUID,
+estimador-cag/app/routers/reviewed_graph_estimations.py:298: trailing whitespace.
++    service: ReviewedGraphEstimationApplication = Depends(
+estimador-cag/app/routers/reviewed_graph_estimations.py:299: trailing whitespace.
++        get_reviewed_graph_estimation_service
+estimador-cag/app/routers/reviewed_graph_estimations.py:300: trailing whitespace.
++    ),
+estimador-cag/app/routers/reviewed_graph_estimations.py:301: trailing whitespace.
++) -> ReviewedAuditPacketResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:302: trailing whitespace.
++    try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:303: trailing whitespace.
++        run = await service.inspect(estimation_id=estimation_id)
+estimador-cag/app/routers/reviewed_graph_estimations.py:304: trailing whitespace.
++        history = await service.checkpoint_history(estimation_id=estimation_id, limit=1)
+estimador-cag/app/routers/reviewed_graph_estimations.py:305: trailing whitespace.
++        packet = build_estimation_audit_packet(
+estimador-cag/app/routers/reviewed_graph_estimations.py:306: trailing whitespace.
++            run.state,
+estimador-cag/app/routers/reviewed_graph_estimations.py:307: trailing whitespace.
++            thread_id=run.thread_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:308: trailing whitespace.
++            checkpoint_id=history[0].checkpoint_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:309: trailing whitespace.
++            limitations=[
+estimador-cag/app/routers/reviewed_graph_estimations.py:310: trailing whitespace.
++                "Live provider, browser, telemetry, and PostgreSQL restart evidence are separate promotion artifacts."
+estimador-cag/app/routers/reviewed_graph_estimations.py:311: trailing whitespace.
++            ],
+estimador-cag/app/routers/reviewed_graph_estimations.py:312: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:313: trailing whitespace.
++        return ReviewedAuditPacketResponse(packet=packet)
+estimador-cag/app/routers/reviewed_graph_estimations.py:314: trailing whitespace.
++    except (LookupError, ReviewedGraphNotFoundError) as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:315: trailing whitespace.
++        raise HTTPException(status_code=404, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:316: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:317: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:318: trailing whitespace.
++@router.get(
+estimador-cag/app/routers/reviewed_graph_estimations.py:319: trailing whitespace.
++    "/estimate/graph/reviewed/{estimation_id}",
+estimador-cag/app/routers/reviewed_graph_estimations.py:320: trailing whitespace.
++    response_model=ReviewedGraphExecutionResponse,
+estimador-cag/app/routers/reviewed_graph_estimations.py:321: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:322: trailing whitespace.
++async def inspect_reviewed_graph_estimation(
+estimador-cag/app/routers/reviewed_graph_estimations.py:323: trailing whitespace.
++    estimation_id: UUID,
+estimador-cag/app/routers/reviewed_graph_estimations.py:324: trailing whitespace.
++    service: ReviewedGraphEstimationApplication = Depends(
+estimador-cag/app/routers/reviewed_graph_estimations.py:325: trailing whitespace.
++        get_reviewed_graph_estimation_service
+estimador-cag/app/routers/reviewed_graph_estimations.py:326: trailing whitespace.
++    ),
+estimador-cag/app/routers/reviewed_graph_estimations.py:327: trailing whitespace.
++) -> ReviewedGraphExecutionResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:328: trailing whitespace.
++    try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:329: trailing whitespace.
++        run = await service.inspect(estimation_id=estimation_id)
+estimador-cag/app/routers/reviewed_graph_estimations.py:330: trailing whitespace.
++        return reviewed_graph_response_from_run(run)
+estimador-cag/app/routers/reviewed_graph_estimations.py:331: trailing whitespace.
++    except ReviewedGraphNotFoundError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:332: trailing whitespace.
++        raise HTTPException(status_code=404, detail=str(exc)) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:333: trailing whitespace.
++    except ValidationError as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:334: trailing whitespace.
++        logger.exception("reviewed_graph_inspection_response_invalid")
+estimador-cag/app/routers/reviewed_graph_estimations.py:335: trailing whitespace.
++        raise HTTPException(
+estimador-cag/app/routers/reviewed_graph_estimations.py:336: trailing whitespace.
++            status_code=502,
+estimador-cag/app/routers/reviewed_graph_estimations.py:337: trailing whitespace.
++            detail="Reviewed graph checkpoint is invalid.",
+estimador-cag/app/routers/reviewed_graph_estimations.py:338: trailing whitespace.
++        ) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:339: trailing whitespace.
++    except Exception as exc:
+estimador-cag/app/routers/reviewed_graph_estimations.py:340: trailing whitespace.
++        logger.exception("reviewed_graph_inspection_failed")
+estimador-cag/app/routers/reviewed_graph_estimations.py:341: trailing whitespace.
++        raise HTTPException(
+estimador-cag/app/routers/reviewed_graph_estimations.py:342: trailing whitespace.
++            status_code=502,
+estimador-cag/app/routers/reviewed_graph_estimations.py:343: trailing whitespace.
++            detail="Failed to inspect reviewed graph estimation.",
+estimador-cag/app/routers/reviewed_graph_estimations.py:344: trailing whitespace.
++        ) from exc
+estimador-cag/app/routers/reviewed_graph_estimations.py:345: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:346: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:347: trailing whitespace.
++_SSE_ALLOWED_SCALAR_KEYS = frozenset(
+estimador-cag/app/routers/reviewed_graph_estimations.py:348: trailing whitespace.
++    {
+estimador-cag/app/routers/reviewed_graph_estimations.py:349: trailing whitespace.
++        "status",
+estimador-cag/app/routers/reviewed_graph_estimations.py:350: trailing whitespace.
++        "review_required",
+estimador-cag/app/routers/reviewed_graph_estimations.py:351: trailing whitespace.
++        "structure_review_revision",
+estimador-cag/app/routers/reviewed_graph_estimations.py:352: trailing whitespace.
++        "structure_review_status",
+estimador-cag/app/routers/reviewed_graph_estimations.py:353: trailing whitespace.
++        "final_review_revision",
+estimador-cag/app/routers/reviewed_graph_estimations.py:354: trailing whitespace.
++        "final_review_status",
+estimador-cag/app/routers/reviewed_graph_estimations.py:355: trailing whitespace.
++    }
+estimador-cag/app/routers/reviewed_graph_estimations.py:356: trailing whitespace.
++)
+estimador-cag/app/routers/reviewed_graph_estimations.py:357: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:358: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:359: trailing whitespace.
++def _stream_identity(estimation_id: UUID | None) -> tuple[UUID, str]:
+estimador-cag/app/routers/reviewed_graph_estimations.py:360: trailing whitespace.
++    resolved = estimation_id or uuid4()
+estimador-cag/app/routers/reviewed_graph_estimations.py:361: trailing whitespace.
++    return resolved, thread_id_from_estimation_id(str(resolved))
+estimador-cag/app/routers/reviewed_graph_estimations.py:362: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:363: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:364: trailing whitespace.
++def _safe_activity_delta(node_name: str, delta: object) -> dict[str, object]:
+estimador-cag/app/routers/reviewed_graph_estimations.py:365: trailing whitespace.
++    """Project one graph update into an allow-listed public activity event."""
+estimador-cag/app/routers/reviewed_graph_estimations.py:366: trailing whitespace.
++    if not isinstance(delta, Mapping):
+estimador-cag/app/routers/reviewed_graph_estimations.py:367: trailing whitespace.
++        return {"node": node_name, "updated_keys": []}
+estimador-cag/app/routers/reviewed_graph_estimations.py:368: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:369: trailing whitespace.
++    payload: dict[str, object] = {
+estimador-cag/app/routers/reviewed_graph_estimations.py:370: trailing whitespace.
++        "node": node_name,
+estimador-cag/app/routers/reviewed_graph_estimations.py:371: trailing whitespace.
++        "updated_keys": sorted(str(key) for key in delta if key in _SSE_ALLOWED_SCALAR_KEYS),
+estimador-cag/app/routers/reviewed_graph_estimations.py:372: trailing whitespace.
++    }
+estimador-cag/app/routers/reviewed_graph_estimations.py:373: trailing whitespace.
++    for key in _SSE_ALLOWED_SCALAR_KEYS:
+estimador-cag/app/routers/reviewed_graph_estimations.py:374: trailing whitespace.
++        value = delta.get(key)
+estimador-cag/app/routers/reviewed_graph_estimations.py:375: trailing whitespace.
++        if isinstance(value, (str, int, float, bool)) or value is None:
+estimador-cag/app/routers/reviewed_graph_estimations.py:376: trailing whitespace.
++            if key in delta:
+estimador-cag/app/routers/reviewed_graph_estimations.py:377: trailing whitespace.
++                payload[key] = value
+estimador-cag/app/routers/reviewed_graph_estimations.py:378: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:379: trailing whitespace.
++    trace_events = delta.get("trace_events")
+estimador-cag/app/routers/reviewed_graph_estimations.py:380: trailing whitespace.
++    if isinstance(trace_events, list):
+estimador-cag/app/routers/reviewed_graph_estimations.py:381: trailing whitespace.
++        payload["trace_events"] = [
+estimador-cag/app/routers/reviewed_graph_estimations.py:382: trailing whitespace.
++            {
+estimador-cag/app/routers/reviewed_graph_estimations.py:383: trailing whitespace.
++                "event_type": str(event.get("event_type", "unknown")),
+estimador-cag/app/routers/reviewed_graph_estimations.py:384: trailing whitespace.
++                "node": str(event.get("node", node_name)),
+estimador-cag/app/routers/reviewed_graph_estimations.py:385: trailing whitespace.
++                "state_delta_keys": [
+estimador-cag/app/routers/reviewed_graph_estimations.py:386: trailing whitespace.
++                    str(item) for item in event.get("state_delta_keys", []) if isinstance(item, str)
+estimador-cag/app/routers/reviewed_graph_estimations.py:387: trailing whitespace.
++                ],
+estimador-cag/app/routers/reviewed_graph_estimations.py:388: trailing whitespace.
++            }
+estimador-cag/app/routers/reviewed_graph_estimations.py:389: trailing whitespace.
++            for event in trace_events
+estimador-cag/app/routers/reviewed_graph_estimations.py:390: trailing whitespace.
++            if isinstance(event, Mapping)
+estimador-cag/app/routers/reviewed_graph_estimations.py:391: trailing whitespace.
++        ]
+estimador-cag/app/routers/reviewed_graph_estimations.py:392: trailing whitespace.
++    return payload
+estimador-cag/app/routers/reviewed_graph_estimations.py:393: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:394: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:395: trailing whitespace.
++def _terminal_event_payload(run: ReviewedGraphRun) -> dict[str, object]:
+estimador-cag/app/routers/reviewed_graph_estimations.py:396: trailing whitespace.
++    return {
+estimador-cag/app/routers/reviewed_graph_estimations.py:397: trailing whitespace.
++        "status": run.execution_status,
+estimador-cag/app/routers/reviewed_graph_estimations.py:398: trailing whitespace.
++        "estimation_id": run.estimation_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:399: trailing whitespace.
++        "thread_id": run.thread_id,
+estimador-cag/app/routers/reviewed_graph_estimations.py:400: trailing whitespace.
++        "next_nodes": list(run.next_nodes),
+estimador-cag/app/routers/reviewed_graph_estimations.py:401: trailing whitespace.
++        "interrupt_count": len(run.interrupts),
+estimador-cag/app/routers/reviewed_graph_estimations.py:402: trailing whitespace.
++    }
+estimador-cag/app/routers/reviewed_graph_estimations.py:403: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:404: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:405: trailing whitespace.
++@router.post("/estimate/graph/reviewed/stream")
+estimador-cag/app/routers/reviewed_graph_estimations.py:406: trailing whitespace.
++async def stream_reviewed_graph_estimation(
+estimador-cag/app/routers/reviewed_graph_estimations.py:407: trailing whitespace.
++    payload: ReviewedGraphStartRequest,
+estimador-cag/app/routers/reviewed_graph_estimations.py:408: trailing whitespace.
++    request: Request,
+estimador-cag/app/routers/reviewed_graph_estimations.py:409: trailing whitespace.
++) -> EventSourceResponse:
+estimador-cag/app/routers/reviewed_graph_estimations.py:410: trailing whitespace.
++    """Stream allow-listed reviewed-graph activity without exposing graph state."""
+estimador-cag/app/routers/reviewed_graph_estimations.py:411: trailing whitespace.
++    service = get_reviewed_graph_estimation_service(request)
+estimador-cag/app/routers/reviewed_graph_estimations.py:412: trailing whitespace.
++    resolved_id, thread_id = _stream_identity(payload.estimation_id)
+estimador-cag/app/routers/reviewed_graph_estimations.py:413: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:414: trailing whitespace.
++    initial_state = ReviewedEstimationGraphState(
+estimador-cag/app/routers/reviewed_graph_estimations.py:415: trailing whitespace.
++        **new_estimation_graph_state(
+estimador-cag/app/routers/reviewed_graph_estimations.py:416: trailing whitespace.
++            transcript=payload.transcript,
+estimador-cag/app/routers/reviewed_graph_estimations.py:417: trailing whitespace.
++            estimation_id=str(resolved_id),
+estimador-cag/app/routers/reviewed_graph_estimations.py:418: trailing whitespace.
++            graph_version="session13.plus.v1",
+estimador-cag/app/routers/reviewed_graph_estimations.py:419: trailing whitespace.
++        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:420: trailing whitespace.
++    )
+estimador-cag/app/routers/reviewed_graph_estimations.py:421: trailing whitespace.
++    initial_state.update(
+estimador-cag/app/routers/reviewed_graph_estimations.py:422: trailing whitespace.
++        {
+estimador-cag/app/routers/reviewed_graph_estimations.py:423: trailing whitespace.
++            "human_review_mode": payload.human_review_mode,
+estimador-cag/app/routers/reviewed_graph_estimations.py:424: trailing whitespace.
++            "structure_review_revision": 0,
+estimador-cag/app/routers/reviewed_graph_estimations.py:425: trailing whitespace.
++            "final_review_revision": 0,
+estimador-cag/app/routers/reviewed_graph_estimations.py:426: trailing whitespace.
++            "execution_budgets": ExecutionBudgetSnapshot().model_dump(mode="json"),
+estimador-cag/app/routers/reviewed_graph_estimations.py:427: trailing whitespace.
++        }
+estimador-cag/app/routers/reviewed_graph_estimations.py:428: trailing whitespace.
++    )
+estimador-cag/app/routers/reviewed_graph_estimations.py:429: trailing whitespace.
++    if payload.provider or payload.reasoning or payload.context_detail:
+estimador-cag/app/routers/reviewed_graph_estimations.py:430: trailing whitespace.
++        initial_state["provider_selection"] = {
+estimador-cag/app/routers/reviewed_graph_estimations.py:431: trailing whitespace.
++            "provider": payload.provider or "deepseek",
+estimador-cag/app/routers/reviewed_graph_estimations.py:432: trailing whitespace.
++            "reasoning": payload.reasoning or "medium",
+estimador-cag/app/routers/reviewed_graph_estimations.py:433: trailing whitespace.
++            "context_detail": payload.context_detail or "medium",
+estimador-cag/app/routers/reviewed_graph_estimations.py:434: trailing whitespace.
++        }
+estimador-cag/app/routers/reviewed_graph_estimations.py:435: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:436: trailing whitespace.
++    config: dict[str, object] = {"configurable": {"thread_id": thread_id}}
+estimador-cag/app/routers/reviewed_graph_estimations.py:437: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:438: trailing whitespace.
++    async def event_generator() -> AsyncIterator[ServerSentEvent]:
+estimador-cag/app/routers/reviewed_graph_estimations.py:439: trailing whitespace.
++        try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:440: trailing whitespace.
++            if payload.estimation_id is not None:
+estimador-cag/app/routers/reviewed_graph_estimations.py:441: trailing whitespace.
++                try:
+estimador-cag/app/routers/reviewed_graph_estimations.py:442: trailing whitespace.
++                    existing = await service.inspect(estimation_id=resolved_id)
+estimador-cag/app/routers/reviewed_graph_estimations.py:443: trailing whitespace.
++                except ReviewedGraphNotFoundError:
+estimador-cag/app/routers/reviewed_graph_estimations.py:444: trailing whitespace.
++                    existing = None
+estimador-cag/app/routers/reviewed_graph_estimations.py:445: trailing whitespace.
++                if existing is not None:
+estimador-cag/app/routers/reviewed_graph_estimations.py:446: trailing whitespace.
++                    yield ServerSentEvent(
+estimador-cag/app/routers/reviewed_graph_estimations.py:447: trailing whitespace.
++                        event=existing.execution_status,
+estimador-cag/app/routers/reviewed_graph_estimations.py:448: trailing whitespace.
++                        data=json.dumps(_terminal_event_payload(existing)),
+estimador-cag/app/routers/reviewed_graph_estimations.py:449: trailing whitespace.
++                    )
+estimador-cag/app/routers/reviewed_graph_estimations.py:450: trailing whitespace.
++                    return
+estimador-cag/app/routers/reviewed_graph_estimations.py:451: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:452: trailing whitespace.
++            if await request.is_disconnected():
+estimador-cag/app/routers/reviewed_graph_estimations.py:453: trailing whitespace.
++                return
+estimador-cag/app/routers/reviewed_graph_estimations.py:454: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:455: trailing whitespace.
++            async for event in service.graph.astream(
+estimador-cag/app/routers/reviewed_graph_estimations.py:456: trailing whitespace.
++                initial_state,
+estimador-cag/app/routers/reviewed_graph_estimations.py:457: trailing whitespace.
++                config,
+estimador-cag/app/routers/reviewed_graph_estimations.py:458: trailing whitespace.
++                stream_mode="updates",
+estimador-cag/app/routers/reviewed_graph_estimations.py:459: trailing whitespace.
++            ):
+estimador-cag/app/routers/reviewed_graph_estimations.py:460: trailing whitespace.
++                if await request.is_disconnected():
+estimador-cag/app/routers/reviewed_graph_estimations.py:461: trailing whitespace.
++                    logger.info("reviewed_graph_stream_client_disconnected", extra={"thread_id": thread_id})
+estimador-cag/app/routers/reviewed_graph_estimations.py:462: trailing whitespace.
++                    return
+estimador-cag/app/routers/reviewed_graph_estimations.py:463: trailing whitespace.
++                if isinstance(event, Mapping):
+estimador-cag/app/routers/reviewed_graph_estimations.py:464: trailing whitespace.
++                    for node_name, state_delta in event.items():
+estimador-cag/app/routers/reviewed_graph_estimations.py:465: trailing whitespace.
++                        yield ServerSentEvent(
+estimador-cag/app/routers/reviewed_graph_estimations.py:466: trailing whitespace.
++                            event="activity",
+estimador-cag/app/routers/reviewed_graph_estimations.py:467: trailing whitespace.
++                            data=json.dumps(_safe_activity_delta(str(node_name), state_delta)),
+estimador-cag/app/routers/reviewed_graph_estimations.py:468: trailing whitespace.
++                        )
+estimador-cag/app/routers/reviewed_graph_estimations.py:469: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:470: trailing whitespace.
++            run = await service.inspect(estimation_id=resolved_id)
+estimador-cag/app/routers/reviewed_graph_estimations.py:471: trailing whitespace.
++            yield ServerSentEvent(
+estimador-cag/app/routers/reviewed_graph_estimations.py:472: trailing whitespace.
++                event=run.execution_status,
+estimador-cag/app/routers/reviewed_graph_estimations.py:473: trailing whitespace.
++                data=json.dumps(_terminal_event_payload(run)),
+estimador-cag/app/routers/reviewed_graph_estimations.py:474: trailing whitespace.
++            )
+estimador-cag/app/routers/reviewed_graph_estimations.py:475: trailing whitespace.
++        except asyncio.CancelledError:
+estimador-cag/app/routers/reviewed_graph_estimations.py:476: trailing whitespace.
++            logger.info("reviewed_graph_stream_cancelled", extra={"thread_id": thread_id})
+estimador-cag/app/routers/reviewed_graph_estimations.py:477: trailing whitespace.
++            raise
+estimador-cag/app/routers/reviewed_graph_estimations.py:478: trailing whitespace.
++        except Exception:
+estimador-cag/app/routers/reviewed_graph_estimations.py:479: trailing whitespace.
++            logger.exception("reviewed_graph_stream_failed", extra={"thread_id": thread_id})
+estimador-cag/app/routers/reviewed_graph_estimations.py:480: trailing whitespace.
++            yield ServerSentEvent(
+estimador-cag/app/routers/reviewed_graph_estimations.py:481: trailing whitespace.
++                event="error",
+estimador-cag/app/routers/reviewed_graph_estimations.py:482: trailing whitespace.
++                data=json.dumps({"status": "error", "code": "reviewed_graph_stream_failed"}),
+estimador-cag/app/routers/reviewed_graph_estimations.py:483: trailing whitespace.
++            )
+estimador-cag/app/routers/reviewed_graph_estimations.py:484: trailing whitespace.
++
+estimador-cag/app/routers/reviewed_graph_estimations.py:485: trailing whitespace.
++    return EventSourceResponse(event_generator())
