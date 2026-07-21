@@ -42,6 +42,7 @@ jobs:
             cat /tmp/session13-stabilize.log
             false
           }
+          python scripts/session13_plus_ruff_repair.py
           cat /tmp/session13-stabilize.log
 
       - name: Persist stabilization executor failure
@@ -69,6 +70,14 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --frozen --extra dev
+
+      - name: Ruff targeted fixes
+        run: |
+          uv run ruff check --fix \
+            app/routers/reviewed_graph_estimations.py \
+            tests/test_session13_plus_provider_calibration.py \
+            tests/test_session13_plus_reliability_analyst.py \
+            tests/test_session13_plus_stabilization.py
 
       - name: Ruff
         run: |
@@ -115,7 +124,13 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
         working-directory: .
         run: |
-          rm -f scripts/session13_plus_stabilize.py scripts/session13_plus_ci_boundary.py .github/workflows/session13-plus-stabilize.yml .session13-stabilization-error.log .session13-ruff-error.log
+          rm -f \
+            scripts/session13_plus_stabilize.py \
+            scripts/session13_plus_ci_boundary.py \
+            scripts/session13_plus_ruff_repair.py \
+            .github/workflows/session13-plus-stabilize.yml \
+            .session13-stabilization-error.log \
+            .session13-ruff-error.log
           git config user.name "GPT-5.6 Stabilization"
           git config user.email "actions@users.noreply.github.com"
           git add .
