@@ -29,12 +29,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Apply approved Session 13 Plus stabilization
         if: github.ref == 'refs/heads/gg-session-13/plus-stabilization' || github.head_ref == 'gg-session-13/plus-stabilization'
         working-directory: .
-        run: python scripts/session13_plus_stabilize.py
+        run: |
+          python scripts/session13_plus_stabilize.py > /tmp/session13-stabilize.log 2>&1 || {
+            cat /tmp/session13-stabilize.log
+            false
+          }
+          cat /tmp/session13-stabilize.log
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
