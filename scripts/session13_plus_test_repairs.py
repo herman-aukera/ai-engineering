@@ -31,7 +31,7 @@ def repair_pytest_marker_registration() -> None:
     pyproject = "estimador-cag/pyproject.toml"
     content = read(pyproject)
     block = '''\n[tool.pytest.ini_options]\nmarkers = [\n    "live_provider: requires explicit real provider credentials and is excluded from deterministic CI",\n]\n'''
-    content = content.replace(block, "\n")
+    content = content.replace(block, "\n").rstrip() + "\n"
     write(pyproject, content)
 
     relative = "estimador-cag/pytest.ini"
