@@ -16,10 +16,10 @@ from energy_core.live_execution_contract import (
     RepositorySnapshot,
     authorize_live_execution,
 )
-from energy_core.sandboxed_tool import (
+from energy_core.live_execution_guard import (
     InMemoryAuthorizationReceiptStore,
-    SandboxedToolConfig,
-    _verify_pre_start,
+    LiveExecutionPolicy,
+    verify_live_pre_start,
 )
 
 
@@ -89,7 +89,7 @@ def _live_contract(
     return live_plan, intent, receipt
 
 
-def _config(root: Path, **overrides: object) -> SandboxedToolConfig:
+def _policy(root: Path, **overrides: object) -> LiveExecutionPolicy:
     payload: dict[str, object] = {
         "enabled": True,
         "repository_root": str(root),
@@ -97,7 +97,7 @@ def _config(root: Path, **overrides: object) -> SandboxedToolConfig:
         "trusted_actors": ["gonzalo"],
     }
     payload.update(overrides)
-    return SandboxedToolConfig.model_validate(payload)
+    return LiveExecutionPolicy.model_validate(payload)
 
 
 def test_prestart_accepts_exact_live_contract(tmp_path: Path) -> None:
@@ -105,9 +105,9 @@ def test_prestart_accepts_exact_live_contract(tmp_path: Path) -> None:
     live_plan, intent, receipt = _live_contract(root)
     store = InMemoryAuthorizationReceiptStore([receipt])
 
-    _verify_pre_start(
+    verify_live_pre_start(
         live_plan,
-        _config(root),
+        _policy(root),
         receipt,
         live_intent=intent,
         receipt_store=store,
@@ -121,9 +121,9 @@ def test_prestart_rejects_non_live_plan(tmp_path: Path) -> None:
     store = InMemoryAuthorizationReceiptStore([receipt])
 
     with pytest.raises(PermissionError, match="typed live"):
-        _verify_pre_start(
+        verify_live_pre_start(
             base_plan,
-            _config(root),
+            _policy(root),
             receipt,
             live_intent=None,
             receipt_store=store,
@@ -135,9 +135,9 @@ def test_prestart_requires_authoritative_receipt_store(tmp_path: Path) -> None:
     live_plan, intent, receipt = _live_contract(root)
 
     with pytest.raises(PermissionError, match="store"):
-        _verify_pre_start(
+        verify_live_pre_start(
             live_plan,
-            _config(root),
+            _policy(root),
             receipt,
             live_intent=intent,
             receipt_store=None,
@@ -151,9 +151,9 @@ def test_prestart_rejects_fabricated_receipt_object(tmp_path: Path) -> None:
     store = InMemoryAuthorizationReceiptStore([authoritative])
 
     with pytest.raises(PermissionError, match="provenance"):
-        _verify_pre_start(
+        verify_live_pre_start(
             live_plan,
-            _config(root),
+            _policy(root),
             receipt,
             live_intent=intent,
             receipt_store=store,
@@ -167,9 +167,9 @@ def test_prestart_rejects_repository_change_after_authorization(tmp_path: Path) 
     (root / "later.txt").write_text("changed after authority\n", encoding="utf-8")
 
     with pytest.raises(PermissionError, match="snapshot"):
-        _verify_pre_start(
+        verify_live_pre_start(
             live_plan,
-            _config(root),
+            _policy(root),
             receipt,
             live_intent=intent,
             receipt_store=store,
@@ -182,9 +182,9 @@ def test_prestart_rejects_untrusted_actor(tmp_path: Path) -> None:
     store = InMemoryAuthorizationReceiptStore([receipt])
 
     with pytest.raises(PermissionError, match="trusted"):
-        _verify_pre_start(
+        verify_live_pre_start(
             live_plan,
-            _config(root, trusted_actors=["another-reviewer"]),
+            _policy(root, trusted_actors=["another-reviewer"]),
             receipt,
             live_intent=intent,
             receipt_store=store,
@@ -198,9 +198,9 @@ def test_prestart_rejects_tampered_live_plan(tmp_path: Path) -> None:
     tampered = live_plan.model_copy(update={"arguments": ["--version"]})
 
     with pytest.raises(PermissionError, match="hash"):
-        _verify_pre_start(
+        verify_live_pre_start(
             tampered,
-            _config(root),
+            _policy(root),
             receipt,
             live_intent=intent,
             receipt_store=store,
