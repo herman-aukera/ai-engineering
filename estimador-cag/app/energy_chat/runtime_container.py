@@ -191,7 +191,7 @@ class EnergyChatApplicationRuntime:
             graph = self._human_graph()
             config = self.checkpointer.config(thread_id)
             result = graph.invoke(Command(resume=action), config)
-            domain = _domain_state(result)
+            domain = _domain_state(result).model_copy(update={"status": "completed"})
             session.pending_action = None
             session.completed = True
             return project_v2_response(
@@ -215,6 +215,7 @@ class EnergyChatApplicationRuntime:
                     state,
                     checkpoint_id=self.checkpointer.get_checkpoint_id(thread_id),
                     pending_action=pending,
+                    completed=human_session.completed,
                 )
 
             self._require_record(thread_id)
@@ -247,9 +248,10 @@ class EnergyChatApplicationRuntime:
         if state is None:
             raise ThreadCheckpointNotFoundError(thread_id)
         pending = session.pending_action
+        status = "awaiting_human" if pending else ("completed" if session.completed else state.status)
         domain = state.model_copy(
             update={
-                "status": "awaiting_human" if pending else state.status,
+                "status": status,
                 "human_action_request": pending,
                 "human_action_turn": (
                     pending.expected_revision if pending else state.human_action_turn
@@ -349,13 +351,15 @@ def _thread_state_response(
     *,
     checkpoint_id: str | None,
     pending_action: HumanActionRequest | None = None,
+    completed: bool = False,
 ) -> EnergyChatV2ThreadStateResponse:
+    graph_status = "awaiting_human" if pending_action else ("completed" if completed else state.status)
     return EnergyChatV2ThreadStateResponse(
         thread_id=state.thread_id,
         request_id=state.request_id,
         trace_id=state.trace_id,
         checkpoint_id=checkpoint_id,
-        graph_status="awaiting_human" if pending_action else state.status,
+        graph_status=graph_status,
         awaiting_evidence=state.status == "awaiting_evidence",
         candidate_count=len(state.candidate_versions),
         provider_call_count=len(state.provider_metrics),
