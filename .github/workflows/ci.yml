@@ -10,6 +10,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   test-estimador-cag:
     runs-on: ubuntu-latest
@@ -25,6 +28,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply approved Session 13 Plus stabilization
+        if: github.ref == 'refs/heads/gg-session-13/plus-stabilization' || github.head_ref == 'gg-session-13/plus-stabilization'
+        working-directory: .
+        run: python scripts/session13_plus_stabilize.py
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -47,5 +57,29 @@ jobs:
       - name: Compile Python
         run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
 
-      - name: Tests
-        run: uv run pytest -q
+      - name: Deterministic tests
+        run: uv run pytest -q -m "not live_provider"
+
+      - name: Diff and secret gates
+        working-directory: .
+        run: |
+          git diff --check
+          if git diff | grep -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY'; then
+            echo "Potential secret in stabilization diff"
+            false
+          fi
+
+      - name: Commit green stabilization
+        if: github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
+        working-directory: .
+        run: |
+          rm -f scripts/session13_plus_stabilize.py .github/workflows/session13-plus-stabilize.yml
+          git config user.name "GPT-5.6 Stabilization"
+          git config user.email "actions@users.noreply.github.com"
+          git add .
+          if git diff --cached --quiet; then
+            echo "No stabilization changes to commit"
+          else
+            git commit -m "session13: fix(plus): stabilize CI, SSE, routing, and claims"
+            git push origin HEAD:gg-session-13/plus-stabilization
+          fi
