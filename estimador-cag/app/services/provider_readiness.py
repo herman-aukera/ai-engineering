@@ -89,7 +89,7 @@ _DEFAULT_MODELS: dict[ProviderName, dict[str, str]] = {
 }
 
 
-class ProviderRouteUnavailable(RuntimeError):
+class ProviderRouteUnavailableError(RuntimeError):
     """Raised when policy cannot prove an eligible route."""
 
 
@@ -154,13 +154,15 @@ def _choose_auto(
     selection: ProviderSelection,
 ) -> ModelBenchmarkSummary:
     if not snapshot.has_complete_provider_coverage():
-        raise ProviderRouteUnavailable(
+        raise ProviderRouteUnavailableError(
             "Auto routing requires complete benchmark coverage for every required provider."
         )
 
     eligible = _eligible_summaries(snapshot)
     if not eligible:
-        raise ProviderRouteUnavailable("No benchmark-calibrated route satisfies contract gates.")
+        raise ProviderRouteUnavailableError(
+            "No benchmark-calibrated route satisfies contract gates."
+        )
 
     if selection.reasoning == "minimal":
         costed = [
@@ -169,7 +171,7 @@ def _choose_auto(
             if summary.median_cost_usd is not None and summary.quality_score >= 0.75
         ]
         if not costed:
-            raise ProviderRouteUnavailable(
+            raise ProviderRouteUnavailableError(
                 "Cost-first Auto requires comparable measured cost and quality >= 0.75."
             )
         return min(
@@ -233,7 +235,9 @@ class StageRoutingPolicy:
                 stage=stage,
                 execution_kind=kind,
                 provider="deterministic",
-                model={"retrieval": "pgvector", "human": "human_gate"}.get(kind, "python"),
+                model={"retrieval": "pgvector", "human": "human_gate"}.get(
+                    kind, "python"
+                ),
                 effort="none",
                 complexity_level=complexity_level,
                 source="deterministic",
@@ -242,7 +246,7 @@ class StageRoutingPolicy:
 
         if selection.provider == "auto":
             if self.benchmark_snapshot is None:
-                raise ProviderRouteUnavailable(
+                raise ProviderRouteUnavailableError(
                     "Auto routing has no matched benchmark snapshot."
                 )
             summary = _choose_auto(
@@ -272,7 +276,7 @@ class StageRoutingPolicy:
         provider_models = self.model_catalog.get(provider, {})
         model = provider_models.get(tier) or provider_models.get("pro")
         if not model:
-            raise ProviderRouteUnavailable(
+            raise ProviderRouteUnavailableError(
                 f"No configured product model for provider={provider}, tier={tier}."
             )
         return StageRouteDecision(
