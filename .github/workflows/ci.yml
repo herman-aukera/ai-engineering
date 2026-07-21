@@ -37,12 +37,12 @@ jobs:
         run: uv sync --frozen --extra dev
       - name: Ruff
         run: |
-          TARGETS="app tests"
+          TARGETS="app tests scripts"
           test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
           test -d evals && TARGETS="$TARGETS evals"
           uv run ruff check $TARGETS
       - name: Compile Python
-        run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
+        run: uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null)
       - name: Deterministic tests
         run: uv run pytest -q -m "not live_provider"
       - name: Diff and secret gates
