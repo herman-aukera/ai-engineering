@@ -137,13 +137,14 @@ jobs:
             --env GRAPH_RETRIEVAL_MAX_CONCURRENCY=4 \
             estimador-cag:${{ github.sha }}
       - name: Probe liveness and readiness
-        id: probe
         run: |
           mkdir -p /tmp/container-readiness
           ready=false
+          health_code=000
+          ready_code=000
           for attempt in $(seq 1 40); do
-            health_code=$(curl --silent --output /tmp/container-readiness/health.json --write-out '%{http_code}' http://127.0.0.1:8000/health || true)
-            ready_code=$(curl --silent --output /tmp/container-readiness/ready.json --write-out '%{http_code}' http://127.0.0.1:8000/ready || true)
+            health_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/health.json --write-out '%{http_code}' http://127.0.0.1:8000/health || true)
+            ready_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/ready.json --write-out '%{http_code}' http://127.0.0.1:8000/ready || true)
             if [ "$health_code" = "200" ] && [ "$ready_code" = "200" ]; then
               ready=true
               break
