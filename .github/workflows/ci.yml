@@ -40,7 +40,19 @@ jobs:
           TARGETS="app tests scripts"
           test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
           test -d evals && TARGETS="$TARGETS evals"
-          uv run ruff check $TARGETS
+          uv run ruff check $TARGETS > /tmp/readiness-final-ruff.log 2>&1 || {
+            cat /tmp/readiness-final-ruff.log
+            false
+          }
+          cat /tmp/readiness-final-ruff.log
+      - name: Upload final Ruff diagnostic
+        if: failure() && github.head_ref == 'gg-session-13/plus-production-readiness'
+        uses: actions/upload-artifact@v4
+        with:
+          name: readiness-final-ruff-${{ github.sha }}
+          path: /tmp/readiness-final-ruff.log
+          if-no-files-found: error
+          retention-days: 7
       - name: Compile Python
         run: uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null)
       - name: Deterministic tests
