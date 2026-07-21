@@ -409,3 +409,7 @@ Blocked until implementation and evidence:
 - compaction never loses important context;
 - EACORE is a shared production runtime;
 - multi-agent architecture improves every task.
+
+## Operational claim correction
+
+Provider records seeded from documentation are not automatically enabled. `Auto` is a deterministic policy preview unless a registry snapshot contains explicitly promoted, available models. Current Kimi Code catalogue IDs are `k3`, `kimi-for-coding`, and `kimi-for-coding-highspeed`; K3 exposes low/high/max effort, while K2.7 Code requires thinking to remain enabled. Runtime superiority and least-cost claims require matched evidence.

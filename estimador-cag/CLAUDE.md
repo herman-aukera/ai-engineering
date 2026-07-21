@@ -213,3 +213,7 @@ At the end of every work session report:
 - whether human action is required.
 
 Do not merge or mark a draft PR ready without explicit authorization.
+
+## 11. Direct stabilization correction gate
+
+The stabilization branch supersedes stale 125-test and green-CI claims. Completion requires the exact final head to pass Ruff, compilation, deterministic tests excluding `live_provider`, diff/line-ending checks, and a secret scan. Live provider tests run only through the explicit manual workflow. The provider selector persists user intent and displays a policy preview; operational per-stage switching remains unclaimed.

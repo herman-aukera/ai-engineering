@@ -143,3 +143,7 @@ Entry points:
 - `estimador-cag/CLAUDE.md`
 
 These additions are documentation and architecture requirements. They do not claim that provider selectors, Kimi K3/GPT-5.6 runtime adapters, context compaction, or Session 14 multi-agent execution are already implemented.
+
+## Session 13 Plus stabilization boundary
+
+The direct stabilization branch repairs the reviewed-service API contract, separates deterministic and live-provider CI, hardens the SSE activity projection, removes contradictory routing evidence, and labels provider selection as a capability-gated preview until live per-stage routing is proven. PR #10 remains draft and unmerged.

@@ -453,7 +453,6 @@ def build_reviewed_estimation_graph(
 
     builder.add_edge(START, "reformulate_request")
     builder.add_edge("reformulate_request", "semantic_classify")
-    builder.add_edge("semantic_classify", "structure_phase")
     builder.add_conditional_edges(
         "structure_phase",
         _parent_structure_route,

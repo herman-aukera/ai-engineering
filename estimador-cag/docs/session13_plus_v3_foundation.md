@@ -438,3 +438,7 @@ Blocked wording:
 - streaming UI is implemented;
 - V3 is production-ready;
 - provider-quality superiority is proven.
+
+## 13. Stabilization correction record
+
+The final repair pass separates deterministic complexity evidence from arbitrated routing authority, removes the redundant static classifier edge, fixes the reviewed-service provider-selection signature, adds a safe allow-listed SSE activity projection, and moves live-provider tests behind an explicit marker/workflow. Reliability and proposal nodes are implemented; provider selection remains a routing preview until runtime adapters consume the selection per stage. Current proof is the exact stabilization-branch CI result, not earlier test-count claims.
