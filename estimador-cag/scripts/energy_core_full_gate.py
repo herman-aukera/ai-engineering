@@ -153,6 +153,10 @@ def build_gate_commands(*, include_ruff_fix: bool) -> list[GateCommand]:
                 _python_command("scripts/energy_core_scaffold_smoke.py"),
             ),
             _project_command(
+                "Energy Core provider smoke",
+                _python_command("scripts/energy_core_provider_smoke.py"),
+            ),
+            _project_command(
                 "Energy Core export plan smoke",
                 _python_command("scripts/energy_core_export_plan_smoke.py"),
             ),
