@@ -64,7 +64,21 @@ jobs:
         run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
 
       - name: Deterministic tests
-        run: uv run pytest -q -m "not live_provider"
+        run: |
+          uv run pytest -q -m "not live_provider" > /tmp/readiness-tests.log 2>&1 || {
+            cat /tmp/readiness-tests.log
+            false
+          }
+          cat /tmp/readiness-tests.log
+
+      - name: Upload deterministic test diagnostics
+        if: failure() && github.head_ref == 'gg-session-13/plus-production-readiness'
+        uses: actions/upload-artifact@v4
+        with:
+          name: readiness-test-diagnostics-${{ github.sha }}
+          path: /tmp/readiness-tests.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Diff and secret gates
         working-directory: .
