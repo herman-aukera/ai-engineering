@@ -45,6 +45,7 @@ ReasoningEffort = Literal[
     "medium",
     "high",
     "max",
+    "xhigh",
 ]
 
 
