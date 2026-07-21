@@ -37,8 +37,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "list":
         models = api.list_models()
-        if args.format if hasattr(args, 'format') else True:
-            print(_format_model_table(models))
+        print(_format_model_table(models))
         return 0
 
     if args.command == "show":
