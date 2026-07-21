@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class NodeSpan(BaseModel):
@@ -19,6 +19,7 @@ class NodeSpan(BaseModel):
     status: Literal["completed", "failed"] = "completed"
     safe_error_category: str | None = Field(default=None, max_length=128)
 
+    @computed_field
     @property
     def duration_ms(self) -> int:
         return max(0, self.finished_at_ms - self.started_at_ms)
