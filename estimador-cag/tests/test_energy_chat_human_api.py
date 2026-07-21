@@ -30,11 +30,11 @@ def _start_escalation(thread_id: str) -> dict:
     return response.json()
 
 
-def _resume_payload(action: dict, **overrides) -> dict:
+def _resume_payload(pending_action: dict, **overrides) -> dict:
     payload = {
-        "action_id": action["action_id"],
-        "action": action["action"],
-        "expected_revision": action["expected_revision"],
+        "action_id": pending_action["action_id"],
+        "action": pending_action["action"],
+        "expected_revision": pending_action["expected_revision"],
         "actor": "reviewer-test",
         "payload": {"response": "approved for deterministic test"},
     }
@@ -79,6 +79,7 @@ def test_escalation_interrupt_and_successful_resume_use_one_provider_call() -> N
         )
         assert completed_state.status_code == 200
         assert completed_state.json()["human_action_pending"] is False
+        assert completed_state.json()["graph_status"] == "completed"
     finally:
         app.state.energy_chat_runtime = previous
 
