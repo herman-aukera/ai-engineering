@@ -33,7 +33,11 @@ class InMemoryAuthorizationReceiptStore:
         reserved_receipt_ids: list[str] | None = None,
     ) -> None:
         self._receipts = {receipt.receipt_id: receipt for receipt in receipts or []}
-        self._reserved = set(reserved_receipt_ids or [])
+        self._reserved = (
+            set(self._receipts)
+            if reserved_receipt_ids is None
+            else set(reserved_receipt_ids)
+        )
 
     def get(self, receipt_id: str) -> AuthorizationReceipt | None:
         return self._receipts.get(receipt_id)
