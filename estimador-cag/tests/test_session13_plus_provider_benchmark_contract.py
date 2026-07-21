@@ -23,7 +23,7 @@ def test_error_sanitizer_removes_api_key_material() -> None:
     code, detail = benchmark._sanitize_error(
         RuntimeError(
             "Bad request Authorization: Bearer secret-provider-token-123456789 "
-            "and sk-example12345678901234567890 tool_choice invalid"
+            "and sk-example12345 tool_choice invalid"
         )
     )
     assert code == "invalid_tool_choice"
