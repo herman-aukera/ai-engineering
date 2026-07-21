@@ -10,12 +10,15 @@ import os
 
 import pytest
 
+_NON_LIVE_KEY_SENTINELS = {"", "test", "dummy", "fake", "placeholder", "example"}
+
 
 def _has_deepseek_key() -> bool:
-    key = os.environ.get("DEEPSEEK_API_KEY", "")
-    return bool(key) and key not in ("dummy", "fake")
+    key = os.environ.get("DEEPSEEK_API_KEY", "").strip().lower()
+    return key not in _NON_LIVE_KEY_SENTINELS
 
 
+@pytest.mark.live_provider
 @pytest.mark.skipif(
     not _has_deepseek_key(),
     reason="DEEPSEEK_API_KEY not set or is dummy — skipping live calibration",
@@ -41,6 +44,7 @@ def test_deepseek_live_classifier_returns_valid_assessment() -> None:
     }
 
 
+@pytest.mark.live_provider
 @pytest.mark.skipif(
     not _has_deepseek_key(),
     reason="DEEPSEEK_API_KEY not set or is dummy — skipping live calibration",
@@ -71,6 +75,7 @@ def test_fake_and_live_classifier_agree_on_simple_transcript() -> None:
     )
 
 
+@pytest.mark.live_provider
 @pytest.mark.skipif(
     not _has_deepseek_key(),
     reason="DEEPSEEK_API_KEY not set or is dummy — skipping live calibration",
@@ -124,33 +129,23 @@ def test_seeded_registry_contains_all_documented_providers() -> None:
     assert len(openai_models) >= 3  # Luna + Terra + Sol
 
 
-def test_seeded_registry_routing_covers_all_complexity_levels() -> None:
-    """Registry-backed routing for enabled providers covers all complexity levels."""
+def test_seeded_registry_routes_fail_closed_until_promoted() -> None:
+    """Documented seed records must not masquerade as operational routes."""
     from app.schemas.v5_provider_selection import ProviderSelection
     from app.services.v3_registry_seed import build_seeded_registry
     from app.services.v5_provider_selector import resolve_provider_route
 
     registry = build_seeded_registry()
-
-    # DeepSeek and Kimi have enabled models — routing must succeed.
-    for provider in ("deepseek", "kimi"):
-        sel = ProviderSelection(provider=provider)
-        for level in ("C0", "C1", "C2", "C3", "C4", "C5"):
-            route = resolve_provider_route(
-                selection=sel, complexity_level=level, stage="structure",
-                registry=registry,
-            )
-            assert route["provider"] in ("deepseek", "moonshot")
-            assert route["model"]
-            assert route["effort"] in ("none", "high", "max")
-
-    # OpenAI is documented but not enabled — routing must fail closed.
-    sel = ProviderSelection(provider="openai")
-    with pytest.raises(ValueError, match="eligible"):
-        resolve_provider_route(
-            selection=sel, complexity_level="C1", stage="structure",
-            registry=registry,
-        )
+    for provider in ("deepseek", "kimi", "openai"):
+        selection = ProviderSelection(provider=provider)
+        for level in ("C0", "C3", "C5"):
+            with pytest.raises(ValueError, match="eligible promoted route"):
+                resolve_provider_route(
+                    selection=selection,
+                    complexity_level=level,
+                    stage="structure",
+                    registry=registry,
+                )
 
 
 def test_kimi_k3_is_documented_not_enabled() -> None:
@@ -158,11 +153,11 @@ def test_kimi_k3_is_documented_not_enabled() -> None:
     from app.services.v3_registry_seed import build_seeded_registry
 
     registry = build_seeded_registry()
-    k3 = registry.lookup(provider="moonshot", provider_model_id="kimi-k3")
+    k3 = registry.lookup(provider="moonshot", provider_model_id="k3")
 
     assert k3 is not None
     assert k3.calibration_status == "documented"
-    assert k3.reasoning_efforts == ["max"]
+    assert k3.reasoning_efforts == ["low", "high", "max"]
 
 
 def test_gpt56_family_is_documented_not_enabled() -> None:

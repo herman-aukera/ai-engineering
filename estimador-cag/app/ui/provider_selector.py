@@ -27,14 +27,14 @@ COMPLEXITY_LEVELS = ("C0", "C1", "C2", "C3", "C4", "C5")
 STAGES = ("complexity", "structure", "recovery", "reliability", "proposal")
 
 PROVIDER_LABELS = {
-    "auto": "Auto (least expensive verified)",
+    "auto": "Auto (policy preview; not live calibrated)",
     "deepseek": "DeepSeek",
     "kimi": "Kimi",
     "openai": "OpenAI",
 }
 
 REASONING_LABELS = {
-    "minimal": "Minimal (no explicit reasoning)",
+    "minimal": "Minimal (provider-specific lowest supported effort)",
     "medium": "Medium (balanced default)",
     "max": "Max (deepest analysis)",
 }
@@ -151,7 +151,7 @@ def render_provider_selector_full(key_prefix: str = "") -> ProviderSelection:
 if __name__ == "__main__":
     st.set_page_config(page_title="Provider Selector — Session 13 Plus", layout="wide")
     st.title("Provider Selector")
-    st.caption("Session 13 Plus — provider, reasoning, and context-detail routing preview.")
+    st.caption("Session 13 Plus routing preview. Selection persistence is implemented; live per-stage switching remains capability-gated.")
 
     sel = render_provider_selector_full()
     st.divider()

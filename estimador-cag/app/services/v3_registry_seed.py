@@ -1,23 +1,19 @@
-"""Seed the model registry with documented provider entries.
+"""Seed documented provider capability records without promoting them.
 
-These entries represent documented capability, not verified reachability.
-Lifecycle advancement requires live capability probes.
+Seed data is a policy catalogue, not live reachability or benchmark evidence.
+Operational promotion must happen through explicit capability evidence.
 """
 
 from __future__ import annotations
-
-from datetime import UTC, datetime
 
 from app.schemas.v3_registry import ModelRecord
 from app.services.v3_model_registry import ModelRegistry
 
 
 def build_seeded_registry() -> ModelRegistry:
-    """Return a registry seeded with the documented provider family entries."""
-    now = datetime.now(UTC)
+    """Return deterministic documented records; none are enabled by seeding."""
     return ModelRegistry(
         [
-            # DeepSeek family
             ModelRecord(
                 provider="deepseek",
                 provider_model_id="deepseek-v4-flash",
@@ -32,8 +28,7 @@ def build_seeded_registry() -> ModelRegistry:
                 speed_class="fast",
                 cost_metadata_version="session13-v1",
                 availability="available",
-                verified_at=now,
-                calibration_status="enabled",
+                calibration_status="documented",
             ),
             ModelRecord(
                 provider="deepseek",
@@ -49,47 +44,43 @@ def build_seeded_registry() -> ModelRegistry:
                 speed_class="fast",
                 cost_metadata_version="session13-v1",
                 availability="available",
-                verified_at=now,
-                calibration_status="enabled",
-            ),
-            # Kimi family
-            ModelRecord(
-                provider="moonshot",
-                provider_model_id="kimi-k2.6",
-                display_name="Kimi K2.6",
-                capability_tier="flash",
-                context_window=128_000,
-                max_output=4_096,
-                input_modalities=["text"],
-                tool_support=True,
-                structured_output_support=True,
-                reasoning_efforts=["none", "high"],
-                speed_class="medium",
-                cost_metadata_version="session13-v1",
-                availability="available",
-                verified_at=now,
-                calibration_status="enabled",
+                calibration_status="documented",
             ),
             ModelRecord(
                 provider="moonshot",
-                provider_model_id="kimi-k2.7-code",
+                provider_model_id="kimi-for-coding",
                 display_name="Kimi K2.7 Code",
                 capability_tier="pro",
-                context_window=128_000,
+                context_window=256_000,
                 max_output=8_192,
                 input_modalities=["text"],
                 tool_support=True,
                 structured_output_support=True,
-                reasoning_efforts=["none", "high"],
+                reasoning_efforts=["high"],
                 speed_class="medium",
-                cost_metadata_version="session13-v1",
+                cost_metadata_version="session13-v2",
                 availability="available",
-                verified_at=now,
-                calibration_status="enabled",
+                calibration_status="documented",
             ),
             ModelRecord(
                 provider="moonshot",
-                provider_model_id="kimi-k3",
+                provider_model_id="kimi-for-coding-highspeed",
+                display_name="Kimi K2.7 Code HighSpeed",
+                capability_tier="pro",
+                context_window=256_000,
+                max_output=8_192,
+                input_modalities=["text"],
+                tool_support=True,
+                structured_output_support=True,
+                reasoning_efforts=["high"],
+                speed_class="fast",
+                cost_metadata_version="session13-v2",
+                availability="available",
+                calibration_status="documented",
+            ),
+            ModelRecord(
+                provider="moonshot",
+                provider_model_id="k3",
                 display_name="Kimi K3",
                 capability_tier="max",
                 context_window=1_000_000,
@@ -97,13 +88,12 @@ def build_seeded_registry() -> ModelRegistry:
                 input_modalities=["text", "image"],
                 tool_support=True,
                 structured_output_support=True,
-                reasoning_efforts=["max"],
-                speed_class="slow",
-                cost_metadata_version="session13-v1",
+                reasoning_efforts=["low", "high", "max"],
+                speed_class="medium",
+                cost_metadata_version="session13-v2",
                 availability="available",
                 calibration_status="documented",
             ),
-            # OpenAI GPT-5.6 family
             ModelRecord(
                 provider="openai",
                 provider_model_id="gpt-5.6-luna",

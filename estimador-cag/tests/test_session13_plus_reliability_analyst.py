@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -37,7 +34,7 @@ def _low_confidence(component_id: str = "cmp-2") -> dict:
 
 def test_reliability_report_schema_is_frozen() -> None:
     """ReliabilityReport must be immutable and checkpoint-safe."""
-    from app.schemas.v6_reliability import ReliabilityReport, ComponentReliability
+    from app.schemas.v6_reliability import ComponentReliability, ReliabilityReport
 
     report = ReliabilityReport(
         components=[
