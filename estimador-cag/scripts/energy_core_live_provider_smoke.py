@@ -85,6 +85,10 @@ def _test_provider(
     fails += _check(result.circuit_state == "closed", "circuit=closed")
     fails += _check(result.safe_provider_request_ref != "", "has request ref")
 
+    if result.attempts and result.attempts[0].status == "failed":
+        err = result.attempts[0].error_message or "unknown"
+        print(f"  DIAG: attempt error: {err[:200]}")
+
     return fails
 
 
