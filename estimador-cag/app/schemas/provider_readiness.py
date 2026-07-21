@@ -90,7 +90,7 @@ class BenchmarkSnapshot(StrictV3Model):
     summaries: list[ModelBenchmarkSummary] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_unique_routes(self) -> "BenchmarkSnapshot":
+    def validate_unique_routes(self) -> BenchmarkSnapshot:
         keys = [summary.route_key for summary in self.summaries]
         if len(keys) != len(set(keys)):
             raise ValueError("benchmark route keys must be unique")

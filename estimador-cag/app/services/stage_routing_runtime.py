@@ -59,7 +59,7 @@ class ProviderRuntimeConfig:
     openai_models: Mapping[str, str]
 
     @classmethod
-    def from_settings(cls) -> "ProviderRuntimeConfig":
+    def from_settings(cls) -> ProviderRuntimeConfig:
         kimi_models = {
             "flash": settings.kimi_model,
             "pro": settings.kimi_model_pro,
@@ -115,7 +115,7 @@ class StageRoutingRuntime:
     policy: StageRoutingPolicy
 
     @classmethod
-    def from_settings(cls) -> "StageRoutingRuntime":
+    def from_settings(cls) -> StageRoutingRuntime:
         config = ProviderRuntimeConfig.from_settings()
         snapshot = load_benchmark_snapshot(settings.provider_benchmark_snapshot_path)
         return cls(
