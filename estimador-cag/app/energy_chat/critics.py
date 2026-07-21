@@ -1,10 +1,11 @@
-"""Deterministic critics for Energy Aware Chat Slice 1."""
+"""Deterministic critics for Energy Aware Chat."""
 
 from __future__ import annotations
 
 import re
 
 from app.energy_chat.contracts import CriticFinding, EnergyChatRequest, EnergyPolicy
+from app.energy_chat.evidence_hardening import validate_citations
 
 ACTION_MARKERS = (
     "next action",
@@ -48,8 +49,6 @@ FABRICATED_CITATION_PATTERNS = (
 def run_chat_lite_critics(
     request: EnergyChatRequest, policy: EnergyPolicy
 ) -> list[CriticFinding]:
-    """Run the deterministic Slice 1 critic pipeline."""
-
     critics = (
         _instruction_critic,
         _minimal_safety_critic,
@@ -132,7 +131,9 @@ def _instruction_critic(
     return findings
 
 
-def _minimal_safety_critic(request: EnergyChatRequest, policy: EnergyPolicy) -> list[CriticFinding]:
+def _minimal_safety_critic(
+    request: EnergyChatRequest, policy: EnergyPolicy
+) -> list[CriticFinding]:
     findings: list[CriticFinding] = []
     draft = request.draft_answer.casefold()
     user = request.user_message.casefold()
@@ -186,14 +187,24 @@ def _minimal_safety_critic(request: EnergyChatRequest, policy: EnergyPolicy) -> 
         )
 
     if _has_unbacked_citation(request):
+        citation_result = validate_citations(
+            request.draft_answer,
+            request.evidence_refs,
+        )
+        unknown = citation_result.unknown_citations
+        evidence = (
+            "Unknown citation references: " + ", ".join(unknown)
+            if unknown
+            else "The draft contains citation-like markup without verifiable evidence."
+        )
         findings.append(
             _finding(
                 policy,
                 critic="minimal_safety_critic",
                 violation_id="fabricated_citation",
                 constraint_type="hard_reject",
-                evidence="The draft contains citation-like markup without evidence references.",
-                repair_hint="Remove fabricated citations or attach real evidence refs.",
+                evidence=evidence,
+                repair_hint="Remove unknown citations or attach the exact evidence references.",
             )
         )
 
@@ -300,7 +311,7 @@ def _structure_critic(request: EnergyChatRequest, policy: EnergyPolicy) -> list[
                 critic="structure_critic",
                 violation_id="too_verbose",
                 constraint_type="soft",
-                evidence="The draft is verbose for a Slice 1 evaluation candidate.",
+                evidence="The draft is verbose for a compact evaluation candidate.",
                 repair_hint="Trim repeated claims and keep only decision-relevant details.",
             )
         )
@@ -325,8 +336,9 @@ def _appears_to_reveal_hidden_reasoning(draft: str) -> bool:
 
 
 def _has_unbacked_citation(request: EnergyChatRequest) -> bool:
-    if request.evidence_refs:
-        return False
+    exact_validation = validate_citations(request.draft_answer, request.evidence_refs)
+    if exact_validation.has_fabricated_citations:
+        return True
     return any(re.search(pattern, request.draft_answer) for pattern in FABRICATED_CITATION_PATTERNS)
 
 
