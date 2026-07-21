@@ -1,0 +1,93 @@
+F401 [*] `typing.Any` imported but unused
+  --> app/routers/reviewed_graph_estimations.py:9:20
+   |
+ 7 | import logging
+ 8 | from collections.abc import AsyncIterator, Mapping
+ 9 | from typing import Any, cast
+   |                    ^^^
+10 | from uuid import UUID, uuid4
+   |
+help: Remove unused import: `typing.Any`
+
+F821 Undefined name `ReviewedEstimationGraphState`
+   --> app/routers/reviewed_graph_estimations.py:411:21
+    |
+409 |     resolved_id, thread_id = _stream_identity(payload.estimation_id)
+410 |
+411 |     initial_state = ReviewedEstimationGraphState(
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+412 |         **new_estimation_graph_state(
+413 |             transcript=payload.transcript,
+    |
+
+F821 Undefined name `new_estimation_graph_state`
+   --> app/routers/reviewed_graph_estimations.py:412:11
+    |
+411 |     initial_state = ReviewedEstimationGraphState(
+412 |         **new_estimation_graph_state(
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+413 |             transcript=payload.transcript,
+414 |             estimation_id=str(resolved_id),
+    |
+
+F821 Undefined name `ExecutionBudgetSnapshot`
+   --> app/routers/reviewed_graph_estimations.py:423:34
+    |
+421 |             "structure_review_revision": 0,
+422 |             "final_review_revision": 0,
+423 |             "execution_budgets": ExecutionBudgetSnapshot().model_dump(mode="json"),
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^
+424 |         }
+425 |     )
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_session13_plus_provider_calibration.py:7:1
+   |
+ 5 |   """
+ 6 |
+ 7 | / from __future__ import annotations
+ 8 | |
+ 9 | | import os
+10 | |
+11 | | import pytest
+   | |_____________^
+   |
+help: Organize imports
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_session13_plus_reliability_analyst.py:3:1
+  |
+1 |   """Tests for Session 13 Plus: deterministic reliability analyst."""
+2 |
+3 | / from __future__ import annotations
+4 | |
+5 | | import pytest
+  | |_____________^
+  |
+help: Organize imports
+
+F401 [*] `pytest` imported but unused
+ --> tests/test_session13_plus_reliability_analyst.py:5:8
+  |
+3 | from __future__ import annotations
+4 |
+5 | import pytest
+  |        ^^^^^^
+  |
+help: Remove unused import: `pytest`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_session13_plus_reliability_analyst.py:40:5
+   |
+38 | def test_reliability_report_schema_is_frozen() -> None:
+39 |     """ReliabilityReport must be immutable and checkpoint-safe."""
+40 |     from app.schemas.v6_reliability import ReliabilityReport, ComponentReliability
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+41 |
+42 |     report = ReliabilityReport(
+   |
+help: Organize imports
+
+Found 8 errors.
+[*] 5 fixable with the `--fix` option.
