@@ -27,20 +27,20 @@ Use current repository state, tests, command output, and CI as stronger evidence
 ```text
 Spec 0007 — deterministic controlled planning and fake/dry-run evidence: COMPLETE L2
 Spec 0008 — logical-revision authorization and persistent interrupt: COMPLETE L2
-Spec 0009 — sandboxed-tool adapter: IMPLEMENTED L3 (live-intent guard, re-redaction, snapshot binding)
-Spec 0010 — provider registry, selector, compaction, adapter, multi-agent: IMPLEMENTED
+Spec 0009 — sandboxed-tool adapter: COMPLETE L3 (live-intent guard, re-redaction, snapshot binding)
+Spec 0010 — provider registry, selector, compaction, adapter, multi-agent, live adapters: COMPLETE
 ```
 
-Recovery R0-R8 complete. EACODE at `dd1844c`. CI green. 357/358 tests (1 pre-existing Windows symlink).
+Recovery R0-R8 complete. EACODE at `2300b03`. CI green. 371/372 tests (1 pre-existing Windows symlink).
 
-### Spec 0009 security repairs (R4, 2026-07-20)
+### Spec 0009 security repairs (R4, 2026-07-21)
 
 - Live-execution intent guard: `dry_run`/`fake` plans rejected by SandboxedToolAdapter
 - Final-assembly re-redaction on all output paths (timeout, cancel, normal)
 - Repository snapshot binding via `SandboxedToolConfig.repository_snapshot`
 - Authorization receipt `execution_performed=True` rejected before execution
 
-### Spec 0010 runtime modules (2026-07-20)
+### Spec 0010 runtime modules (2026-07-20–21)
 
 | Module | What | Tests |
 |---|---|---|
@@ -48,14 +48,15 @@ Recovery R0-R8 complete. EACODE at `dd1844c`. CI green. 357/358 tests (1 pre-exi
 | `context_compaction.py` | CompactionRecord, engine, loss auditor, staleness, contradictions | 23 |
 | `provider_adapter.py` | FakeProviderAdapter, ProviderExecutionEvidence, served-model metadata | 10 |
 | `multi_agent.py` | AgentTask, budgets, DisagreementRecord, DeterministicBoss | 15 |
+| `live_adapter.py` | DeepSeek, Kimi Code, OpenAI adapters (opt-in, key-gated, shared HTTP helper) | 14 |
 
-All modules are additive, deterministic, keyless, and CI-validated. No live API calls.
+All modules are additive and CI-validated. Live adapters are disabled-by-default and require API keys; deterministic CI uses fake adapters only. Zero real API calls in CI.
 
-### Not implemented in EACODE
+### Not yet implemented
 
-- Live provider adapters (DeepSeek, Kimi Code, OpenAI) — manual smoke only
-- Product UI and selector controls
-- EACORE extraction
+- Product UI and selector controls (Slice G — requires browser/app surface)
+- Benchmark comparisons between providers
+- EACORE extraction (gated on EACHAT equivalent contracts)
 
 ### Claim boundary
 
