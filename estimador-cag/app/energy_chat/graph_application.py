@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from app.energy_chat.api_v2_contracts import (
     EnergyChatV2ErrorDetail,
     EnergyChatV2Request,
@@ -47,27 +49,33 @@ def run_graph_chat_v2(
     thread_id = request.thread_id or active_id_factory.new_thread_id()
     request_id = request.request_id or active_id_factory.new_request_id()
     trace_id = request.trace_id or active_id_factory.new_trace_id()
+    materialized_request = request.model_copy(
+        update={
+            "thread_id": thread_id,
+            "request_id": request_id,
+            "trace_id": trace_id,
+            "execution_profile": active_execution_profile,
+        }
+    )
 
     resolved_provider = provider or _resolve_provider(
-        request, active_execution_profile
+        materialized_request, active_execution_profile
     )
-    budget = _resolve_budget(request)
+    budget = _resolve_budget(materialized_request)
 
     active_checkpointer = checkpointer
-    saver = None
-    if active_execution_profile == "deterministic":
-        if active_checkpointer is None:
-            active_checkpointer = InMemoryCheckpointer()
-        saver = active_checkpointer.langgraph_saver
+    if active_checkpointer is None and active_execution_profile == "deterministic":
+        active_checkpointer = InMemoryCheckpointer()
+    saver = active_checkpointer.langgraph_saver if active_checkpointer else None
 
     state = EnergyChatGraphState(
         thread_id=thread_id,
         request_id=request_id,
         trace_id=trace_id,
-        user_request=request.user_message,
-        mode=request.mode,
+        user_request=materialized_request.user_message,
+        mode=materialized_request.mode,
         policy_version="unresolved",
-        constraints=request.required_constraints,
+        constraints=materialized_request.required_constraints,
     )
 
     result = run_energy_chat_graph(
@@ -77,7 +85,17 @@ def run_graph_chat_v2(
         checkpointer=saver,
         human_gate_mode=human_gate_mode,
     )
-    return _project_v2_response(result, request, active_execution_profile)
+    checkpoint_id = (
+        active_checkpointer.get_checkpoint_id(thread_id)
+        if active_checkpointer is not None
+        else None
+    )
+    return project_v2_response(
+        result,
+        materialized_request,
+        active_execution_profile,
+        checkpoint_id=checkpoint_id,
+    )
 
 
 def _resolve_execution_profile(
@@ -223,11 +241,16 @@ def _resolve_budget(request: EnergyChatV2Request) -> ProviderBudget:
     return ProviderBudget()
 
 
-def _project_v2_response(
+def project_v2_response(
     result: EnergyChatGraphState,
     request: EnergyChatV2Request,
     execution_profile: ExecutionProfile,
+    *,
+    checkpoint_id: str | None = None,
+    replayed_from_checkpoint: bool = False,
 ) -> EnergyChatV2Response:
+    """Project one validated graph state into the public V2 response contract."""
+
     metrics_list = result.provider_metrics
 
     if not metrics_list:
@@ -240,7 +263,9 @@ def _project_v2_response(
         served_provider = last.provider
         served_model = last.model
         fallback_used = any(item.fallback_used for item in metrics_list)
-        if execution_profile == "deterministic":
+        if replayed_from_checkpoint:
+            routing_reason = "response replayed from the authoritative application checkpoint"
+        elif execution_profile == "deterministic":
             routing_reason = "deterministic route used the local template provider"
         elif fallback_used:
             routing_reason = (
@@ -280,6 +305,10 @@ def _project_v2_response(
                 limitations.append(limitation)
     if not result.decision_ledger_entries and result.status == "awaiting_evidence":
         limitations.append("External evidence is required before candidate generation.")
+    if replayed_from_checkpoint:
+        limitations.append(
+            "Replay is process-local; application restart loses in-memory checkpoints."
+        )
 
     return EnergyChatV2Response(
         thread_id=result.thread_id,
@@ -316,6 +345,8 @@ def _project_v2_response(
             for item in result.trace_events
         ],
         limitations=limitations,
+        checkpoint_id=checkpoint_id,
+        replayed_from_checkpoint=replayed_from_checkpoint,
     )
 
 
@@ -336,11 +367,11 @@ def build_v2_error_detail(
     )
 
 
-def _sum_or_none(values: object) -> int | None:
+def _sum_or_none(values: Iterable[int | None]) -> int | None:
     total = 0
     any_present = False
-    for value in values:  # type: ignore[assignment]
+    for value in values:
         if value is not None:
-            total += int(value)  # type: ignore[arg-type]
+            total += int(value)
             any_present = True
     return total if any_present else None
