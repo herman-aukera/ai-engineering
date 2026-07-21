@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 ComplexityLevel = Literal["C0", "C1", "C2", "C3", "C4", "C5"]
 ExecutionProfileV3 = Literal["cost_first", "balanced", "quality_first", "human_controlled"]
 ModelMode = Literal["deterministic", "instant", "thinking"]
-ReasoningEffort = Literal["none", "low", "high", "max"]
+ReasoningEffort = Literal["none", "low", "medium", "high", "max"]
 RoutingStage = Literal["complexity", "structure", "recovery", "reliability", "proposal"]
 
 
@@ -53,7 +53,7 @@ class ComplexityAssessment(StrictV3Model):
     human_review_required: bool = False
 
     @model_validator(mode="after")
-    def validate_dimension_total(self) -> ComplexityAssessment:
+    def validate_dimension_total(self) -> "ComplexityAssessment":
         if any(value < 0 for value in self.dimensions.values()):
             raise ValueError("complexity dimensions must be non-negative")
         if sum(self.dimensions.values()) != self.score:
@@ -79,39 +79,12 @@ class ModelRoute(StrictV3Model):
     fallback_route_ids: list[str] = Field(default_factory=list)
     reason_codes: list[str] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def validate_mode_effort(self) -> ModelRoute:
-        if self.mode != "thinking" and self.effort != "none":
-            raise ValueError("reasoning effort is only valid for thinking mode")
-        if self.mode == "deterministic" and self.provider != "python":
-            raise ValueError("deterministic routes must use the python provider")
-        return self
-
 
 class ModelRoutingPlan(StrictV3Model):
-    """Checkpointed, versioned and auditable per-stage route plan."""
+    """Immutable project routing plan produced before graph model execution."""
 
     plan_id: str = Field(min_length=1)
-    policy_version: str = Field(min_length=1)
-    calibration_dataset_version: str = Field(min_length=1)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    profile: ExecutionProfileV3
     project_complexity: ComplexityAssessment
+    profile: ExecutionProfileV3
     routes_by_stage: dict[RoutingStage, ModelRoute]
-    overrides: list[dict[str, str]] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def validate_stage_coverage(self) -> ModelRoutingPlan:
-        required: set[RoutingStage] = {
-            "complexity",
-            "structure",
-            "recovery",
-            "reliability",
-            "proposal",
-        }
-        if set(self.routes_by_stage) != required:
-            raise ValueError("routing plan must define every LLM stage exactly once")
-        for stage, route in self.routes_by_stage.items():
-            if route.stage != stage:
-                raise ValueError(f"route stage mismatch for {stage}")
-        return self
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
