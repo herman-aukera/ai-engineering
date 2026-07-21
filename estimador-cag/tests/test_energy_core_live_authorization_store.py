@@ -108,6 +108,7 @@ def test_issue_live_authorization_for_non_denied_plan(tmp_path: Path) -> None:
     assert isinstance(receipt, LiveAuthorizationReceipt)
     assert receipt.plan_hash == plan.plan_hash
     assert receipt.repository_snapshot_hash == snapshot.snapshot_hash
+    assert receipt.execution_reserved is False
     assert receipt.execution_performed is False
     assert store.get(receipt.receipt_id) == receipt
 
@@ -251,8 +252,11 @@ def test_mark_executed_is_one_time_and_persistent(tmp_path: Path) -> None:
         store,
     )
 
+    reserved = store.reserve_execution(receipt.receipt_id)
     executed = store.mark_executed(receipt.receipt_id)
 
+    assert reserved.execution_reserved is True
+    assert executed.execution_reserved is True
     assert executed.execution_performed is True
     assert SQLiteLiveAuthorizationStore(database).get(receipt.receipt_id) == executed
     with pytest.raises(PermissionError, match="already"):
