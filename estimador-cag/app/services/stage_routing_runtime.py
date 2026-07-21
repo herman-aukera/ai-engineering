@@ -31,6 +31,7 @@ from app.services.litellm_agent_model import (
     _value,
 )
 from app.services.litellm_provider import LiteLLMProvider, ResolvedModel
+from app.services.openai_responses_agent import complete_openai_responses_turn
 from app.services.provider_readiness import StageRoutingPolicy
 
 _PLACEHOLDER_KEYS = frozenset({"", "test", "dummy", "fake", "placeholder", "example"})
@@ -354,6 +355,16 @@ class StageRoutedAgentModel(AgentModelPort):
     ) -> AgentModelTurn:
         resolved = self.provider.resolve_model(self.tier)
         route = current_stage_route()
+        if route is not None and route.provider == "openai":
+            return await complete_openai_responses_turn(
+                api_key=resolved.api_key,
+                base_url=resolved.base_url,
+                model=resolved.model,
+                effort=route.effort,
+                messages=messages,
+                tools=tools,
+                max_output_tokens=self.max_tokens,
+            )
         response = await litellm.acompletion(
             model=_litellm_completion_model(
                 provider=resolved.provider,

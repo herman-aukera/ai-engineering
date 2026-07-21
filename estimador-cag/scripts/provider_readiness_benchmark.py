@@ -21,12 +21,22 @@ import httpx
 import litellm
 
 from app.schemas.provider_readiness import BenchmarkSnapshot, ModelBenchmarkSummary
+from app.services.openai_responses_agent import (
+    benchmark_openai_tool_call,
+    benchmark_responses_tool_arguments,
+)
 
 OUT_DIR = Path(os.environ.get("PROVIDER_READINESS_OUT", "artifacts/provider-readiness"))
 _PLACEHOLDERS = frozenset({"", "test", "dummy", "fake", "placeholder", "example"})
 _KIMI_K3_PRICE_SOURCE = "https://www.kimi.com/help/kimi-api/api-pricing"
 _KIMI_K3_INPUT_USD_PER_MILLION = 3.0
 _KIMI_K3_OUTPUT_USD_PER_MILLION = 15.0
+_OPENAI_PRICE_SOURCE = "https://openai.com/index/gpt-5-6/"
+_OPENAI_PRICES = {
+    "gpt-5.6-luna": (0.80, 4.80),
+    "gpt-5.6-terra": (2.00, 12.00),
+    "gpt-5.6-sol": (3.50, 21.00),
+}
 _CASES = (
     {
         "id": "exact_text",
@@ -144,7 +154,7 @@ def _routes() -> list[Route]:
         for model, effort in _split_routes(
             os.environ.get(
                 "OPENAI_BENCHMARK_ROUTES",
-                "gpt-5.6-luna:low,gpt-5.6-terra:medium,gpt-5.6-sol:max",
+                "gpt-5.6-luna:low,gpt-5.6-terra:medium,gpt-5.6-sol:xhigh",
             )
         ):
             routes.append(
@@ -203,8 +213,14 @@ def _request_parameters(route: Route) -> dict[str, object]:
 
 def _usage(response: object) -> tuple[int, int]:
     usage = getattr(response, "usage", None)
-    prompt = getattr(usage, "prompt_tokens", 0) if usage is not None else 0
-    completion = getattr(usage, "completion_tokens", 0) if usage is not None else 0
+    if usage is None:
+        return 0, 0
+    prompt = getattr(usage, "prompt_tokens", None)
+    completion = getattr(usage, "completion_tokens", None)
+    if prompt is None:
+        prompt = getattr(usage, "input_tokens", 0)
+    if completion is None:
+        completion = getattr(usage, "output_tokens", 0)
     return int(prompt or 0), int(completion or 0)
 
 
@@ -226,6 +242,10 @@ def _response_cost(
         value = None
     if isinstance(value, int | float):
         return max(0.0, float(value)), "litellm_catalogue"
+    if route.provider == "openai" and route.model in _OPENAI_PRICES:
+        input_price, output_price = _OPENAI_PRICES[route.model]
+        cost = (input_tokens * input_price + output_tokens * output_price) / 1_000_000
+        return cost, "official_openai_gpt56_2026-07"
     if route.provider == "moonshot" and route.model.lower() in {"kimi-k3", "k3"}:
         cost = (
             input_tokens * _KIMI_K3_INPUT_USD_PER_MILLION
@@ -302,6 +322,42 @@ def _sanitize_error(exc: Exception) -> tuple[str, str]:
 def _case(route: Route, case: dict[str, str]) -> dict[str, object]:
     start = time.perf_counter()
     try:
+        if route.provider == "openai" and case["id"] == "tool_call":
+            response = benchmark_openai_tool_call(
+                api_key=route.api_key,
+                base_url=route.base_url,
+                model=route.model,
+                effort=route.effort,
+                instructions=case["system"],
+                user_input=case["user"],
+                tool=_TOOL,
+                max_output_tokens=256,
+            )
+            latency_ms = round((time.perf_counter() - start) * 1000, 2)
+            passed = benchmark_responses_tool_arguments(response) == {
+                "value": 7,
+                "label": "seven",
+            }
+            input_tokens, output_tokens = _usage(response)
+            cost_usd, cost_source = _response_cost(
+                route=route,
+                response=response,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+            return {
+                "case_id": case["id"],
+                "passed": passed,
+                "latency_ms": latency_ms,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cost_usd": cost_usd,
+                "cost_source": cost_source,
+                "error_type": None,
+                "error_code": None,
+                "error_detail": None,
+                "http_status": None,
+            }
         kwargs: dict[str, object] = {
             "model": route.litellm_model,
             "messages": [
@@ -436,6 +492,17 @@ def main() -> None:
         "auto_eligible": snapshot.has_complete_provider_coverage(),
         "configured_route_count": len(routes),
         "pricing_sources": {
+            "openai_gpt56": {
+                "source_url": _OPENAI_PRICE_SOURCE,
+                "models": {
+                    model: {
+                        "input_usd_per_million": prices[0],
+                        "output_usd_per_million": prices[1],
+                    }
+                    for model, prices in _OPENAI_PRICES.items()
+                },
+                "version": "2026-07",
+            },
             "kimi_k3": {
                 "source_url": _KIMI_K3_PRICE_SOURCE,
                 "input_cache_miss_usd_per_million": _KIMI_K3_INPUT_USD_PER_MILLION,

@@ -120,7 +120,7 @@ def _provider_name(selection: ProviderSelection) -> ProviderName:
 
 def _effort(provider: ProviderName, model: str, intent: str) -> ReasoningEffort:
     if provider == "openai":
-        return {"minimal": "low", "medium": "medium", "max": "max"}[intent]
+        return {"minimal": "low", "medium": "medium", "max": "xhigh"}[intent]
     if provider == "moonshot":
         if model == "k3":
             return {"minimal": "low", "medium": "high", "max": "max"}[intent]
