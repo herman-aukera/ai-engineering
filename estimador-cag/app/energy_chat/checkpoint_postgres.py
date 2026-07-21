@@ -90,7 +90,7 @@ class PostgresCheckpointer:
         can still import this module for interface validation.
         """
         try:
-            from langgraph.checkpoint.postgres import PostgresSaver as LGPostgresSaver
+            from langgraph_checkpoint_postgres import PostgresSaver as LGPostgresSaver
 
             return LGPostgresSaver.from_conn_string(self._connection_string)
         except ImportError:
