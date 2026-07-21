@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/runner/work/ai-engineering/ai-engineering/scripts/session13_plus_stabilize.py", line 444, in <module>
+    main()
+  File "/home/runner/work/ai-engineering/ai-engineering/scripts/session13_plus_stabilize.py", line 435, in main
+    repair_ci_boundary()
+  File "/home/runner/work/ai-engineering/ai-engineering/scripts/session13_plus_stabilize.py", line 75, in repair_ci_boundary
+    _replace_once(
+  File "/home/runner/work/ai-engineering/ai-engineering/scripts/session13_plus_stabilize.py", line 32, in _replace_once
+    raise RuntimeError(f"Expected one match in {relative}, found {count}: {old[:80]!r}")
+RuntimeError: Expected one match in .github/workflows/ci.yml, found 0: '      - name: Tests\n        run: uv run pytest -q\n'
