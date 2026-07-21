@@ -24,62 +24,27 @@ jobs:
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
       PYTHONUNBUFFERED: "1"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: uv sync --frozen --extra dev
-
       - name: Ruff
         run: |
           TARGETS="app tests"
           test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
           test -d evals && TARGETS="$TARGETS evals"
-          uv run ruff check $TARGETS > /tmp/readiness-ruff.log 2>&1 || {
-            cat /tmp/readiness-ruff.log
-            false
-          }
-          cat /tmp/readiness-ruff.log
-
-      - name: Upload Ruff diagnostics
-        if: failure() && github.head_ref == 'gg-session-13/plus-production-readiness'
-        uses: actions/upload-artifact@v4
-        with:
-          name: readiness-ruff-diagnostics-${{ github.sha }}
-          path: /tmp/readiness-ruff.log
-          if-no-files-found: error
-          retention-days: 7
-
+          uv run ruff check $TARGETS
       - name: Compile Python
         run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
-
       - name: Deterministic tests
-        run: |
-          uv run pytest -q -m "not live_provider" > /tmp/readiness-tests.log 2>&1 || {
-            cat /tmp/readiness-tests.log
-            false
-          }
-          cat /tmp/readiness-tests.log
-
-      - name: Upload deterministic test diagnostics
-        if: failure() && github.head_ref == 'gg-session-13/plus-production-readiness'
-        uses: actions/upload-artifact@v4
-        with:
-          name: readiness-test-diagnostics-${{ github.sha }}
-          path: /tmp/readiness-tests.log
-          if-no-files-found: error
-          retention-days: 7
-
+        run: uv run pytest -q -m "not live_provider"
       - name: Diff and secret gates
         working-directory: .
         run: |
@@ -108,21 +73,16 @@ jobs:
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v4
-
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: uv sync --frozen --extra dev
-
       - name: Run matched provider benchmark
         run: uv run python scripts/provider_readiness_benchmark.py
-
       - name: Upload sanitized provider evidence
         uses: actions/upload-artifact@v4
         with:
@@ -162,10 +122,8 @@ jobs:
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v4
-
       - name: Build production image
         run: docker build -t estimador-cag:${{ github.sha }} estimador-cag
-
       - name: Run production image
         run: |
           docker run --detach --name estimador-cag \
@@ -178,31 +136,45 @@ jobs:
             --env GRAPH_RETRIEVAL_MODE=parallel \
             --env GRAPH_RETRIEVAL_MAX_CONCURRENCY=4 \
             estimador-cag:${{ github.sha }}
-
-      - name: Require liveness and readiness
+      - name: Probe liveness and readiness
+        id: probe
         run: |
+          mkdir -p /tmp/container-readiness
+          ready=false
           for attempt in $(seq 1 40); do
-            health_code=$(curl --silent --output /tmp/health.json --write-out '%{http_code}' http://127.0.0.1:8000/health || true)
-            ready_code=$(curl --silent --output /tmp/ready.json --write-out '%{http_code}' http://127.0.0.1:8000/ready || true)
+            health_code=$(curl --silent --output /tmp/container-readiness/health.json --write-out '%{http_code}' http://127.0.0.1:8000/health || true)
+            ready_code=$(curl --silent --output /tmp/container-readiness/ready.json --write-out '%{http_code}' http://127.0.0.1:8000/ready || true)
             if [ "$health_code" = "200" ] && [ "$ready_code" = "200" ]; then
+              ready=true
               break
-            fi
-            if [ "$attempt" = "40" ]; then
-              cat /tmp/health.json 2>/dev/null || true
-              cat /tmp/ready.json 2>/dev/null || true
-              docker logs estimador-cag
-              false
             fi
             sleep 3
           done
-
+          docker logs estimador-cag > /tmp/container-readiness/container.log 2>&1 || true
+          docker inspect estimador-cag --format '{{json .State}}' > /tmp/container-readiness/container-state.json || true
+          printf '%s\n' "$health_code" > /tmp/container-readiness/health-status.txt
+          printf '%s\n' "$ready_code" > /tmp/container-readiness/ready-status.txt
+          if [ "$ready" != "true" ]; then
+            echo "Container failed readiness gate"
+            cat /tmp/container-readiness/health.json 2>/dev/null || true
+            cat /tmp/container-readiness/ready.json 2>/dev/null || true
+            false
+          fi
+      - name: Upload container readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-readiness-evidence-${{ github.sha }}
+          path: /tmp/container-readiness
+          if-no-files-found: error
+          retention-days: 14
       - name: Verify sanitized readiness payload
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
-          payload = json.loads(Path('/tmp/ready.json').read_text())
+          payload = json.loads(Path('/tmp/container-readiness/ready.json').read_text())
           serialized = json.dumps(payload).lower()
           assert payload['ready'] is True
           assert payload['status'] == 'ready'
@@ -211,7 +183,3 @@ jobs:
           assert 'database_url' not in serialized
           assert 'redis_url' not in serialized
           PY
-
-      - name: Show container logs on failure
-        if: failure()
-        run: docker logs estimador-cag || true
