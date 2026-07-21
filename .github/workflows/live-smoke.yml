@@ -34,6 +34,7 @@ jobs:
         run: |
           test -n "$DEEPSEEK_API_KEY" || (echo "DEEPSEEK_API_KEY is missing" && exit 1)
           test -n "$KIMI_API_KEY" || (echo "KIMI_API_KEY is missing" && exit 1)
+          test -n "$OPENAI_API_KEY" || echo "OPENAI_API_KEY is missing (OpenAI smoke will skip)"
 
       - name: EACODE provider smoke (DeepSeek + Kimi)
         run: uv run python scripts/energy_core_live_provider_smoke.py
