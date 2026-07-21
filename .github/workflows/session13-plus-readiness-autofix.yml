@@ -103,3 +103,5 @@ jobs:
             git commit -m "session13: chore(readiness): normalize production surface"
             git push origin HEAD:gg-session-13/plus-production-readiness
           fi
+
+# Triggered after all readiness surfaces were added.
