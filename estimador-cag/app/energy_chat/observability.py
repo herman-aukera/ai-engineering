@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class NodeSpan(BaseModel):
@@ -16,13 +16,18 @@ class NodeSpan(BaseModel):
     node_name: str = Field(min_length=1)
     started_at_ms: int = Field(ge=0)
     finished_at_ms: int = Field(ge=0)
+    duration_ms: int | None = Field(default=None, ge=0)
     status: Literal["completed", "failed"] = "completed"
     safe_error_category: str | None = Field(default=None, max_length=128)
 
-    @computed_field
-    @property
-    def duration_ms(self) -> int:
-        return max(0, self.finished_at_ms - self.started_at_ms)
+    @model_validator(mode="after")
+    def duration_matches_timestamps(self) -> NodeSpan:
+        expected = max(0, self.finished_at_ms - self.started_at_ms)
+        if self.duration_ms is None:
+            self.duration_ms = expected
+        elif self.duration_ms != expected:
+            raise ValueError("Node span duration must match its timestamps")
+        return self
 
 
 class GraphExecutionMetrics(BaseModel):
@@ -70,8 +75,6 @@ def compute_graph_execution_metrics(
     errors: list[object],
     node_spans: list[NodeSpan] | None = None,
 ) -> GraphExecutionMetrics:
-    """Compute one user-safe aggregate from graph-state collections."""
-
     spans = list(node_spans or [])
     provider_calls = list(provider_metrics or [])
     events = list(trace_events or [])
@@ -89,7 +92,7 @@ def compute_graph_execution_metrics(
         request_id=request_id,
         trace_id=trace_id,
         graph_status=graph_status,
-        total_wall_ms=sum(span.duration_ms for span in spans),
+        total_wall_ms=sum(int(span.duration_ms or 0) for span in spans),
         node_count=len(spans),
         failed_node_count=sum(span.status == "failed" for span in spans),
         provider_call_count=len(provider_calls),
