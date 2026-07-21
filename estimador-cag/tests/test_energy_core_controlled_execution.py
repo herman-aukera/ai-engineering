@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -11,6 +13,27 @@ from energy_core.controlled_execution import (
     FakeToolResult,
     build_execution_plan,
     review_execution,
+)
+
+
+def _can_symlink() -> bool:
+    """Return True if symlink creation is permitted on this platform."""
+    if sys.platform != "win32":
+        return True
+    try:
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            src = Path(td) / "src"
+            src.write_text("test")
+            link = Path(td) / "link"
+            os.symlink(str(src), str(link))
+            return True
+    except OSError:
+        return False
+
+
+_can_symlink_skip = pytest.mark.skipif(
+    not _can_symlink(), reason="Symlink creation requires admin/Developer Mode on Windows"
 )
 
 
@@ -118,6 +141,7 @@ def test_path_escape_is_rejected(tmp_path: Path) -> None:
         )
 
 
+@_can_symlink_skip
 def test_symlink_escape_is_rejected(tmp_path: Path) -> None:
     outside_dir = tmp_path.parent / "outside-dir"
     outside_dir.mkdir(exist_ok=True)
