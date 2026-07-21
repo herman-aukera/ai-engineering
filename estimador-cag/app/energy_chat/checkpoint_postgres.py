@@ -1,8 +1,8 @@
 """PostgreSQL-backed graph checkpointing for Energy Aware Chat.
 
-This module uses LangGraph's official ``PostgresSaver`` with an explicit
-connection pool, setup/migration lifecycle, state redaction, checkpoint
-inspection, bounded retention, and deterministic close semantics.
+Uses LangGraph's official ``PostgresSaver`` with an explicit connection pool,
+additive setup, redacting writes, checkpoint inspection, bounded retention, and
+restart-safe lifecycle management.
 """
 
 from __future__ import annotations
@@ -17,12 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 POSTGRES_CHECKPOINT_MIGRATION_VERSION = 1
 REDACTION_SENTINEL = "[REDACTED]"
-
 REDACTED_STATE_FIELDS: frozenset[str] = frozenset(
-    {
-        "user_request",
-        "human_action_response",
-    }
+    {"user_request", "human_action_response"}
 )
 
 
@@ -46,10 +42,13 @@ class _RedactingPostgresSaver(PostgresSaver):
         new_versions: dict[str, Any],
     ) -> dict[str, Any]:
         safe_checkpoint = deepcopy(checkpoint)
-        channel_values = safe_checkpoint.setdefault("channel_values", {})
-        _redact_channel_values(channel_values)
-        safe_metadata = _redact_nested(deepcopy(metadata))
-        return super().put(config, safe_checkpoint, safe_metadata, new_versions)
+        _redact_channel_values(safe_checkpoint.setdefault("channel_values", {}))
+        return super().put(
+            config,
+            safe_checkpoint,
+            _redact_nested(deepcopy(metadata)),
+            new_versions,
+        )
 
     def put_writes(
         self,
@@ -67,6 +66,9 @@ class _RedactingPostgresSaver(PostgresSaver):
 
 class PostgresCheckpointer:
     """Lifecycle wrapper around a redacting LangGraph PostgresSaver."""
+
+    process_local = False
+    restart_persistent = True
 
     def __init__(
         self,
@@ -99,22 +101,19 @@ class PostgresCheckpointer:
 
     @property
     def langgraph_saver(self) -> _RedactingPostgresSaver:
-        """Return an opened redacting saver or fail clearly on unavailable DB."""
-
         self.open()
         assert self._saver is not None
         return self._saver
 
     def open(self) -> PostgresCheckpointer:
-        """Open the connection pool once."""
+        """Open the configured pool once."""
 
         if self._saver is not None:
             return self
-
         from psycopg.rows import dict_row
         from psycopg_pool import ConnectionPool
 
-        pool = ConnectionPool(
+        self._pool = ConnectionPool(
             conninfo=self._connection_string,
             min_size=self._pool_min_size,
             max_size=self._pool_max_size,
@@ -125,18 +124,17 @@ class PostgresCheckpointer:
             },
             open=True,
         )
-        self._pool = pool
-        self._saver = _RedactingPostgresSaver(pool)
+        self._saver = _RedactingPostgresSaver(self._pool)
         return self
 
     def setup(self) -> None:
-        """Apply LangGraph and product-local additive migrations."""
+        """Apply LangGraph migrations and product-local additive migrations."""
 
-        saver = self.langgraph_saver
-        saver.setup()
+        self.langgraph_saver.setup()
         assert self._pool is not None
         with self._pool.connection() as connection:
-            connection.execute(_CHECKPOINT_SCHEMA_DDL)
+            for statement in _CHECKPOINT_SCHEMA_STATEMENTS:
+                connection.execute(statement, prepare=False)
             connection.execute(
                 """
                 INSERT INTO eachat_checkpoint_migrations
@@ -151,8 +149,6 @@ class PostgresCheckpointer:
             )
 
     def close(self) -> None:
-        """Close all pooled connections and invalidate the active saver."""
-
         if self._pool is not None:
             self._pool.close()
         self._pool = None
@@ -179,8 +175,6 @@ class PostgresCheckpointer:
         *,
         checkpoint_namespace: str = "",
     ):
-        """Return the latest validated domain state from PostgreSQL."""
-
         from app.energy_chat.graph_state import EnergyChatGraphState
 
         checkpoint_tuple = self.langgraph_saver.get_tuple(
@@ -211,15 +205,12 @@ class PostgresCheckpointer:
         return str(value) if value is not None else None
 
     def migration_applied(self) -> bool:
-        """Return whether the current product migration version is recorded."""
-
         self.open()
         assert self._pool is not None
         with self._pool.connection() as connection:
             row = connection.execute(
                 """
-                SELECT 1
-                FROM eachat_checkpoint_migrations
+                SELECT 1 FROM eachat_checkpoint_migrations
                 WHERE migration_version = %s
                 """,
                 (POSTGRES_CHECKPOINT_MIGRATION_VERSION,),
@@ -227,8 +218,6 @@ class PostgresCheckpointer:
         return row is not None
 
     def delete_thread(self, thread_id: str) -> None:
-        """Delete all LangGraph checkpoint data for one thread."""
-
         self.langgraph_saver.delete_thread(thread_id)
 
     def enforce_retention(
@@ -245,22 +234,21 @@ class PostgresCheckpointer:
         checkpoints = list(saver.list(config))
         if not checkpoints:
             return 0
-
-        cutoff = None
-        if policy.retention_days is not None:
-            cutoff = (now or datetime.now(UTC)) - timedelta(days=policy.retention_days)
-
-        delete_ids: list[str] = []
-        for index, checkpoint_tuple in enumerate(checkpoints):
-            checkpoint_id = str(
-                checkpoint_tuple.config["configurable"]["checkpoint_id"]
+        cutoff = (
+            (now or datetime.now(UTC)) - timedelta(days=policy.retention_days)
+            if policy.retention_days is not None
+            else None
+        )
+        delete_ids = [
+            str(item.config["configurable"]["checkpoint_id"])
+            for index, item in enumerate(checkpoints)
+            if index >= policy.max_checkpoints_per_thread
+            or (
+                cutoff is not None
+                and (timestamp := _checkpoint_timestamp(item.checkpoint)) is not None
+                and timestamp < cutoff
             )
-            timestamp = _checkpoint_timestamp(checkpoint_tuple.checkpoint)
-            exceeds_count = index >= policy.max_checkpoints_per_thread
-            expired = cutoff is not None and timestamp is not None and timestamp < cutoff
-            if exceeds_count or expired:
-                delete_ids.append(checkpoint_id)
-
+        ]
         if not delete_ids:
             return 0
         if len(delete_ids) == len(checkpoints):
@@ -272,8 +260,7 @@ class PostgresCheckpointer:
             connection.execute(
                 """
                 DELETE FROM checkpoint_writes
-                WHERE thread_id = %s
-                  AND checkpoint_ns = ''
+                WHERE thread_id = %s AND checkpoint_ns = ''
                   AND checkpoint_id = ANY(%s)
                 """,
                 (thread_id, delete_ids),
@@ -281,19 +268,17 @@ class PostgresCheckpointer:
             connection.execute(
                 """
                 DELETE FROM checkpoints
-                WHERE thread_id = %s
-                  AND checkpoint_ns = ''
+                WHERE thread_id = %s AND checkpoint_ns = ''
                   AND checkpoint_id = ANY(%s)
                 """,
                 (thread_id, delete_ids),
             )
-
         _delete_orphan_blobs(self._pool, saver, thread_id)
         return len(delete_ids)
 
     @staticmethod
     def schema_ddl() -> str:
-        return _CHECKPOINT_SCHEMA_DDL
+        return "\n\n".join(_CHECKPOINT_SCHEMA_STATEMENTS)
 
     @staticmethod
     def migration_version() -> int:
@@ -304,8 +289,7 @@ def _redact_channel_values(channel_values: dict[str, Any]) -> None:
     for field_name in REDACTED_STATE_FIELDS:
         if field_name in channel_values:
             channel_values[field_name] = _redacted_value(
-                field_name,
-                channel_values[field_name],
+                field_name, channel_values[field_name]
             )
 
 
@@ -357,34 +341,33 @@ def _delete_orphan_blobs(pool: Any, saver: Any, thread_id: str) -> None:
     with pool.connection() as connection:
         rows = connection.execute(
             """
-            SELECT channel, version
-            FROM checkpoint_blobs
+            SELECT channel, version FROM checkpoint_blobs
             WHERE thread_id = %s AND checkpoint_ns = ''
             """,
             (thread_id,),
         ).fetchall()
         for row in rows:
-            key = (str(row["channel"]), str(row["version"]))
-            if key not in retained_versions:
+            if (str(row["channel"]), str(row["version"])) not in retained_versions:
                 connection.execute(
                     """
                     DELETE FROM checkpoint_blobs
-                    WHERE thread_id = %s
-                      AND checkpoint_ns = ''
-                      AND channel = %s
-                      AND version = %s
+                    WHERE thread_id = %s AND checkpoint_ns = ''
+                      AND channel = %s AND version = %s
                     """,
                     (thread_id, row["channel"], row["version"]),
                 )
 
 
-_CHECKPOINT_SCHEMA_DDL = """\
-CREATE TABLE IF NOT EXISTS eachat_checkpoint_migrations (
-    migration_version INTEGER PRIMARY KEY,
-    applied_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    description      TEXT NOT NULL
-);
-
-COMMENT ON TABLE eachat_checkpoint_migrations IS
-    'Tracks additive EACHAT checkpoint lifecycle migrations.';
-"""
+_CHECKPOINT_SCHEMA_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS eachat_checkpoint_migrations (
+        migration_version INTEGER PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        description TEXT NOT NULL
+    )
+    """,
+    """
+    COMMENT ON TABLE eachat_checkpoint_migrations IS
+        'Tracks additive EACHAT checkpoint lifecycle migrations.'
+    """,
+)
