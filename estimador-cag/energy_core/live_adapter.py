@@ -126,10 +126,7 @@ class BaseLiveAdapter:
 
 
 class DeepSeekAdapter(BaseLiveAdapter):
-    """Opt-in DeepSeek API adapter.
-
-    Requires DEEPSEEK_API_KEY and enabled=True.
-    """
+    """Opt-in DeepSeek API adapter. Requires DEEPSEEK_API_KEY and enabled=True."""
 
     def _call_provider(
         self,
@@ -145,11 +142,9 @@ class DeepSeekAdapter(BaseLiveAdapter):
 
 
 class KimiCodeAdapter(BaseLiveAdapter):
-    """Opt-in Kimi Code adapter.
+    """Opt-in Kimi Code adapter. Requires KIMI_API_KEY and enabled=True.
 
-    Requires KIMI_API_KEY and enabled=True.
-    Calls the Kimi Code (Moonshot) chat completions endpoint.
-    Membership-based billing — pricing in registry may be zero for entitled users.
+    Membership-based billing — registry pricing may be zero for entitled users.
     Model/effort switches invalidate prompt-cache; start a fresh session.
     """
 
@@ -161,6 +156,26 @@ class KimiCodeAdapter(BaseLiveAdapter):
         api_key: str,
     ) -> ProviderExecutionEvidence:
         base_url = self.config.api_base_url or "https://api.moonshot.cn"
+        return _openai_compatible_call(
+            planned, selection, messages, api_key, base_url, self._registry
+        )
+
+
+class OpenAIAdapter(BaseLiveAdapter):
+    """Opt-in OpenAI GPT-5.6 adapter. Requires OPENAI_API_KEY and enabled=True.
+
+    Budget-gated premium escalation — max/escalation profiles require
+    explicit premium_reason on the ProviderSelection.
+    """
+
+    def _call_provider(
+        self,
+        planned: ResolvedProvider,
+        selection: ProviderSelection,
+        messages: list[dict[str, str]] | None,
+        api_key: str,
+    ) -> ProviderExecutionEvidence:
+        base_url = self.config.api_base_url or "https://api.openai.com"
         return _openai_compatible_call(
             planned, selection, messages, api_key, base_url, self._registry
         )

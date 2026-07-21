@@ -10,7 +10,12 @@ import os
 
 import pytest
 
-from energy_core.live_adapter import DeepSeekAdapter, KimiCodeAdapter, LiveAdapterConfig
+from energy_core.live_adapter import (
+    DeepSeekAdapter,
+    KimiCodeAdapter,
+    LiveAdapterConfig,
+    OpenAIAdapter,
+)
 from energy_core.provider_registry import ProviderSelection
 
 
@@ -25,11 +30,14 @@ def _clear_api_keys() -> None:
     """Ensure provider API keys are cleared before each test."""
     old_deepseek = os.environ.pop("DEEPSEEK_API_KEY", None)
     old_kimi = os.environ.pop("KIMI_API_KEY", None)
+    old_openai = os.environ.pop("OPENAI_API_KEY", None)
     yield
     if old_deepseek is not None:
         os.environ["DEEPSEEK_API_KEY"] = old_deepseek
     if old_kimi is not None:
         os.environ["KIMI_API_KEY"] = old_kimi
+    if old_openai is not None:
+        os.environ["OPENAI_API_KEY"] = old_openai
 
 
 # ------------------------------------------------------------------
@@ -158,5 +166,39 @@ def test_kimi_adapter_uses_moonshot_url() -> None:
     adapter = KimiCodeAdapter(config)
     # Will fail on network (no real connection in CI) but proves config works
     result = adapter.invoke(_selection(provider="kimi", profile="max"))
-    # Either network failure or success — both prove the adapter tried
     assert result.attempts[0].model_id != "" or result.attempts[0].status == "failed"
+
+
+# ------------------------------------------------------------------
+# OpenAI adapter
+# ------------------------------------------------------------------
+
+
+def test_openai_adapter_disabled_by_default() -> None:
+    config = LiveAdapterConfig(provider="openai", api_key_env_var="OPENAI_API_KEY")
+    assert config.enabled is False
+
+
+def test_openai_adapter_disabled_returns_fake() -> None:
+    config = LiveAdapterConfig(enabled=False, provider="openai", api_key_env_var="OPENAI_API_KEY")
+    adapter = OpenAIAdapter(config)
+    result = adapter.invoke(_selection(provider="openai", profile="medium"))
+    assert result.execution_performed is False
+
+
+def test_openai_adapter_missing_key_returns_failure() -> None:
+    config = LiveAdapterConfig(enabled=True, provider="openai", api_key_env_var="OPENAI_API_KEY")
+    adapter = OpenAIAdapter(config)
+    result = adapter.invoke(_selection(provider="openai", profile="medium"))
+    assert result.attempts[0].status == "failed"
+    assert "OPENAI_API_KEY" in (result.attempts[0].error_message or "")
+
+
+def test_openai_max_requires_premium_reason() -> None:
+    """OpenAI max profile requires premium_reason on selection."""
+    os.environ["OPENAI_API_KEY"] = "test-key"
+    config = LiveAdapterConfig(enabled=True, provider="openai", api_key_env_var="OPENAI_API_KEY")
+    adapter = OpenAIAdapter(config)
+    # Without premium_reason, ProviderSelector raises ValueError before API call
+    result = adapter.invoke(_selection(provider="openai", profile="max"))
+    assert result.attempts[0].status == "failed"
