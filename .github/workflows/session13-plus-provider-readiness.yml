@@ -1,0 +1,90 @@
+name: Session 13 Plus provider readiness
+
+on:
+  push:
+    branches:
+      - gg-session-13/plus-production-readiness
+    paths:
+      - estimador-cag/scripts/provider_readiness_benchmark.py
+      - .github/workflows/session13-plus-provider-readiness.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  DEEPSEEK_BASE_URL: https://api.deepseek.com/v1
+  KIMI_BASE_URL: https://api.moonshot.ai/v1
+  OPENAI_BASE_URL: https://api.openai.com/v1
+  KIMI_BENCHMARK_ROUTES: ${{ vars.KIMI_BENCHMARK_ROUTES }}
+
+jobs:
+  matched-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: estimador-cag
+    steps:
+      - name: Checkout exact readiness head
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Run matched provider contracts
+        run: uv run python scripts/provider_readiness_benchmark.py
+
+      - name: Publish sanitized benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: session13-plus-provider-readiness-${{ github.sha }}
+          path: estimador-cag/artifacts/provider-readiness
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Write job summary
+        run: |
+          uv run python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("artifacts/provider-readiness/provider-readiness-report.json").read_text()
+          )
+          lines = [
+              "# Session 13 Plus provider readiness",
+              "",
+              f"- Commit: `{report['snapshot']['source_commit']}`",
+              f"- Auto eligible: **{report['auto_eligible']}**",
+              f"- Configured routes: **{report['configured_route_count']}**",
+              "",
+              "| Provider | Model | Effort | Status | Quality | Schema | Tools | Cost USD |",
+              "|---|---|---:|---|---:|---:|---:|---:|",
+          ]
+          for item in report["snapshot"]["summaries"]:
+              lines.append(
+                  "| {provider} | {model} | {effort} | {status} | {quality_score:.2f} | "
+                  "{schema_pass_rate:.2f} | {tool_pass_rate:.2f} | {cost} |".format(
+                      **item,
+                      cost=(
+                          f"{item['median_cost_usd']:.6f}"
+                          if item["median_cost_usd"] is not None
+                          else "n/a"
+                      ),
+                  )
+              )
+          Path("summary.md").write_text("\n".join(lines) + "\n")
+          PY
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
