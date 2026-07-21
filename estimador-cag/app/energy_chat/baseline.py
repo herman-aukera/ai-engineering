@@ -94,13 +94,7 @@ def generate_deepseek_baseline_draft(
     served_provider = str(provider_result.get("provider") or "deepseek")
     evidence_refs = ["provider:deepseek_baseline", f"tier:{resolved_tier}"]
     if fallback_used:
-        evidence_refs.extend(
-            [
-                f"fallback_from:{request.tier}",
-                f"fallback_to:{served_provider}",
-                "fallback_authorized:true",
-            ]
-        )
+        evidence_refs.append(f"fallback_from:{request.tier}")
 
     return DeepSeekBaselineResult(
         request=request,
