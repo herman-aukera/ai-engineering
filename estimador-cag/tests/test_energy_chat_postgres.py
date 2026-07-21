@@ -57,12 +57,12 @@ def test_checkpoint_retention_policy_has_defaults() -> None:
 
 
 def test_checkpoint_redaction_requires_sensitive_fields() -> None:
-    """Raw user text and human responses must not be durable checkpoint values."""
+    """Raw user text and human action results must not be durable values."""
 
     from app.energy_chat.checkpoint_postgres import REDACTED_STATE_FIELDS
 
     assert "user_request" in REDACTED_STATE_FIELDS
-    assert "human_action_response" in REDACTED_STATE_FIELDS
+    assert "human_action_result" in REDACTED_STATE_FIELDS
     assert isinstance(REDACTED_STATE_FIELDS, frozenset)
 
 
