@@ -1,0 +1,49 @@
+name: EACODE repair diagnostics
+
+on:
+  pull_request:
+    branches:
+      - EACODE
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: estimador-cag
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Capture Ruff diagnostics
+        run: |
+          uv run ruff check tests/test_energy_core_live_execution_contract.py > /tmp/ruff.txt 2>&1 || true
+          cat /tmp/ruff.txt
+
+      - name: Capture focused pytest diagnostics
+        run: |
+          uv run pytest -q tests/test_energy_core_live_execution_contract.py > /tmp/pytest.txt 2>&1 || true
+          cat /tmp/pytest.txt
+
+      - name: Upload repair diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eacode-repair-diagnostics
+          path: |
+            /tmp/ruff.txt
+            /tmp/pytest.txt
