@@ -30,12 +30,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          show-progress: false
 
       - name: Apply approved Session 13 Plus stabilization
         if: github.ref == 'refs/heads/gg-session-13/plus-stabilization' || github.head_ref == 'gg-session-13/plus-stabilization'
         working-directory: .
         run: |
           python scripts/session13_plus_stabilize.py > /tmp/session13-stabilize.log 2>&1 || {
+            echo "::error title=Stabilization executor failed::$(tail -n 1 /tmp/session13-stabilize.log)"
             cat /tmp/session13-stabilize.log
             false
           }
