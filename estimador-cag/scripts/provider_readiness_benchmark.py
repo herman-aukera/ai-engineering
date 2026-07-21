@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import statistics
 import time
 from dataclasses import dataclass
@@ -23,6 +24,9 @@ from app.schemas.provider_readiness import BenchmarkSnapshot, ModelBenchmarkSumm
 
 OUT_DIR = Path(os.environ.get("PROVIDER_READINESS_OUT", "artifacts/provider-readiness"))
 _PLACEHOLDERS = frozenset({"", "test", "dummy", "fake", "placeholder", "example"})
+_KIMI_K3_PRICE_SOURCE = "https://www.kimi.com/help/kimi-api/api-pricing"
+_KIMI_K3_INPUT_USD_PER_MILLION = 3.0
+_KIMI_K3_OUTPUT_USD_PER_MILLION = 15.0
 _CASES = (
     {
         "id": "exact_text",
@@ -45,6 +49,7 @@ _TOOL = {
     "function": {
         "name": "record_value",
         "description": "Record one benchmark value.",
+        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
@@ -203,17 +208,31 @@ def _usage(response: object) -> tuple[int, int]:
     return int(prompt or 0), int(completion or 0)
 
 
-def _response_cost(response: object) -> float | None:
+def _response_cost(
+    *,
+    route: Route,
+    response: object,
+    input_tokens: int,
+    output_tokens: int,
+) -> tuple[float | None, str | None]:
     hidden = getattr(response, "_hidden_params", None)
     if isinstance(hidden, dict):
         value = hidden.get("response_cost")
         if isinstance(value, int | float) and not isinstance(value, bool):
-            return max(0.0, float(value))
+            return max(0.0, float(value)), "provider_or_litellm"
     try:
         value = litellm.completion_cost(completion_response=response)
     except Exception:
-        return None
-    return max(0.0, float(value)) if isinstance(value, int | float) else None
+        value = None
+    if isinstance(value, int | float):
+        return max(0.0, float(value)), "litellm_catalogue"
+    if route.provider == "moonshot" and route.model.lower() in {"kimi-k3", "k3"}:
+        cost = (
+            input_tokens * _KIMI_K3_INPUT_USD_PER_MILLION
+            + output_tokens * _KIMI_K3_OUTPUT_USD_PER_MILLION
+        ) / 1_000_000
+        return cost, "official_kimi_k3_cache_miss_2026-07"
+    return None, None
 
 
 def _first_message(response: object) -> object:
@@ -245,6 +264,39 @@ def _tool_arguments(message: object) -> dict[str, Any] | None:
     except json.JSONDecodeError:
         return None
     return parsed if isinstance(parsed, dict) else None
+
+
+def _sanitize_error(exc: Exception) -> tuple[str, str]:
+    message = str(exc)
+    message = re.sub(r"sk-[A-Za-z0-9_-]{12,}", "[redacted-key]", message)
+    message = re.sub(
+        r"(?i)bearer\s+[A-Za-z0-9._~+/-]{12,}",
+        "Bearer [redacted]",
+        message,
+    )
+    compact = " ".join(message.split())[:280]
+    lowered = compact.lower()
+    if "tool_choice" in lowered:
+        code = "invalid_tool_choice"
+    elif "tool" in lowered and "schema" in lowered:
+        code = "invalid_tool_schema"
+    elif "reasoning" in lowered and ("invalid" in lowered or "unsupported" in lowered):
+        code = "invalid_reasoning_effort"
+    elif "unsupported" in lowered and "parameter" in lowered:
+        code = "unsupported_parameter"
+    elif "model" in lowered and any(
+        token in lowered for token in ("not found", "does not exist", "access", "permission")
+    ):
+        code = "model_access"
+    elif any(token in lowered for token in ("api key", "authentication", "unauthorized")):
+        code = "authentication"
+    elif any(token in lowered for token in ("quota", "insufficient", "billing", "credit")):
+        code = "quota_or_billing"
+    elif "rate limit" in lowered or "429" in lowered:
+        code = "rate_limit"
+    else:
+        code = "provider_bad_request"
+    return code, compact
 
 
 def _case(route: Route, case: dict[str, str]) -> dict[str, object]:
@@ -280,14 +332,23 @@ def _case(route: Route, case: dict[str, str]) -> dict[str, object]:
         else:
             passed = _tool_arguments(message) == {"value": 7, "label": "seven"}
         input_tokens, output_tokens = _usage(response)
+        cost_usd, cost_source = _response_cost(
+            route=route,
+            response=response,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
         return {
             "case_id": case["id"],
             "passed": passed,
             "latency_ms": latency_ms,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "cost_usd": _response_cost(response),
+            "cost_usd": cost_usd,
+            "cost_source": cost_source,
             "error_type": None,
+            "error_code": None,
+            "error_detail": None,
             "http_status": None,
         }
     except Exception as exc:
@@ -295,6 +356,7 @@ def _case(route: Route, case: dict[str, str]) -> dict[str, object]:
         if not isinstance(status, int):
             response = getattr(exc, "response", None)
             status = getattr(response, "status_code", None)
+        error_code, error_detail = _sanitize_error(exc)
         return {
             "case_id": case["id"],
             "passed": False,
@@ -302,7 +364,10 @@ def _case(route: Route, case: dict[str, str]) -> dict[str, object]:
             "input_tokens": 0,
             "output_tokens": 0,
             "cost_usd": None,
+            "cost_source": None,
             "error_type": type(exc).__name__,
+            "error_code": error_code,
+            "error_detail": error_detail,
             "http_status": status if isinstance(status, int) else None,
         }
 
@@ -370,6 +435,15 @@ def main() -> None:
         "snapshot": snapshot.model_dump(mode="json"),
         "auto_eligible": snapshot.has_complete_provider_coverage(),
         "configured_route_count": len(routes),
+        "pricing_sources": {
+            "kimi_k3": {
+                "source_url": _KIMI_K3_PRICE_SOURCE,
+                "input_cache_miss_usd_per_million": _KIMI_K3_INPUT_USD_PER_MILLION,
+                "output_usd_per_million": _KIMI_K3_OUTPUT_USD_PER_MILLION,
+                "pricing_assumption": "cache_miss",
+                "version": "2026-07",
+            }
+        },
         "routes": raw_routes,
     }
     (OUT_DIR / "provider-readiness-report.json").write_text(
