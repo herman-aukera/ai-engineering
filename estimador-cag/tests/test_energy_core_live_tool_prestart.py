@@ -67,7 +67,7 @@ def _receipt(plan: ExecutionPlan, **overrides: object) -> AuthorizationReceipt:
         "plan_hash": plan.plan_hash,
         "accepted_revision": 1,
         "nonce_hash": "b" * 64,
-        "consumed_at": datetime(2026, 7, 21, 18, 0, tzinfo=UTC),
+        "consumed_at": datetime.now(UTC),
         "execution_performed": False,
     }
     payload.update(overrides)
@@ -84,7 +84,7 @@ def _live_contract(
         base_plan,
         receipt,
         snapshot,
-        now=datetime(2026, 7, 21, 18, 1, tzinfo=UTC),
+        now=datetime.now(UTC),
     )
     return live_plan, intent, receipt
 
