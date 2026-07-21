@@ -27,6 +27,7 @@ from app.energy_chat.graph_runtime import run_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
 from app.energy_chat.human_gate import HumanGateMode
 from app.energy_chat.observability import compute_graph_execution_metrics
+from app.energy_chat.provider_adapters import build_catalog_candidate_provider
 from app.energy_chat.provider_catalog import resolve_effort_profile
 
 
@@ -182,26 +183,43 @@ def _resolve_provider(
                 f"'{request.effort_profile}' has no verified compatible model."
             ),
         )
-    if request.provider_preference != "deepseek":
+
+    if request.provider_preference == "deepseek":
+        adapter = BaselineCandidateProvider()
+        configure = getattr(adapter, "configure_fallback_policy", None)
+        if callable(configure):
+            configure(
+                allow_provider_fallback=request.allow_provider_fallback,
+                tier_ladder=_fallback_tier_ladder(request),
+            )
+        elif request.allow_provider_fallback:
+            raise ProviderUnavailableError(
+                provider="deepseek",
+                detail="The injected provider adapter cannot enforce fallback authorization.",
+            )
+        return adapter
+
+    if request.allow_provider_fallback:
         raise ProviderUnavailableError(
             provider=request.provider_preference,
             detail=(
-                f"Provider '{request.provider_preference}' has no enabled EACHAT adapter."
+                "Direct Kimi/OpenAI adapters do not perform provider fallback. "
+                "Retry with fallback disabled or select DeepSeek with an explicit allow-list."
             ),
         )
-    adapter = BaselineCandidateProvider()
-    configure = getattr(adapter, "configure_fallback_policy", None)
-    if callable(configure):
-        configure(
-            allow_provider_fallback=request.allow_provider_fallback,
-            tier_ladder=_fallback_tier_ladder(request),
+    try:
+        return build_catalog_candidate_provider(
+            request.provider_preference,
+            request.effort_profile,
         )
-    elif request.allow_provider_fallback:
+    except (ValueError, RuntimeError) as exc:
         raise ProviderUnavailableError(
-            provider="deepseek",
-            detail="The injected provider adapter cannot enforce fallback authorization.",
-        )
-    return adapter
+            provider=request.provider_preference,
+            detail=(
+                f"Provider '{request.provider_preference}' is catalogued but its live "
+                "adapter is unavailable with the current credential/configuration."
+            ),
+        ) from exc
 
 
 def _fallback_tier_ladder(request: EnergyChatV2Request) -> list[ProviderTier]:
