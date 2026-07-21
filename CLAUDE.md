@@ -28,14 +28,15 @@ Do not modify `EACODE`, `gg-session-13/plus`, `main` or `finalproject-GGC` while
 
 ## Current task
 
-Milestones 10–15 are implemented. M10 corrections applied. M13 is partial (no live-DB proof). Next actionable slice: Milestone 16 (graph-backed UI) after correction gate is green.
+All 21 milestones implemented. CI green (366 focused / 624 full tests). Next actions are operational: credentialed provider smoke, live-DB integration, public deployment, security review, browser proof.
 
 ```text
 POST /energy-chat/v2/chat        — deterministic, owns execution profile, checkpointed
 POST /energy-chat/v2/chat/live   — live bounded, owns execution profile, bounded provider
+POST /energy-chat/v2/demo        — V2 browser demo (served by FastAPI)
 ```
 
-Each V2 route invokes one graph execution with route-owned profile. Legacy routes remain rollback surfaces. No silent fallback or double execution. Provider-neutral selector contracts validated; only balanced context and critic orchestration active. auto provider fails explicitly. Unknown fields rejected. Deterministic route uses in-memory checkpointing for replay idempotency.
+**Implemented capabilities:** graph-backed API, in-memory checkpointing with replay/resume, revision-guarded human gates, PostgreSQL checkpointer with live-DB integration tests, observability spans/metrics, evidence body hashing and citation validation, V2 browser demo, provider capability catalog (DeepSeek verified, Kimi/GPT-5.6 documented), context compaction policies, multi-agent budgets, quality evaluation framework, release audit with evidence-gated claim boundaries.
 
 ## Model and selector policy
 
