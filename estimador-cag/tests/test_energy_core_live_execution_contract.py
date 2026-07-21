@@ -1,6 +1,6 @@
 """Red-green contract tests for Spec 0009 live execution authority."""
 
-from __future__ import annotations
+from __future__ import annotations  # noqa: I001
 
 import subprocess
 from datetime import UTC, datetime
