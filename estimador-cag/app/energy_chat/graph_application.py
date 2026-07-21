@@ -1,8 +1,4 @@
-"""Application service: V2 request → graph → authoritative V2 response.
-
-Each V2 request invokes exactly one graph execution. No legacy fallback.
-Response authority comes from graph state and Decision Ledger.
-"""
+"""Application service: V2 request → graph → authoritative V2 response."""
 
 from __future__ import annotations
 
@@ -10,6 +6,7 @@ from app.energy_chat.api_v2_contracts import (
     EnergyChatV2ErrorDetail,
     EnergyChatV2Request,
     EnergyChatV2Response,
+    ExecutionProfile,
     IDFactory,
     ProviderMetricsSummary,
     ProviderUnavailableError,
@@ -23,6 +20,7 @@ from app.energy_chat.candidate_provider import (
     ProviderBudget,
     ProviderBudgetExceededError,
 )
+from app.energy_chat.contracts import ProviderTier
 from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
 from app.energy_chat.graph_runtime import run_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
@@ -33,42 +31,36 @@ from app.energy_chat.provider_catalog import resolve_effort_profile
 def run_graph_chat_v2(
     request: EnergyChatV2Request,
     *,
+    execution_profile: ExecutionProfile | None = None,
     provider: CandidateProvider | None = None,
     id_factory: IDFactory | None = None,
     checkpointer: InMemoryCheckpointer | None = None,
     human_gate_mode: HumanGateMode = "disabled",
 ) -> EnergyChatV2Response:
-    """One V2 request → exactly one graph execution → authoritative V2 response.
-
-    When the execution profile is deterministic, an InMemoryCheckpointer is
-    created automatically for thread isolation and replay support.
-    Human gates default to disabled; set to ``"required"`` to enable
-    interrupt/resume on clarify and escalate dispositions.
-    """
+    """Execute exactly one graph using a route-owned execution profile."""
 
     active_id_factory = id_factory or UUID4IDFactory()
+    active_execution_profile = _resolve_execution_profile(
+        request, route_profile=execution_profile
+    )
+    _validate_v2_selectors(request, active_execution_profile)
 
-    # 1. Validate selector contracts (fail closed on unsupported profiles)
-    _validate_v2_selectors(request)
-
-    # 2. Resolve identity
     thread_id = request.thread_id or active_id_factory.new_thread_id()
     request_id = request.request_id or active_id_factory.new_request_id()
     trace_id = request.trace_id or active_id_factory.new_trace_id()
 
-    # 3. Select provider and budget
-    resolved_provider = provider or _resolve_provider(request)
+    resolved_provider = provider or _resolve_provider(
+        request, active_execution_profile
+    )
     budget = _resolve_budget(request)
 
-    # 4. Resolve checkpointer — deterministic always gets in-memory checkpointing
     active_checkpointer = checkpointer
     saver = None
-    if request.execution_profile == "deterministic":
+    if active_execution_profile == "deterministic":
         if active_checkpointer is None:
             active_checkpointer = InMemoryCheckpointer()
         saver = active_checkpointer.langgraph_saver
 
-    # 5. Build initial graph state
     state = EnergyChatGraphState(
         thread_id=thread_id,
         request_id=request_id,
@@ -79,98 +71,144 @@ def run_graph_chat_v2(
         constraints=request.required_constraints,
     )
 
-    # 6. Execute graph exactly once
-    try:
-        result = run_energy_chat_graph(
-            state,
-            provider=resolved_provider,
-            budget=budget,
-            checkpointer=saver,
-            human_gate_mode=human_gate_mode,
+    result = run_energy_chat_graph(
+        state,
+        provider=resolved_provider,
+        budget=budget,
+        checkpointer=saver,
+        human_gate_mode=human_gate_mode,
+    )
+    return _project_v2_response(result, request, active_execution_profile)
+
+
+def _resolve_execution_profile(
+    request: EnergyChatV2Request,
+    *,
+    route_profile: ExecutionProfile | None,
+) -> ExecutionProfile:
+    active = route_profile or request.execution_profile or "deterministic"
+    if (
+        route_profile is not None
+        and request.execution_profile is not None
+        and request.execution_profile != route_profile
+    ):
+        raise UnsupportedProfileError(
+            field="execution_profile",
+            value=request.execution_profile,
+            detail=(
+                f"Execution profile '{request.execution_profile}' conflicts with "
+                f"the selected route, which requires '{route_profile}'."
+            ),
         )
-    except ProviderBudgetExceededError:
-        raise
-    except Exception:
-        raise
-
-    # 7. Project authoritative response
-    return _project_v2_response(result, request)
+    return active
 
 
-def _validate_v2_selectors(request: EnergyChatV2Request) -> None:
-    """Fail explicitly on selector values that are valid enums but not yet implemented."""
-
+def _validate_v2_selectors(
+    request: EnergyChatV2Request,
+    execution_profile: ExecutionProfile,
+) -> None:
     if request.context_profile != "balanced":
         raise UnsupportedProfileError(
             field="context_profile",
             value=request.context_profile,
-            detail=f"Context profile '{request.context_profile}' is not implemented; only 'balanced' is active in this milestone",
+            detail=(
+                f"Context profile '{request.context_profile}' is not implemented; "
+                "only 'balanced' is active in this milestone"
+            ),
         )
-
     if request.orchestration_mode != "critic":
         raise UnsupportedProfileError(
             field="orchestration_mode",
             value=request.orchestration_mode,
-            detail=f"Orchestration mode '{request.orchestration_mode}' is not implemented; only 'critic' mode is active in this milestone",
+            detail=(
+                f"Orchestration mode '{request.orchestration_mode}' is not implemented; "
+                "only 'critic' is active"
+            ),
         )
-
     if request.human_gate:
         raise UnsupportedProfileError(
             field="human_gate",
             value="true",
-            detail="Human-in-the-loop is not implemented in this milestone",
+            detail="Public human interrupt/resume is not implemented yet",
+        )
+    if execution_profile == "deterministic" and request.allow_provider_fallback:
+        raise UnsupportedProfileError(
+            field="allow_provider_fallback",
+            value="true",
+            detail="Provider fallback is not valid on the deterministic route",
         )
 
 
-def _resolve_provider(request: EnergyChatV2Request) -> CandidateProvider:
-    """Select the provider adapter from the explicit execution profile.
-
-    deterministic → always DeterministicCandidateProvider (CI-safe, keyless).
-    live_bounded → validates against provider catalog; fails closed when no
-    verified model supports the requested provider + effort combination.
-    """
-
-    if request.execution_profile == "deterministic":
+def _resolve_provider(
+    request: EnergyChatV2Request,
+    execution_profile: ExecutionProfile,
+) -> CandidateProvider:
+    if execution_profile == "deterministic":
         return DeterministicCandidateProvider()
 
-    # live_bounded — validate against catalog
     if request.provider_preference == "auto":
         raise ProviderUnavailableError(
             provider="auto",
-            detail="Automatic provider routing is not calibrated; controlled evals are deferred to a later milestone. Use deepseek (default) explicitly.",
+            detail=(
+                "Automatic provider routing is not calibrated. "
+                "Select a verified provider explicitly."
+            ),
         )
 
-    # Check catalog for a verified model matching provider + effort
     resolved = resolve_effort_profile(
         request.provider_preference, request.effort_profile
     )
     if resolved is None:
-        available = "deepseek (verified: flash fast/balanced, pro balanced/max)"
         raise ProviderUnavailableError(
             provider=request.provider_preference,
             detail=(
                 f"Provider '{request.provider_preference}' with effort "
-                f"'{request.effort_profile}' has no verified model in the catalog. "
-                f"Available: {available}."
+                f"'{request.effort_profile}' has no verified compatible model."
             ),
         )
 
-    # deepseek is the only verified provider currently — use existing seam
-    if request.provider_preference == "deepseek":
-        return BaselineCandidateProvider()
+    if request.provider_preference != "deepseek":
+        raise ProviderUnavailableError(
+            provider=request.provider_preference,
+            detail=(
+                f"Provider '{request.provider_preference}' has no enabled EACHAT adapter."
+            ),
+        )
 
-    raise ProviderUnavailableError(
-        provider=request.provider_preference,
-        detail=(
-            f"Provider '{request.provider_preference}' has a catalog entry but "
-            "no credentialed adapter is implemented yet. Available: deepseek (verified)."
-        ),
-    )
+    adapter = BaselineCandidateProvider()
+    configure = getattr(adapter, "configure_fallback_policy", None)
+    if callable(configure):
+        configure(
+            allow_provider_fallback=request.allow_provider_fallback,
+            tier_ladder=_fallback_tier_ladder(request),
+        )
+    elif request.allow_provider_fallback:
+        raise ProviderUnavailableError(
+            provider="deepseek",
+            detail="The active provider adapter cannot enforce explicit fallback policy.",
+        )
+    return adapter
+
+
+def _fallback_tier_ladder(request: EnergyChatV2Request) -> list[ProviderTier]:
+    ladder: list[ProviderTier] = ["flash"]
+    if not request.allow_provider_fallback:
+        return ladder
+
+    allowed = set(request.fallback_provider_allowlist)
+    if "openai" in allowed:
+        raise ProviderUnavailableError(
+            provider="openai",
+            detail="OpenAI fallback is not implemented for the current provider seam.",
+        )
+    if "deepseek" in allowed:
+        ladder.append("pro")
+    if "kimi" in allowed:
+        ladder.extend(["backup", "backup_pro"])
+    return list(dict.fromkeys(ladder))
 
 
 def _resolve_budget(request: EnergyChatV2Request) -> ProviderBudget:
-    """Map effort profile to concrete provider budget limits."""
-
     if request.effort_profile == "fast":
         return ProviderBudget(
             max_output_tokens=400,
@@ -183,91 +221,66 @@ def _resolve_budget(request: EnergyChatV2Request) -> ProviderBudget:
             max_cost_usd=0.10,
             max_latency_ms=60_000,
         )
-    # balanced
     return ProviderBudget()
 
 
 def _project_v2_response(
     result: EnergyChatGraphState,
     request: EnergyChatV2Request,
+    execution_profile: ExecutionProfile,
 ) -> EnergyChatV2Response:
-    """Project authoritative graph state into a safe V2 response.
-
-    Derives every field from graph-owned truth. Never reconstructs from UI strings.
-    """
-
-    # Provider selection info
-    is_deterministic = request.execution_profile == "deterministic"
     metrics_list = result.provider_metrics
 
-    if is_deterministic:
-        served_provider = "deterministic_local"
-        served_model = "energy-chat-template-v1"
-        fallback_used = False
-        routing_reason = "deterministic profile uses local template provider"
-    elif not metrics_list:
+    if not metrics_list:
         served_provider = "none"
         served_model = None
         fallback_used = False
-        routing_reason = "awaiting evidence — no provider call was made"
+        routing_reason = "generation skipped pending evidence; no provider call was made"
     else:
         last = metrics_list[-1]
         served_provider = last.provider
         served_model = last.model
-        fallback_used = any(m.fallback_used for m in metrics_list)
-        routing_reason = (
-            f"live profile routed to {last.provider}/{last.model}"
-            f"{' with fallback' if fallback_used else ''}"
-        )
+        fallback_used = any(item.fallback_used for item in metrics_list)
+        if execution_profile == "deterministic":
+            routing_reason = "deterministic route used the local template provider"
+        elif fallback_used:
+            routing_reason = (
+                f"authorized fallback served {last.provider}/{last.model}; "
+                f"allowlist={request.fallback_provider_allowlist}"
+            )
+        else:
+            routing_reason = f"live route served {last.provider}/{last.model} without fallback"
 
-    # Safe metrics summary
     metrics_summary = ProviderMetricsSummary(
         provider_call_count=len(metrics_list),
-        providers_used=list(dict.fromkeys(m.provider for m in metrics_list)),
-        models_used=list(dict.fromkeys(m.model for m in metrics_list)),
-        total_input_tokens=_sum_or_none(m.input_tokens for m in metrics_list),
-        total_output_tokens=_sum_or_none(m.output_tokens for m in metrics_list),
-        total_cost_usd=sum(m.cost_usd for m in metrics_list),
-        total_latency_ms=sum(m.latency_ms for m in metrics_list),
+        providers_used=list(dict.fromkeys(item.provider for item in metrics_list)),
+        models_used=list(dict.fromkeys(item.model for item in metrics_list)),
+        total_input_tokens=_sum_or_none(item.input_tokens for item in metrics_list),
+        total_output_tokens=_sum_or_none(item.output_tokens for item in metrics_list),
+        total_cost_usd=sum(item.cost_usd for item in metrics_list),
+        total_latency_ms=sum(item.latency_ms for item in metrics_list),
         fallback_used=fallback_used,
+        fallback_authorized=request.allow_provider_fallback,
+        fallback_provider_allowlist=list(request.fallback_provider_allowlist),
     )
 
-    # Final disposition
-    final_disposition = None
-    if result.decision_outcomes:
-        final_disposition = result.decision_outcomes[-1].disposition
-
-    # Energy Card v2 from final projection
-    energy_card_v2 = result.energy_card_v2
-
-    # Execution markers
+    final_disposition = (
+        result.decision_outcomes[-1].disposition
+        if result.decision_outcomes
+        else None
+    )
     execution_markers = (
         result.final_projection.execution_markers
         if result.final_projection
         else ["no_external_provider_call", "no_tool_execution"]
     )
-
-    # Repair outcomes
-    repair_outcomes = [r.outcome for r in result.repair_results]
-
-    # Limitations from ledger entries
     limitations: list[str] = []
     for entry in result.decision_ledger_entries:
-        for limit in entry.limitations:
-            if limit not in limitations:
-                limitations.append(limit)
+        for limitation in entry.limitations:
+            if limitation not in limitations:
+                limitations.append(limitation)
     if not result.decision_ledger_entries and result.status == "awaiting_evidence":
         limitations.append("External evidence is required before candidate generation.")
-
-    # Safe trace summary (event types and producers only, no payload bodies)
-    trace_summary = [
-        {
-            "event_type": e.event_type,
-            "producer": e.producer,
-            "sequence": e.sequence,
-        }
-        for e in result.trace_events
-    ]
 
     return EnergyChatV2Response(
         thread_id=result.thread_id,
@@ -279,19 +292,30 @@ def _project_v2_response(
         evidence_refs=result.evidence_refs,
         final_disposition=final_disposition,
         final_answer=result.final_answer,
-        energy_card_v2=energy_card_v2,
+        energy_card_v2=result.energy_card_v2,
         execution_markers=execution_markers,
         candidate_count=len(result.candidate_versions),
         repair_count=len(result.repair_requests),
-        repair_outcomes=repair_outcomes,
+        repair_outcomes=[item.outcome for item in result.repair_results],
         requested_provider=request.provider_preference,
         served_provider=served_provider,
         served_model=served_model,
         fallback_used=fallback_used,
+        fallback_authorized=request.allow_provider_fallback,
+        fallback_provider_allowlist=list(request.fallback_provider_allowlist),
         routing_reason=routing_reason,
         provider_metrics_summary=metrics_summary,
-        ledger_entry_ids=[e.ledger_entry_id for e in result.decision_ledger_entries],
-        trace_summary=trace_summary,
+        ledger_entry_ids=[
+            item.ledger_entry_id for item in result.decision_ledger_entries
+        ],
+        trace_summary=[
+            {
+                "event_type": item.event_type,
+                "producer": item.producer,
+                "sequence": item.sequence,
+            }
+            for item in result.trace_events
+        ],
         limitations=limitations,
     )
 
@@ -304,6 +328,7 @@ def build_v2_error_detail(
     trace_id: str | None = None,
 ) -> EnergyChatV2ErrorDetail:
     """Build a safe error detail without stack traces or secrets."""
+
     return EnergyChatV2ErrorDetail(
         error=error,
         detail=detail,
@@ -313,11 +338,10 @@ def build_v2_error_detail(
 
 
 def _sum_or_none(values: object) -> int | None:
-    """Sum ints or return None when all values are None."""
     total = 0
     any_present = False
-    for v in values:  # type: ignore[assignment]
-        if v is not None:
-            total += int(v)  # type: ignore[arg-type]
+    for value in values:  # type: ignore[assignment]
+        if value is not None:
+            total += int(value)  # type: ignore[arg-type]
             any_present = True
     return total if any_present else None

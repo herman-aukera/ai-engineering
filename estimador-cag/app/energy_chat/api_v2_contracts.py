@@ -1,7 +1,7 @@
 """Strict V2 request/response contracts for the graph-backed Energy Aware Chat API.
 
-Milestone 10: provider-neutral selector contracts with additive V2 routes.
-No persistence, HITL, or multi-provider adapters claimed.
+Milestone 10 repair: route-owned execution, explicit fallback authorization,
+and truthful provider projection. No persistent replay or complete HITL claimed.
 """
 
 from __future__ import annotations
@@ -9,20 +9,17 @@ from __future__ import annotations
 import uuid
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.energy_chat.audit_models import EnergyCardV2
 from app.energy_chat.contracts import Mode, SourceNeedResult
 
-# ── Provider-neutral selectors ───────────────────────────────────────────
-
 ProviderPreference = Literal["auto", "deepseek", "kimi", "openai"]
+FallbackProvider = Literal["deepseek", "kimi", "openai"]
 EffortProfile = Literal["fast", "balanced", "max"]
 ContextProfile = Literal["minimal", "balanced", "max"]
 OrchestrationMode = Literal["single", "critic", "committee", "adaptive"]
 ExecutionProfile = Literal["deterministic", "live_bounded"]
-
-# ── Identity factory ─────────────────────────────────────────────────────
 
 _IDENTITY_PATTERN = r"^[a-zA-Z0-9_-]+$"
 _IDENTITY_MAX_LENGTH = 128
@@ -49,14 +46,12 @@ class UUID4IDFactory:
         return f"trace-{uuid.uuid4().hex[:12]}"
 
 
-# ── V2 request ───────────────────────────────────────────────────────────
-
-
 class EnergyChatV2Request(BaseModel):
-    """Graph-backed V2 request with provider-neutral selector contracts.
+    """Strict graph-backed V2 request.
 
-    All selector fields are additive. The underlying graph owns domain truth.
-    Unknown fields are rejected to prevent silent misconfiguration.
+    ``execution_profile`` remains temporarily accepted for transport
+    compatibility, but the selected route owns the profile and rejects a
+    contradictory value. Unknown fields fail validation.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -67,7 +62,6 @@ class EnergyChatV2Request(BaseModel):
     required_constraints: list[str] = Field(default_factory=list)
     required_sections: list[str] = Field(default_factory=list)
 
-    # Identity — validated and bounded; server generates when absent
     thread_id: str | None = Field(
         default=None,
         min_length=1,
@@ -87,29 +81,44 @@ class EnergyChatV2Request(BaseModel):
         pattern=_IDENTITY_PATTERN,
     )
 
-    # Provider-neutral selectors
     provider_preference: ProviderPreference = "deepseek"
     effort_profile: EffortProfile = "balanced"
     context_profile: ContextProfile = "balanced"
     orchestration_mode: OrchestrationMode = "critic"
 
-    # Execution routing
-    execution_profile: ExecutionProfile = "deterministic"
+    execution_profile: ExecutionProfile | None = Field(
+        default=None,
+        description="Compatibility declaration; the selected HTTP route is authoritative",
+    )
+    allow_provider_fallback: bool = False
+    fallback_provider_allowlist: list[FallbackProvider] = Field(default_factory=list)
 
-    # Future-compatible HITL declaration (unsupported in M10)
     human_gate: bool = Field(
         default=False,
-        description="Human-in-the-loop gate declaration — unsupported in this milestone",
+        description="Human-in-the-loop declaration; public resume is not active yet",
     )
-
     metadata: dict[str, str] = Field(default_factory=dict)
 
-
-# ── Safe provider metrics summary ────────────────────────────────────────
+    @model_validator(mode="after")
+    def validate_fallback_contract(self) -> EnergyChatV2Request:
+        self.fallback_provider_allowlist = list(
+            dict.fromkeys(self.fallback_provider_allowlist)
+        )
+        if self.allow_provider_fallback and not self.fallback_provider_allowlist:
+            raise ValueError(
+                "fallback_provider_allowlist is required when provider fallback is enabled"
+            )
+        if not self.allow_provider_fallback and self.fallback_provider_allowlist:
+            raise ValueError(
+                "fallback_provider_allowlist requires allow_provider_fallback=true"
+            )
+        return self
 
 
 class ProviderMetricsSummary(BaseModel):
-    """Aggregated safe provider facts. No credentials, prompts, or raw transcripts."""
+    """Aggregated safe provider facts."""
+
+    model_config = ConfigDict(extra="forbid")
 
     provider_call_count: int = 0
     providers_used: list[str] = Field(default_factory=list)
@@ -119,65 +128,48 @@ class ProviderMetricsSummary(BaseModel):
     total_cost_usd: float = 0.0
     total_latency_ms: int = 0
     fallback_used: bool = False
-
-
-# ── V2 response ──────────────────────────────────────────────────────────
+    fallback_authorized: bool = False
+    fallback_provider_allowlist: list[str] = Field(default_factory=list)
 
 
 class EnergyChatV2Response(BaseModel):
-    """Authoritative V2 response projected from graph state and Decision Ledger.
+    """Authoritative user-safe projection of graph state."""
 
-    Excludes prompts, evidence bodies, hidden reasoning, credentials,
-    and raw provider transcripts.
-    """
+    model_config = ConfigDict(extra="forbid")
 
-    # Identity
     thread_id: str
     request_id: str
     trace_id: str
-
-    # Graph execution status
     graph_status: str
     awaiting_evidence: bool = False
-
-    # Source need
     source_need: SourceNeedResult | None = None
     evidence_refs: list[str] = Field(default_factory=list)
-
-    # Decision and answer
     final_disposition: str | None = None
     final_answer: str | None = None
-
-    # Authoritative projections from graph state
     energy_card_v2: EnergyCardV2 | None = None
     execution_markers: list[str] = Field(default_factory=list)
-
-    # Counts
     candidate_count: int = 0
     repair_count: int = 0
     repair_outcomes: list[str] = Field(default_factory=list)
-
-    # Provider facts
     requested_provider: str = "deepseek"
-    served_provider: str = ""
+    served_provider: str = "none"
     served_model: str | None = None
     fallback_used: bool = False
+    fallback_authorized: bool = False
+    fallback_provider_allowlist: list[str] = Field(default_factory=list)
     routing_reason: str = ""
     provider_metrics_summary: ProviderMetricsSummary = Field(
         default_factory=ProviderMetricsSummary
     )
-
-    # Audit references
     ledger_entry_ids: list[str] = Field(default_factory=list)
     trace_summary: list[dict[str, Any]] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
 
 
-# ── Safe error response ──────────────────────────────────────────────────
-
-
 class EnergyChatV2ErrorDetail(BaseModel):
-    """Machine-readable error without stack traces, secrets, or raw provider data."""
+    """Machine-readable error without stack traces or provider bodies."""
+
+    model_config = ConfigDict(extra="forbid")
 
     error: str
     detail: str
@@ -185,14 +177,8 @@ class EnergyChatV2ErrorDetail(BaseModel):
     trace_id: str | None = None
 
 
-# ── Typed application errors ─────────────────────────────────────────────
-
-
 class ProviderUnavailableError(RuntimeError):
-    """Raised when a requested provider has no credentialed adapter.
-
-    Never silently falls back to a different provider.
-    """
+    """Raised when a requested provider has no verified adapter."""
 
     def __init__(self, provider: str, detail: str = "") -> None:
         self.provider = provider
@@ -201,7 +187,7 @@ class ProviderUnavailableError(RuntimeError):
 
 
 class UnsupportedProfileError(RuntimeError):
-    """Raised when a selector profile is valid but not yet implemented."""
+    """Raised when a valid selector conflicts with the active route or runtime."""
 
     def __init__(self, field: str, value: str, detail: str = "") -> None:
         self.field = field
