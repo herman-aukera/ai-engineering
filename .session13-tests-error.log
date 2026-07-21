@@ -1,0 +1,258 @@
+...................................F.................................... [  7%]
+........................................................................ [ 15%]
+........................ss.............................................. [ 22%]
+........................................................................ [ 30%]
+........................................................................ [ 37%]
+..................................................................ssssss [ 45%]
+s................................F...................................... [ 53%]
+......................s................................................. [ 60%]
+........................................................................ [ 68%]
+.....................................................................FF. [ 75%]
+.....................................................................F.. [ 83%]
+......F................................................................. [ 91%]
+........................................................................ [ 98%]
+.............                                                            [100%]
+=================================== FAILURES ===================================
+_________ test_readme_names_session13_and_preserves_session12_history __________
+
+    def test_readme_names_session13_and_preserves_session12_history():
+        readme = Path("README.md").read_text(encoding="utf-8")
+        front_door, history = readme.split(
+            "## Historical Session 12 agentic work",
+            1,
+        )
+    
+        assert "Current branch:" in front_door
+>       assert "gg-session-13/pre-work" in front_door
+E       AssertionError: assert 'gg-session-13/pre-work' in '# Estimador CAG\n\n## Current Session 13 status\n\nCurrent branch:\n\n```text\ngg-session-13/plus-stabilization\n```\...H_RETRIEVAL_MODE=parallel`. See\n`docs/session13_plus_teacher_superiority_matrix.md` for evidence and limitations.\n\n'
+
+tests/generation/agentic/test_session12_compliance_docs.py:39: AssertionError
+_________ test_project_readme_documents_current_session13_and_history __________
+
+    def test_project_readme_documents_current_session13_and_history() -> None:
+        text = _readme()
+        front_door, remaining = text.split(
+            "## Historical Session 12 agentic work",
+            1,
+        )
+        session12_history, session10_history = remaining.split(
+            "## Historical Session 10 retrieval background",
+            1,
+        )
+    
+>       assert "gg-session-13/pre-work" in front_door
+E       AssertionError: assert 'gg-session-13/pre-work' in '# Estimador CAG\n\n## Current Session 13 status\n\nCurrent branch:\n\n```text\ngg-session-13/plus-stabilization\n```\...H_RETRIEVAL_MODE=parallel`. See\n`docs/session13_plus_teacher_superiority_matrix.md` for evidence and limitations.\n\n'
+
+tests/test_session08_readme_contract.py:26: AssertionError
+__________ test_seeded_registry_routing_covers_all_complexity_levels ___________
+
+    def test_seeded_registry_routing_covers_all_complexity_levels() -> None:
+        """Registry-backed routing for enabled providers covers all complexity levels."""
+        from app.schemas.v5_provider_selection import ProviderSelection
+        from app.services.v3_registry_seed import build_seeded_registry
+        from app.services.v5_provider_selector import resolve_provider_route
+    
+        registry = build_seeded_registry()
+    
+        # DeepSeek and Kimi have enabled models — routing must succeed.
+        for provider in ("deepseek", "kimi"):
+            sel = ProviderSelection(provider=provider)
+            for level in ("C0", "C1", "C2", "C3", "C4", "C5"):
+>               route = resolve_provider_route(
+                    selection=sel, complexity_level=level, stage="structure",
+                    registry=registry,
+                )
+
+tests/test_session13_plus_provider_calibration.py:144: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def resolve_provider_route(
+        *,
+        selection: ProviderSelection,
+        complexity_level: ComplexityLevel,
+        stage: str,
+        registry: ModelRegistry | None = None,
+    ) -> dict[str, str]:
+        """Resolve an eligible route or fail closed when a registry has no promotion."""
+        if stage not in _VALID_STAGES:
+            raise ValueError(f"Unknown stage: {stage!r}. Valid stages: {', '.join(sorted(_VALID_STAGES))}")
+    
+        preferred_tier = _TIER_FOR_COMPLEXITY[complexity_level]
+        if registry is not None:
+            records = registry.list_enabled() if selection.provider == "auto" else registry.list_by_provider(_provider_name(selection.provider))
+            candidates = [
+                {"provider": record.provider, "model": record.provider_model_id, "tier": record.capability_tier}
+                for record in records
+                if record.calibration_status == "enabled" and record.availability == "available"
+            ]
+            chosen = _select(candidates, preferred_tier)
+            if chosen is None:
+>               raise ValueError(
+                    f"No eligible promoted route for provider={selection.provider}, "
+                    f"complexity={complexity_level}, stage={stage}"
+                )
+E               ValueError: No eligible promoted route for provider=deepseek, complexity=C0, stage=structure
+
+app/services/v5_provider_selector.py:66: ValueError
+____________________ test_kimi_k3_is_documented_not_enabled ____________________
+
+    def test_kimi_k3_is_documented_not_enabled() -> None:
+        """Kimi K3 must be documented, not enabled (not yet reachable)."""
+        from app.services.v3_registry_seed import build_seeded_registry
+    
+        registry = build_seeded_registry()
+        k3 = registry.lookup(provider="moonshot", provider_model_id="kimi-k3")
+    
+>       assert k3 is not None
+E       assert None is not None
+
+tests/test_session13_plus_provider_calibration.py:168: AssertionError
+_________ test_v2_api_runs_one_canonical_execution_through_both_gates __________
+
+    def test_v2_api_runs_one_canonical_execution_through_both_gates() -> None:
+        with TestClient(app) as client:
+            created = client.post(
+                "/api/v2/estimations",
+                json={
+                    "context": {
+                        "transcript": "Build secure authentication with an auditable event trail."
+                    },
+                    "profile": "human_controlled",
+                },
+            )
+            assert created.status_code == 200, created.text
+            first = created.json()
+            estimation_id = first["estimation"]["estimation_id"]
+            assert first["estimation"]["stage"] == "structure"
+            assert first["estimation"]["execution_policy"]["human_review_mode"] == "required"
+    
+            structure = client.post(
+                f"/api/v2/estimations/{estimation_id}/actions",
+                json={
+                    "gate": "structure",
+                    "action": "approve",
+                    "expected_revision": 0,
+                },
+            )
+            assert structure.status_code == 200, structure.text
+            second = structure.json()
+            assert second["estimation"]["stage"] == "human_approval"
+            task = second["estimation"]["modules"][0]["tasks"][0]
+            assert task["estimate"]["hours_expected"] == 40.0
+            assert task["estimate"]["cost_eur"] == 0.0
+    
+            final = client.post(
+                f"/api/v2/estimations/{estimation_id}/actions",
+                json={
+                    "gate": "final",
+                    "action": "approve",
+                    "expected_revision": 0,
+                    "actor": "v2-reviewer",
+                },
+            )
+            assert final.status_code == 200, final.text
+            assert final.json()["estimation"]["execution_status"] == "completed"
+    
+            inspected = client.get(f"/api/v2/estimations/{estimation_id}")
+            assert inspected.status_code == 200
+            assert inspected.json()["estimation"]["total_hours"] == 40.0
+    
+            history = client.get(f"/api/v2/estimations/{estimation_id}/checkpoints")
+            assert history.status_code == 200
+            assert len(history.json()["checkpoints"]) >= 3
+    
+            audit = client.get(f"/api/v2/estimations/{estimation_id}/audit")
+            assert audit.status_code == 200
+>           assert "transcript" not in str(audit.json()).lower()
+E           assert 'transcript' not in "{'packet': ...l tasks.']}}"
+E             
+E             'transcript' is contained here:
+E             ?           ^^
+E               rmulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'requirements_extracted', 'node': 'extract_requirements', 'summary': 'extracted 2 structured requirements.', 'evidence_refs': ['req-auth', 'req-audit'], 'state_delta_keys': ['requirements', 'execution_metadata', 'trace_events']}, {'event_type': 'components_classified', 'node': 'classify_components', 'summary': 'classified 1 implementation component.', 'evidence_refs': ['cmp-auth', 'req-audit', 'req-auth'], 'state_delta_keys': ['components', 'execution_metadata', 'trace_events']}, {'event_type': 'structure_approved', 'node': 'structure_review', 'summary': 'a human approved the proposed project structure.', 'evidence_refs': ['req-auth', 'req-audit', 'cmp-auth'], 'state_delta_keys': ['review_required', 'structure_review_revision', 'structure_review_status', 'structure_review_record', 'structure_route', 'resolved_issue_codes', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'requirements_extracted', 'node': 'extract_requirements', 'summary': 'extracted 2 structured requirements.', 'evidence_refs': ['req-auth', 'req-audit'], 'state_delta_keys': ['requirements', 'execution_metadata', 'trace_events']}, {'event_type': 'components_classified', 'node': 'classify_components', 'summary': 'classified 1 implementation component.', 'evidence_refs': ['cmp-auth', 'req-audit', 'req-auth'], 'state_delta_keys': ['components', 'execution_metadata', 'trace_events']}, {'event_type': 'structure_approved', 'node': 'structure_review', 'summary': 'a human approved the proposed project structure.', 'evidence_refs': ['req-auth', 'req-audit', 'cmp-auth'], 'state_delta_keys': ['review_required', 'structure_review_revision', 'structure_review_status', 'structure_review_record', 'structure_route', 'resolved_issue_codes', 'trace_events']}, {'event_type': 'parallel_retrieval_dispatched', 'node': 'parallel_retrieval_dispatch', 'summary': 'dispatched 1 component retrieval workers.', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['trace_events']}, {'event_type': 'parallel_retrieval_worker_completed', 'node': 'parallel_retrieval_worker', 'summary': 'retrieval worker completed for cmp-auth (success).', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['parallel_retrieval_results', 'trace_events']}, {'event_type': 'parallel_retrieval_merged', 'node': 'parallel_retrieval_merge', 'summary': 'merged 3 canonical budget matches from 1 workers.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3', 'doc-1:ch-1', 'doc-2:ch-2', 'doc-3:ch-3'], 'state_delta_keys': ['budget_matches', 'execution_metadata', 'trace_events']}, {'event_type': 'component_estimates_generated', 'node': 'generate_estimate', 'summary': 'generated 1 grounded component estimates.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['component_estimates', 'execution_metadata', 'trace_events']}, {'event_type': 'estimate_validated', 'node': 'validate_and_consolidate', 'summary': 'validated 1 grounded component estimates totaling 40.0 hours.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['estimate', 'status', 'review_required', 'trace_events']}, {'event_type': 'selective_recovery_not_required', 'node': 'selective_recovery', 'summary': 'no no-data or low-confidence components required agent-assisted recovery.', 'evidence_refs': [], 'state_delta_keys': ['recovery_status', 'recovery_route', 'recovery_flagged_component_ids', 'recovery_recovered_component_ids', 'recovery_unresolved_component_ids', 'trace_events']}, {'event_type': 'reliability_analysis_completed', 'node': 'reliability_analyst', 'summary': 'analysed 1 components. overall reliability: 80%. flags: 0 total.', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['reliability_report', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'requirements_extracted', 'node': 'extract_requirements', 'summary': 'extracted 2 structured requirements.', 'evidence_refs': ['req-auth', 'req-audit'], 'state_delta_keys': ['requirements', 'execution_metadata', 'trace_events']}, {'event_type': 'components_classified', 'node': 'classify_components', 'summary': 'classified 1 implementation component.', 'evidence_refs': ['cmp-auth', 'req-audit', 'req-auth'], 'state_delta_keys': ['components', 'execution_metadata', 'trace_events']}, {'event_type': 'structure_approved', 'node': 'structure_review', 'summary': 'a human approved the proposed project structure.', 'evidence_refs': ['req-auth', 'req-audit', 'cmp-auth'], 'state_delta_keys': ['review_required', 'structure_review_revision', 'structure_review_status', 'structure_review_record', 'structure_route', 'resolved_issue_codes', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'requirements_extracted', 'node': 'extract_requirements', 'summary': 'extracted 2 structured requirements.', 'evidence_refs': ['req-auth', 'req-audit'], 'state_delta_keys': ['requirements', 'execution_metadata', 'trace_events']}, {'event_type': 'components_classified', 'node': 'classify_components', 'summary': 'classified 1 implementation component.', 'evidence_refs': ['cmp-auth', 'req-audit', 'req-auth'], 'state_delta_keys': ['components', 'execution_metadata', 'trace_events']}, {'event_type': 'structure_approved', 'node': 'structure_review', 'summary': 'a human approved the proposed project structure.', 'evidence_refs': ['req-auth', 'req-audit', 'cmp-auth'], 'state_delta_keys': ['review_required', 'structure_review_revision', 'structure_review_status', 'structure_review_record', 'structure_route', 'resolved_issue_codes', 'trace_events']}, {'event_type': 'parallel_retrieval_dispatched', 'node': 'parallel_retrieval_dispatch', 'summary': 'dispatched 1 component retrieval workers.', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['trace_events']}, {'event_type': 'parallel_retrieval_worker_completed', 'node': 'parallel_retrieval_worker', 'summary': 'retrieval worker completed for cmp-auth (success).', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['parallel_retrieval_results', 'trace_events']}, {'event_type': 'parallel_retrieval_merged', 'node': 'parallel_retrieval_merge', 'summary': 'merged 3 canonical budget matches from 1 workers.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3', 'doc-1:ch-1', 'doc-2:ch-2', 'doc-3:ch-3'], 'state_delta_keys': ['budget_matches', 'execution_metadata', 'trace_events']}, {'event_type': 'component_estimates_generated', 'node': 'generate_estimate', 'summary': 'generated 1 grounded component estimates.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['component_estimates', 'execution_metadata', 'trace_events']}, {'event_type': 'estimate_validated', 'node': 'validate_and_consolidate', 'summary': 'validated 1 grounded component estimates totaling 40.0 hours.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['estimate', 'status', 'review_required', 'trace_events']}, {'event_type': 'selective_recovery_not_required', 'node': 'selective_recovery', 'summary': 'no no-data or low-confidence components required agent-assisted recovery.', 'evidence_refs': [], 'state_delta_keys': ['recovery_status', 'recovery_route', 'recovery_flagged_component_ids', 'recovery_recovered_component_ids', 'recovery_unresolved_component_ids', 'trace_events']}, {'event_type': 'reliability_analysis_completed', 'node': 'reliability_analyst', 'summary': 'analysed 1 components. overall reliability: 80%. flags: 0 total.', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['reliability_report', 'trace_events']}, {'event_type': 'critic_review_completed', 'node': 'deterministic_critic', 'summary': 'deterministic critic found no policy issues.', 'evidence_refs': [], 'state_delta_keys': ['critic_report', 'trace_events']}, {'event_type': 'boss_accept', 'node': 'boss_policy', 'summary': 'the structured critic accepted the estimate and no hard policy gate failed.', 'evidence_refs': [], 'state_delta_keys': ['boss_decision']}, {'event_type': 'boss_action_applied_accept', 'node': 'boss_action', 'summary': 'applied bounded boss transition: accept.', 'evidence_refs': [], 'state_delta_keys': ['boss_route']}, {'event_type': 'final_estimate_approve', 'node': 'final_estimate_review', 'summary': 'final estimate review recorded action approve.', 'evidence_refs': ['v2-reviewer'], 'state_delta_keys': ['final_review_revision', 'final_review_record', 'final_review_status', 'final_review_route', 'trace_events']}, {'event_type': 'estimate_validated', 'node': 'validate_and_consolidate', 'summary': 'validated 1 grounded component estimates totaling 40.0 hours.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['estimate', 'status', 'review_required', 'trace_events']}, {'event_type': 'proposal_generated', 'node': 'proposal', 'summary': 'proposal: 40.0h, reliability 0.8, boss accept', 'evidence_refs': [], 'state_delta_keys': ['proposal', 'trace_events']}], 'limitations': ['graph-owned module totals are allocated across reviewed visual tasks.']}}
+E             ?           ^^^^^^^^^^^^
+
+tests/test_session13_plus_v2_api.py:62: AssertionError
+_____________ test_reviewed_graph_has_one_canonical_v2_projection ______________
+
+    @pytest.mark.asyncio
+    async def test_reviewed_graph_has_one_canonical_v2_projection() -> None:
+        run = await build_demo_service().start(
+            transcript="Build secure authentication with an auditable event trail.",
+            human_review_mode="required",
+        )
+    
+>       canonical = canonical_estimation_from_run(run)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_session13_plus_v2_domain.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+run = ReviewedGraphRun(estimation_id='9a5831e5-f05a-44af-9368-4fb413888cb8', thread_id='estimate:9a5831e5-f05a-44af-9368-4fb...nt_ids': ['req-auth', 'req-audit']}], 'issues': [], 'allowed_actions': ['approve', 'edit', 'reject', 'regenerate']}},))
+
+    def canonical_estimation_from_run(
+        run: ReviewedGraphRun,
+        *,
+        profile: str | None = None,
+        checkpoint_count: int = 0,
+    ) -> EstimationV2:
+        state: dict[str, Any] = dict(run.state)
+        for interrupt_payload in run.interrupts:
+            value = interrupt_payload.get("value")
+            if not isinstance(value, Mapping):
+                continue
+            if value.get("gate") == "structure_review":
+                if not state.get("requirements"):
+                    state["requirements"] = list(value.get("requirements") or [])
+                if not state.get("components"):
+                    state["components"] = list(value.get("components") or [])
+        resolved_profile = profile or str(state.get("v2_profile") or "balanced")
+        policy = policy_for_profile(resolved_profile)
+        policy = policy.model_copy(
+            update={"human_review_mode": state.get("human_review_mode", policy.human_review_mode)}
+        )
+        provider = state.get("provider_metadata") or {}
+        usage = []
+        if isinstance(provider, Mapping) and provider.get("provider"):
+            usage.append(ProviderUsageV2(provider=str(provider["provider"]), model=provider.get("model")))
+        raw_context = state.get("project_context")
+        context = (
+>           ProjectContextV2.model_validate(raw_context)
+            if isinstance(raw_context, Mapping)
+            else ProjectContextV2(transcript=str(state.get("transcript") or ""))
+        )
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for ProjectContextV2
+E       transcript
+E         Field required [type=missing, input_value={}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+app/services/v2_estimation_adapter.py:230: ValidationError
+=============================== warnings summary ===============================
+tests/test_session13_plus_provider_calibration.py:21
+  /home/runner/work/ai-engineering/ai-engineering/estimador-cag/tests/test_session13_plus_provider_calibration.py:21: PytestUnknownMarkWarning: Unknown pytest.mark.live_provider - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.live_provider
+
+tests/test_session13_plus_provider_calibration.py:47
+  /home/runner/work/ai-engineering/ai-engineering/estimador-cag/tests/test_session13_plus_provider_calibration.py:47: PytestUnknownMarkWarning: Unknown pytest.mark.live_provider - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.live_provider
+
+tests/test_session13_plus_provider_calibration.py:78
+  /home/runner/work/ai-engineering/ai-engineering/estimador-cag/tests/test_session13_plus_provider_calibration.py:78: PytestUnknownMarkWarning: Unknown pytest.mark.live_provider - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.live_provider
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/generation/agentic/test_session12_compliance_docs.py::test_readme_names_session13_and_preserves_session12_history - AssertionError: assert 'gg-session-13/pre-work' in '# Estimador CAG\n\n## Current Session 13 status\n\nCurrent branch:\n\n```text\ngg-session-13/plus-stabilization\n```\...H_RETRIEVAL_MODE=parallel`. See\n`docs/session13_plus_teacher_superiority_matrix.md` for evidence and limitations.\n\n'
+FAILED tests/test_session08_readme_contract.py::test_project_readme_documents_current_session13_and_history - AssertionError: assert 'gg-session-13/pre-work' in '# Estimador CAG\n\n## Current Session 13 status\n\nCurrent branch:\n\n```text\ngg-session-13/plus-stabilization\n```\...H_RETRIEVAL_MODE=parallel`. See\n`docs/session13_plus_teacher_superiority_matrix.md` for evidence and limitations.\n\n'
+FAILED tests/test_session13_plus_provider_calibration.py::test_seeded_registry_routing_covers_all_complexity_levels - ValueError: No eligible promoted route for provider=deepseek, complexity=C0, stage=structure
+FAILED tests/test_session13_plus_provider_calibration.py::test_kimi_k3_is_documented_not_enabled - assert None is not None
+FAILED tests/test_session13_plus_v2_api.py::test_v2_api_runs_one_canonical_execution_through_both_gates - assert 'transcript' not in "{'packet': ...l tasks.']}}"
+  
+  'transcript' is contained here:
+  ?           ^^
+    rmulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'requirements_extracted', 'node': 'extract_requirements', 'summary': 'extracted 2 structured requirements.', 'evidence_refs': ['req-auth', 'req-audit'], 'state_delta_keys': ['requirements', 'execution_metadata', 'trace_events']}, {'event_type': 'components_classified', 'node': 'classify_components', 'summary': 'classified 1 implementation component.', 'evidence_refs': ['cmp-auth', 'req-audit', 'req-auth'], 'state_delta_keys': ['components', 'execution_metadata', 'trace_events']}, {'event_type': 'structure_approved', 'node': 'structure_review', 'summary': 'a human approved the proposed project structure.', 'evidence_refs': ['req-auth', 'req-audit', 'cmp-auth'], 'state_delta_keys': ['review_required', 'structure_review_revision', 'structure_review_status', 'structure_review_record', 'structure_route', 'resolved_issue_codes', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'requirements_extracted', 'node': 'extract_requirements', 'summary': 'extracted 2 structured requirements.', 'evidence_refs': ['req-auth', 'req-audit'], 'state_delta_keys': ['requirements', 'execution_metadata', 'trace_events']}, {'event_type': 'components_classified', 'node': 'classify_components', 'summary': 'classified 1 implementation component.', 'evidence_refs': ['cmp-auth', 'req-audit', 'req-auth'], 'state_delta_keys': ['components', 'execution_metadata', 'trace_events']}, {'event_type': 'structure_approved', 'node': 'structure_review', 'summary': 'a human approved the proposed project structure.', 'evidence_refs': ['req-auth', 'req-audit', 'cmp-auth'], 'state_delta_keys': ['review_required', 'structure_review_revision', 'structure_review_status', 'structure_review_record', 'structure_route', 'resolved_issue_codes', 'trace_events']}, {'event_type': 'parallel_retrieval_dispatched', 'node': 'parallel_retrieval_dispatch', 'summary': 'dispatched 1 component retrieval workers.', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['trace_events']}, {'event_type': 'parallel_retrieval_worker_completed', 'node': 'parallel_retrieval_worker', 'summary': 'retrieval worker completed for cmp-auth (success).', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['parallel_retrieval_results', 'trace_events']}, {'event_type': 'parallel_retrieval_merged', 'node': 'parallel_retrieval_merge', 'summary': 'merged 3 canonical budget matches from 1 workers.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3', 'doc-1:ch-1', 'doc-2:ch-2', 'doc-3:ch-3'], 'state_delta_keys': ['budget_matches', 'execution_metadata', 'trace_events']}, {'event_type': 'component_estimates_generated', 'node': 'generate_estimate', 'summary': 'generated 1 grounded component estimates.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['component_estimates', 'execution_metadata', 'trace_events']}, {'event_type': 'estimate_validated', 'node': 'validate_and_consolidate', 'summary': 'validated 1 grounded component estimates totaling 40.0 hours.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['estimate', 'status', 'review_required', 'trace_events']}, {'event_type': 'selective_recovery_not_required', 'node': 'selective_recovery', 'summary': 'no no-data or low-confidence components required agent-assisted recovery.', 'evidence_refs': [], 'state_delta_keys': ['recovery_status', 'recovery_route', 'recovery_flagged_component_ids', 'recovery_recovered_component_ids', 'recovery_unresolved_component_ids', 'trace_events']}, {'event_type': 'reliability_analysis_completed', 'node': 'reliability_analyst', 'summary': 'analysed 1 components. overall reliability: 80%. flags: 0 total.', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['reliability_report', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'requirements_extracted', 'node': 'extract_requirements', 'summary': 'extracted 2 structured requirements.', 'evidence_refs': ['req-auth', 'req-audit'], 'state_delta_keys': ['requirements', 'execution_metadata', 'trace_events']}, {'event_type': 'components_classified', 'node': 'classify_components', 'summary': 'classified 1 implementation component.', 'evidence_refs': ['cmp-auth', 'req-audit', 'req-auth'], 'state_delta_keys': ['components', 'execution_metadata', 'trace_events']}, {'event_type': 'structure_approved', 'node': 'structure_review', 'summary': 'a human approved the proposed project structure.', 'evidence_refs': ['req-auth', 'req-audit', 'cmp-auth'], 'state_delta_keys': ['review_required', 'structure_review_revision', 'structure_review_status', 'structure_review_record', 'structure_route', 'resolved_issue_codes', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'request_reformulated', 'node': 'reformulate_request', 'summary': 'normalized project context into the canonical graph brief.', 'evidence_refs': [], 'state_delta_keys': ['reformulated_request', 'pre_reformulation_transcript', 'trace_events']}, {'event_type': 'semantic_classification_completed', 'node': 'semantic_classify', 'summary': 'semantic: c1, deterministic: c1, arbitrated: c1 (consensus)', 'evidence_refs': ['session13-v3-semantic-fake-1.0.0', 'session13-v3-deterministic-features-1.0.0'], 'state_delta_keys': ['semantic_assessment', 'v3_complexity', 'arbitrated_assessment', 'v3_route_plan', 'trace_events']}, {'event_type': 'requirements_extracted', 'node': 'extract_requirements', 'summary': 'extracted 2 structured requirements.', 'evidence_refs': ['req-auth', 'req-audit'], 'state_delta_keys': ['requirements', 'execution_metadata', 'trace_events']}, {'event_type': 'components_classified', 'node': 'classify_components', 'summary': 'classified 1 implementation component.', 'evidence_refs': ['cmp-auth', 'req-audit', 'req-auth'], 'state_delta_keys': ['components', 'execution_metadata', 'trace_events']}, {'event_type': 'structure_approved', 'node': 'structure_review', 'summary': 'a human approved the proposed project structure.', 'evidence_refs': ['req-auth', 'req-audit', 'cmp-auth'], 'state_delta_keys': ['review_required', 'structure_review_revision', 'structure_review_status', 'structure_review_record', 'structure_route', 'resolved_issue_codes', 'trace_events']}, {'event_type': 'parallel_retrieval_dispatched', 'node': 'parallel_retrieval_dispatch', 'summary': 'dispatched 1 component retrieval workers.', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['trace_events']}, {'event_type': 'parallel_retrieval_worker_completed', 'node': 'parallel_retrieval_worker', 'summary': 'retrieval worker completed for cmp-auth (success).', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['parallel_retrieval_results', 'trace_events']}, {'event_type': 'parallel_retrieval_merged', 'node': 'parallel_retrieval_merge', 'summary': 'merged 3 canonical budget matches from 1 workers.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3', 'doc-1:ch-1', 'doc-2:ch-2', 'doc-3:ch-3'], 'state_delta_keys': ['budget_matches', 'execution_metadata', 'trace_events']}, {'event_type': 'component_estimates_generated', 'node': 'generate_estimate', 'summary': 'generated 1 grounded component estimates.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['component_estimates', 'execution_metadata', 'trace_events']}, {'event_type': 'estimate_validated', 'node': 'validate_and_consolidate', 'summary': 'validated 1 grounded component estimates totaling 40.0 hours.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['estimate', 'status', 'review_required', 'trace_events']}, {'event_type': 'selective_recovery_not_required', 'node': 'selective_recovery', 'summary': 'no no-data or low-confidence components required agent-assisted recovery.', 'evidence_refs': [], 'state_delta_keys': ['recovery_status', 'recovery_route', 'recovery_flagged_component_ids', 'recovery_recovered_component_ids', 'recovery_unresolved_component_ids', 'trace_events']}, {'event_type': 'reliability_analysis_completed', 'node': 'reliability_analyst', 'summary': 'analysed 1 components. overall reliability: 80%. flags: 0 total.', 'evidence_refs': ['cmp-auth'], 'state_delta_keys': ['reliability_report', 'trace_events']}, {'event_type': 'critic_review_completed', 'node': 'deterministic_critic', 'summary': 'deterministic critic found no policy issues.', 'evidence_refs': [], 'state_delta_keys': ['critic_report', 'trace_events']}, {'event_type': 'boss_accept', 'node': 'boss_policy', 'summary': 'the structured critic accepted the estimate and no hard policy gate failed.', 'evidence_refs': [], 'state_delta_keys': ['boss_decision']}, {'event_type': 'boss_action_applied_accept', 'node': 'boss_action', 'summary': 'applied bounded boss transition: accept.', 'evidence_refs': [], 'state_delta_keys': ['boss_route']}, {'event_type': 'final_estimate_approve', 'node': 'final_estimate_review', 'summary': 'final estimate review recorded action approve.', 'evidence_refs': ['v2-reviewer'], 'state_delta_keys': ['final_review_revision', 'final_review_record', 'final_review_status', 'final_review_route', 'trace_events']}, {'event_type': 'estimate_validated', 'node': 'validate_and_consolidate', 'summary': 'validated 1 grounded component estimates totaling 40.0 hours.', 'evidence_refs': ['cmp-auth', 'bud-1', 'bud-2', 'bud-3'], 'state_delta_keys': ['estimate', 'status', 'review_required', 'trace_events']}, {'event_type': 'proposal_generated', 'node': 'proposal', 'summary': 'proposal: 40.0h, reliability 0.8, boss accept', 'evidence_refs': [], 'state_delta_keys': ['proposal', 'trace_events']}], 'limitations': ['graph-owned module totals are allocated across reviewed visual tasks.']}}
+  ?           ^^^^^^^^^^^^
+FAILED tests/test_session13_plus_v2_domain.py::test_reviewed_graph_has_one_canonical_v2_projection - pydantic_core._pydantic_core.ValidationError: 1 validation error for ProjectContextV2
+transcript
+  Field required [type=missing, input_value={}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+6 failed, 933 passed, 10 skipped, 3 deselected, 3 warnings in 26.61s
