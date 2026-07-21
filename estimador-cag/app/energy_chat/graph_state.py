@@ -27,7 +27,12 @@ from app.energy_chat.contracts import (
     RequestPolicyAssessment,
     SourceNeedResult,
 )
+from app.energy_chat.evidence_hardening import (
+    CandidateCitationValidation,
+    EvidenceBodyMetadata,
+)
 from app.energy_chat.human_gate import HumanActionRequest
+from app.energy_chat.observability import NodeSpan
 
 GRAPH_STATE_SCHEMA_VERSION = "1.0.0"
 GRAPH_STATE_CONTRACT_VERSION = "1.0.0"
@@ -58,8 +63,6 @@ class GraphStateRecord(BaseModel):
 
 
 class CandidateVersion(GraphStateRecord):
-    """Immutable answer candidate retained for evaluation and repair history."""
-
     candidate_id: str = Field(min_length=1)
     version: int = Field(ge=1)
     answer: str
@@ -69,8 +72,6 @@ class CandidateVersion(GraphStateRecord):
 
 
 class EnergyScoreRecord(GraphStateRecord):
-    """A score tied to the exact candidate that was evaluated."""
-
     score_id: str = Field(min_length=1)
     candidate_id: str = Field(min_length=1)
     policy_version: str = Field(min_length=1)
@@ -78,8 +79,6 @@ class EnergyScoreRecord(GraphStateRecord):
 
 
 class CriticPanelRecord(GraphStateRecord):
-    """Deterministic critic findings tied to one immutable candidate."""
-
     panel_id: str = Field(min_length=1)
     candidate_id: str = Field(min_length=1)
     critic_version: str = Field(min_length=1)
@@ -87,8 +86,6 @@ class CriticPanelRecord(GraphStateRecord):
 
 
 class DecisionOutcome(GraphStateRecord):
-    """Deterministic disposition for one scored candidate."""
-
     decision_id: str = Field(min_length=1)
     candidate_id: str = Field(min_length=1)
     score_id: str = Field(min_length=1)
@@ -100,8 +97,6 @@ class DecisionOutcome(GraphStateRecord):
 
 
 class RepairRequest(GraphStateRecord):
-    """Explicit bounded repair instruction for a candidate."""
-
     repair_id: str = Field(min_length=1)
     candidate_id: str = Field(min_length=1)
     instructions: list[str] = Field(min_length=1)
@@ -112,8 +107,6 @@ class RepairRequest(GraphStateRecord):
 
 
 class RepairResultRecord(GraphStateRecord):
-    """Terminal assessment of one bounded repair cycle."""
-
     result_id: str = Field(min_length=1)
     repair_id: str = Field(min_length=1)
     source_candidate_id: str = Field(min_length=1)
@@ -124,8 +117,6 @@ class RepairResultRecord(GraphStateRecord):
 
 
 class RetryBudget(GraphStateRecord):
-    """Authoritative bounded repair-attempt budget."""
-
     max_attempts: int = Field(default=1, ge=0, le=8)
     attempts_used: int = Field(default=0, ge=0)
 
@@ -141,8 +132,6 @@ class RetryBudget(GraphStateRecord):
 
 
 class CostBudget(GraphStateRecord):
-    """Cumulative provider-cost budget across the graph lifecycle."""
-
     limit_usd: float = Field(default=0.10, ge=0.0)
     spent_usd: float = Field(default=0.0, ge=0.0)
 
@@ -158,8 +147,6 @@ class CostBudget(GraphStateRecord):
 
 
 class TraceEvent(GraphStateRecord):
-    """User-safe domain event; hidden model reasoning must not be stored here."""
-
     event_id: str = Field(min_length=1)
     event_type: str = Field(min_length=1)
     producer: str = Field(min_length=1)
@@ -168,8 +155,6 @@ class TraceEvent(GraphStateRecord):
 
 
 class ErrorRecord(GraphStateRecord):
-    """Safe error projection retained for retry and audit decisions."""
-
     error_id: str = Field(min_length=1)
     producer: str = Field(min_length=1)
     code: str = Field(min_length=1)
@@ -178,8 +163,6 @@ class ErrorRecord(GraphStateRecord):
 
 
 class ProviderMetrics(GraphStateRecord):
-    """Bounded, checkpoint-safe facts for one candidate provider call."""
-
     provider_call_id: str = Field(min_length=1)
     provider: str = Field(min_length=1)
     model: str = Field(min_length=1)
@@ -194,7 +177,7 @@ class ProviderMetrics(GraphStateRecord):
 
 
 class EnergyChatGraphState(GraphStateRecord):
-    """Authoritative v1 state for a single Energy Aware Chat request."""
+    """Authoritative v1 state for one Energy Aware Chat request."""
 
     schema_version: Literal["1.0.0"] = GRAPH_STATE_SCHEMA_VERSION
     contract_version: Literal["1.0.0"] = GRAPH_STATE_CONTRACT_VERSION
@@ -207,6 +190,8 @@ class EnergyChatGraphState(GraphStateRecord):
     request_policy: RequestPolicyAssessment | None = None
     constraints: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
+    evidence_body_metadata: list[EvidenceBodyMetadata] = Field(default_factory=list)
+    citation_validations: list[CandidateCitationValidation] = Field(default_factory=list)
     source_need: SourceNeedResult | None = None
     project_rag: ProjectRagResult | None = None
     candidate_versions: list[CandidateVersion] = Field(default_factory=list)
@@ -221,6 +206,7 @@ class EnergyChatGraphState(GraphStateRecord):
     retry_budget: RetryBudget = Field(default_factory=RetryBudget)
     cost_budget: CostBudget = Field(default_factory=CostBudget)
     trace_events: list[TraceEvent] = Field(default_factory=list)
+    node_spans: list[NodeSpan] = Field(default_factory=list)
     decision_ledger_entries: list[DecisionLedgerEntry] = Field(default_factory=list)
     errors: list[ErrorRecord] = Field(default_factory=list)
     final_answer: str | None = None
@@ -233,12 +219,15 @@ class EnergyChatGraphState(GraphStateRecord):
     status: GraphStatus = "received"
 
     @model_validator(mode="after")
-    def active_candidate_must_exist(self) -> EnergyChatGraphState:
-        if self.active_candidate_id is None:
-            return self
-        known_ids = {candidate.candidate_id for candidate in self.candidate_versions}
-        if self.active_candidate_id not in known_ids:
+    def state_links_must_be_valid(self) -> EnergyChatGraphState:
+        candidate_ids = {candidate.candidate_id for candidate in self.candidate_versions}
+        if self.active_candidate_id is not None and self.active_candidate_id not in candidate_ids:
             raise ValueError("active_candidate_id must reference a retained candidate version")
+        unknown_validations = {
+            item.candidate_id for item in self.citation_validations
+        } - candidate_ids
+        if unknown_validations:
+            raise ValueError("citation validation must reference a retained candidate")
         return self
 
 
@@ -248,17 +237,12 @@ RecordT = TypeVar("RecordT", bound=BaseModel)
 def append_unique_records(
     current: Sequence[RecordT], incoming: Sequence[RecordT], *, id_field: str
 ) -> list[RecordT]:
-    """Append immutable records while making identical retries idempotent.
-
-    Reusing an identifier with different content is rejected because silently
-    replacing append-only history would make checkpoint replay unauditable.
-    """
+    """Append immutable records while making identical retries idempotent."""
 
     result = list(current)
     by_id = {_record_id(record, id_field): record for record in result}
     if len(by_id) != len(result):
         raise ValueError(f"Existing records contain duplicate {id_field} values")
-
     for record in incoming:
         record_id = _record_id(record, id_field)
         existing = by_id.get(record_id)
@@ -271,8 +255,6 @@ def append_unique_records(
 
 
 def append_unique_values(current: Sequence[str], incoming: Sequence[str]) -> list[str]:
-    """Append string references in stable order without duplicating retries."""
-
     return list(dict.fromkeys([*current, *incoming]))
 
 
@@ -284,8 +266,6 @@ def build_trace_event(
     payload: dict[str, Any],
     event_key: str | None = None,
 ) -> TraceEvent:
-    """Build or reuse a deterministic node event for replay-safe tracing."""
-
     event_id = f"{state.trace_id}:{event_key or event_type}"
     existing = next((event for event in state.trace_events if event.event_id == event_id), None)
     if existing is not None:
@@ -303,16 +283,12 @@ def build_trace_event(
 def validated_state_update(
     state: EnergyChatGraphState, **updates: object
 ) -> EnergyChatGraphState:
-    """Apply explicit replacements and validate the complete resulting state."""
-
     payload = state.model_dump(mode="python")
     payload.update(updates)
     return EnergyChatGraphState.model_validate(payload)
 
 
 def serialize_graph_state(state: EnergyChatGraphState) -> str:
-    """Serialize v1 state into stable canonical JSON for fixtures/checkpoints."""
-
     return json.dumps(
         state.model_dump(mode="json", exclude_unset=True),
         sort_keys=True,
@@ -321,8 +297,6 @@ def serialize_graph_state(state: EnergyChatGraphState) -> str:
 
 
 def deserialize_graph_state(payload: str | bytes) -> EnergyChatGraphState:
-    """Load a supported graph-state payload without guessing migrations."""
-
     raw = json.loads(payload)
     version = raw.get("schema_version") if isinstance(raw, dict) else None
     if version != GRAPH_STATE_SCHEMA_VERSION:
