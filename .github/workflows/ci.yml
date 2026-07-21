@@ -43,6 +43,21 @@ jobs:
           }
           cat /tmp/session13-stabilize.log
 
+      - name: Persist stabilization executor failure
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
+        working-directory: .
+        run: |
+          cp /tmp/session13-stabilize.log .session13-stabilization-error.log
+          git config user.name "GPT-5.6 Stabilization"
+          git config user.email "actions@users.noreply.github.com"
+          git add .session13-stabilization-error.log
+          if git diff --cached --quiet; then
+            echo "Failure diagnostic unchanged"
+          else
+            git commit -m "chore(session13): capture stabilization failure"
+            git push origin HEAD:gg-session-13/plus-stabilization
+          fi
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
@@ -80,7 +95,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
         working-directory: .
         run: |
-          rm -f scripts/session13_plus_stabilize.py .github/workflows/session13-plus-stabilize.yml
+          rm -f scripts/session13_plus_stabilize.py .github/workflows/session13-plus-stabilize.yml .session13-stabilization-error.log
           git config user.name "GPT-5.6 Stabilization"
           git config user.email "actions@users.noreply.github.com"
           git add .
