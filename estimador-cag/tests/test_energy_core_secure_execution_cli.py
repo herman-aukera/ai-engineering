@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from energy_core.controlled_execution import CommandProposal, ExecutionPlan, build_execution_plan
+from energy_core.controlled_execution import CommandProposal, build_execution_plan
 from energy_core.live_authorization import (
     LiveAuthorizationContext,
     LiveAuthorizationRequest,
