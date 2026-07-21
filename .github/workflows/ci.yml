@@ -64,7 +64,7 @@ jobs:
         working-directory: .
         run: |
           : > /tmp/session13-cleanup-gates.log
-          git diff --check >> /tmp/session13-cleanup-gates.log 2>&1 || {
+          git -c core.whitespace=cr-at-eol diff --check >> /tmp/session13-cleanup-gates.log 2>&1 || {
             cat /tmp/session13-cleanup-gates.log
             false
           }
