@@ -1,0 +1,71 @@
+name: Session 13 Plus semantic diff cleanup
+
+on:
+  push:
+    branches:
+      - gg-session-13/plus-stabilization
+    paths:
+      - scripts/session13_plus_diff_cleanup.py
+      - .github/workflows/session13-plus-diff-cleanup.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout stabilization branch
+        uses: actions/checkout@v4
+        with:
+          ref: gg-session-13/plus-stabilization
+          fetch-depth: 0
+
+      - name: Apply semantic-only cleanup
+        run: python scripts/session13_plus_diff_cleanup.py
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: estimador-cag
+        run: uv sync --frozen --extra dev
+
+      - name: Ruff
+        working-directory: estimador-cag
+        run: uv run ruff check app tests evals
+
+      - name: Compile Python
+        working-directory: estimador-cag
+        run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f)
+
+      - name: Deterministic tests
+        working-directory: estimador-cag
+        env:
+          OPENAI_API_KEY: test
+          DEEPSEEK_API_KEY: test
+          KIMI_API_KEY: test
+        run: uv run pytest -q -m "not live_provider"
+
+      - name: Diff and secret gates
+        run: |
+          git diff --check
+          if git diff | grep -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY'; then
+            echo "Potential secret in cleanup diff"
+            false
+          fi
+
+      - name: Commit semantic-only cleanup
+        run: |
+          rm scripts/session13_plus_diff_cleanup.py
+          git config user.name "GPT-5.6 Stabilization"
+          git config user.email "actions@users.noreply.github.com"
+          git add .
+          git commit -m "session13: chore(plus): reduce stabilization diff noise"
+          git push origin HEAD:gg-session-13/plus-stabilization
