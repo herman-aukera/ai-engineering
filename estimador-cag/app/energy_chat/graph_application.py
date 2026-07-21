@@ -26,6 +26,7 @@ from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
 from app.energy_chat.graph_runtime import run_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
 from app.energy_chat.human_gate import HumanGateMode
+from app.energy_chat.observability import compute_graph_execution_metrics
 from app.energy_chat.provider_catalog import resolve_effort_profile
 
 
@@ -35,7 +36,7 @@ def run_graph_chat_v2(
     execution_profile: ExecutionProfile | None = None,
     provider: CandidateProvider | None = None,
     id_factory: IDFactory | None = None,
-    checkpointer: InMemoryCheckpointer | None = None,
+    checkpointer: object | None = None,
     human_gate_mode: HumanGateMode = "disabled",
 ) -> EnergyChatV2Response:
     """Execute exactly one graph using a route-owned execution profile."""
@@ -66,7 +67,11 @@ def run_graph_chat_v2(
     active_checkpointer = checkpointer
     if active_checkpointer is None and active_execution_profile == "deterministic":
         active_checkpointer = InMemoryCheckpointer()
-    saver = active_checkpointer.langgraph_saver if active_checkpointer else None
+    saver = (
+        getattr(active_checkpointer, "langgraph_saver", None)
+        if active_checkpointer is not None
+        else None
+    )
 
     state = EnergyChatGraphState(
         thread_id=thread_id,
@@ -77,7 +82,6 @@ def run_graph_chat_v2(
         policy_version="unresolved",
         constraints=materialized_request.required_constraints,
     )
-
     result = run_energy_chat_graph(
         state,
         provider=resolved_provider,
@@ -95,6 +99,9 @@ def run_graph_chat_v2(
         materialized_request,
         active_execution_profile,
         checkpoint_id=checkpoint_id,
+        restart_persistent=bool(
+            getattr(active_checkpointer, "restart_persistent", False)
+        ),
     )
 
 
@@ -130,7 +137,7 @@ def _validate_v2_selectors(
             value=request.context_profile,
             detail=(
                 f"Context profile '{request.context_profile}' is not implemented; "
-                "only 'balanced' is active in this milestone"
+                "only 'balanced' is active"
             ),
         )
     if request.orchestration_mode != "critic":
@@ -146,7 +153,7 @@ def _validate_v2_selectors(
         raise UnsupportedProfileError(
             field="human_gate",
             value="true",
-            detail="Public human interrupt/resume is not implemented yet",
+            detail="Use the dedicated typed human-gate route.",
         )
     if execution_profile == "deterministic" and request.allow_provider_fallback:
         raise UnsupportedProfileError(
@@ -162,7 +169,6 @@ def _resolve_provider(
 ) -> CandidateProvider:
     if execution_profile == "deterministic":
         return DeterministicCandidateProvider()
-
     if request.provider_preference == "auto":
         raise ProviderUnavailableError(
             provider="auto",
@@ -171,7 +177,6 @@ def _resolve_provider(
                 "Select a verified provider explicitly."
             ),
         )
-
     resolved = resolve_effort_profile(
         request.provider_preference, request.effort_profile
     )
@@ -183,7 +188,6 @@ def _resolve_provider(
                 f"'{request.effort_profile}' has no verified compatible model."
             ),
         )
-
     if request.provider_preference != "deepseek":
         raise ProviderUnavailableError(
             provider=request.provider_preference,
@@ -191,19 +195,11 @@ def _resolve_provider(
                 f"Provider '{request.provider_preference}' has no enabled EACHAT adapter."
             ),
         )
-
     adapter = BaselineCandidateProvider()
-    configure = getattr(adapter, "configure_fallback_policy", None)
-    if callable(configure):
-        configure(
-            allow_provider_fallback=request.allow_provider_fallback,
-            tier_ladder=_fallback_tier_ladder(request),
-        )
-    elif request.allow_provider_fallback:
-        raise ProviderUnavailableError(
-            provider="deepseek",
-            detail="The active provider adapter cannot enforce explicit fallback policy.",
-        )
+    adapter.configure_fallback_policy(
+        allow_provider_fallback=request.allow_provider_fallback,
+        tier_ladder=_fallback_tier_ladder(request),
+    )
     return adapter
 
 
@@ -211,7 +207,6 @@ def _fallback_tier_ladder(request: EnergyChatV2Request) -> list[ProviderTier]:
     ladder: list[ProviderTier] = ["flash"]
     if not request.allow_provider_fallback:
         return ladder
-
     allowed = set(request.fallback_provider_allowlist)
     if "openai" in allowed:
         raise ProviderUnavailableError(
@@ -248,11 +243,11 @@ def project_v2_response(
     *,
     checkpoint_id: str | None = None,
     replayed_from_checkpoint: bool = False,
+    restart_persistent: bool = False,
 ) -> EnergyChatV2Response:
-    """Project one validated graph state into the public V2 response contract."""
+    """Project validated graph state without exposing sensitive bodies."""
 
     metrics_list = result.provider_metrics
-
     if not metrics_list:
         served_provider = "none"
         served_model = None
@@ -264,7 +259,7 @@ def project_v2_response(
         served_model = last.model
         fallback_used = any(item.fallback_used for item in metrics_list)
         if replayed_from_checkpoint:
-            routing_reason = "response replayed from the authoritative application checkpoint"
+            routing_reason = "response replayed from the authoritative checkpoint"
         elif execution_profile == "deterministic":
             routing_reason = "deterministic route used the local template provider"
         elif fallback_used:
@@ -275,7 +270,7 @@ def project_v2_response(
         else:
             routing_reason = f"live route served {last.provider}/{last.model} without fallback"
 
-    metrics_summary = ProviderMetricsSummary(
+    provider_summary = ProviderMetricsSummary(
         provider_call_count=len(metrics_list),
         providers_used=list(dict.fromkeys(item.provider for item in metrics_list)),
         models_used=list(dict.fromkeys(item.model for item in metrics_list)),
@@ -287,7 +282,16 @@ def project_v2_response(
         fallback_authorized=request.allow_provider_fallback,
         fallback_provider_allowlist=list(request.fallback_provider_allowlist),
     )
-
+    graph_metrics = compute_graph_execution_metrics(
+        thread_id=result.thread_id,
+        request_id=result.request_id,
+        trace_id=result.trace_id,
+        graph_status=result.status,
+        provider_metrics=result.provider_metrics,
+        trace_events=result.trace_events,
+        errors=result.errors,
+        node_spans=result.node_spans,
+    )
     final_disposition = (
         result.decision_outcomes[-1].disposition
         if result.decision_outcomes
@@ -298,16 +302,20 @@ def project_v2_response(
         if result.final_projection
         else ["no_external_provider_call", "no_tool_execution"]
     )
-    limitations: list[str] = []
-    for entry in result.decision_ledger_entries:
-        for limitation in entry.limitations:
-            if limitation not in limitations:
-                limitations.append(limitation)
+    limitations = list(
+        dict.fromkeys(
+            limitation
+            for entry in result.decision_ledger_entries
+            for limitation in entry.limitations
+        )
+    )
     if not result.decision_ledger_entries and result.status == "awaiting_evidence":
         limitations.append("External evidence is required before candidate generation.")
     if replayed_from_checkpoint:
         limitations.append(
-            "Replay is process-local; application restart loses in-memory checkpoints."
+            "Replay was loaded from durable storage."
+            if restart_persistent
+            else "Replay is process-local; application restart loses in-memory checkpoints."
         )
 
     return EnergyChatV2Response(
@@ -318,10 +326,13 @@ def project_v2_response(
         awaiting_evidence=result.status == "awaiting_evidence",
         source_need=result.source_need,
         evidence_refs=result.evidence_refs,
+        evidence_body_metadata=result.evidence_body_metadata,
+        citation_validations=result.citation_validations,
         final_disposition=final_disposition,
         final_answer=result.final_answer,
         energy_card_v2=result.energy_card_v2,
         execution_markers=execution_markers,
+        graph_metrics=graph_metrics,
         candidate_count=len(result.candidate_versions),
         repair_count=len(result.repair_requests),
         repair_outcomes=[item.outcome for item in result.repair_results],
@@ -332,19 +343,12 @@ def project_v2_response(
         fallback_authorized=request.allow_provider_fallback,
         fallback_provider_allowlist=list(request.fallback_provider_allowlist),
         routing_reason=routing_reason,
-        provider_metrics_summary=metrics_summary,
+        provider_metrics_summary=provider_summary,
         ledger_entry_ids=[
             item.ledger_entry_id for item in result.decision_ledger_entries
         ],
-        trace_summary=[
-            {
-                "event_type": item.event_type,
-                "producer": item.producer,
-                "sequence": item.sequence,
-            }
-            for item in result.trace_events
-        ],
-        limitations=limitations,
+        trace_summary=graph_metrics.safe_trace_summary,
+        limitations=list(dict.fromkeys(limitations)),
         checkpoint_id=checkpoint_id,
         replayed_from_checkpoint=replayed_from_checkpoint,
     )
@@ -357,8 +361,6 @@ def build_v2_error_detail(
     request_id: str | None = None,
     trace_id: str | None = None,
 ) -> EnergyChatV2ErrorDetail:
-    """Build a safe error detail without stack traces or secrets."""
-
     return EnergyChatV2ErrorDetail(
         error=error,
         detail=detail,
@@ -368,10 +370,5 @@ def build_v2_error_detail(
 
 
 def _sum_or_none(values: Iterable[int | None]) -> int | None:
-    total = 0
-    any_present = False
-    for value in values:
-        if value is not None:
-            total += int(value)
-            any_present = True
-    return total if any_present else None
+    present = [int(value) for value in values if value is not None]
+    return sum(present) if present else None
