@@ -1,19 +1,16 @@
-"""Sandboxed real-process tool adapter for EACODE.
+"""Legacy Spec 0009 compatibility surface.
 
-Disabled by default. Requires explicit opt-in via SandboxedToolConfig(enabled=True)
-or the CLI --live-tool flag. Never uses shell=True. Produces bounded, redacted,
-typed execution evidence under existing Spec 0007/0008 policy and authorization.
+The historical real-process adapter is permanently disabled. Deterministic
+failure injection remains available for regression tests and evidence fixtures.
+All authorized OS execution must use ``SecureProcessAdapter`` through
+``SecureExecutionService``.
 """
 
 from __future__ import annotations
 
 import os
-import shutil
-import signal
 import subprocess
 import sys
-import threading
-import time
 from pathlib import Path
 from typing import Literal
 
@@ -24,22 +21,22 @@ from energy_core.controlled_execution import (
     ExecutionPlan,
     _hash_payload,
     _redact,
-    _resolve_within,
     _truncate,
 )
 from energy_core.execution_authorization import AuthorizationReceipt
 from energy_core.models import EnergyModel
 
 FailureClass = Literal[
-    "timeout", "cancelled", "non_zero_exit", "cleanup_failure", None
+    "timeout",
+    "cancelled",
+    "non_zero_exit",
+    "cleanup_failure",
+    None,
 ]
 
 
 class SandboxedToolConfig(EnergyModel):
-    """Immutable configuration for the sandboxed tool adapter.
-
-    enabled defaults to False — real execution must be explicitly opted into.
-    """
+    """Legacy configuration retained for fixture and API compatibility."""
 
     enabled: bool = False
     repository_root: str = Field(min_length=1)
@@ -56,22 +53,45 @@ class SandboxedToolConfig(EnergyModel):
     )
     denied_executables: list[str] = Field(
         default_factory=lambda: [
-            "bash", "cmd", "curl", "del", "mkfs", "powershell", "pwsh",
-            "reboot", "rm", "rmdir", "scp", "sh", "shutdown", "ssh", "sudo",
-            "wget", "zsh",
+            "bash",
+            "cmd",
+            "curl",
+            "del",
+            "mkfs",
+            "powershell",
+            "pwsh",
+            "reboot",
+            "rm",
+            "rmdir",
+            "scp",
+            "sh",
+            "shutdown",
+            "ssh",
+            "sudo",
+            "wget",
+            "zsh",
         ]
     )
     denied_git_subcommands: list[str] = Field(
         default_factory=lambda: [
-            "branch", "checkout", "cherry-pick", "clean", "commit", "merge",
-            "push", "rebase", "reset", "restore", "switch",
+            "branch",
+            "checkout",
+            "cherry-pick",
+            "clean",
+            "commit",
+            "merge",
+            "push",
+            "rebase",
+            "reset",
+            "restore",
+            "switch",
         ]
     )
     repository_snapshot: dict[str, str] | None = Field(default=None)
 
 
 class RealToolResult(EnergyModel):
-    """Bounded, redacted result from a real process execution."""
+    """Legacy deterministic result contract retained for compatibility."""
 
     stdout: str = ""
     stderr: str = ""
@@ -87,240 +107,27 @@ class RealToolResult(EnergyModel):
     redacted: bool = False
 
 
-class _CancelEvent:
-    """Thread-safe cancellation signal."""
-
-    def __init__(self) -> None:
-        self._event = threading.Event()
-
-    def set(self) -> None:
-        self._event.set()
-
-    def is_set(self) -> bool:
-        return self._event.is_set()
-
-    def clear(self) -> None:
-        self._event.clear()
-
-
 class SandboxedToolAdapter:
-    """Execute validated ExecutionPlans as real OS processes.
-
-    The adapter is a subordinate evidence producer. It never decides whether
-    a command is acceptable, whether evidence is sufficient, or whether a
-    candidate should be accepted.
-
-    Disabled by default — config.enabled must be True for any real execution.
-    """
+    """Permanently disabled historical real-process adapter."""
 
     def __init__(self, config: SandboxedToolConfig) -> None:
         self.config = config
-        self._cancel_event = _CancelEvent()
-
-    # ------------------------------------------------------------------
-    # ToolPort protocol
-    # ------------------------------------------------------------------
 
     def invoke(
         self,
         plan: ExecutionPlan,
         authorization_receipt: AuthorizationReceipt | None = None,
     ) -> RealToolResult:
-        """Execute plan and return bounded, redacted evidence.
-
-        Raises PermissionError if config.enabled is False or any pre-start
-        verification fails. For human-gated plans, a valid consumed
-        AuthorizationReceipt is required.
-        """
+        del plan, authorization_receipt
         if not self.config.enabled:
-            raise PermissionError(
-                "SandboxedToolAdapter is disabled. Set config.enabled=True "
-                "or use --live-tool to enable real execution."
-            )
-
-        _verify_pre_start(plan, self.config, authorization_receipt)
-
-        executable_path = _resolve_executable(plan.executable)
-        working_dir = _resolve_working_dir(plan, Path(self.config.repository_root))
-        resolved_env = _build_environment(plan, self.config)
-        _verify_paths_within_root(plan, Path(self.config.repository_root))
-
-        self._cancel_event.clear()
-        started_at = time.monotonic()
-
-        try:
-            process = subprocess.Popen(
-                args=[executable_path, *plan.arguments],
-                cwd=str(working_dir),
-                env=resolved_env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.DEVNULL,
-                shell=False,
-            )
-
-            stdout_chunks: list[str] = []
-            stderr_chunks: list[str] = []
-            stdout_truncated = False
-            stderr_truncated = False
-            redacted = False
-            lock = threading.Lock()
-            stream_error: Exception | None = None
-
-            def _read_stream(stream, chunks: list[str], length_tracker: list[int]):
-                nonlocal stream_error
-                try:
-                    for chunk in iter(lambda: stream.read(4096), b""):
-                        if self._cancel_event.is_set():
-                            break
-                        text = chunk.decode("utf-8", errors="replace")
-                        redacted_text, was_redacted = _redact(text)
-                        with lock:
-                            if was_redacted:
-                                nonlocal redacted  # noqa: F824
-                                redacted = True
-                            current_len = length_tracker[0]
-                            remaining = plan.max_output_chars - current_len
-                            if remaining <= 0:
-                                break
-                            if len(redacted_text) > remaining:
-                                redacted_text = redacted_text[:remaining]
-                            chunks.append(redacted_text)
-                            length_tracker[0] += len(redacted_text)
-                except Exception as exc:
-                    stream_error = exc
-
-            stdout_len_tracker = [0]
-            stderr_len_tracker = [0]
-
-            stdout_thread = threading.Thread(
-                target=_read_stream,
-                args=(process.stdout, stdout_chunks, stdout_len_tracker),
-                daemon=True,
-            )
-            stderr_thread = threading.Thread(
-                target=_read_stream,
-                args=(process.stderr, stderr_chunks, stderr_len_tracker),
-                daemon=True,
-            )
-            stdout_thread.start()
-            stderr_thread.start()
-
-            try:
-                process.wait(timeout=plan.timeout_seconds)
-            except subprocess.TimeoutExpired:
-                _kill_process_tree(process.pid)
-                process.wait(timeout=10)
-                stdout_thread.join(timeout=5)
-                stderr_thread.join(timeout=5)
-
-                duration_ms = int((time.monotonic() - started_at) * 1000)
-                # Final-assembly re-redaction
-                out_text, out_red2 = _redact("".join(stdout_chunks))
-                err_text, err_red2 = _redact("".join(stderr_chunks))
-                redacted = redacted or out_red2 or err_red2
-                stdout, stdout_trunc = _truncate(out_text, plan.max_output_chars)
-                stderr, stderr_trunc = _truncate(err_text, plan.max_output_chars)
-
-                return RealToolResult(
-                    stdout=stdout,
-                    stderr=stderr,
-                    exit_code=None,
-                    duration_ms=duration_ms,
-                    timed_out=True,
-                    process_tree_cleaned=True,
-                    failure_class="timeout",
-                    stdout_truncated=stdout_trunc or stdout_truncated,
-                    stderr_truncated=stderr_trunc or stderr_truncated,
-                    redacted=redacted,
-                )
-
-            stdout_thread.join(timeout=10)
-            stderr_thread.join(timeout=10)
-
-            if self._cancel_event.is_set():
-                _kill_process_tree(process.pid)
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    pass
-
-                duration_ms = int((time.monotonic() - started_at) * 1000)
-                # Final-assembly re-redaction
-                out_text, out_red2 = _redact("".join(stdout_chunks))
-                err_text, err_red2 = _redact("".join(stderr_chunks))
-                redacted = redacted or out_red2 or err_red2
-                stdout, stdout_trunc = _truncate(out_text, plan.max_output_chars)
-                stderr, stderr_trunc = _truncate(err_text, plan.max_output_chars)
-
-                return RealToolResult(
-                    stdout=stdout,
-                    stderr=stderr,
-                    exit_code=None,
-                    duration_ms=duration_ms,
-                    cancelled=True,
-                    process_tree_cleaned=True,
-                    failure_class="cancelled",
-                    stdout_truncated=stdout_trunc or stdout_truncated,
-                    stderr_truncated=stderr_trunc or stderr_truncated,
-                    redacted=redacted,
-                )
-
-            if stream_error is not None:
-                raise stream_error
-
-            duration_ms = int((time.monotonic() - started_at) * 1000)
-            exit_code = process.returncode
-
-            stdout_text = "".join(stdout_chunks)
-            stderr_text = "".join(stderr_chunks)
-            # Final-assembly re-redaction to catch cross-chunk secrets
-            stdout_text, stdout_redacted2 = _redact(stdout_text)
-            stderr_text, stderr_redacted2 = _redact(stderr_text)
-            redacted = redacted or stdout_redacted2 or stderr_redacted2
-            stdout, stdout_trunc = _truncate(stdout_text, plan.max_output_chars)
-            stderr, stderr_trunc = _truncate(stderr_text, plan.max_output_chars)
-
-            failure_class: FailureClass = (
-                "non_zero_exit" if exit_code != 0 else None
-            )
-
-            return RealToolResult(
-                stdout=stdout,
-                stderr=stderr,
-                exit_code=exit_code,
-                duration_ms=duration_ms,
-                process_tree_cleaned=True,
-                failure_class=failure_class,
-                stdout_truncated=stdout_trunc,
-                stderr_truncated=stderr_trunc,
-                redacted=redacted,
-            )
-
-        except Exception:
-            # If Popen itself failed, attempt cleanup and record
-            duration_ms = int((time.monotonic() - started_at) * 1000)
-            return RealToolResult(
-                stdout="",
-                stderr="",
-                exit_code=None,
-                duration_ms=duration_ms,
-                process_tree_cleaned=False,
-                cleanup_error="Process creation failed.",
-                failure_class="cleanup_failure",
-            )
-
-    # ------------------------------------------------------------------
-    # Cancellation
-    # ------------------------------------------------------------------
+            raise PermissionError("SandboxedToolAdapter is disabled.")
+        raise PermissionError(
+            "legacy real-process adapter is disabled; use SecureProcessAdapter "
+            "through SecureExecutionService."
+        )
 
     def cancel(self) -> None:
-        """Signal the adapter to cancel the current execution."""
-        self._cancel_event.set()
-
-    # ------------------------------------------------------------------
-    # Evidence builder
-    # ------------------------------------------------------------------
+        """Compatibility no-op: this adapter never creates a process."""
 
     def build_evidence(
         self,
@@ -330,255 +137,12 @@ class SandboxedToolAdapter:
         run_id: str,
         authorization_receipt: AuthorizationReceipt | None = None,
     ) -> ExecutionEvidence:
-        """Build ExecutionEvidence from a real execution result."""
-        if authorization_receipt is not None:
-            if authorization_receipt.plan_hash != plan.plan_hash:
-                raise PermissionError(
-                    "Authorization receipt plan_hash does not match execution plan."
-                )
-
-        status: Literal["pass", "fail", "missing", "conflict"]
-        if result.timed_out:
-            status = "fail"
-        elif result.cancelled:
-            status = "fail"
-        elif result.failure_class == "cleanup_failure":
-            status = "conflict"
-        elif result.exit_code == 0:
-            status = "pass"
-        else:
-            status = "fail"
-
-        summary_parts = ["Real process execution recorded."]
-        if result.timed_out:
-            summary_parts.append("Process timed out.")
-        if result.cancelled:
-            summary_parts.append("Process cancelled.")
-        if result.failure_class == "non_zero_exit":
-            summary_parts.append(f"Exit code: {result.exit_code}.")
-        if result.redacted:
-            summary_parts.append("Output was redacted.")
-        if result.stdout_truncated or result.stderr_truncated:
-            summary_parts.append("Output was truncated.")
-
-        artifact_payload = {
-            "exit_code": result.exit_code,
-            "stdout_excerpt": result.stdout,
-            "stderr_excerpt": result.stderr,
-            "duration_ms": result.duration_ms,
-            "timed_out": result.timed_out,
-            "cancelled": result.cancelled,
-        }
-
-        return ExecutionEvidence(
-            evidence_id=f"execution-{plan.plan_hash[:16]}",
-            run_id=run_id,
-            proposal_id=plan.proposal_id,
-            plan_hash=plan.plan_hash,
-            status=status,
-            summary=" ".join(summary_parts),
-            execution_mode=plan.execution_mode,
-            execution_performed=True,
-            adapter_invoked=True,
-            exit_code=result.exit_code,
-            stdout_excerpt=result.stdout,
-            stderr_excerpt=result.stderr,
-            output_truncated=result.stdout_truncated or result.stderr_truncated,
-            redaction_status="redacted" if result.redacted else "not_required",
-            artifact_hash=_hash_payload(artifact_payload),
-            duration_ms=result.duration_ms,
-            rollback_available=bool((plan.rollback_summary or "").strip()),
-            trust_classification="trusted",
-            policy_reasons=list(plan.reasons),
-        )
-
-
-# ------------------------------------------------------------------
-# Pre-start verification
-# ------------------------------------------------------------------
-
-
-def _verify_pre_start(
-    plan: ExecutionPlan,
-    config: SandboxedToolConfig,
-    authorization_receipt: AuthorizationReceipt | None = None,
-) -> None:
-    """Independent pre-start verification.
-
-    Revalidates plan disposition, authorization, paths, and executable
-    immediately before process creation. Raises PermissionError on any failure.
-    """
-    if plan.disposition == "deny":
-        raise PermissionError(
-            f"Execution denied by policy: {', '.join(plan.reasons)}"
-        )
-    if plan.execution_performed:
-        raise PermissionError("Plan has already been executed.")
-
-    # Live-execution intent guard: dry_run/fake plans must never start real process
-    if plan.execution_mode in ("dry_run", "fake"):
-        raise PermissionError(
-            f"Plan execution_mode={plan.execution_mode} cannot invoke real process. "
-            "Real execution requires an explicit live-execution intent."
-        )
-
-    # Authorization check for human-gated plans
-    if plan.requires_human_authorization:
-        if authorization_receipt is None:
-            raise PermissionError(
-                "Human-gated plan requires a consumed authorization receipt."
-            )
-        if authorization_receipt.plan_hash != plan.plan_hash:
-            raise PermissionError(
-                "Authorization receipt plan_hash does not match execution plan."
-            )
-        if authorization_receipt.accepted_revision != config.current_revision:
-            raise PermissionError(
-                f"Authorization receipt revision {authorization_receipt.accepted_revision} "
-                f"does not match current revision {config.current_revision}."
-            )
-        if authorization_receipt.execution_performed:
-            raise PermissionError("Authorization receipt has already been executed.")
-
-    executable_lower = plan.executable.lower()
-    if executable_lower in config.denied_executables:
-        raise PermissionError(f"Executable denied: {plan.executable}")
-    if executable_lower not in config.allowed_executables:
-        raise PermissionError(f"Executable not in allowlist: {plan.executable}")
-
-    if executable_lower == "git" and plan.arguments:
-        subcommand = plan.arguments[0].lower()
-        if subcommand in config.denied_git_subcommands:
-            raise PermissionError(f"Git subcommand denied: {subcommand}")
-
-    # Repository snapshot binding
-    if config.repository_snapshot:
-        import subprocess as sp
-        try:
-            actual_head = sp.run(
-                ["git", "rev-parse", "HEAD"],
-                capture_output=True, text=True, timeout=5,
-                cwd=config.repository_root,
-            ).stdout.strip()
-        except Exception:
-            actual_head = ""
-        expected_head = config.repository_snapshot.get("head_sha", "")
-        if expected_head and actual_head != expected_head:
-            raise PermissionError(
-                f"Repository snapshot mismatch: expected HEAD {expected_head}, "
-                f"got {actual_head}"
-            )
-
-
-def _resolve_executable(executable: str) -> str:
-    """Resolve executable path without shell interpretation."""
-    resolved = shutil.which(executable)
-    if resolved is None:
-        raise PermissionError(
-            f"Executable not found on PATH: {executable}"
-        )
-    return resolved
-
-
-def _resolve_working_dir(plan: ExecutionPlan, root: Path) -> Path:
-    """Resolve working directory within repository root."""
-    resolved_root = root.resolve(strict=True)
-    try:
-        return _resolve_within(resolved_root, resolved_root, plan.working_directory, must_exist=True)
-    except ValueError as exc:
-        raise PermissionError(str(exc)) from exc
-
-
-def _verify_paths_within_root(plan: ExecutionPlan, root: Path) -> None:
-    """Revalidate all declared paths and path-like arguments."""
-    for raw_path in plan.declared_paths:
-        candidate = root / raw_path
-        try:
-            resolved = candidate.resolve()
-        except Exception:
-            raise PermissionError(f"Cannot resolve path: {raw_path}")
-        try:
-            if not resolved.is_relative_to(root):
-                raise PermissionError(
-                    f"Path escapes repository root: {raw_path}"
-                )
-        except AttributeError:
-            # Python < 3.9 fallback
-            if root not in resolved.parents and resolved != root:
-                raise PermissionError(
-                    f"Path escapes repository root: {raw_path}"
-                )
-
-
-def _build_environment(
-    plan: ExecutionPlan, config: SandboxedToolConfig
-) -> dict[str, str]:
-    """Build minimal process environment from name allowlist."""
-    env: dict[str, str] = {}
-    for name in plan.environment_names:
-        if name in config.environment_allowlist:
-            value = os.environ.get(name, "")
-            env[name] = value
-
-    # PATH needed for executable resolution in the child process
-    env["PATH"] = os.environ.get("PATH", "")
-
-    # SYSTEMROOT needed on Windows for basic system function
-    if sys.platform == "win32":
-        env["SYSTEMROOT"] = os.environ.get("SYSTEMROOT", "C:\\Windows")
-
-    return env
-
-
-# ------------------------------------------------------------------
-# Process-tree cleanup
-# ------------------------------------------------------------------
-
-
-def _kill_process_tree(pid: int) -> None:
-    """Terminate the complete process tree.
-
-    On Windows, uses taskkill /F /T /PID.
-    On Unix, uses killpg with SIGKILL.
-    """
-    if sys.platform == "win32":
-        _kill_process_tree_windows(pid)
-    else:
-        _kill_process_tree_unix(pid)
-
-
-def _kill_process_tree_windows(pid: int) -> None:
-    """Kill process tree using Windows taskkill."""
-    try:
-        subprocess.run(
-            ["taskkill", "/F", "/T", "/PID", str(pid)],
-            capture_output=True,
-            timeout=10,
-            shell=False,
-        )
-    except Exception:
-        pass
-
-
-def _kill_process_tree_unix(pid: int) -> None:
-    """Kill process tree using Unix process group signals."""
-    try:
-        os.killpg(pid, signal.SIGKILL)
-    except (ProcessLookupError, OSError):
-        pass
-
-
-# ------------------------------------------------------------------
-# Failure injection adapter for deterministic testing
-# ------------------------------------------------------------------
+        del authorization_receipt
+        return _build_legacy_evidence(plan, result, run_id=run_id)
 
 
 class FailureInjectingAdapter(SandboxedToolAdapter):
-    """Test adapter that can inject specific failure modes.
-
-    Used in deterministic CI to verify failure-handling logic without
-    creating real OS processes.
-    """
+    """Deterministic CI adapter that never creates an OS process."""
 
     def __init__(
         self,
@@ -604,84 +168,25 @@ class FailureInjectingAdapter(SandboxedToolAdapter):
         plan: ExecutionPlan,
         authorization_receipt: AuthorizationReceipt | None = None,
     ) -> RealToolResult:
-        """Return a deterministic fake result based on injection flags.
-
-        Does not create any real OS process. Used for deterministic CI testing.
-        Skips the execution_mode guard since no real process is started.
-        """
-        if not self.config.enabled:
-            raise PermissionError(
-                "SandboxedToolAdapter is disabled. Set config.enabled=True."
-            )
-
-        # Skip execution_mode guard — FailureInjectingAdapter never creates real processes
-        if plan.disposition == "deny":
-            raise PermissionError(
-                f"Execution denied by policy: {', '.join(plan.reasons)}"
-            )
-        if plan.execution_performed:
-            raise PermissionError("Plan has already been executed.")
-        # Authorization receipt checks still apply
-        if plan.requires_human_authorization:
-            if authorization_receipt is None:
-                raise PermissionError(
-                    "Human-gated plan requires a consumed authorization receipt."
-                )
-            if authorization_receipt.plan_hash != plan.plan_hash:
-                raise PermissionError("Receipt plan_hash mismatch.")
-            if authorization_receipt.execution_performed:
-                raise PermissionError(
-                    "Authorization receipt has execution_performed=True."
-                )
-            if authorization_receipt.accepted_revision != self.config.current_revision:
-                raise PermissionError(
-                    f"Authorization receipt revision {authorization_receipt.accepted_revision} "
-                    f"does not match current revision {self.config.current_revision}."
-                )
-        # Executable checks
-        executable_lower = plan.executable.lower()
-        if executable_lower in self.config.denied_executables:
-            raise PermissionError(f"Executable denied: {plan.executable}")
-        if executable_lower == "git" and plan.arguments:
-            subcommand = plan.arguments[0].lower()
-            if subcommand in self.config.denied_git_subcommands:
-                raise PermissionError(f"Git subcommand denied: {subcommand}")
-        # Repository snapshot check
-        if self.config.repository_snapshot:
-            import subprocess as sp
-            try:
-                actual_head = sp.run(
-                    ["git", "rev-parse", "HEAD"],
-                    capture_output=True, text=True, timeout=5,
-                    cwd=self.config.repository_root,
-                ).stdout.strip()
-            except Exception:
-                actual_head = ""
-            expected_head = self.config.repository_snapshot.get("head_sha", "")
-            if expected_head and actual_head != expected_head:
-                raise PermissionError(
-                    f"Repository snapshot mismatch: expected HEAD {expected_head}, "
-                    f"got {actual_head}"
-                )
-
-        Path(self.config.repository_root)
+        _verify_failure_fixture_preconditions(
+            plan,
+            self.config,
+            authorization_receipt,
+        )
 
         if self._inject_timeout:
             return RealToolResult(
                 stdout="partial output before timeout",
-                stderr="",
                 exit_code=None,
-                duration_ms=int(plan.timeout_seconds * 1000),
+                duration_ms=plan.timeout_seconds * 1000,
                 timed_out=True,
                 process_tree_cleaned=True,
                 failure_class="timeout",
                 stdout_truncated=True,
             )
-
         if self._inject_cancellation:
             return RealToolResult(
                 stdout="partial output before cancel",
-                stderr="",
                 exit_code=None,
                 duration_ms=1500,
                 cancelled=True,
@@ -689,40 +194,163 @@ class FailureInjectingAdapter(SandboxedToolAdapter):
                 failure_class="cancelled",
                 stdout_truncated=True,
             )
-
         if self._inject_cleanup_failure:
             return RealToolResult(
-                stdout="",
-                stderr="",
                 exit_code=None,
-                duration_ms=0,
                 process_tree_cleaned=False,
                 cleanup_error="Simulated cleanup failure.",
                 failure_class="cleanup_failure",
             )
 
         exit_code = 1 if self._inject_non_zero_exit else 0
-
-        if self._inject_secret_output:
-            stdout = "Result: sk-abcdefghijklmnopqrstuvwxyz123456"
-        else:
-            stdout = "Deterministic fake output."
-
+        stdout = (
+            "Result: sk-abcdefghijklmnopqrstuvwxyz123456"
+            if self._inject_secret_output
+            else "Deterministic fake output."
+        )
         if self._inject_oversized_output:
             stdout = "X" * (plan.max_output_chars + 500)
 
-        redacted_text, was_redacted = _redact(stdout)
-        bounded, was_truncated = _truncate(redacted_text, plan.max_output_chars)
-
-        failure_class: FailureClass = "non_zero_exit" if exit_code != 0 else None
-
+        redacted, was_redacted = _redact(stdout)
+        bounded, was_truncated = _truncate(redacted, plan.max_output_chars)
         return RealToolResult(
             stdout=bounded,
-            stderr="",
             exit_code=exit_code,
             duration_ms=100,
             process_tree_cleaned=True,
-            failure_class=failure_class,
+            failure_class="non_zero_exit" if exit_code else None,
             stdout_truncated=was_truncated,
             redacted=was_redacted,
         )
+
+
+def _verify_failure_fixture_preconditions(
+    plan: ExecutionPlan,
+    config: SandboxedToolConfig,
+    authorization_receipt: AuthorizationReceipt | None,
+) -> None:
+    if not config.enabled:
+        raise PermissionError("SandboxedToolAdapter is disabled.")
+    if plan.disposition == "deny":
+        raise PermissionError(
+            f"Execution denied by policy: {', '.join(plan.reasons)}"
+        )
+    if plan.execution_performed:
+        raise PermissionError("Plan has already been executed.")
+    if plan.requires_human_authorization:
+        if authorization_receipt is None:
+            raise PermissionError(
+                "Human-gated plan requires a consumed authorization receipt."
+            )
+        if authorization_receipt.plan_hash != plan.plan_hash:
+            raise PermissionError("Receipt plan_hash mismatch.")
+        if authorization_receipt.execution_performed:
+            raise PermissionError("Authorization receipt has already executed.")
+        if authorization_receipt.accepted_revision != config.current_revision:
+            raise PermissionError(
+                "Authorization receipt revision does not match current revision."
+            )
+
+    executable = plan.executable.lower()
+    if executable in config.denied_executables:
+        raise PermissionError(f"Executable denied: {plan.executable}")
+    if executable not in config.allowed_executables:
+        raise PermissionError(f"Executable not in allowlist: {plan.executable}")
+    if executable == "git" and plan.arguments:
+        subcommand = plan.arguments[0].lower()
+        if subcommand in config.denied_git_subcommands:
+            raise PermissionError(f"Git subcommand denied: {subcommand}")
+
+    if config.repository_snapshot:
+        expected_head = config.repository_snapshot.get("head_sha", "")
+        if expected_head:
+            completed = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=config.repository_root,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            actual_head = completed.stdout.strip() if completed.returncode == 0 else ""
+            if actual_head != expected_head:
+                raise PermissionError(
+                    "Repository snapshot mismatch for deterministic fixture."
+                )
+
+
+def _build_legacy_evidence(
+    plan: ExecutionPlan,
+    result: RealToolResult,
+    *,
+    run_id: str,
+) -> ExecutionEvidence:
+    if result.failure_class == "cleanup_failure":
+        status: Literal["pass", "fail", "missing", "conflict"] = "conflict"
+    elif result.failure_class is not None or result.exit_code not in (0, None):
+        status = "fail"
+    else:
+        status = "pass"
+
+    artifact_payload = {
+        "exit_code": result.exit_code,
+        "stdout_excerpt": result.stdout,
+        "stderr_excerpt": result.stderr,
+        "duration_ms": result.duration_ms,
+        "timed_out": result.timed_out,
+        "cancelled": result.cancelled,
+        "process_tree_cleaned": result.process_tree_cleaned,
+        "failure_class": result.failure_class,
+    }
+    return ExecutionEvidence(
+        evidence_id=f"execution-{plan.plan_hash[:16]}",
+        run_id=run_id,
+        proposal_id=plan.proposal_id,
+        plan_hash=plan.plan_hash,
+        status=status,
+        summary="Deterministic failure-injection evidence recorded.",
+        execution_mode=plan.execution_mode,
+        execution_performed=True,
+        adapter_invoked=True,
+        exit_code=result.exit_code,
+        stdout_excerpt=result.stdout,
+        stderr_excerpt=result.stderr,
+        output_truncated=result.stdout_truncated or result.stderr_truncated,
+        redaction_status="redacted" if result.redacted else "not_required",
+        artifact_hash=_hash_payload(artifact_payload),
+        duration_ms=result.duration_ms,
+        rollback_available=bool((plan.rollback_summary or "").strip()),
+        trust_classification=(
+            "unknown" if result.failure_class == "cleanup_failure" else "trusted"
+        ),
+        policy_reasons=list(plan.reasons),
+    )
+
+
+def _build_environment(
+    plan: ExecutionPlan,
+    config: SandboxedToolConfig,
+) -> dict[str, str]:
+    """Compatibility helper used by deterministic leakage tests."""
+
+    environment: dict[str, str] = {}
+    for name in plan.environment_names:
+        if name in config.environment_allowlist:
+            environment[name] = os.environ.get(name, "")
+    environment["PATH"] = os.environ.get("PATH", "")
+    if sys.platform == "win32":
+        environment["SYSTEMROOT"] = os.environ.get("SYSTEMROOT", "C:\\Windows")
+    return environment
+
+
+def _kill_process_tree(pid: int) -> tuple[bool, str]:
+    """Legacy kill helper is disabled because no process handle can be verified."""
+
+    del pid
+    return False, "Legacy cleanup is disabled and cannot be verified."
+
+
+def _resolve_repository_root(config: SandboxedToolConfig) -> Path:
+    """Return the validated root for compatibility callers."""
+
+    return Path(config.repository_root).resolve(strict=True)
