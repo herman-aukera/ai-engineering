@@ -68,3 +68,5 @@ jobs:
           git add .
           git commit -m "session13: fix(plus): stabilize CI, SSE, routing, and claims"
           git push origin HEAD:gg-session-13/plus-stabilization
+
+# Triggered after explicit user approval; source branch remains untouched.
