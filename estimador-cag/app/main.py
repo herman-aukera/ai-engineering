@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 
 from app.embedding_pipeline.router import router as embedding_router
+from app.energy_chat.human_router import router as energy_chat_human_router
 from app.energy_chat.router import router as energy_chat_router
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
 from app.energy_chat.settings import energy_chat_v2_enabled
@@ -34,6 +35,11 @@ app.include_router(estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
 app.include_router(energy_chat_router, prefix="/energy-chat", tags=["energy-chat"])
+app.include_router(
+    energy_chat_human_router,
+    prefix="/energy-chat",
+    tags=["energy-chat-human"],
+)
 
 
 @app.get("/health", tags=["health"])
