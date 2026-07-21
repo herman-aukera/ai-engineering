@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 POSTGRES_CHECKPOINT_MIGRATION_VERSION = 1
 REDACTION_SENTINEL = "[REDACTED]"
 REDACTED_STATE_FIELDS: frozenset[str] = frozenset(
-    {"user_request", "human_action_response"}
+    {"user_request", "human_action_result"}
 )
 
 
@@ -296,7 +296,7 @@ def _redact_channel_values(channel_values: dict[str, Any]) -> None:
 def _redacted_value(field_name: str, value: Any) -> Any:
     if field_name == "user_request":
         return REDACTION_SENTINEL
-    if field_name == "human_action_response":
+    if field_name == "human_action_result":
         return None
     return _redact_nested(value)
 
