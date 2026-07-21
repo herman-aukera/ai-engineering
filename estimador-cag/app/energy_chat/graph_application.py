@@ -18,7 +18,6 @@ from app.energy_chat.candidate_provider import (
     CandidateProvider,
     DeterministicCandidateProvider,
     ProviderBudget,
-    ProviderBudgetExceededError,
 )
 from app.energy_chat.contracts import ProviderTier
 from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
