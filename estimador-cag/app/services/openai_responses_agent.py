@@ -11,6 +11,8 @@ from openai import AsyncOpenAI, OpenAI
 from app.schemas.agent_runtime import AgentModelTurn, AgentToolCall, AgentToolSpec
 from app.services.costs import estimate_cost_usd
 
+_OPENAI_REQUEST_TIMEOUT_SECONDS = 60.0
+
 
 def _function_tools(tools: Sequence[AgentToolSpec]) -> list[dict[str, object]]:
     return [
@@ -114,7 +116,12 @@ async def complete_openai_responses_turn(
     """Execute one bounded OpenAI Responses turn with provider-native reasoning."""
 
     instructions, input_items = _input_items(messages)
-    client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+    client = AsyncOpenAI(
+        api_key=api_key,
+        base_url=base_url,
+        timeout=_OPENAI_REQUEST_TIMEOUT_SECONDS,
+        max_retries=1,
+    )
     response = await client.responses.create(
         model=model,
         instructions=instructions,
@@ -165,7 +172,12 @@ def benchmark_openai_tool_call(
     function = tool.get("function")
     if not isinstance(function, Mapping):
         raise ValueError("benchmark tool must contain a function definition")
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    client = OpenAI(
+        api_key=api_key,
+        base_url=base_url,
+        timeout=_OPENAI_REQUEST_TIMEOUT_SECONDS,
+        max_retries=1,
+    )
     return client.responses.create(
         model=model,
         instructions=instructions,
