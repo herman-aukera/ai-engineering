@@ -53,7 +53,7 @@ class ComplexityAssessment(StrictV3Model):
     human_review_required: bool = False
 
     @model_validator(mode="after")
-    def validate_dimension_total(self) -> "ComplexityAssessment":
+    def validate_dimension_total(self) -> ComplexityAssessment:
         if any(value < 0 for value in self.dimensions.values()):
             raise ValueError("complexity dimensions must be non-negative")
         if sum(self.dimensions.values()) != self.score:
