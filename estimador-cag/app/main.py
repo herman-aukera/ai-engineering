@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 from app.embedding_pipeline.router import router as embedding_router
 from app.energy_chat.router import router as energy_chat_router
+from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
 from app.energy_chat.settings import energy_chat_v2_enabled
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
@@ -18,6 +19,7 @@ app = FastAPI(
     description="Context-Augmented Generation (CAG) estimator",
     version="0.3.0",
 )
+app.state.energy_chat_runtime = EnergyChatApplicationRuntime()
 
 app.add_middleware(
     CORSMiddleware,
