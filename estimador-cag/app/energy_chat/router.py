@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path, Request
 from fastapi.responses import PlainTextResponse
 
 from app.energy_chat import baseline, benchmark, fixed_benchmark, live_agent
@@ -10,6 +10,7 @@ from app.energy_chat.agent import run_energy_aware_chat_agent
 from app.energy_chat.api_v2_contracts import (
     EnergyChatV2Request,
     EnergyChatV2Response,
+    EnergyChatV2ThreadStateResponse,
     ExecutionProfile,
     ProviderUnavailableError,
     UnsupportedProfileError,
@@ -35,8 +36,13 @@ from app.energy_chat.contracts import (
 from app.energy_chat.evaluator import evaluate_answer, evaluate_with_one_pass_repair
 from app.energy_chat.evidence import build_evidence_bundle
 from app.energy_chat.fixed_benchmark import FixedBenchmarkRunResult
-from app.energy_chat.graph_application import build_v2_error_detail, run_graph_chat_v2
+from app.energy_chat.graph_application import build_v2_error_detail
 from app.energy_chat.rag import retrieve_project_context
+from app.energy_chat.runtime_container import (
+    EnergyChatApplicationRuntime,
+    ThreadCheckpointConflictError,
+    ThreadCheckpointNotFoundError,
+)
 from app.energy_chat.settings import energy_chat_v2_enabled
 from app.energy_chat.source_guard import classify_source_need
 
@@ -152,6 +158,13 @@ def _require_v2_enabled() -> None:
         )
 
 
+def _application_runtime(request: Request) -> EnergyChatApplicationRuntime:
+    runtime = getattr(request.app.state, "energy_chat_runtime", None)
+    if not isinstance(runtime, EnergyChatApplicationRuntime):
+        raise RuntimeError("Energy Chat application runtime is not configured")
+    return runtime
+
+
 def _bind_route_profile(
     request: EnergyChatV2Request,
     expected: ExecutionProfile,
@@ -174,16 +187,24 @@ def _bind_route_profile(
 def _execute_v2(
     request: EnergyChatV2Request,
     execution_profile: ExecutionProfile,
+    runtime: EnergyChatApplicationRuntime,
 ) -> EnergyChatV2Response:
     try:
         _require_v2_enabled()
         bound_request = _bind_route_profile(request, execution_profile)
-        return run_graph_chat_v2(
-            bound_request,
-            execution_profile=execution_profile,
-        )
+        return runtime.execute(bound_request, execution_profile)
     except HTTPException:
         raise
+    except ThreadCheckpointConflictError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=build_v2_error_detail(
+                "thread_checkpoint_conflict",
+                str(exc),
+                request_id=request.request_id,
+                trace_id=request.trace_id,
+            ).model_dump(),
+        ) from exc
     except ProviderUnavailableError as exc:
         raise HTTPException(
             status_code=400,
@@ -229,14 +250,72 @@ def _execute_v2(
 @router.post("/v2/chat", response_model=EnergyChatV2Response)
 def chat_v2_deterministic(
     request: EnergyChatV2Request,
+    http_request: Request,
 ) -> EnergyChatV2Response:
     """Run exactly one keyless deterministic graph execution."""
 
-    return _execute_v2(request, "deterministic")
+    return _execute_v2(
+        request,
+        "deterministic",
+        _application_runtime(http_request),
+    )
 
 
 @router.post("/v2/chat/live", response_model=EnergyChatV2Response)
-def chat_v2_live(request: EnergyChatV2Request) -> EnergyChatV2Response:
+def chat_v2_live(
+    request: EnergyChatV2Request,
+    http_request: Request,
+) -> EnergyChatV2Response:
     """Run exactly one bounded live graph execution."""
 
-    return _execute_v2(request, "live_bounded")
+    return _execute_v2(
+        request,
+        "live_bounded",
+        _application_runtime(http_request),
+    )
+
+
+@router.get(
+    "/v2/threads/{thread_id}/state",
+    response_model=EnergyChatV2ThreadStateResponse,
+)
+def get_v2_thread_state(
+    http_request: Request,
+    thread_id: str = Path(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$"),
+) -> EnergyChatV2ThreadStateResponse:
+    """Return safe metadata from the latest application-lifetime checkpoint."""
+
+    _require_v2_enabled()
+    try:
+        return _application_runtime(http_request).get_thread_state(thread_id)
+    except ThreadCheckpointNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=build_v2_error_detail(
+                "thread_checkpoint_not_found",
+                "No process-local checkpoint exists for this thread.",
+            ).model_dump(),
+        ) from exc
+
+
+@router.post(
+    "/v2/threads/{thread_id}/replay",
+    response_model=EnergyChatV2Response,
+)
+def replay_v2_thread(
+    http_request: Request,
+    thread_id: str = Path(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$"),
+) -> EnergyChatV2Response:
+    """Replay the latest checkpoint projection without invoking the graph."""
+
+    _require_v2_enabled()
+    try:
+        return _application_runtime(http_request).replay(thread_id)
+    except ThreadCheckpointNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=build_v2_error_detail(
+                "thread_checkpoint_not_found",
+                "No process-local checkpoint exists for this thread.",
+            ).model_dump(),
+        ) from exc
