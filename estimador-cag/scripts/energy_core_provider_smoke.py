@@ -7,7 +7,6 @@ Usage:
     uv run python scripts/energy_core_provider_smoke.py
 """
 
-import sys
 from decimal import Decimal
 
 from energy_core.provider_adapter import FakeProviderAdapter
