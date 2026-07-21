@@ -7,7 +7,7 @@ Usage:
     uv run python scripts/energy_core_provider_smoke.py
 """
 
-from decimal import Decimal
+from decimal import Decimal  # noqa: I001
 
 from energy_core.provider_adapter import FakeProviderAdapter
 from energy_core.provider_registry import CapabilityRegistry, ProviderSelection
