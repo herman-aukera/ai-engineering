@@ -36,6 +36,7 @@ jobs:
         if: github.ref == 'refs/heads/gg-session-13/plus-stabilization' || github.head_ref == 'gg-session-13/plus-stabilization'
         working-directory: .
         run: |
+          python scripts/session13_plus_ci_boundary.py
           python scripts/session13_plus_stabilize.py > /tmp/session13-stabilize.log 2>&1 || {
             echo "::error title=Stabilization executor failed::$(tail -n 1 /tmp/session13-stabilize.log)"
             cat /tmp/session13-stabilize.log
@@ -95,7 +96,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
         working-directory: .
         run: |
-          rm -f scripts/session13_plus_stabilize.py .github/workflows/session13-plus-stabilize.yml .session13-stabilization-error.log
+          rm -f scripts/session13_plus_stabilize.py scripts/session13_plus_ci_boundary.py .github/workflows/session13-plus-stabilize.yml .session13-stabilization-error.log
           git config user.name "GPT-5.6 Stabilization"
           git config user.email "actions@users.noreply.github.com"
           git add .
