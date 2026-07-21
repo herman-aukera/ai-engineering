@@ -1,8 +1,8 @@
 """Strict V2 request/response contracts for the graph-backed Energy Aware Chat API.
 
-Milestone 10 repair: route-owned execution, explicit fallback authorization,
-and truthful provider projection. Milestone 11 adds typed application-lifetime
-checkpoint inspection and replay without claiming restart persistence.
+Milestone 10 repairs route and fallback truthfulness. Milestone 11 adds
+application-lifetime checkpoint replay. Milestone 12 adds typed human interrupt
+and revision-guarded resume without claiming durable restart persistence.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.energy_chat.audit_models import EnergyCardV2
 from app.energy_chat.contracts import Mode, SourceNeedResult
+from app.energy_chat.human_gate import HumanActionRequest, HumanActionType
 
 ProviderPreference = Literal["auto", "deepseek", "kimi", "openai"]
 FallbackProvider = Literal["deepseek", "kimi", "openai"]
@@ -48,12 +49,7 @@ class UUID4IDFactory:
 
 
 class EnergyChatV2Request(BaseModel):
-    """Strict graph-backed V2 request.
-
-    ``execution_profile`` remains temporarily accepted for transport
-    compatibility, but the selected route owns the profile and rejects a
-    contradictory value. Unknown fields fail validation.
-    """
+    """Strict graph-backed V2 request."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -96,7 +92,7 @@ class EnergyChatV2Request(BaseModel):
 
     human_gate: bool = Field(
         default=False,
-        description="Human-in-the-loop declaration; public resume is not active yet",
+        description="Explicit human-gate declaration for the dedicated human route",
     )
     metadata: dict[str, str] = Field(default_factory=dict)
 
@@ -114,6 +110,18 @@ class EnergyChatV2Request(BaseModel):
                 "fallback_provider_allowlist requires allow_provider_fallback=true"
             )
         return self
+
+
+class EnergyChatV2HumanResumeRequest(BaseModel):
+    """Strict public submission for one pending human interrupt."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action_id: str = Field(min_length=1, max_length=256)
+    action: HumanActionType
+    expected_revision: int = Field(ge=1)
+    actor: str | None = Field(default=None, max_length=256)
+    payload: dict[str, str] = Field(default_factory=dict)
 
 
 class ProviderMetricsSummary(BaseModel):
@@ -167,6 +175,7 @@ class EnergyChatV2Response(BaseModel):
     limitations: list[str] = Field(default_factory=list)
     checkpoint_id: str | None = None
     replayed_from_checkpoint: bool = False
+    human_action_request: HumanActionRequest | None = None
 
 
 class EnergyChatV2ThreadStateResponse(BaseModel):
@@ -183,6 +192,8 @@ class EnergyChatV2ThreadStateResponse(BaseModel):
     candidate_count: int = 0
     provider_call_count: int = 0
     ledger_entry_ids: list[str] = Field(default_factory=list)
+    human_action_pending: bool = False
+    human_action_request: HumanActionRequest | None = None
     process_local: bool = True
     restart_persistent: bool = False
 
