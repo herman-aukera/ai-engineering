@@ -360,8 +360,13 @@ def build_reviewed_estimation_graph(
     tracer: GraphTracer = NOOP_GRAPH_TRACER,
     retrieval_mode: Literal["sequential", "parallel"] = "sequential",
     retrieval_max_concurrency: int = 4,
+    semantic_classifier=None,
 ) -> CompiledStateGraph:
-    """Compose independently testable structure, estimation, and policy phases."""
+    """Compose independently testable structure, estimation, and policy phases.
+
+    When *semantic_classifier* is provided it replaces the default
+    :class:`FakeSemanticClassifier` in the classify node.
+    """
 
     structure_subgraph = build_structure_subgraph(
         dependencies,
@@ -397,7 +402,7 @@ def build_reviewed_estimation_graph(
         _instrument(
             graph_name=REVIEWED_GRAPH_NAME,
             node_name="semantic_classify",
-            node=build_semantic_classify_node(),
+            node=build_semantic_classify_node(classifier=semantic_classifier),
             tracer=tracer,
         ),
     )

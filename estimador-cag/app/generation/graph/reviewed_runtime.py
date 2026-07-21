@@ -11,8 +11,10 @@ from app.generation.graph.observability import GraphTracer, get_logfire_graph_tr
 from app.generation.graph.reviewed_build import build_reviewed_estimation_graph
 from app.generation.graph.runtime import open_postgres_checkpointer
 from app.services.litellm_agent_model import LiteLLMAgentModel
+from app.services.litellm_provider import LiteLLMProvider
 from app.services.reviewed_graph_estimation import ReviewedGraphEstimationService
 from app.services.selective_recovery import SelectiveRecoveryService
+from app.services.v3_semantic_classifier import LiveSemanticClassifier
 
 
 @asynccontextmanager
@@ -29,6 +31,10 @@ async def open_reviewed_graph_estimation_service(
         model_port=LiteLLMAgentModel(tier=settings.llm_tier),
         budget_searcher=dependencies.budget_searcher,
     )
+    live_classifier = LiveSemanticClassifier(
+        LiteLLMProvider(),
+        tier=settings.llm_tier,
+    )
     async with open_postgres_checkpointer(database_url) as checkpointer:
         graph = build_reviewed_estimation_graph(
             dependencies,
@@ -37,5 +43,6 @@ async def open_reviewed_graph_estimation_service(
             tracer=resolved_tracer,
             retrieval_mode=settings.graph_retrieval_mode,
             retrieval_max_concurrency=settings.graph_retrieval_max_concurrency,
+            semantic_classifier=live_classifier,
         )
         yield ReviewedGraphEstimationService(graph=graph)
