@@ -23,6 +23,7 @@ from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.graph_estimations import router as graph_estimations_router
 from app.routers.graph_rollout import router as graph_rollout_router
+from app.routers.readiness import router as readiness_router
 from app.routers.reviewed_graph_estimations import (
     router as reviewed_graph_estimations_router,
 )
@@ -101,6 +102,7 @@ app.include_router(v2_estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
 app.include_router(search_router, tags=["search"])
+app.include_router(readiness_router)
 
 
 @app.get("/health", tags=["health"])
