@@ -13,7 +13,7 @@ from app.schemas.provider_readiness import (
 )
 from app.schemas.v5_provider_selection import ProviderSelection
 from app.services.provider_readiness import (
-    ProviderRouteUnavailable,
+    ProviderRouteUnavailableError,
     StageRoutingPolicy,
     execution_kind_for_stage,
     graph_stage_inventory,
@@ -119,7 +119,10 @@ def test_explicit_deepseek_route_changes_model_with_complexity() -> None:
 
 
 def test_explicit_kimi_product_route_fails_closed_without_verified_model_ids() -> None:
-    with pytest.raises(ProviderRouteUnavailable, match="No configured product model"):
+    with pytest.raises(
+        ProviderRouteUnavailableError,
+        match="No configured product model",
+    ):
         StageRoutingPolicy().resolve(
             stage="semantic_classify",
             selection=ProviderSelection(provider="kimi", reasoning="max"),
@@ -150,7 +153,10 @@ def test_auto_fails_closed_without_complete_matched_benchmark() -> None:
     partial = _snapshot().model_copy(
         update={"required_providers": ["deepseek", "moonshot", "openai", "deterministic"]}
     )
-    with pytest.raises(ProviderRouteUnavailable, match="complete benchmark coverage"):
+    with pytest.raises(
+        ProviderRouteUnavailableError,
+        match="complete benchmark coverage",
+    ):
         StageRoutingPolicy(benchmark_snapshot=partial).resolve(
             stage="semantic_classify",
             selection=ProviderSelection(provider="auto", reasoning="medium"),
