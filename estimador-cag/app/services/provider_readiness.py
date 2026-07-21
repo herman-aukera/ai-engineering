@@ -119,13 +119,15 @@ def _provider_name(selection: ProviderSelection) -> ProviderName:
 
 
 def _effort(provider: ProviderName, model: str, intent: str) -> ReasoningEffort:
+    if provider == "openai":
+        return {"minimal": "low", "medium": "medium", "max": "max"}[intent]
     if provider == "moonshot":
         if model == "k3":
             return {"minimal": "low", "medium": "high", "max": "max"}[intent]
         return "high"
-    if provider == "deterministic":
-        return "none"
-    return {"minimal": "none", "medium": "high", "max": "max"}[intent]
+    if provider == "deepseek":
+        return {"minimal": "none", "medium": "high", "max": "max"}[intent]
+    return "none"
 
 
 def _normalized_inverse(value: float | None, *, maximum: float) -> float:
