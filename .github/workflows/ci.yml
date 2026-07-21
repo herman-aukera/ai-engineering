@@ -33,7 +33,7 @@ jobs:
           show-progress: false
 
       - name: Apply approved Session 13 Plus stabilization
-        if: github.ref == 'refs/heads/gg-session-13/plus-stabilization' || github.head_ref == 'gg-session-13/plus-stabilization'
+        if: (github.ref == 'refs/heads/gg-session-13/plus-stabilization' || github.head_ref == 'gg-session-13/plus-stabilization') && hashFiles('scripts/session13_plus_stabilize.py') != ''
         working-directory: .
         run: |
           python scripts/session13_plus_ci_boundary.py
@@ -45,21 +45,6 @@ jobs:
           python scripts/session13_plus_ruff_repair.py
           python scripts/session13_plus_test_repairs.py
           cat /tmp/session13-stabilize.log
-
-      - name: Persist stabilization executor failure
-        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
-        working-directory: .
-        run: |
-          cp /tmp/session13-stabilize.log .session13-stabilization-error.log
-          git config user.name "GPT-5.6 Stabilization"
-          git config user.email "actions@users.noreply.github.com"
-          git add .session13-stabilization-error.log
-          if git diff --cached --quiet; then
-            echo "Failure diagnostic unchanged"
-          else
-            git commit -m "chore(session13): capture stabilization failure"
-            git push origin HEAD:gg-session-13/plus-stabilization
-          fi
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -73,6 +58,7 @@ jobs:
         run: uv sync --frozen --extra dev
 
       - name: Ruff targeted fixes
+        if: hashFiles('scripts/session13_plus_stabilize.py') != ''
         run: |
           uv run ruff check --fix \
             app/routers/reviewed_graph_estimations.py \
@@ -87,85 +73,25 @@ jobs:
           TARGETS="app tests"
           test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
           test -d evals && TARGETS="$TARGETS evals"
-          uv run ruff check $TARGETS > /tmp/session13-ruff.log 2>&1 || {
-            cat /tmp/session13-ruff.log
-            false
-          }
-          cat /tmp/session13-ruff.log
-
-      - name: Persist Ruff failure
-        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
-        working-directory: .
-        run: |
-          cp /tmp/session13-ruff.log .session13-ruff-error.log
-          git config user.name "GPT-5.6 Stabilization"
-          git config user.email "actions@users.noreply.github.com"
-          git add .session13-ruff-error.log
-          if git diff --cached --quiet; then
-            echo "Ruff diagnostic unchanged"
-          else
-            git commit -m "chore(session13): capture Ruff failure"
-            git push origin HEAD:gg-session-13/plus-stabilization
-          fi
+          uv run ruff check $TARGETS
 
       - name: Compile Python
         run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
 
       - name: Deterministic tests
-        run: |
-          uv run pytest -q -m "not live_provider" > /tmp/session13-tests.log 2>&1 || {
-            cat /tmp/session13-tests.log
-            false
-          }
-          cat /tmp/session13-tests.log
-
-      - name: Persist deterministic test failure
-        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
-        working-directory: .
-        run: |
-          cp /tmp/session13-tests.log .session13-tests-error.log
-          git config user.name "GPT-5.6 Stabilization"
-          git config user.email "actions@users.noreply.github.com"
-          git add .session13-tests-error.log
-          if git diff --cached --quiet; then
-            echo "Test diagnostic unchanged"
-          else
-            git commit -m "chore(session13): capture test failure"
-            git push origin HEAD:gg-session-13/plus-stabilization
-          fi
+        run: uv run pytest -q -m "not live_provider"
 
       - name: Diff and secret gates
         working-directory: .
         run: |
-          : > /tmp/session13-gates.log
-          git diff --check >> /tmp/session13-gates.log 2>&1 || {
-            cat /tmp/session13-gates.log
-            false
-          }
-          if git diff | grep -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' >> /tmp/session13-gates.log; then
-            echo "Potential secret in stabilization diff" >> /tmp/session13-gates.log
-            cat /tmp/session13-gates.log
+          git diff --check
+          if git diff | grep -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY'; then
+            echo "Potential secret in stabilization diff"
             false
           fi
-          echo "Diff and secret gates passed" | tee -a /tmp/session13-gates.log
 
-      - name: Persist final gate failure
-        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
-        working-directory: .
-        run: |
-          cp /tmp/session13-gates.log .session13-gates-error.log
-          git config user.name "GPT-5.6 Stabilization"
-          git config user.email "actions@users.noreply.github.com"
-          git add .session13-gates-error.log
-          if git diff --cached --quiet; then
-            echo "Gate diagnostic unchanged"
-          else
-            git commit -m "chore(session13): capture final gate failure"
-            git push origin HEAD:gg-session-13/plus-stabilization
-          fi
-
-      - name: Commit green stabilization
-        if: github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization'
+      - name: Commit validated stabilization
+        if: github.event_name == 'push' && github.ref == 'refs/heads/gg-session-13/plus-stabilization' && hashFiles('scripts/session13_plus_stabilize.py') != ''
         working-directory: .
         run: |
           rm -f \
@@ -174,6 +100,7 @@ jobs:
             scripts/session13_plus_ruff_repair.py \
             scripts/session13_plus_test_repairs.py \
             .github/workflows/session13-plus-stabilize.yml \
+            .github/workflows/session13-plus-live-provider.yml \
             .session13-stabilization-error.log \
             .session13-ruff-error.log \
             .session13-tests-error.log \
@@ -181,9 +108,5 @@ jobs:
           git config user.name "GPT-5.6 Stabilization"
           git config user.email "actions@users.noreply.github.com"
           git add .
-          if git diff --cached --quiet; then
-            echo "No stabilization changes to commit"
-          else
-            git commit -m "session13: fix(plus): stabilize CI, SSE, routing, and claims"
-            git push origin HEAD:gg-session-13/plus-stabilization
-          fi
+          git commit -m "session13: fix(plus): stabilize CI, SSE, routing, and claims"
+          git push origin HEAD:gg-session-13/plus-stabilization
