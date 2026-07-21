@@ -7,16 +7,17 @@ inspection, bounded retention, and deterministic close semantics.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from langgraph.checkpoint.postgres import PostgresSaver
 from pydantic import BaseModel, ConfigDict, Field
 
 POSTGRES_CHECKPOINT_MIGRATION_VERSION = 1
 REDACTION_SENTINEL = "[REDACTED]"
 
-# Raw user text and human payloads must not survive in durable checkpoints.
 REDACTED_STATE_FIELDS: frozenset[str] = frozenset(
     {
         "user_request",
@@ -32,6 +33,36 @@ class CheckpointRetentionPolicy(BaseModel):
 
     max_checkpoints_per_thread: int = Field(default=100, ge=1, le=10000)
     retention_days: int | None = Field(default=None, ge=1)
+
+
+class _RedactingPostgresSaver(PostgresSaver):
+    """PostgresSaver that sanitizes durable values before writing."""
+
+    def put(
+        self,
+        config: dict[str, Any],
+        checkpoint: dict[str, Any],
+        metadata: dict[str, Any],
+        new_versions: dict[str, Any],
+    ) -> dict[str, Any]:
+        safe_checkpoint = deepcopy(checkpoint)
+        channel_values = safe_checkpoint.setdefault("channel_values", {})
+        _redact_channel_values(channel_values)
+        safe_metadata = _redact_nested(deepcopy(metadata))
+        return super().put(config, safe_checkpoint, safe_metadata, new_versions)
+
+    def put_writes(
+        self,
+        config: dict[str, Any],
+        writes: Sequence[tuple[str, Any]],
+        task_id: str,
+        task_path: str = "",
+    ) -> None:
+        safe_writes = [
+            (channel, _redacted_value(channel, value))
+            for channel, value in writes
+        ]
+        super().put_writes(config, safe_writes, task_id, task_path)
 
 
 class PostgresCheckpointer:
@@ -52,7 +83,7 @@ class PostgresCheckpointer:
         self._pool_min_size = pool_min_size
         self._pool_max_size = pool_max_size
         self._pool: Any | None = None
-        self._saver: Any | None = None
+        self._saver: _RedactingPostgresSaver | None = None
 
     @property
     def connection_string(self) -> str:
@@ -67,10 +98,11 @@ class PostgresCheckpointer:
         return self._pool_max_size
 
     @property
-    def langgraph_saver(self):
+    def langgraph_saver(self) -> _RedactingPostgresSaver:
         """Return an opened redacting saver or fail clearly on unavailable DB."""
 
         self.open()
+        assert self._saver is not None
         return self._saver
 
     def open(self) -> PostgresCheckpointer:
@@ -79,7 +111,6 @@ class PostgresCheckpointer:
         if self._saver is not None:
             return self
 
-        from langgraph.checkpoint.postgres import PostgresSaver
         from psycopg.rows import dict_row
         from psycopg_pool import ConnectionPool
 
@@ -95,7 +126,7 @@ class PostgresCheckpointer:
             open=True,
         )
         self._pool = pool
-        self._saver = _RedactingPostgresSaver(pool, base_type=PostgresSaver)
+        self._saver = _RedactingPostgresSaver(pool)
         return self
 
     def setup(self) -> None:
@@ -103,6 +134,7 @@ class PostgresCheckpointer:
 
         saver = self.langgraph_saver
         saver.setup()
+        assert self._pool is not None
         with self._pool.connection() as connection:
             connection.execute(_CHECKPOINT_SCHEMA_DDL)
             connection.execute(
@@ -182,6 +214,7 @@ class PostgresCheckpointer:
         """Return whether the current product migration version is recorded."""
 
         self.open()
+        assert self._pool is not None
         with self._pool.connection() as connection:
             row = connection.execute(
                 """
@@ -234,6 +267,7 @@ class PostgresCheckpointer:
             saver.delete_thread(thread_id)
             return len(delete_ids)
 
+        assert self._pool is not None
         with self._pool.connection() as connection:
             connection.execute(
                 """
@@ -264,50 +298,6 @@ class PostgresCheckpointer:
     @staticmethod
     def migration_version() -> int:
         return POSTGRES_CHECKPOINT_MIGRATION_VERSION
-
-
-class _RedactingPostgresSaver:
-    """Proxy that sanitizes durable values before delegating to PostgresSaver."""
-
-    def __init__(self, connection_pool: Any, *, base_type: type) -> None:
-        self._delegate = base_type(connection_pool)
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._delegate, name)
-
-    def setup(self) -> None:
-        self._delegate.setup()
-
-    def put(
-        self,
-        config: dict[str, Any],
-        checkpoint: dict[str, Any],
-        metadata: dict[str, Any],
-        new_versions: dict[str, Any],
-    ) -> dict[str, Any]:
-        safe_checkpoint = deepcopy(checkpoint)
-        channel_values = safe_checkpoint.setdefault("channel_values", {})
-        _redact_channel_values(channel_values)
-        safe_metadata = _redact_nested(deepcopy(metadata))
-        return self._delegate.put(
-            config,
-            safe_checkpoint,
-            safe_metadata,
-            new_versions,
-        )
-
-    def put_writes(
-        self,
-        config: dict[str, Any],
-        writes: list[tuple[str, Any]],
-        task_id: str,
-        task_path: str = "",
-    ) -> None:
-        safe_writes = [
-            (channel, _redacted_value(channel, value))
-            for channel, value in writes
-        ]
-        self._delegate.put_writes(config, safe_writes, task_id, task_path)
 
 
 def _redact_channel_values(channel_values: dict[str, Any]) -> None:
