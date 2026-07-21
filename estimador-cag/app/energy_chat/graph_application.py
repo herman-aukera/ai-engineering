@@ -39,14 +39,11 @@ def run_graph_chat_v2(
     checkpointer: object | None = None,
     human_gate_mode: HumanGateMode = "disabled",
 ) -> EnergyChatV2Response:
-    """Execute exactly one graph using a route-owned execution profile."""
-
     active_id_factory = id_factory or UUID4IDFactory()
     active_execution_profile = _resolve_execution_profile(
         request, route_profile=execution_profile
     )
     _validate_v2_selectors(request, active_execution_profile)
-
     thread_id = request.thread_id or active_id_factory.new_thread_id()
     request_id = request.request_id or active_id_factory.new_request_id()
     trace_id = request.trace_id or active_id_factory.new_trace_id()
@@ -58,12 +55,10 @@ def run_graph_chat_v2(
             "execution_profile": active_execution_profile,
         }
     )
-
     resolved_provider = provider or _resolve_provider(
         materialized_request, active_execution_profile
     )
     budget = _resolve_budget(materialized_request)
-
     active_checkpointer = checkpointer
     if active_checkpointer is None and active_execution_profile == "deterministic":
         active_checkpointer = InMemoryCheckpointer()
@@ -72,7 +67,6 @@ def run_graph_chat_v2(
         if active_checkpointer is not None
         else None
     )
-
     state = EnergyChatGraphState(
         thread_id=thread_id,
         request_id=request_id,
@@ -196,10 +190,17 @@ def _resolve_provider(
             ),
         )
     adapter = BaselineCandidateProvider()
-    adapter.configure_fallback_policy(
-        allow_provider_fallback=request.allow_provider_fallback,
-        tier_ladder=_fallback_tier_ladder(request),
-    )
+    configure = getattr(adapter, "configure_fallback_policy", None)
+    if callable(configure):
+        configure(
+            allow_provider_fallback=request.allow_provider_fallback,
+            tier_ladder=_fallback_tier_ladder(request),
+        )
+    elif request.allow_provider_fallback:
+        raise ProviderUnavailableError(
+            provider="deepseek",
+            detail="The injected provider adapter cannot enforce fallback authorization.",
+        )
     return adapter
 
 
@@ -245,8 +246,6 @@ def project_v2_response(
     replayed_from_checkpoint: bool = False,
     restart_persistent: bool = False,
 ) -> EnergyChatV2Response:
-    """Project validated graph state without exposing sensitive bodies."""
-
     metrics_list = result.provider_metrics
     if not metrics_list:
         served_provider = "none"
@@ -269,7 +268,6 @@ def project_v2_response(
             )
         else:
             routing_reason = f"live route served {last.provider}/{last.model} without fallback"
-
     provider_summary = ProviderMetricsSummary(
         provider_call_count=len(metrics_list),
         providers_used=list(dict.fromkeys(item.provider for item in metrics_list)),
@@ -317,7 +315,6 @@ def project_v2_response(
             if restart_persistent
             else "Replay is process-local; application restart loses in-memory checkpoints."
         )
-
     return EnergyChatV2Response(
         thread_id=result.thread_id,
         request_id=result.request_id,
