@@ -7,11 +7,17 @@ Usage:
     uv run python scripts/energy_core_provider_smoke.py
 """
 
+import sys
 from decimal import Decimal  # noqa: I001
+from pathlib import Path
 
-from energy_core.provider_adapter import FakeProviderAdapter
-from energy_core.provider_registry import CapabilityRegistry, ProviderSelection
-from energy_core.selector_api import SelectRequest, SelectorAPI
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from energy_core.provider_adapter import FakeProviderAdapter  # noqa: E402, I001
+from energy_core.provider_registry import CapabilityRegistry, ProviderSelection  # noqa: E402
+from energy_core.selector_api import SelectRequest, SelectorAPI  # noqa: E402
 
 
 def _check(condition: bool, label: str) -> int:
