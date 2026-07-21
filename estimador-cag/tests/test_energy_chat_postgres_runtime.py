@@ -111,7 +111,7 @@ def test_pending_human_interrupt_resumes_after_new_runtime_and_pool() -> None:
         assert len(resumed.ledger_entry_ids) == 1
         persisted = reopened.get_state(thread_id)
         assert persisted.user_request == REDACTION_SENTINEL
-        assert persisted.human_action_response is None
+        assert persisted.human_action_result is None
     finally:
         reopened.close()
 
