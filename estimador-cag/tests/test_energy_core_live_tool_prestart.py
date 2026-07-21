@@ -89,6 +89,17 @@ def _live_contract(
     return live_plan, intent, receipt
 
 
+def _store(
+    receipt: AuthorizationReceipt,
+    *,
+    authoritative: AuthorizationReceipt | None = None,
+) -> InMemoryAuthorizationReceiptStore:
+    return InMemoryAuthorizationReceiptStore(
+        [authoritative or receipt],
+        reserved_receipt_ids=[receipt.receipt_id],
+    )
+
+
 def _policy(root: Path, **overrides: object) -> LiveExecutionPolicy:
     payload: dict[str, object] = {
         "enabled": True,
@@ -103,14 +114,13 @@ def _policy(root: Path, **overrides: object) -> LiveExecutionPolicy:
 def test_prestart_accepts_exact_live_contract(tmp_path: Path) -> None:
     root = _repository(tmp_path)
     live_plan, intent, receipt = _live_contract(root)
-    store = InMemoryAuthorizationReceiptStore([receipt])
 
     verify_live_pre_start(
         live_plan,
         _policy(root),
         receipt,
         live_intent=intent,
-        receipt_store=store,
+        receipt_store=_store(receipt),
     )
 
 
@@ -118,7 +128,6 @@ def test_prestart_rejects_non_live_plan(tmp_path: Path) -> None:
     root = _repository(tmp_path)
     base_plan = _base_plan(root)
     receipt = _receipt(base_plan)
-    store = InMemoryAuthorizationReceiptStore([receipt])
 
     with pytest.raises(PermissionError, match="typed live"):
         verify_live_pre_start(
@@ -126,7 +135,7 @@ def test_prestart_rejects_non_live_plan(tmp_path: Path) -> None:
             _policy(root),
             receipt,
             live_intent=None,
-            receipt_store=store,
+            receipt_store=_store(receipt),
         )
 
 
@@ -148,7 +157,6 @@ def test_prestart_rejects_fabricated_receipt_object(tmp_path: Path) -> None:
     root = _repository(tmp_path)
     live_plan, intent, receipt = _live_contract(root)
     authoritative = receipt.model_copy(update={"nonce_hash": "c" * 64})
-    store = InMemoryAuthorizationReceiptStore([authoritative])
 
     with pytest.raises(PermissionError, match="provenance"):
         verify_live_pre_start(
@@ -156,14 +164,13 @@ def test_prestart_rejects_fabricated_receipt_object(tmp_path: Path) -> None:
             _policy(root),
             receipt,
             live_intent=intent,
-            receipt_store=store,
+            receipt_store=_store(receipt, authoritative=authoritative),
         )
 
 
 def test_prestart_rejects_repository_change_after_authorization(tmp_path: Path) -> None:
     root = _repository(tmp_path)
     live_plan, intent, receipt = _live_contract(root)
-    store = InMemoryAuthorizationReceiptStore([receipt])
     (root / "later.txt").write_text("changed after authority\n", encoding="utf-8")
 
     with pytest.raises(PermissionError, match="snapshot"):
@@ -172,14 +179,13 @@ def test_prestart_rejects_repository_change_after_authorization(tmp_path: Path) 
             _policy(root),
             receipt,
             live_intent=intent,
-            receipt_store=store,
+            receipt_store=_store(receipt),
         )
 
 
 def test_prestart_rejects_untrusted_actor(tmp_path: Path) -> None:
     root = _repository(tmp_path)
     live_plan, intent, receipt = _live_contract(root)
-    store = InMemoryAuthorizationReceiptStore([receipt])
 
     with pytest.raises(PermissionError, match="trusted"):
         verify_live_pre_start(
@@ -187,14 +193,13 @@ def test_prestart_rejects_untrusted_actor(tmp_path: Path) -> None:
             _policy(root, trusted_actors=["another-reviewer"]),
             receipt,
             live_intent=intent,
-            receipt_store=store,
+            receipt_store=_store(receipt),
         )
 
 
 def test_prestart_rejects_tampered_live_plan(tmp_path: Path) -> None:
     root = _repository(tmp_path)
     live_plan, intent, receipt = _live_contract(root)
-    store = InMemoryAuthorizationReceiptStore([receipt])
     tampered = live_plan.model_copy(update={"arguments": ["--version"]})
 
     with pytest.raises(PermissionError, match="hash"):
@@ -203,5 +208,5 @@ def test_prestart_rejects_tampered_live_plan(tmp_path: Path) -> None:
             _policy(root),
             receipt,
             live_intent=intent,
-            receipt_store=store,
+            receipt_store=_store(receipt),
         )
