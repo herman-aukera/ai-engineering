@@ -185,8 +185,19 @@ def _reasoning_kwargs(route: StageRouteDecision | None) -> dict[str, object]:
             "extra_body": {"thinking": {"type": "enabled"}},
         }
     if route.provider in {"openai", "moonshot"} and route.effort != "none":
-        return {"reasoning_effort": route.effort}
+        return {"extra_body": {"reasoning_effort": route.effort}}
     return {}
+
+
+def _sampling_kwargs(
+    *,
+    route: StageRouteDecision | None,
+    resolved: ResolvedModel,
+) -> dict[str, object]:
+    kwargs = _reasoning_kwargs(route)
+    if route is None or route.provider == "deepseek":
+        kwargs["temperature"] = resolved.temperature
+    return kwargs
 
 
 @dataclass(frozen=True)
@@ -245,20 +256,20 @@ class StageRoutedLiteLLMProvider(LiteLLMProvider):
         max_tokens: int = 2000,
     ) -> dict[str, object]:
         resolved = self.resolve_model(tier)
+        route = current_stage_route()
         structured_messages = self._messages_with_json_schema_contract(
             messages=messages,
             response_model=response_model,
         )
-        kwargs = _reasoning_kwargs(current_stage_route())
+        request_kwargs = _sampling_kwargs(route=route, resolved=resolved)
         response = litellm.completion(
             model=resolved.model,
             messages=structured_messages,
             api_key=resolved.api_key,
             api_base=resolved.base_url,
-            temperature=resolved.temperature,
             max_tokens=max_tokens,
             response_format={"type": "json_object"},
-            **kwargs,
+            **request_kwargs,
         )
         try:
             result = self._validated_structured_result(
@@ -296,10 +307,9 @@ class StageRoutedLiteLLMProvider(LiteLLMProvider):
                 ],
                 api_key=resolved.api_key,
                 api_base=resolved.base_url,
-                temperature=resolved.temperature,
                 max_tokens=max_tokens,
                 response_format={"type": "json_object"},
-                **kwargs,
+                **request_kwargs,
             )
             result = self._validated_structured_result(
                 response=final_response,
@@ -354,9 +364,8 @@ class StageRoutedAgentModel(AgentModelPort):
             tool_choice="auto" if tools else None,
             api_key=resolved.api_key,
             api_base=resolved.base_url,
-            temperature=resolved.temperature,
             max_tokens=self.max_tokens,
-            **_reasoning_kwargs(route),
+            **_sampling_kwargs(route=route, resolved=resolved),
         )
         choice = _first_choice(response)
         message = _value(choice, "message")
