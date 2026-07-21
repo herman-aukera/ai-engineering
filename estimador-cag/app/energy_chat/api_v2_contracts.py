@@ -1,7 +1,8 @@
 """Strict V2 request/response contracts for the graph-backed Energy Aware Chat API.
 
 Milestone 10 repair: route-owned execution, explicit fallback authorization,
-and truthful provider projection. No persistent replay or complete HITL claimed.
+and truthful provider projection. Milestone 11 adds typed application-lifetime
+checkpoint inspection and replay without claiming restart persistence.
 """
 
 from __future__ import annotations
@@ -164,6 +165,26 @@ class EnergyChatV2Response(BaseModel):
     ledger_entry_ids: list[str] = Field(default_factory=list)
     trace_summary: list[dict[str, Any]] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+    checkpoint_id: str | None = None
+    replayed_from_checkpoint: bool = False
+
+
+class EnergyChatV2ThreadStateResponse(BaseModel):
+    """Safe metadata projection for the latest checkpoint in one public thread."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    thread_id: str
+    request_id: str
+    trace_id: str
+    checkpoint_id: str | None = None
+    graph_status: str
+    awaiting_evidence: bool = False
+    candidate_count: int = 0
+    provider_call_count: int = 0
+    ledger_entry_ids: list[str] = Field(default_factory=list)
+    process_local: bool = True
+    restart_persistent: bool = False
 
 
 class EnergyChatV2ErrorDetail(BaseModel):
