@@ -19,10 +19,7 @@ from typing import Any
 import httpx
 import litellm
 
-from app.schemas.provider_readiness import (
-    BenchmarkSnapshot,
-    ModelBenchmarkSummary,
-)
+from app.schemas.provider_readiness import BenchmarkSnapshot, ModelBenchmarkSummary
 
 OUT_DIR = Path(os.environ.get("PROVIDER_READINESS_OUT", "artifacts/provider-readiness"))
 _PLACEHOLDERS = frozenset({"", "test", "dummy", "fake", "placeholder", "example"})
@@ -189,13 +186,14 @@ def _routes() -> list[Route]:
     return routes
 
 
-def _reasoning_kwargs(route: Route) -> dict[str, object]:
+def _request_parameters(route: Route) -> dict[str, object]:
     if route.provider == "deepseek":
         return {
+            "temperature": 0,
             "reasoning_effort": route.effort,
             "extra_body": {"thinking": {"type": "enabled"}},
         }
-    return {"reasoning_effort": route.effort}
+    return {"extra_body": {"reasoning_effort": route.effort}}
 
 
 def _usage(response: object) -> tuple[int, int]:
@@ -209,13 +207,13 @@ def _response_cost(response: object) -> float | None:
     hidden = getattr(response, "_hidden_params", None)
     if isinstance(hidden, dict):
         value = hidden.get("response_cost")
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if isinstance(value, int | float) and not isinstance(value, bool):
             return max(0.0, float(value))
     try:
         value = litellm.completion_cost(completion_response=response)
     except Exception:
         return None
-    return max(0.0, float(value)) if isinstance(value, (int, float)) else None
+    return max(0.0, float(value)) if isinstance(value, int | float) else None
 
 
 def _first_message(response: object) -> object:
@@ -260,9 +258,8 @@ def _case(route: Route, case: dict[str, str]) -> dict[str, object]:
             ],
             "api_key": route.api_key,
             "api_base": route.base_url,
-            "temperature": 0,
             "max_tokens": 256,
-            **_reasoning_kwargs(route),
+            **_request_parameters(route),
         }
         if case["id"] == "structured_json":
             kwargs["response_format"] = {"type": "json_object"}
@@ -318,7 +315,7 @@ def _summary(route: Route, results: list[dict[str, object]]) -> ModelBenchmarkSu
     costs = [
         float(result["cost_usd"])
         for result in results
-        if isinstance(result["cost_usd"], (int, float))
+        if isinstance(result["cost_usd"], int | float)
     ]
     if pass_count == len(results):
         status = "benchmark_calibrated"
