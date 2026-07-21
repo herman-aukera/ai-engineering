@@ -12,6 +12,7 @@ jobs:
     env:
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       PYTHONUNBUFFERED: "1"
 
     steps:
@@ -33,6 +34,9 @@ jobs:
         run: |
           test -n "$DEEPSEEK_API_KEY" || (echo "DEEPSEEK_API_KEY is missing" && exit 1)
           test -n "$KIMI_API_KEY" || (echo "KIMI_API_KEY is missing" && exit 1)
+
+      - name: EACODE provider smoke (DeepSeek + Kimi)
+        run: uv run python scripts/energy_core_live_provider_smoke.py
 
       - name: Start FastAPI
         run: |
