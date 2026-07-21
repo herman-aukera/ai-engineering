@@ -1,9 +1,4 @@
-"""Strict V2 request/response contracts for the graph-backed Energy Aware Chat API.
-
-Milestone 10 repairs route and fallback truthfulness. Milestone 11 adds
-application-lifetime checkpoint replay. Milestone 12 adds typed human interrupt
-and revision-guarded resume without claiming durable restart persistence.
-"""
+"""Strict V2 contracts for the graph-backed Energy Aware Chat API."""
 
 from __future__ import annotations
 
@@ -14,7 +9,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.energy_chat.audit_models import EnergyCardV2
 from app.energy_chat.contracts import Mode, SourceNeedResult
+from app.energy_chat.evidence_hardening import (
+    CandidateCitationValidation,
+    EvidenceBodyMetadata,
+)
 from app.energy_chat.human_gate import HumanActionRequest, HumanActionType
+from app.energy_chat.observability import GraphExecutionMetrics
 
 ProviderPreference = Literal["auto", "deepseek", "kimi", "openai"]
 FallbackProvider = Literal["deepseek", "kimi", "openai"]
@@ -28,16 +28,12 @@ _IDENTITY_MAX_LENGTH = 128
 
 
 class IDFactory(Protocol):
-    """Dependency-injected identity generation for deterministic testing."""
-
     def new_thread_id(self) -> str: ...
     def new_request_id(self) -> str: ...
     def new_trace_id(self) -> str: ...
 
 
 class UUID4IDFactory:
-    """Production identity generator using UUID4."""
-
     def new_thread_id(self) -> str:
         return f"thread-{uuid.uuid4().hex[:12]}"
 
@@ -49,8 +45,6 @@ class UUID4IDFactory:
 
 
 class EnergyChatV2Request(BaseModel):
-    """Strict graph-backed V2 request."""
-
     model_config = ConfigDict(extra="forbid")
 
     user_message: str = Field(min_length=1, max_length=10000)
@@ -58,7 +52,6 @@ class EnergyChatV2Request(BaseModel):
     k: int = Field(default=3, ge=1, le=8)
     required_constraints: list[str] = Field(default_factory=list)
     required_sections: list[str] = Field(default_factory=list)
-
     thread_id: str | None = Field(
         default=None,
         min_length=1,
@@ -77,23 +70,17 @@ class EnergyChatV2Request(BaseModel):
         max_length=_IDENTITY_MAX_LENGTH,
         pattern=_IDENTITY_PATTERN,
     )
-
     provider_preference: ProviderPreference = "deepseek"
     effort_profile: EffortProfile = "balanced"
     context_profile: ContextProfile = "balanced"
     orchestration_mode: OrchestrationMode = "critic"
-
     execution_profile: ExecutionProfile | None = Field(
         default=None,
         description="Compatibility declaration; the selected HTTP route is authoritative",
     )
     allow_provider_fallback: bool = False
     fallback_provider_allowlist: list[FallbackProvider] = Field(default_factory=list)
-
-    human_gate: bool = Field(
-        default=False,
-        description="Explicit human-gate declaration for the dedicated human route",
-    )
+    human_gate: bool = False
     metadata: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -113,8 +100,6 @@ class EnergyChatV2Request(BaseModel):
 
 
 class EnergyChatV2HumanResumeRequest(BaseModel):
-    """Strict public submission for one pending human interrupt."""
-
     model_config = ConfigDict(extra="forbid")
 
     action_id: str = Field(min_length=1, max_length=256)
@@ -125,8 +110,6 @@ class EnergyChatV2HumanResumeRequest(BaseModel):
 
 
 class ProviderMetricsSummary(BaseModel):
-    """Aggregated safe provider facts."""
-
     model_config = ConfigDict(extra="forbid")
 
     provider_call_count: int = 0
@@ -142,7 +125,7 @@ class ProviderMetricsSummary(BaseModel):
 
 
 class EnergyChatV2Response(BaseModel):
-    """Authoritative user-safe projection of graph state."""
+    """User-safe projection; excludes prompts, bodies, credentials, and transcripts."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -153,10 +136,13 @@ class EnergyChatV2Response(BaseModel):
     awaiting_evidence: bool = False
     source_need: SourceNeedResult | None = None
     evidence_refs: list[str] = Field(default_factory=list)
+    evidence_body_metadata: list[EvidenceBodyMetadata] = Field(default_factory=list)
+    citation_validations: list[CandidateCitationValidation] = Field(default_factory=list)
     final_disposition: str | None = None
     final_answer: str | None = None
     energy_card_v2: EnergyCardV2 | None = None
     execution_markers: list[str] = Field(default_factory=list)
+    graph_metrics: GraphExecutionMetrics | None = None
     candidate_count: int = 0
     repair_count: int = 0
     repair_outcomes: list[str] = Field(default_factory=list)
@@ -179,8 +165,6 @@ class EnergyChatV2Response(BaseModel):
 
 
 class EnergyChatV2ThreadStateResponse(BaseModel):
-    """Safe metadata projection for the latest checkpoint in one public thread."""
-
     model_config = ConfigDict(extra="forbid")
 
     thread_id: str
@@ -191,6 +175,7 @@ class EnergyChatV2ThreadStateResponse(BaseModel):
     awaiting_evidence: bool = False
     candidate_count: int = 0
     provider_call_count: int = 0
+    node_span_count: int = 0
     ledger_entry_ids: list[str] = Field(default_factory=list)
     human_action_pending: bool = False
     human_action_request: HumanActionRequest | None = None
@@ -199,8 +184,6 @@ class EnergyChatV2ThreadStateResponse(BaseModel):
 
 
 class EnergyChatV2ErrorDetail(BaseModel):
-    """Machine-readable error without stack traces or provider bodies."""
-
     model_config = ConfigDict(extra="forbid")
 
     error: str
@@ -210,8 +193,6 @@ class EnergyChatV2ErrorDetail(BaseModel):
 
 
 class ProviderUnavailableError(RuntimeError):
-    """Raised when a requested provider has no verified adapter."""
-
     def __init__(self, provider: str, detail: str = "") -> None:
         self.provider = provider
         self.detail = detail or f"{provider} requires a credentialed adapter (deferred)"
@@ -219,8 +200,6 @@ class ProviderUnavailableError(RuntimeError):
 
 
 class UnsupportedProfileError(RuntimeError):
-    """Raised when a valid selector conflicts with the active route or runtime."""
-
     def __init__(self, field: str, value: str, detail: str = "") -> None:
         self.field = field
         self.value = value
