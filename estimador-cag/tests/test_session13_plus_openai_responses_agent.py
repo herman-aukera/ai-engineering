@@ -5,13 +5,13 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from app.schemas.agent_runtime import AgentToolSpec
+from app.schemas.v5_provider_selection import ProviderSelection
 from app.services.openai_responses_agent import (
     _input_items,
     _tool_calls,
     _usage,
 )
 from app.services.provider_readiness import StageRoutingPolicy
-from app.schemas.v5_provider_selection import ProviderSelection
 
 
 def _tool_spec() -> AgentToolSpec:
