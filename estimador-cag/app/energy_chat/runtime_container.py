@@ -95,7 +95,7 @@ class EnergyChatApplicationRuntime:
         """Return safe metadata for the latest process-local thread checkpoint."""
 
         with self._lock:
-            record = self._require_record(thread_id)
+            self._require_record(thread_id)
             state = self.checkpointer.get_state(thread_id)
             if state is None:
                 raise ThreadCheckpointNotFoundError(thread_id)
