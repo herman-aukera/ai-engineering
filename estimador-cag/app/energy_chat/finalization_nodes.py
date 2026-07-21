@@ -14,6 +14,7 @@ from app.energy_chat.audit_models import (
     FinalAnswerProjection,
 )
 from app.energy_chat.contracts import EnergyCard
+from app.energy_chat.evidence_hardening import check_evidence_freshness
 from app.energy_chat.graph_state import (
     DecisionOutcome,
     EnergyChatGraphState,
@@ -27,16 +28,12 @@ from app.energy_chat.graph_state import (
 
 
 class DecisionLedgerDelta(GraphStateRecord):
-    """Append-only authoritative ledger records for retained decisions."""
-
     decision_ledger_entries: list[DecisionLedgerEntry] = Field(min_length=1)
     status: Literal["evaluated"] = "evaluated"
     trace_events: list[TraceEvent] = Field(min_length=1, max_length=1)
 
 
 class FinalProjectionDelta(GraphStateRecord):
-    """User-facing final answer and Energy Card projections."""
-
     final_answer: str = Field(min_length=1)
     energy_card: EnergyCard
     energy_card_v2: EnergyCardV2
@@ -46,11 +43,8 @@ class FinalProjectionDelta(GraphStateRecord):
 
 
 def record_decision(state: EnergyChatGraphState) -> DecisionLedgerDelta:
-    """Build replay-safe ledger entries for every retained authoritative decision."""
-
     if not state.decision_outcomes:
         raise ValueError("Decision ledger requires at least one authoritative decision")
-
     entries = [
         _build_ledger_entry(state, decision, sequence=index)
         for index, decision in enumerate(state.decision_outcomes, start=1)
@@ -65,14 +59,13 @@ def record_decision(state: EnergyChatGraphState) -> DecisionLedgerDelta:
             "entry_count": len(entries),
             "final_disposition": final_entry.disposition,
             "final_ledger_entry_id": final_entry.ledger_entry_id,
+            "evidence_integrity_count": len(final_entry.evidence_integrity),
         },
     )
     return DecisionLedgerDelta(decision_ledger_entries=entries, trace_events=[event])
 
 
 def build_final_projection(state: EnergyChatGraphState) -> FinalProjectionDelta:
-    """Project the final candidate and ledger record into user-safe output."""
-
     if not state.decision_ledger_entries:
         raise ValueError("Final projection requires a decision-ledger entry")
     if state.active_candidate_id is None:
@@ -148,8 +141,6 @@ def build_final_projection(state: EnergyChatGraphState) -> FinalProjectionDelta:
 def apply_decision_ledger_delta(
     state: EnergyChatGraphState, delta: DecisionLedgerDelta
 ) -> EnergyChatGraphState:
-    """Apply append-only ledger records and their safe trace event."""
-
     return validated_state_update(
         state,
         decision_ledger_entries=append_unique_records(
@@ -167,8 +158,6 @@ def apply_decision_ledger_delta(
 def apply_final_projection_delta(
     state: EnergyChatGraphState, delta: FinalProjectionDelta
 ) -> EnergyChatGraphState:
-    """Apply singular user-safe final projections."""
-
     return validated_state_update(
         state,
         final_answer=delta.final_answer,
@@ -233,7 +222,9 @@ def _build_ledger_entry(
         hard_repair_violations=score.score.hard_repair_violations,
         soft_violations=score.score.soft_violations,
         evidence_refs=evidence_refs,
-        evidence_integrity=[_evidence_integrity(item) for item in evidence_refs],
+        evidence_integrity=[
+            _evidence_integrity(state, evidence_ref) for evidence_ref in evidence_refs
+        ],
         provider_call_ids=provider_call_ids,
         repair_request_ids=[item.repair_id for item in repair_requests],
         repair_result_ids=[item.result_id for item in repair_results],
@@ -260,16 +251,39 @@ def _energy_before(state: EnergyChatGraphState, candidate_id: str, fallback: int
     return source_score.score.total_energy
 
 
-def _evidence_integrity(evidence_ref: str) -> EvidenceIntegrityMetadata:
+def _evidence_integrity(
+    state: EnergyChatGraphState,
+    evidence_ref: str,
+) -> EvidenceIntegrityMetadata:
     reference_hash = f"sha256:{hashlib.sha256(evidence_ref.encode('utf-8')).hexdigest()}"
-    trusted = evidence_ref.startswith(("source:", "git:", "test:", "ci:"))
-    project_reference = evidence_ref.startswith(("source:", "git:", "test:", "ci:", "file:"))
+    trusted = evidence_ref.startswith(("source:", "git:", "test:", "ci:", "file:"))
+    body_metadata = next(
+        (
+            item
+            for item in state.evidence_body_metadata
+            if item.evidence_ref == evidence_ref
+        ),
+        None,
+    )
+    freshness = (
+        body_metadata.freshness_status
+        if body_metadata is not None
+        else check_evidence_freshness(evidence_ref=evidence_ref)
+    )
     return EvidenceIntegrityMetadata(
         evidence_ref=evidence_ref,
         reference_hash=reference_hash,
         trust_status="trusted" if trusted else "unknown",
-        freshness_status="not_applicable" if project_reference else "unknown",
+        freshness_status=freshness,
         redaction_status="reference_only",
+        body_hash=body_metadata.body_hash if body_metadata else None,
+        body_hash_status=(
+            body_metadata.body_hash_status if body_metadata else "unavailable"
+        ),
+        verification_status=(
+            body_metadata.verification_status if body_metadata else "not_checked"
+        ),
+        byte_count=body_metadata.byte_count if body_metadata else None,
     )
 
 
@@ -289,6 +303,20 @@ def _limitations(state: EnergyChatGraphState, decision: DecisionOutcome) -> list
         limitations.append("Required evidence remains missing.")
     if any(result.outcome == "no_improvement" for result in state.repair_results):
         limitations.append("The attempted repair did not reduce constraint energy.")
+    citation_validation = next(
+        (
+            item.validation
+            for item in state.citation_validations
+            if item.candidate_id == decision.candidate_id
+        ),
+        None,
+    )
+    if citation_validation and citation_validation.has_fabricated_citations:
+        limitations.append(
+            "The candidate contained citation references that were not present in the evidence allow-list."
+        )
+    if any(item.freshness_status == "stale" for item in state.evidence_body_metadata):
+        limitations.append("At least one evidence item is stale under the active freshness policy.")
     return list(dict.fromkeys(limitations))
 
 
@@ -310,7 +338,12 @@ def _execution_markers(state: EnergyChatGraphState) -> list[str]:
         item.provider not in {"deterministic_local", "fake"}
         for item in state.provider_metrics
     )
-    return [
+    markers = [
         "external_provider_called" if external else "no_external_provider_call",
         "no_tool_execution",
     ]
+    if state.node_spans:
+        markers.append("graph_node_spans_recorded")
+    if state.evidence_body_metadata:
+        markers.append("evidence_integrity_recorded")
+    return markers
