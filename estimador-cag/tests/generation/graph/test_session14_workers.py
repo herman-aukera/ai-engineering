@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 import app.generation.graph.nodes.session14_workers as session14_workers
-from app.generation.graph.nodes import build_classify_components_node
+from app.generation.graph.nodes import build_classify_components_node, build_generate_estimate_node
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.review_state import (
     Session14EstimationGraphState,
@@ -519,3 +519,348 @@ async def test_requirements_extractor_marks_empty_real_classification_incomplete
         "produced no usable components."
     )
     assert "transcript" not in update
+
+def _state_for_estimate() -> Session14EstimationGraphState:
+    return {
+        "estimation_id": "estimate-14",
+        "transcript": "CLIENT-SECRET: confidential acquisition",
+        "requirements": [
+            {
+                "requirement_id": "requirement-1",
+                "text": "Provide authentication.",
+            }
+        ],
+        "components": [
+            {
+                "component_id": "component-1",
+                "name": "Authentication",
+                "category": "backend",
+                "requirement_ids": ["requirement-1"],
+            }
+        ],
+        "budget_matches": [
+            {
+                "component_id": "component-1",
+                "budget_id": "budget-1",
+                "reference_component_id": "reference-1",
+                "source_document_id": "document-1",
+                "source_chunk_id": "chunk-1",
+                "recorded_hours": 80.0,
+                "distance": 0.1,
+                "score": 0.9,
+                "retrieval_method": "vector",
+            },
+            {
+                "component_id": "component-1",
+                "budget_id": "budget-2",
+                "reference_component_id": "reference-2",
+                "source_document_id": "document-2",
+                "source_chunk_id": "chunk-2",
+                "recorded_hours": 120.0,
+                "distance": 0.2,
+                "score": 0.8,
+                "retrieval_method": "vector",
+            },
+        ],
+        "budget_search_completed": True,
+        "execution_metadata": {
+            "graph_version": "session13.v1",
+            "budget_match_count": 2,
+        },
+        "routing_steps": 3,
+        "validation": {"stale": True},
+    }
+
+
+@pytest.mark.asyncio
+async def test_estimate_generator_uses_authorized_minimum_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received_states: list[Session14EstimationGraphState] = []
+    authorization_checks: list[tuple[str, str]] = []
+
+    component_estimates = [
+        {
+            "component_id": "component-1",
+            "name": "Authentication",
+            "hours": 100.0,
+            "grounding_status": "grounded",
+            "reference_budget_ids": ["budget-1", "budget-2"],
+            "reference_component_ids": [
+                "reference-1",
+                "reference-2",
+            ],
+            "source_hours": [80.0, 120.0],
+            "source_range_low": 80.0,
+            "source_range_high": 120.0,
+            "dispersion": 0.4,
+            "confidence": 0.55,
+            "derivation_method": "median_recorded_hours",
+            "review_reasons": [],
+        }
+    ]
+    trace_event = {
+        "event_type": "component_estimates_generated",
+        "node": "generate_estimate",
+        "summary": "Generated 1 grounded component estimates.",
+        "evidence_refs": [
+            "component-1",
+            "budget-1",
+            "budget-2",
+        ],
+        "state_delta_keys": [
+            "component_estimates",
+            "execution_metadata",
+            "trace_events",
+        ],
+    }
+
+    async def calculate_estimate(
+        state: Session14EstimationGraphState,
+    ) -> Session14EstimationGraphState:
+        received_states.append(deepcopy(state))
+        return {
+            "component_estimates": deepcopy(component_estimates),
+            "execution_metadata": {
+                **state.get("execution_metadata", {}),
+                "component_estimate_count": 1,
+            },
+            "trace_events": [deepcopy(trace_event)],
+        }
+
+    def record_authorization(
+        agent_id: str,
+        tool: str,
+    ) -> None:
+        authorization_checks.append((agent_id, tool))
+
+    monkeypatch.setattr(
+        session14_workers,
+        "assert_tool_allowed",
+        record_authorization,
+    )
+
+    state = _state_for_estimate()
+    before = deepcopy(state)
+    agent = session14_workers.build_estimate_generator_agent(
+        calculate_estimate
+    )
+
+    update = await agent(state)
+
+    assert authorization_checks == [
+        ("estimate_generator", "calculate_estimate")
+    ]
+    assert received_states == [
+        {
+            "components": before["components"],
+            "budget_matches": before["budget_matches"],
+            "execution_metadata": before["execution_metadata"],
+        }
+    ]
+    assert "transcript" not in received_states[0]
+    assert "requirements" not in received_states[0]
+    assert "validation" not in received_states[0]
+    assert state == before
+
+    assert update["component_estimates"] == component_estimates
+    assert update["execution_metadata"] == {
+        "graph_version": "session13.v1",
+        "budget_match_count": 2,
+        "component_estimate_count": 1,
+    }
+    assert update["trace_events"] == [trace_event]
+    assert "transcript" not in update
+    assert "requirements" not in update
+    assert "budget_matches" not in update
+
+    assert update["agent_contributions"] == [
+        {
+            "contribution_id": (
+                "estimate-14:estimate_generator:3"
+            ),
+            "agent_id": "estimate_generator",
+            "sequence": 3,
+            "summary": "Generated 1 component estimate.",
+            "state_delta_keys": [
+                "agent_contributions",
+                "component_estimates",
+                "execution_metadata",
+                "trace_events",
+            ],
+        }
+    ]
+    assert "CLIENT-SECRET" not in str(
+        update["agent_contributions"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_estimate_generator_rejects_missing_prerequisites_before_call() -> None:
+    call_count = 0
+
+    async def calculate_estimate(
+        state: Session14EstimationGraphState,
+    ) -> Session14EstimationGraphState:
+        nonlocal call_count
+        call_count += 1
+        return {"component_estimates": []}
+
+    agent = session14_workers.build_estimate_generator_agent(
+        calculate_estimate
+    )
+
+    missing_components = _state_for_estimate()
+    missing_components["components"] = []
+
+    with pytest.raises(ValueError, match="classified components"):
+        await agent(missing_components)
+
+    unfinished_search = _state_for_estimate()
+    unfinished_search.pop("budget_search_completed")
+
+    with pytest.raises(ValueError, match="completed budget search"):
+        await agent(unfinished_search)
+
+    assert call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_estimate_generator_checks_authorization_before_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_count = 0
+
+    async def calculate_estimate(
+        state: Session14EstimationGraphState,
+    ) -> Session14EstimationGraphState:
+        nonlocal call_count
+        call_count += 1
+        return {"component_estimates": []}
+
+    def deny_tool(agent_id: str, tool: str) -> None:
+        assert agent_id == "estimate_generator"
+        assert tool == "calculate_estimate"
+        raise PermissionError("denied for test")
+
+    monkeypatch.setattr(
+        session14_workers,
+        "assert_tool_allowed",
+        deny_tool,
+    )
+
+    agent = session14_workers.build_estimate_generator_agent(
+        calculate_estimate
+    )
+
+    with pytest.raises(PermissionError, match="denied for test"):
+        await agent(_state_for_estimate())
+
+    assert call_count == 0
+
+@pytest.mark.asyncio
+async def test_estimate_generator_preserves_real_python_arithmetic(
+) -> None:
+    calculate_estimate = build_generate_estimate_node(
+        GraphNodeDependencies(
+            requirement_extractor=object(),
+            component_classifier=object(),
+            budget_searcher=object(),
+        )
+    )
+
+    state = _state_for_estimate()
+    state["budget_matches"][1]["recorded_hours"] = 110.0
+    state["budget_matches"].append(
+        {
+            "component_id": "component-1",
+            "budget_id": "budget-3",
+            "reference_component_id": "reference-3",
+            "source_document_id": "document-3",
+            "source_chunk_id": "chunk-3",
+            "recorded_hours": 100.0,
+            "distance": 0.15,
+            "score": 0.85,
+            "retrieval_method": "vector",
+        }
+    )
+    state["execution_metadata"]["budget_match_count"] = 3
+    before = deepcopy(state)
+
+    agent = session14_workers.build_estimate_generator_agent(
+        calculate_estimate
+    )
+
+    update = await agent(state)
+
+    assert state == before
+    assert update["component_estimates"] == [
+        {
+            "component_id": "component-1",
+            "name": "Authentication",
+            "hours": 100.0,
+            "grounding_status": "grounded",
+            "reference_budget_ids": [
+                "budget-1",
+                "budget-2",
+                "budget-3",
+            ],
+            "reference_component_ids": [
+                "reference-1",
+                "reference-2",
+                "reference-3",
+            ],
+            "source_hours": [80.0, 100.0, 110.0],
+            "source_range_low": 80.0,
+            "source_range_high": 110.0,
+            "dispersion": 0.3,
+            "confidence": 0.85,
+            "derivation_method": "median_recorded_hours",
+            "review_reasons": [],
+        }
+    ]
+    assert update["execution_metadata"] == {
+        "graph_version": "session13.v1",
+        "budget_match_count": 3,
+        "component_estimate_count": 1,
+    }
+    assert update["trace_events"] == [
+        {
+            "event_type": "component_estimates_generated",
+            "node": "generate_estimate",
+            "summary": "Generated 1 grounded component estimates.",
+            "evidence_refs": [
+                "component-1",
+                "budget-1",
+                "budget-2",
+                "budget-3",
+            ],
+            "state_delta_keys": [
+                "component_estimates",
+                "execution_metadata",
+                "trace_events",
+            ],
+        }
+    ]
+    assert "review_required" not in update
+    assert "errors" not in update
+    assert "components" not in update
+    assert "budget_matches" not in update
+    assert "transcript" not in update
+
+    assert update["agent_contributions"] == [
+        {
+            "contribution_id": (
+                "estimate-14:estimate_generator:3"
+            ),
+            "agent_id": "estimate_generator",
+            "sequence": 3,
+            "summary": "Generated 1 component estimate.",
+            "state_delta_keys": [
+                "agent_contributions",
+                "component_estimates",
+                "execution_metadata",
+                "trace_events",
+            ],
+        }
+    ]

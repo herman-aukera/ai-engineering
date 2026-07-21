@@ -341,3 +341,97 @@ def build_requirements_extractor_agent(
         return update
 
     return requirements_extractor
+
+def _estimate_tool_state(
+    state: Session14EstimationGraphState,
+    *,
+    components: list[ComponentItem],
+) -> Session14EstimationGraphState:
+    budget_matches = state.get("budget_matches", [])
+
+    if not isinstance(budget_matches, list):
+        raise ValueError(
+            "estimate_generator requires budget_matches to be a list"
+        )
+
+    return Session14EstimationGraphState(
+        components=deepcopy(components),
+        budget_matches=deepcopy(budget_matches),
+        execution_metadata=_worker_execution_metadata(
+            state,
+            operation="calculate_estimate",
+        ),
+    )
+
+
+def build_estimate_generator_agent(
+    calculate_estimate: Session14WorkerOperation,
+) -> Session14WorkerOperation:
+    """Wrap deterministic estimation with least-privilege context."""
+
+    async def estimate_generator(
+        state: Session14EstimationGraphState,
+    ) -> Session14EstimationGraphState:
+        components = state.get("components")
+
+        if not isinstance(components, list) or not components:
+            raise ValueError(
+                "estimate_generator requires classified components"
+            )
+
+        if state.get("budget_search_completed") is not True:
+            raise ValueError(
+                "estimate_generator requires a completed budget search"
+            )
+
+        assert_tool_allowed(
+            "estimate_generator",
+            "calculate_estimate",
+        )
+
+        update = _copy_worker_update(
+            await calculate_estimate(
+                _estimate_tool_state(
+                    state,
+                    components=components,
+                )
+            ),
+            operation="calculate_estimate",
+        )
+        component_estimates = update.get("component_estimates")
+
+        if not isinstance(component_estimates, list):
+            raise ValueError(
+                "calculate_estimate update must contain "
+                "component_estimates"
+            )
+
+        sequence = _routing_sequence(state)
+        estimate_count = len(component_estimates)
+        estimate_word = (
+            "estimate" if estimate_count == 1 else "estimates"
+        )
+
+        contribution = AgentContribution(
+            contribution_id=(
+                f"{_estimation_id(state)}:"
+                f"estimate_generator:{sequence}"
+            ),
+            agent_id="estimate_generator",
+            sequence=sequence,
+            summary=(
+                f"Generated {estimate_count} "
+                f"component {estimate_word}."
+            ),
+            state_delta_keys=sorted(
+                {
+                    *update.keys(),
+                    "agent_contributions",
+                }
+            ),
+        )
+        update["agent_contributions"] = [contribution]
+
+        return update
+
+    return estimate_generator
