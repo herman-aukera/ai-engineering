@@ -42,6 +42,7 @@ Modality = Literal[
 ReasoningEffort = Literal[
     "none",
     "low",
+    "medium",
     "high",
     "max",
 ]
