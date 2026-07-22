@@ -1,22 +1,31 @@
-"""Human-in-the-loop gate for Energy Aware Chat.
+"""Human-in-the-loop contracts for Energy Aware Chat.
 
-Clarify and escalate dispositions can trigger a LangGraph interrupt that waits
-for a typed human action. Production resume validates revision, action identity,
-and action type before invoking ``Command(resume=...)``.
+Clarify and escalate dispositions trigger a LangGraph interrupt. A trusted reviewer
+then chooses approve, adjust, or reject. Revision, action identity, actor, reason,
+and idempotency are validated before the authoritative checkpoint is updated.
 """
 
 from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 HumanGateMode = Literal["disabled", "required", "risk_based"]
 HumanActionType = Literal["clarify_response", "escalate_response"]
+HumanDecision = Literal["approve", "adjust", "reject"]
+
+
+class HumanAdjustment(BaseModel):
+    """Allow-listed human replacement that must pass the full critic/Boss pipeline."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    revised_answer: str = Field(min_length=1, max_length=20_000)
 
 
 class HumanActionRequest(BaseModel):
-    """Typed human action request/response crossing a checkpoint boundary."""
+    """Typed human request/response crossing a durable checkpoint boundary."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -29,7 +38,41 @@ class HumanActionRequest(BaseModel):
         max_length=256,
         description="Trusted actor identifier when authentication is available",
     )
+    decision: HumanDecision | None = None
+    decision_reason: str | None = Field(default=None, min_length=1, max_length=2000)
+    idempotency_key: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=256,
+        pattern=r"^[a-zA-Z0-9_-]+$",
+    )
+    adjustments: HumanAdjustment | None = None
     payload: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_authority_payload(self) -> HumanActionRequest:
+        if self.decision is None:
+            if any(
+                value is not None
+                for value in (
+                    self.decision_reason,
+                    self.idempotency_key,
+                    self.adjustments,
+                )
+            ):
+                raise ValueError("Pending human requests cannot contain review authority")
+            return self
+        if not self.actor or not self.actor.strip():
+            raise ValueError("Human authority requires an actor")
+        if not self.decision_reason or not self.decision_reason.strip():
+            raise ValueError("Human authority requires a decision reason")
+        if not self.idempotency_key:
+            raise ValueError("Human authority requires an idempotency key")
+        if self.decision == "adjust" and self.adjustments is None:
+            raise ValueError("Adjust requires a typed revised answer")
+        if self.decision != "adjust" and self.adjustments is not None:
+            raise ValueError("Only adjust may contain adjustments")
+        return self
 
 
 class HumanGateConfig(BaseModel):
@@ -48,6 +91,10 @@ class HumanActionMismatchError(ValueError):
     """Raised when action identity or type differs from the pending interrupt."""
 
 
+class HumanIdempotencyConflictError(ValueError):
+    """Raised when an idempotency key is reused for a different authority decision."""
+
+
 def validate_human_action(
     action: HumanActionRequest,
     *,
@@ -55,8 +102,10 @@ def validate_human_action(
     expected_action_id: str | None = None,
     expected_action: HumanActionType | None = None,
 ) -> None:
-    """Validate a human action against the authoritative pending interrupt."""
+    """Validate a reviewer action against the authoritative pending interrupt."""
 
+    if action.decision is None:
+        raise HumanActionMismatchError("Human resume requires approve, adjust, or reject")
     if action.expected_revision != current_revision:
         raise StaleHumanActionError(
             f"Human action {action.action_id} expected revision "
