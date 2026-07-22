@@ -1,16 +1,15 @@
-# EACODE Claude Code Project Memory
+# EACODE Project Memory
 
-Claude Code loads this file as project memory when started from `estimador-cag/` or a descendant.
+Claude Code and other coding agents must load this file when operating from `estimador-cag/` or a descendant.
 
-## Mandatory imports
+## Mandatory sources
 
-Read and follow:
+Read completely:
 
-- @docs/eacode_provider_execution_rescue_audit_2026-07-20.md
-- @docs/eacode_phase3c_claude_deepseek_handoff.md
+- @docs/eacode_release_checkpoint_2026-07-22.md
+- @README_EACODE.md
 - @docs/eacode_handoff_status.md
 - @docs/eacode_threat_model.md
-- @docs/energy_aware_product_family_provider_and_context_strategy.md
 - @.energy/specs/0007-controlled-execution-evidence/requirements.md
 - @.energy/specs/0008-execution-authorization/requirements.md
 - @.energy/specs/0009-sandboxed-tool-adapter/requirements.md
@@ -20,51 +19,78 @@ Read and follow:
 - @.energy/specs/0010-provider-routing-context-compaction/tasks.md
 - @.energy/specs/0010-provider-routing-context-compaction/acceptance.md
 
-Use current repository state, tests, command output, and CI as stronger evidence than documentation.
+Current repository state, tests, diffs, and CI are stronger evidence than documentation.
+
+## Product objective
+
+```text
+SDD specification + policy + candidate + evidence
+-> independent critics
+-> constraint-energy evaluation
+-> deterministic boss/decider
+-> accept | repair | reject | clarify | escalate
+-> bounded authorized action
+-> normalized evidence
+-> reevaluation
+-> append-only decision ledger
+```
+
+Models propose. Deterministic Python owns hard constraints, evidence sufficiency, budgets, repository verification, authority, and final disposition.
 
 ## Current implementation status
 
 ```text
-Spec 0007 — deterministic controlled planning and fake/dry-run evidence: COMPLETE L2
-Spec 0008 — logical-revision authorization and persistent interrupt: COMPLETE L2
-Spec 0009 — sandboxed-tool adapter: COMPLETE L3 (live-intent guard, re-redaction, snapshot binding)
-Spec 0010 — provider registry, selector, compaction, adapter, multi-agent, live adapters: COMPLETE
+Spec 0007 — controlled planning and fake/dry-run evidence: deterministic complete
+Spec 0008 — logical-revision authorization and persistent interrupt: deterministic complete
+Spec 0009 — secure live-tool implementation: deterministic complete; manual host proof pending
+Spec 0010 — verified routing, compaction guard, boss budgets, API/UI, contract benchmark: deterministic complete
 ```
 
-Recovery R0-R8 complete. EACODE at `2300b03`. CI green. 371/372 tests (1 pre-existing Windows symlink).
+### Spec 0009
 
-### Spec 0009 security repairs (R4, 2026-07-21)
+Implemented:
 
-- Live-execution intent guard: `dry_run`/`fake` plans rejected by SandboxedToolAdapter
-- Final-assembly re-redaction on all output paths (timeout, cancel, normal)
-- Repository snapshot binding via `SandboxedToolConfig.repository_snapshot`
-- Authorization receipt `execution_performed=True` rejected before execution
+- typed live plan and intent;
+- complete repository snapshot binding;
+- authoritative SQLite authorization with integrity, replay rejection, atomic reservation, and one-time completion;
+- fail-closed pre-start verification;
+- `shell=False`, argument-list execution, process group/session handling, cancellation, timeout, verified cleanup;
+- cross-chunk plus final redaction and bounded output;
+- normalized evidence returned for critic/decider reevaluation;
+- secure CLI with explicit `--live-tool`;
+- legacy real adapter permanently disabled;
+- deterministic CI uses injected processes/fake tools only.
 
-### Spec 0010 runtime modules (2026-07-20–21)
+Blocked claims:
 
-| Module | What | Tests |
-|---|---|---|
-| `provider_registry.py` | 11 curated models across 4 surfaces, deterministic selector, budget | 51 |
-| `context_compaction.py` | CompactionRecord, engine, loss auditor, staleness, contradictions | 23 |
-| `provider_adapter.py` | FakeProviderAdapter, ProviderExecutionEvidence, served-model metadata | 10 |
-| `multi_agent.py` | AgentTask, budgets, DisagreementRecord, DeterministicBoss | 15 |
-| `live_adapter.py` | DeepSeek, Kimi Code, OpenAI adapters (opt-in, key-gated, shared HTTP helper) | 14 |
+- arbitrary untrusted-code safety;
+- VM/container/kernel isolation;
+- complete Windows host cleanup proof until manual evidence exists.
 
-All modules are additive and CI-validated. Live adapters are disabled-by-default and require API keys; deterministic CI uses fake adapters only. Zero real API calls in CI.
+### Spec 0010
 
-### Not yet implemented
+Implemented:
 
-- Product UI and selector controls (Slice G — requires browser/app surface)
-- Benchmark comparisons between providers
-- EACORE extraction (gated on EACHAT equivalent contracts)
+- provider-neutral request and deterministic route resolution;
+- verified capability overlay with source/version/freshness and consistent units;
+- DeepSeek, Kimi Platform, Kimi Code, and OpenAI surfaces separated;
+- hardened opt-in provider adapters with corrected endpoints, timeouts, reasoning controls, cost evidence, and sanitized failures;
+- requested/planned/served facts separated;
+- deterministic context-compaction acceptance, loss audit, freshness, secret/hidden-reasoning exclusion, decay detection, and rehydration;
+- fail-closed deterministic boss with every declared budget enforced;
+- FastAPI control-plane routes and same-origin selector UI;
+- matched deterministic governance contract benchmark.
 
-### Claim boundary
+Blocked claims:
 
-Do not claim: PR merged, production readiness, live provider proof, Kimi K3 superiority, safe sandboxing for untrusted code, complete manual evidence.
+- live provider success without a current secret-backed smoke;
+- exact served effort unless the provider echoes it;
+- provider or multi-agent superiority without matched live evaluations;
+- production readiness.
 
-## Provider policy and current correction boundary
+## Provider policy
 
-Public profiles remain:
+Public profiles:
 
 ```text
 provider: auto | deepseek | kimi | openai
@@ -74,101 +100,74 @@ context_profile: minimal | medium | max
 
 Policy intent:
 
-- DeepSeek remains the default cost-sensitive route.
-- Kimi is the user-preferred frontier/open-model route.
-- OpenAI GPT-5.6 is an explicit budget-gated premium escalation.
-
-Current provider facts must be refreshed before acceptance:
-
-- DeepSeek V4 Flash/Pro use current official 1M-context, output, cache, effort, and pricing data.
-- Kimi general API `kimi-k3` and Kimi Code `k3` are distinct surfaces.
-- Kimi Code currently exposes `k3`, `kimi-for-coding`, and `kimi-for-coding-highspeed` where entitled.
-- K3 currently supports low, high, and max effort in Kimi Code; do not retain the older max-only assumption.
-- GPT-5.6 Luna/Terra/Sol use current official context, output, effort, and pricing data.
-- A deterministic planned route is not evidence of the exact provider/model actually served.
-
-A fresh Kimi-backed Claude Code session may map the main model to K3 at max effort and the lower-cost subagent/Haiku role to `kimi-for-coding`. Do not claim `kimi-for-coding` has a provider-native low-effort control unless current capability discovery proves it.
-
-## Product family
-
-- EACODE supervises coding agents, repositories, commands, evidence, repair, and authorization.
-- EACHAT supervises general-purpose conversational answers with chat-specific critics and memory.
-- LIDR tasks perfect mandatory requirements first; extras remain isolated and evidenced.
-- EACORE extraction remains gated by equivalent stable semantics in at least two products.
-
-Do not import task-specific estimation semantics or EACHAT chat semantics into EACODE.
+- DeepSeek is the cost-sensitive default.
+- Kimi is the user-preferred frontier/open route.
+- OpenAI GPT-5.6 is a budget-gated premium escalation.
+- Unsupported, stale, unavailable, or unentitled combinations fail closed.
+- A planned route is never described as the model actually served.
 
 ## Context policy
 
-Every future long-running workflow preserves:
+Always preserve:
 
 ```text
-immutable raw events
+immutable raw events and artifacts
 + typed canonical state
-+ versioned hierarchical summaries
-+ recent working window
++ versioned summaries
++ bounded recent window
 + evidence rehydration
 ```
 
-Never replace raw evidence with a summary. Never persist secrets or hidden chain of thought. Preserve hard constraints, decisions, evidence references, conflicts, open questions, next actions, hashes, repository revisions, and rollback/rehydration references.
+Never persist secrets, credentials, hidden chain of thought, or unverified assumptions as facts. A summary cannot replace raw evidence.
 
 ## Multi-agent policy
 
-Use bounded multi-agent execution only for independent critics, alternative proposals, benchmark comparisons, or parallel evidence collection.
+Use multiple agents only for independent work such as critics, proposals, benchmarks, or evidence collection.
 
 Required:
 
 - typed shared state;
 - independent ownership;
-- deterministic aggregation;
+- bounded fan-out;
 - disagreement records;
-- cost, time, tool, and concurrency budgets;
+- cost, latency, tool, and concurrency budgets;
 - no concurrent edits to one worktree;
+- no majority override of hard constraints;
 - no self-approval;
 - deterministic boss owns final disposition.
 
+## Product family boundary
+
+- EACODE owns coding/repository/tool supervision.
+- EACHAT owns conversational-answer supervision.
+- LIDR task branches own mandatory coursework.
+- EACORE extraction remains blocked until equivalent semantics are independently proven in at least two products.
+
+Do not import estimation-specific or chat-specific semantics into EACODE core contracts.
+
 ## Git and terminal rules
 
-- The user explicitly authorizes the current rescue/audit work on `EACODE`.
-- Do not create another branch or worktree unless the user asks.
-- Do not merge, force-push, reset, clean, restore, switch, rebase, or delete branches.
-- Do not auto-commit or auto-push. Request explicit approval after green gates and diff review.
-- Do not overwrite uncommitted interrupted work before inspecting it.
-- Do not use `set -e` or `set -euo pipefail` in user-pasteable terminal blocks.
+- Inspect current branch, HEAD, upstream, and complete status before editing.
+- Do not overwrite unknown or interrupted work.
+- Do not merge, force-push, reset, clean, restore, switch, rebase, amend, or delete branches without explicit user authorization.
+- Do not commit or push before applicable focused and full gates pass.
+- Never print or persist API keys.
+- Deterministic CI remains provider-free and real-process-free.
+- Live provider/process evidence is opt-in and manual.
+- Do not use `set -e` or `set -euo pipefail` in user-pasteable commands.
 - Never place Markdown fences inside shell heredocs.
-- Never print or persist API key values.
-- Deterministic CI uses fake providers and fake tools only.
-- Live provider and live-process checks are opt-in manual evidence.
 
-## First response contract
-
-Before editing implementation files, report:
-
-1. current directory, branch, local HEAD, remote HEAD, and working-tree status;
-2. all uncommitted files and which appear to come from the interrupted session;
-3. drift against this recovery boundary;
-4. provider-fact corrections required;
-5. Spec 0009 red-test plan;
-6. exact first recovery slice;
-7. files expected to change;
-8. rollback boundary;
-9. whether any stop condition applies.
-
-Then proceed with the smallest safe red/green repair slice unless a stop condition applies.
-
-## Response footer
-
-End implementation responses with:
+## Required response footer
 
 ```text
 Decider verdict:
 Evidence used:
 Current branch and SHA:
-Local diff state:
+Working-tree state:
 Execution mode proven:
 Provider mode proven:
 Energy delta summary:
-Checkpoint state:
+Claim boundary:
 Next exact slice:
 User approval required:
 ```
