@@ -13,7 +13,12 @@ from app.energy_chat.evidence_hardening import (
     CandidateCitationValidation,
     EvidenceBodyMetadata,
 )
-from app.energy_chat.human_gate import HumanActionRequest, HumanActionType
+from app.energy_chat.human_gate import (
+    HumanActionRequest,
+    HumanActionType,
+    HumanAdjustment,
+    HumanDecision,
+)
 from app.energy_chat.observability import GraphExecutionMetrics
 
 ProviderPreference = Literal["auto", "deepseek", "kimi", "openai"]
@@ -105,8 +110,24 @@ class EnergyChatV2HumanResumeRequest(BaseModel):
     action_id: str = Field(min_length=1, max_length=256)
     action: HumanActionType
     expected_revision: int = Field(ge=1)
-    actor: str | None = Field(default=None, max_length=256)
+    actor: str = Field(min_length=1, max_length=256)
+    decision: HumanDecision
+    decision_reason: str = Field(min_length=1, max_length=2000)
+    idempotency_key: str = Field(
+        min_length=8,
+        max_length=256,
+        pattern=r"^[a-zA-Z0-9_-]+$",
+    )
+    adjustments: HumanAdjustment | None = None
     payload: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_decision_contract(self) -> EnergyChatV2HumanResumeRequest:
+        if self.decision == "adjust" and self.adjustments is None:
+            raise ValueError("Adjust requires a typed revised answer")
+        if self.decision != "adjust" and self.adjustments is not None:
+            raise ValueError("Only adjust may include adjustments")
+        return self
 
 
 class ProviderMetricsSummary(BaseModel):
@@ -162,6 +183,7 @@ class EnergyChatV2Response(BaseModel):
     checkpoint_id: str | None = None
     replayed_from_checkpoint: bool = False
     human_action_request: HumanActionRequest | None = None
+    human_decision: HumanDecision | None = None
 
 
 class EnergyChatV2ThreadStateResponse(BaseModel):
@@ -179,6 +201,7 @@ class EnergyChatV2ThreadStateResponse(BaseModel):
     ledger_entry_ids: list[str] = Field(default_factory=list)
     human_action_pending: bool = False
     human_action_request: HumanActionRequest | None = None
+    human_decision: HumanDecision | None = None
     process_local: bool = True
     restart_persistent: bool = False
 
