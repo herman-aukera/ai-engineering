@@ -61,23 +61,40 @@ def test_v2_product_ui_keeps_only_safe_conversation_index_locally(monkeypatch) -
     assert "Browser storage contains IDs and titles only" in html
     assert "loadConversation" in html
     assert "deleteConversation" in html
-    assert "Submit human response" in html
+    assert "Apply human decision" in html
     assert "startHumanFlow" in html
     assert "resumeHumanAction" in html
     assert "inspectThread" in html
     assert "replayThread" in html
 
 
-def test_v2_product_ui_states_current_runtime_maturity_truthfully(monkeypatch) -> None:
+def test_v2_product_ui_exposes_real_context_and_human_authority(monkeypatch) -> None:
+    monkeypatch.setenv("EACHAT_V2_ENABLED", "true")
+    html = client.get("/energy-chat/v2/demo").text
+
+    assert "Context compaction active" in html
+    assert 'id="contextProfile"' in html
+    assert '<option value="minimal">Minimal</option>' in html
+    assert '<option value="balanced" selected>Balanced</option>' in html
+    assert '<option value="max">Max</option>' in html
+    assert "context_profile:document.getElementById('contextProfile').value" in html
+    assert 'id="humanDecision"' in html
+    assert '<option value="approve">Approve</option>' in html
+    assert '<option value="adjust">Adjust and re-evaluate</option>' in html
+    assert '<option value="reject">Reject</option>' in html
+    assert "decision_reason:reason" in html
+    assert "idempotency_key:pendingHumanIdempotencyKey" in html
+    assert "revised_answer:revisedAnswer" in html
+
+
+def test_v2_product_ui_states_remaining_maturity_truthfully(monkeypatch) -> None:
     monkeypatch.setenv("EACHAT_V2_ENABLED", "true")
     html = client.get("/energy-chat/v2/demo").text
 
     assert "Durable bounded memory" in html
+    assert "Context compaction active" in html
     assert "Critic orchestration" in html
     assert "Committee/adaptive: gated" in html
-    assert "context_profile:'balanced'" in html
-    assert "Minimal (unsupported)" not in html
-    assert "Max (unsupported)" not in html
     assert "Kimi (deferred)" not in html
     assert "OpenAI (deferred)" not in html
 
