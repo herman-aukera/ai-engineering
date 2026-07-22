@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -16,6 +17,7 @@ from app.schemas.provider_readiness import (
 from app.services.production_readiness import (
     RuntimeAvailability,
     build_production_readiness_report,
+    runtime_availability_from_app_state,
 )
 
 
@@ -106,6 +108,29 @@ def test_complete_matched_snapshot_enables_auto_without_exposing_keys(tmp_path) 
     assert report.auto_eligible is True
     assert report.benchmark_version == "matched-ready-v1"
     assert secret not in report.model_dump_json()
+
+
+def test_runtime_diagnostics_allow_only_exception_class_names() -> None:
+    secret = "postgresql://user:password@database/private"
+    runtime = runtime_availability_from_app_state(
+        SimpleNamespace(
+            graph_estimation_service=None,
+            reviewed_graph_estimation_service=None,
+            graph_runtime_error="OperationalError",
+            reviewed_graph_runtime_error=secret,
+        )
+    )
+    report = build_production_readiness_report(
+        runtime=runtime,
+        config=_settings(deepseek_api_key="configured-deepseek-key"),
+    )
+    serialized = report.model_dump_json()
+    assert "OperationalError" in report.checks["graph_runtime"].detail
+    assert secret not in serialized
+    assert "password" not in serialized
+    assert report.checks["reviewed_graph_runtime"].detail == (
+        "Reviewed graph runtime is unavailable."
+    )
 
 
 def test_ready_endpoint_returns_503_with_uninitialized_runtime_and_placeholder_keys() -> None:
