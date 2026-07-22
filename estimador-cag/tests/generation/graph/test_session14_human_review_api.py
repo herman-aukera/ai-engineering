@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from fastapi import FastAPI
@@ -13,6 +14,12 @@ from app.generation.graph.fakes import (
 )
 from app.generation.graph.nodes.session14_human_review import (
     build_session14_human_review_gate,
+)
+from app.generation.graph.observability import (
+    NOOP_GRAPH_TRACER,
+    SESSION14_NODE_SPAN_NAME,
+    SESSION14_ROOT_SPAN_NAME,
+    GraphTracer,
 )
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.review_state import (
@@ -33,6 +40,72 @@ TRANSCRIPT = (
     "Build JWT authentication with auditable access control "
     "and a reviewer-visible estimation decision."
 )
+
+
+@dataclass
+class SpanRecord:
+    record_id: int
+    name: str
+    attributes: dict[str, object]
+    parent_id: int | None
+    exited: bool = False
+    exception_type: str | None = None
+
+
+class RecordingSpan:
+    def __init__(
+        self,
+        tracer: RecordingTracer,
+        record: SpanRecord,
+    ) -> None:
+        self._tracer = tracer
+        self._record = record
+
+    def __enter__(self) -> RecordingSpan:
+        self._tracer.stack.append(self._record.record_id)
+        return self
+
+    def __exit__(
+        self,
+        exception_type,
+        exception,
+        traceback,
+    ) -> bool:
+        active_record_id = self._tracer.stack.pop()
+        assert active_record_id == self._record.record_id
+        self._record.exited = True
+        if exception_type is not None:
+            self._record.exception_type = exception_type.__name__
+        return False
+
+    def set_attribute(
+        self,
+        name: str,
+        value: object,
+    ) -> None:
+        self._record.attributes[name] = value
+
+
+@dataclass
+class RecordingTracer:
+    records: list[SpanRecord] = field(default_factory=list)
+    stack: list[int] = field(default_factory=list)
+    next_record_id: int = 1
+
+    def span(
+        self,
+        name: str,
+        **attributes: object,
+    ) -> RecordingSpan:
+        record = SpanRecord(
+            record_id=self.next_record_id,
+            name=name,
+            attributes=dict(attributes),
+            parent_id=(self.stack[-1] if self.stack else None),
+        )
+        self.next_record_id += 1
+        self.records.append(record)
+        return RecordingSpan(self, record)
 
 
 def _dependencies() -> GraphNodeDependencies:
@@ -76,14 +149,20 @@ def _dependencies() -> GraphNodeDependencies:
     )
 
 
-def _client() -> TestClient:
+def _client(
+    *,
+    tracer: GraphTracer = NOOP_GRAPH_TRACER,
+) -> TestClient:
     graph = build_session14_estimation_graph(
         _dependencies(),
         human_review_gate=build_session14_human_review_gate(),
         checkpointer=InMemorySaver(),
+        tracer=tracer,
     )
     service = GraphEstimationService(
         graph=graph,
+        tracer=tracer,
+        root_span_name=SESSION14_ROOT_SPAN_NAME,
         graph_version=SESSION14_GRAPH_VERSION,
         graph_name=SESSION14_GRAPH_NAME,
         state_factory=new_session14_estimation_graph_state,
@@ -159,6 +238,99 @@ def test_low_confidence_pauses_and_approve_resumes_same_thread() -> None:
         "session14_human_review_paused",
         "session14_human_review_approve",
     ]
+
+
+def test_pause_and_resume_emit_complete_sanitized_session14_spans() -> None:
+    tracer = RecordingTracer()
+    client = _client(tracer=tracer)
+
+    paused = _start(client)
+    completed = _resume(
+        client,
+        {
+            "action": "approve",
+            "expected_revision": paused["revision"],
+            "actor": "trace-reviewer",
+            "idempotency_key": "trace-approve-001",
+        },
+    )
+
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "validated"
+
+    root_spans = [
+        record
+        for record in tracer.records
+        if record.name == SESSION14_ROOT_SPAN_NAME
+    ]
+    node_spans = [
+        record
+        for record in tracer.records
+        if record.name == SESSION14_NODE_SPAN_NAME
+    ]
+
+    assert len(root_spans) == 2
+    assert root_spans[0].attributes["execution_mode"] == "new"
+    assert root_spans[0].attributes["execution_status"] == (
+        "awaiting_human_review"
+    )
+    assert root_spans[0].attributes["terminal_status"] == (
+        "needs_review"
+    )
+    assert root_spans[1].attributes == {
+        "graph_name": SESSION14_GRAPH_NAME,
+        "graph_version": SESSION14_GRAPH_VERSION,
+        "estimation_id": str(ESTIMATION_ID),
+        "thread_id": f"estimate:{ESTIMATION_ID}",
+        "execution_mode": "human_review_resume",
+        "execution_status": "completed",
+        "human_review_action": "approve",
+        "expected_revision": 1,
+        "terminal_status": "validated",
+        "review_required": False,
+        "requirement_count": 1,
+        "component_count": 1,
+        "budget_match_count": 1,
+        "error_count": 1,
+        "trace_event_count": 7,
+        "total_hours": 40.0,
+        "human_review_status": "approved",
+    }
+
+    supervisor_routes = [
+        record.attributes["route_reason_code"]
+        for record in node_spans
+        if record.attributes.get("node_name") == "supervisor"
+    ]
+    assert supervisor_routes == [
+        "missing_requirements",
+        "missing_budget_evidence",
+        "missing_estimate",
+        "missing_validation",
+        "human_review_required",
+    ]
+
+    human_gate_spans = [
+        record
+        for record in node_spans
+        if record.attributes.get("node_name")
+        == "human_review_gate"
+    ]
+    assert len(human_gate_spans) == 2
+    assert human_gate_spans[0].attributes[
+        "execution_status"
+    ] == "awaiting_human_review"
+    assert human_gate_spans[1].attributes[
+        "human_review_action"
+    ] == "approve"
+    assert all(
+        record.exception_type is None
+        for record in human_gate_spans
+    )
+    assert all(record.exited for record in tracer.records)
+    assert TRANSCRIPT not in repr(
+        [record.attributes for record in tracer.records]
+    )
 
 
 def test_adjust_recalculates_and_conflicting_replay_returns_409() -> None:

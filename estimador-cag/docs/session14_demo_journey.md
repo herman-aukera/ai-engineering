@@ -75,6 +75,10 @@ conflicting reuse returns HTTP 409.
 
 Run the journey with `LOGFIRE_TOKEN` configured. In Logfire, filter service
 `estimador-cag`, graph name `session14_estimation_graph`, and the stable
-estimation ID. Confirm the pause request and resume request share the same
-thread ID, then copy the shareable trace URL into `session14_evidence.md` and
-the delivery email. Never paste credentials or the transcript into evidence.
+estimation ID. The paused request and resumed request appear as sanitized
+`session14.graph.run` root spans, with `session14.graph.node` children. Confirm
+that both roots share the same thread ID, the first root reports
+`execution_status=awaiting_human_review`, and the second reports
+`execution_mode=human_review_resume`. Share the filtered Logfire view containing
+both roots, then copy its URL into `session14_evidence.md` and the delivery
+email. Never paste credentials or the transcript into evidence.

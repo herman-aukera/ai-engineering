@@ -14,7 +14,10 @@ from app.generation.graph.fakes import (
     FakeComponentClassifier,
     FakeRequirementExtractor,
 )
-from app.generation.graph.observability import NoopGraphTracer
+from app.generation.graph.observability import (
+    SESSION14_ROOT_SPAN_NAME,
+    NoopGraphTracer,
+)
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.review_state import (
     new_session14_estimation_graph_state,
@@ -125,6 +128,7 @@ async def test_session14_runtime_wires_graph_service_and_checkpointer(
         *,
         human_review_gate: object,
         checkpointer: object,
+        tracer: object,
         confidence_threshold: float,
     ):
         events.append(
@@ -133,6 +137,7 @@ async def test_session14_runtime_wires_graph_service_and_checkpointer(
                 received_dependencies,
                 human_review_gate,
                 checkpointer,
+                tracer,
                 confidence_threshold,
             )
         )
@@ -174,9 +179,11 @@ async def test_session14_runtime_wires_graph_service_and_checkpointer(
                 dependencies,
                 runtime_module._session14_human_review_gate,
                 checkpointer,
+                tracer,
                 runtime_module.settings.session14_confidence_threshold,
             ),
         ]
+        assert service.root_span_name == SESSION14_ROOT_SPAN_NAME
 
     assert events[-1] == (
         "checkpointer_exit",

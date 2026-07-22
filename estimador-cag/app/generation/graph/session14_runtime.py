@@ -11,6 +11,7 @@ from app.generation.graph.nodes.session14_human_review import (
     build_session14_human_review_gate,
 )
 from app.generation.graph.observability import (
+    SESSION14_ROOT_SPAN_NAME,
     GraphTracer,
     get_logfire_graph_tracer,
 )
@@ -54,6 +55,7 @@ async def open_session14_graph_estimation_service(
             dependencies,
             human_review_gate=_session14_human_review_gate,
             checkpointer=checkpointer,
+            tracer=resolved_tracer,
             confidence_threshold=(
                 settings.session14_confidence_threshold
             ),
@@ -62,6 +64,7 @@ async def open_session14_graph_estimation_service(
         yield GraphEstimationService(
             graph=graph,
             tracer=resolved_tracer,
+            root_span_name=SESSION14_ROOT_SPAN_NAME,
             graph_version=SESSION14_GRAPH_VERSION,
             graph_name=SESSION14_GRAPH_NAME,
             state_factory=new_session14_estimation_graph_state,

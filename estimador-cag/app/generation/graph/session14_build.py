@@ -27,6 +27,11 @@ from app.generation.graph.nodes.session14_workers import (
     build_estimate_generator_agent,
     build_requirements_extractor_agent,
 )
+from app.generation.graph.observability import (
+    NOOP_GRAPH_TRACER,
+    GraphTracer,
+    instrument_session14_command_node,
+)
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.review_state import (
     Session14EstimationGraphState,
@@ -92,6 +97,7 @@ def build_session14_estimation_graph(
     *,
     human_review_gate: Session14HumanReviewGate,
     checkpointer: BaseCheckpointSaver | None = None,
+    tracer: GraphTracer = NOOP_GRAPH_TRACER,
     confidence_threshold: float = (
         DEFAULT_SESSION14_CONFIDENCE_THRESHOLD
     ),
@@ -126,33 +132,70 @@ def build_session14_estimation_graph(
 
     builder.add_node(
         "supervisor",
-        build_supervisor_node(
-            confidence_threshold=confidence_threshold,
+        instrument_session14_command_node(
+            graph_name=SESSION14_GRAPH_NAME,
+            node_name="supervisor",
+            node=build_supervisor_node(
+                confidence_threshold=confidence_threshold,
+            ),
+            tracer=tracer,
         ),
     )
     builder.add_node(
         "requirements_extractor",
-        _return_to_supervisor(requirements_extractor),
+        instrument_session14_command_node(
+            graph_name=SESSION14_GRAPH_NAME,
+            node_name="requirements_extractor",
+            node=_return_to_supervisor(
+                requirements_extractor
+            ),
+            tracer=tracer,
+        ),
     )
     builder.add_node(
         "budget_searcher",
-        _return_to_supervisor(budget_searcher),
+        instrument_session14_command_node(
+            graph_name=SESSION14_GRAPH_NAME,
+            node_name="budget_searcher",
+            node=_return_to_supervisor(budget_searcher),
+            tracer=tracer,
+        ),
     )
     builder.add_node(
         "estimate_generator",
-        _return_to_supervisor(estimate_generator),
+        instrument_session14_command_node(
+            graph_name=SESSION14_GRAPH_NAME,
+            node_name="estimate_generator",
+            node=_return_to_supervisor(estimate_generator),
+            tracer=tracer,
+        ),
     )
     builder.add_node(
         "coherence_validator",
-        _return_to_supervisor(coherence_validator),
+        instrument_session14_command_node(
+            graph_name=SESSION14_GRAPH_NAME,
+            node_name="coherence_validator",
+            node=_return_to_supervisor(coherence_validator),
+            tracer=tracer,
+        ),
     )
     builder.add_node(
         "human_review_gate",
-        human_review_gate,
+        instrument_session14_command_node(
+            graph_name=SESSION14_GRAPH_NAME,
+            node_name="human_review_gate",
+            node=human_review_gate,
+            tracer=tracer,
+        ),
     )
     builder.add_node(
         "finalize",
-        _finalize,
+        instrument_session14_command_node(
+            graph_name=SESSION14_GRAPH_NAME,
+            node_name="finalize",
+            node=_finalize,
+            tracer=tracer,
+        ),
     )
 
     builder.add_edge(START, "supervisor")

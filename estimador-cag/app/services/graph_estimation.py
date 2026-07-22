@@ -310,6 +310,7 @@ class GraphEstimationService:
 
     graph: GraphRunner
     tracer: GraphTracer = NOOP_GRAPH_TRACER
+    root_span_name: str = ROOT_SPAN_NAME
     graph_version: str = "session13.v1"
     graph_name: str = GRAPH_NAME
     state_factory: GraphStateFactory = new_estimation_graph_state
@@ -328,7 +329,7 @@ class GraphEstimationService:
         )
 
         with self.tracer.span(
-            ROOT_SPAN_NAME,
+            self.root_span_name,
             graph_name=self.graph_name,
             graph_version=self.graph_version,
             estimation_id=resolved_estimation_id,
@@ -402,6 +403,10 @@ class GraphEstimationService:
                 execution_status="awaiting_human_review",
                 interrupts=saved_interrupts,
             )
+            span.set_attribute(
+                "execution_status",
+                run.execution_status,
+            )
             _record_terminal_span_attributes(span, paused_state)
             return run
 
@@ -449,6 +454,10 @@ class GraphEstimationService:
                 transcript=transcript,
                 result=result,
             )
+            span.set_attribute(
+                "execution_status",
+                run.execution_status,
+            )
             _record_terminal_span_attributes(span, run.state)
             return run
 
@@ -456,6 +465,7 @@ class GraphEstimationService:
             span,
             final_state,
         )
+        span.set_attribute("execution_status", "completed")
 
         return GraphEstimationRun(
             estimation_id=resolved_estimation_id,
@@ -525,6 +535,43 @@ class GraphEstimationService:
         thread_id = thread_id_from_estimation_id(
             resolved_estimation_id
         )
+        with self.tracer.span(
+            self.root_span_name,
+            graph_name=self.graph_name,
+            graph_version=self.graph_version,
+            estimation_id=resolved_estimation_id,
+            thread_id=thread_id,
+            execution_mode="human_review_resume",
+            human_review_action=decision.action,
+            expected_revision=decision.expected_revision,
+        ) as span:
+            run = await self._resume_human_review(
+                resolved_estimation_id=resolved_estimation_id,
+                thread_id=thread_id,
+                decision=decision,
+            )
+            span.set_attribute(
+                "execution_status",
+                run.execution_status,
+            )
+            _record_terminal_span_attributes(span, run.state)
+            human_review_status = run.state.get(
+                "human_review_status"
+            )
+            if isinstance(human_review_status, str):
+                span.set_attribute(
+                    "human_review_status",
+                    human_review_status,
+                )
+            return run
+
+    async def _resume_human_review(
+        self,
+        *,
+        resolved_estimation_id: str,
+        thread_id: str,
+        decision: Session14HumanReviewDecision,
+    ) -> GraphEstimationRun:
         config = {"configurable": {"thread_id": thread_id}}
         snapshot = await self.graph.aget_state(config)
 
