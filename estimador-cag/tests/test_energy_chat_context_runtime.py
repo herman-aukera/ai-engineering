@@ -61,11 +61,11 @@ def test_context_profiles_produce_distinct_hash_linked_windows() -> None:
     assert minimal.source_hash == balanced.source_hash == maximum.source_hash
     assert minimal.summary_hash != balanced.summary_hash
     assert balanced.summary_hash != maximum.summary_hash
-    assert "turn-9" in minimal.summary_text
-    assert "turn-1" not in minimal.summary_text
-    assert "turn-3" in balanced.summary_text
-    assert "turn-1" not in balanced.summary_text
-    assert "turn-1" in maximum.summary_text
+    assert "Turn 9 ID turn-9" in minimal.summary_text
+    assert "Turn 1 ID turn-1\n" not in minimal.summary_text
+    assert "Turn 3 ID turn-3" in balanced.summary_text
+    assert "Turn 1 ID turn-1\n" not in balanced.summary_text
+    assert "Turn 1 ID turn-1\n" in maximum.summary_text
     assert minimal.hard_constraints == ["preserve exact identifiers"]
     assert minimal.ledger_entry_ids
     assert minimal.token_count_after < maximum.token_count_after
