@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import uuid
 
 from app.energy_chat.api_v2_contracts import EnergyChatV2Request
@@ -62,12 +63,13 @@ def execute_conversation_turn(
     request: ConversationTurnRequest,
 ) -> ConversationTurnResponse:
     record = store.get(conversation_id)
+    request_fingerprint = _request_fingerprint(request)
     duplicate = next(
         (turn for turn in record.turns if turn.turn_id == request.turn_id),
         None,
     )
     if duplicate is not None:
-        if duplicate.user_message != request.user_message:
+        if duplicate.request_fingerprint != request_fingerprint:
             raise ConversationTurnConflictError(request.turn_id)
         return ConversationTurnResponse(
             conversation_id=conversation_id,
@@ -112,6 +114,7 @@ def execute_conversation_turn(
     turn = ConversationTurn(
         turn_id=request.turn_id,
         turn_index=turn_index,
+        request_fingerprint=request_fingerprint,
         graph_thread_id=graph_thread_id,
         user_message=request.user_message,
         assistant_message=assistant_message,
@@ -132,6 +135,15 @@ def execute_conversation_turn(
         replayed_idempotency_key=appended.replayed_idempotency_key,
         turn=stored_turn,
     )
+
+
+def _request_fingerprint(request: ConversationTurnRequest) -> str:
+    canonical = json.dumps(
+        request.model_dump(mode="json"),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return f"sha256:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
 
 
 def _memory_messages(record: ConversationRecord) -> list[tuple[str, str]]:
