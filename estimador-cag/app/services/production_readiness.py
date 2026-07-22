@@ -37,6 +37,8 @@ class ProductionReadinessReport(BaseModel):
 class RuntimeAvailability:
     graph_runtime: bool
     reviewed_graph_runtime: bool
+    graph_runtime_error: str | None = None
+    reviewed_graph_runtime_error: str | None = None
 
 
 def _real_key(value: str) -> bool:
@@ -85,6 +87,14 @@ def _benchmark(path: str) -> tuple[BenchmarkSnapshot | None, ReadinessCheck]:
     )
 
 
+def _runtime_detail(*, label: str, ready: bool, error_type: str | None) -> str:
+    if ready:
+        return f"{label} is initialized."
+    if error_type:
+        return f"{label} is unavailable; initialization error type: {error_type}."
+    return f"{label} is unavailable."
+
+
 def build_production_readiness_report(
     *,
     runtime: RuntimeAvailability,
@@ -98,10 +108,10 @@ def build_production_readiness_report(
         "graph_runtime": ReadinessCheck(
             ready=runtime.graph_runtime,
             code=("graph_runtime_ready" if runtime.graph_runtime else "graph_runtime_unavailable"),
-            detail=(
-                "Mandatory graph runtime is initialized."
-                if runtime.graph_runtime
-                else "Mandatory graph runtime is unavailable."
+            detail=_runtime_detail(
+                label="Mandatory graph runtime",
+                ready=runtime.graph_runtime,
+                error_type=runtime.graph_runtime_error,
             ),
         ),
         "reviewed_graph_runtime": ReadinessCheck(
@@ -111,10 +121,10 @@ def build_production_readiness_report(
                 if runtime.reviewed_graph_runtime
                 else "reviewed_graph_runtime_unavailable"
             ),
-            detail=(
-                "Reviewed graph runtime is initialized."
-                if runtime.reviewed_graph_runtime
-                else "Reviewed graph runtime is unavailable."
+            detail=_runtime_detail(
+                label="Reviewed graph runtime",
+                ready=runtime.reviewed_graph_runtime,
+                error_type=runtime.reviewed_graph_runtime_error,
             ),
         ),
         "provider_configuration": ReadinessCheck(
@@ -143,14 +153,20 @@ def build_production_readiness_report(
 
 
 def runtime_availability_from_app_state(state: object) -> RuntimeAvailability:
-    """Inspect only service presence; never serialize service objects."""
+    """Inspect service presence and allow-listed exception class names only."""
 
     values: Mapping[str, object]
     if isinstance(state, Mapping):
         values = state
     else:
         values = vars(state)
+    graph_error = values.get("graph_runtime_error")
+    reviewed_error = values.get("reviewed_graph_runtime_error")
     return RuntimeAvailability(
         graph_runtime=values.get("graph_estimation_service") is not None,
         reviewed_graph_runtime=values.get("reviewed_graph_estimation_service") is not None,
+        graph_runtime_error=graph_error if isinstance(graph_error, str) else None,
+        reviewed_graph_runtime_error=(
+            reviewed_error if isinstance(reviewed_error, str) else None
+        ),
     )
