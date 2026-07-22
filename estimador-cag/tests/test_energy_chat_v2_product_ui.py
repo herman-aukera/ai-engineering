@@ -85,6 +85,10 @@ def test_v2_product_ui_exposes_real_context_and_human_authority(monkeypatch) -> 
     assert "decision_reason:reason" in html
     assert "idempotency_key:pendingHumanIdempotencyKey" in html
     assert "revised_answer:revisedAnswer" in html
+    assert 'id="orchestrationMode"' in html
+    assert '<option value="committee">Committee</option>' in html
+    assert '<option value="adaptive">Adaptive</option>' in html
+    assert "orchestration_mode:document.getElementById('orchestrationMode').value" in html
 
 
 def test_v2_product_ui_states_remaining_maturity_truthfully(monkeypatch) -> None:
@@ -93,8 +97,8 @@ def test_v2_product_ui_states_remaining_maturity_truthfully(monkeypatch) -> None
 
     assert "Durable bounded memory" in html
     assert "Context compaction active" in html
-    assert "Critic orchestration" in html
-    assert "Committee/adaptive: gated" in html
+    assert "Bounded orchestration active" in html
+    assert "Live committee/adaptive: gated" in html
     assert "Kimi (deferred)" not in html
     assert "OpenAI (deferred)" not in html
 

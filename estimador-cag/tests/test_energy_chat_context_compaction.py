@@ -107,8 +107,8 @@ def test_m18_reports_context_runtime_and_deferred_multi_agent_execution() -> Non
     status = context_compaction.get_m18_runtime_status()
 
     assert status.context_compaction == "implemented"
-    assert status.multi_agent_orchestration == "contract_only"
+    assert status.multi_agent_orchestration == "implemented"
     assert status.active_context_profiles == ["minimal", "balanced", "max"]
-    assert status.active_orchestration_modes == ["critic"]
+    assert status.active_orchestration_modes == ["critic", "committee", "adaptive"]
     assert any("deterministic projections" in item for item in status.limitations)
-    assert any("Committee and adaptive" in item for item in status.limitations)
+    assert any("live multi-provider calibration" in item for item in status.limitations)

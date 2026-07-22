@@ -101,5 +101,5 @@ def test_m18_truth_reports_context_runtime_but_not_committee_yet() -> None:
 
     assert status.context_compaction == "implemented"
     assert status.active_context_profiles == ["minimal", "balanced", "max"]
-    assert status.multi_agent_orchestration == "contract_only"
-    assert status.active_orchestration_modes == ["critic"]
+    assert status.multi_agent_orchestration == "implemented"
+    assert status.active_orchestration_modes == ["critic", "committee", "adaptive"]

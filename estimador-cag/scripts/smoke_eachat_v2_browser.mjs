@@ -47,6 +47,7 @@ try {
   assert(card?.includes("Decision"), "First turn Energy Card was not rendered");
 
   await page.selectOption("#contextProfile", "minimal");
+  await page.selectOption("#orchestrationMode", "adaptive");
   await page.fill(
     "#composerInput",
     "What release-validation keyword did I give you in the previous visible turn?",
@@ -60,6 +61,8 @@ try {
   assert(userCount === 2, "Second durable turn did not retain ordered user history");
   assert(assistantCount === 2, "Second durable turn did not retain ordered assistant history");
   assert(status?.includes("Context profileminimal"), "Minimal context snapshot was not applied");
+  assert(status?.includes("Requested orchestrationadaptive"), "Adaptive orchestration was not requested");
+  assert(status?.includes("Resolved orchestrationcritic"), "Low-risk adaptive turn did not stay on critic");
   assert(status?.includes("Context snapshotconversation-"), "Context snapshot identity was not rendered");
   assert(status?.includes("Memory messages2"), "Second turn did not receive bounded prior context");
 

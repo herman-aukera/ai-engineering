@@ -281,17 +281,17 @@ class M18RuntimeStatus(BaseModel):
     """Authoritative distinction between active and deferred runtime behavior."""
 
     context_compaction: RuntimeMaturity = "implemented"
-    multi_agent_orchestration: RuntimeMaturity = "contract_only"
+    multi_agent_orchestration: RuntimeMaturity = "implemented"
     active_context_profiles: list[ContextProfile] = Field(
         default_factory=lambda: ["minimal", "balanced", "max"]
     )
     active_orchestration_modes: list[OrchestrationMode] = Field(
-        default_factory=lambda: ["critic"]
+        default_factory=lambda: ["critic", "committee", "adaptive"]
     )
     limitations: list[str] = Field(
         default_factory=lambda: [
             "Context snapshots are deterministic projections, not model-generated summaries.",
-            "Committee and adaptive orchestration remain deferred until runtime integration.",
+            "Committee and adaptive are deterministic-only; live multi-provider calibration remains deferred.",
         ]
     )
 
