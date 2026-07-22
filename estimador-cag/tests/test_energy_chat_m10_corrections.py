@@ -155,4 +155,5 @@ def test_v2_demo_route_is_registered() -> None:
     response = client.get("/energy-chat/v2/demo")
     assert response.status_code == 200
     assert "EACHAT" in response.text
-    assert "Send to graph" in response.text
+    assert "Send turn" in response.text
+    assert "/energy-chat/v2/conversations" in response.text
