@@ -3,208 +3,664 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EACHAT V2 — Graph-Backed Demo</title>
+  <title>EACHAT — Energy-Aware Chat</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #111827; --panel: #172033; --panel-2: #0f172a;
-      --border: #334155; --text: #e5e7eb; --muted: #94a3b8;
-      --accent: #38bdf8; --ok: #10b981; --warn: #f59e0b; --bad: #ef4444;
+      --bg: #0b1020;
+      --sidebar: #0f172a;
+      --panel: #111b31;
+      --panel-2: #17233d;
+      --border: #2b3a58;
+      --text: #edf2ff;
+      --muted: #9caecc;
+      --accent: #60a5fa;
+      --accent-strong: #2563eb;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --bad: #fb7185;
+      --user: #1d4ed8;
+      --assistant: #17233d;
     }
-    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 72px; }
-    h1, h2, h3 { margin: 0 0 10px; }
-    p { color: var(--muted); line-height: 1.5; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 20px; }
-    .card { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
-    label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.85rem; }
-    textarea, input, select { width: 100%; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--border); background: #020617; color: var(--text); padding: 10px; font: inherit; }
-    textarea { min-height: 80px; resize: vertical; }
-    button { cursor: pointer; border: 1px solid #2563eb; background: #1d4ed8; color: white; padding: 10px 16px; margin: 10px 6px 0 0; border-radius: 10px; font-weight: 700; }
-    button.secondary { background: #0f172a; border-color: var(--border); }
-    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #020617; border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-height: 100px; color: #dbeafe; font-size: 0.9rem; }
-    .pill { display: inline-flex; gap: 6px; align-items: center; border-radius: 999px; padding: 6px 10px; border: 1px solid var(--border); background: #020617; color: var(--muted); margin: 3px 6px 3px 0; font-size: 0.82rem; }
-    .pill.ok { color: #d1fae5; border-color: #065f46; background: #064e3b; }
-    .pill.warn { color: #fef3c7; border-color: #92400e; background: #78350f; }
-    .pill.bad { color: #fee2e2; border-color: #991b1b; background: #7f1d1d; }
-    .answer { background: #020617; border: 1px solid var(--border); border-radius: 12px; padding: 14px; line-height: 1.5; white-space: pre-wrap; }
-    .small { font-size: 0.82rem; color: var(--muted); }
-    .selectors { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-    .metric-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
-    .metric-row span:first-child { color: var(--muted); }
-    .thread-list { max-height: 200px; overflow-y: auto; }
-    .thread-item { cursor: pointer; padding: 6px 10px; border-radius: 8px; margin: 3px 0; background: #020617; border: 1px solid var(--border); font-size: 0.85rem; }
-    .thread-item:hover { border-color: var(--accent); }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    button, textarea, select, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .app { min-height: 100vh; display: grid; grid-template-columns: 270px minmax(0, 1fr) 330px; }
+    .sidebar, .inspector { background: var(--sidebar); padding: 18px; overflow-y: auto; }
+    .sidebar { border-right: 1px solid var(--border); }
+    .inspector { border-left: 1px solid var(--border); }
+    .workspace { min-width: 0; display: flex; flex-direction: column; }
+
+    .brand { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
+    .brand-mark { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: linear-gradient(135deg, #1d4ed8, #7c3aed); font-size: 1.25rem; }
+    .brand h1 { margin: 0; font-size: 1.05rem; }
+    .brand p { margin: 2px 0 0; color: var(--muted); font-size: .78rem; }
+
+    .primary, .secondary, .danger, .thread-button {
+      border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 12px; background: var(--panel);
+    }
+    .primary { background: var(--accent-strong); border-color: #3b82f6; font-weight: 700; }
+    .secondary:hover, .thread-button:hover { border-color: var(--accent); }
+    .danger { border-color: #9f1239; background: #4c0519; }
+    .wide { width: 100%; }
+
+    .section-title { color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin: 20px 0 8px; }
+    .thread-list { display: grid; gap: 7px; }
+    .thread-button { width: 100%; text-align: left; padding: 10px; }
+    .thread-button.active { border-color: var(--accent); background: #13264a; }
+    .thread-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .thread-meta { display: flex; gap: 7px; margin-top: 5px; color: var(--muted); font-size: .72rem; }
+
+    .topbar { padding: 14px 20px; border-bottom: 1px solid var(--border); background: rgba(11, 16, 32, .94); backdrop-filter: blur(12px); display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+    .topbar h2 { margin: 0; font-size: 1rem; }
+    .runtime-badges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+    .badge { border: 1px solid var(--border); border-radius: 999px; color: var(--muted); background: #0f172a; padding: 5px 9px; font-size: .72rem; }
+    .badge.ok { color: #d1fae5; border-color: #047857; background: #064e3b; }
+    .badge.warn { color: #fef3c7; border-color: #92400e; background: #78350f; }
+    .badge.bad { color: #ffe4e6; border-color: #9f1239; background: #4c0519; }
+
+    .messages { flex: 1; overflow-y: auto; padding: 28px max(20px, calc((100% - 820px) / 2)); display: flex; flex-direction: column; gap: 18px; }
+    .welcome { margin: auto; max-width: 650px; text-align: center; padding: 30px; }
+    .welcome h3 { font-size: 1.55rem; margin: 0 0 10px; }
+    .welcome p { color: var(--muted); line-height: 1.55; }
+
+    .message { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: start; }
+    .message .avatar { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-size: .75rem; font-weight: 800; border: 1px solid var(--border); }
+    .message.user .avatar { background: var(--user); }
+    .message.assistant .avatar { background: linear-gradient(135deg, #0f766e, #2563eb); }
+    .bubble { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; white-space: pre-wrap; line-height: 1.55; overflow-wrap: anywhere; }
+    .message.user .bubble { background: #13264a; }
+    .message.assistant .bubble { background: var(--assistant); }
+    .message-meta { color: var(--muted); font-size: .72rem; margin-top: 7px; }
+
+    .composer-wrap { border-top: 1px solid var(--border); padding: 14px max(20px, calc((100% - 820px) / 2)) 20px; background: rgba(11, 16, 32, .96); }
+    .selectors { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 8px; margin-bottom: 9px; }
+    label { display: block; color: var(--muted); font-size: .72rem; margin-bottom: 4px; }
+    select, textarea, input { width: 100%; color: var(--text); background: #080d19; border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; }
+    textarea { min-height: 88px; max-height: 220px; resize: vertical; }
+    .composer-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 9px; }
+    .composer-note { color: var(--muted); font-size: .72rem; margin-left: auto; }
+
+    .panel { border: 1px solid var(--border); background: var(--panel); border-radius: 13px; padding: 13px; margin-bottom: 12px; }
+    .panel h3 { font-size: .9rem; margin: 0 0 10px; }
+    .row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(43, 58, 88, .7); font-size: .8rem; }
+    .row:last-child { border-bottom: 0; }
+    .row span:first-child { color: var(--muted); }
+    .row span:last-child { text-align: right; overflow-wrap: anywhere; }
+    .empty { color: var(--muted); font-size: .8rem; line-height: 1.45; }
+    .human-panel { display: none; border-color: #92400e; background: #3b2508; }
+    .human-panel.visible { display: block; }
+    .human-reason { color: #fef3c7; font-size: .8rem; line-height: 1.45; margin-bottom: 10px; }
+    .human-type { font-family: ui-monospace, SFMono-Regular, monospace; color: #fde68a; font-size: .75rem; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow-y: auto; background: #080d19; border: 1px solid var(--border); border-radius: 10px; padding: 10px; color: #dbeafe; font-size: .74rem; }
+
+    .mobile-toggle { display: none; }
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 230px minmax(0, 1fr); }
+      .inspector { display: none; }
+    }
+    @media (max-width: 760px) {
+      .app { display: block; }
+      .sidebar { display: none; }
+      .selectors { grid-template-columns: repeat(2, 1fr); }
+      .runtime-badges { display: none; }
+      .messages { min-height: 55vh; padding: 20px 14px; }
+      .composer-wrap { padding: 12px 14px 18px; }
+    }
   </style>
 </head>
 <body>
-<main>
-  <h1>EACHAT V2 ⚡ Graph-Backed Demo</h1>
-  <p>V2 API: one graph execution per request. Energy Card v2, Decision Ledger, provider metrics. Legacy routes unchanged.</p>
-
-  <section class="card">
-    <h2>Request</h2>
-    <label for="question">Question</label>
-    <textarea id="question">Is deployment evidence mandatory for the Energy Aware Chat final project MVP?</textarea>
-
-    <div class="selectors">
-      <div><label for="mode">Mode</label><select id="mode"><option>project</option><option>chat_lite</option><option>research</option><option>tutor</option></select></div>
-      <div><label for="provider">Provider</label><select id="provider"><option value="deepseek" selected>DeepSeek (default)</option><option value="auto">Auto (uncalibrated)</option><option value="kimi">Kimi (deferred)</option><option value="openai">OpenAI (deferred)</option></select></div>
-      <div><label for="effort">Effort</label><select id="effort"><option value="balanced" selected>Balanced</option><option value="fast">Fast</option><option value="max">Max</option></select></div>
-      <div><label for="context">Context</label><select id="context"><option value="balanced" selected>Balanced</option><option value="minimal">Minimal (unsupported)</option><option value="max">Max (unsupported)</option></select></div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">⚡</div>
+      <div><h1>EACHAT</h1><p>Energy-aware answers</p></div>
     </div>
-
-    <div class="selectors" style="margin-top:6px">
-      <div><label for="thread">Thread ID (for replay)</label><input id="thread" type="text" placeholder="auto-generated" /></div>
-      <div><label for="execution">Execution</label><select id="execution"><option value="deterministic" selected>Deterministic (CI-safe)</option><option value="live">Live (bounded)</option></select></div>
+    <button class="primary wide" type="button" onclick="newConversation()">＋ New run</button>
+    <div class="section-title">Saved graph threads</div>
+    <div id="threadList" class="thread-list"></div>
+    <div class="section-title">Current maturity</div>
+    <div class="empty">
+      One graph request per backend thread.<br />
+      Browser thread history is local.<br />
+      Multi-turn server memory is not implemented.
     </div>
+  </aside>
 
-    <div style="margin-top:10px">
-      <button onclick="sendRequest()">Send (V2 Graph)</button>
-      <button class="secondary" onclick="replayThread()">Replay Thread</button>
-      <button class="secondary" onclick="clearOutput()">Clear</button>
-    </div>
+  <section class="workspace">
+    <header class="topbar">
+      <div><h2 id="conversationTitle">New Energy-Aware run</h2></div>
+      <div class="runtime-badges">
+        <span class="badge">Balanced context only</span>
+        <span class="badge">Critic orchestration only</span>
+        <span class="badge warn">Runtime compaction: not implemented</span>
+        <span class="badge warn">Committee runtime: not implemented</span>
+      </div>
+    </header>
+
+    <main id="messages" class="messages">
+      <div id="welcome" class="welcome">
+        <h3>Ask once. Evaluate before answering.</h3>
+        <p>
+          EACHAT generates one candidate, checks explicit constraints and evidence,
+          calculates constraint energy, applies one bounded repair when allowed, and
+          returns a Decision Ledger-backed Energy Card.
+        </p>
+      </div>
+    </main>
+
+    <footer class="composer-wrap">
+      <div class="selectors">
+        <div>
+          <label for="mode">Mode</label>
+          <select id="mode">
+            <option value="project" selected>Project</option>
+            <option value="chat_lite">Chat lite</option>
+            <option value="research">Research</option>
+            <option value="tutor">Tutor</option>
+          </select>
+        </div>
+        <div>
+          <label for="execution">Execution</label>
+          <select id="execution" onchange="syncExecutionControls()">
+            <option value="deterministic" selected>Deterministic</option>
+            <option value="live">Live bounded</option>
+          </select>
+        </div>
+        <div>
+          <label for="provider">Provider</label>
+          <select id="provider">
+            <option value="deepseek" selected>DeepSeek</option>
+            <option value="kimi">Kimi Platform K3</option>
+            <option value="openai">OpenAI GPT-5.6 preview</option>
+          </select>
+        </div>
+        <div>
+          <label for="effort">Effort</label>
+          <select id="effort">
+            <option value="fast">Fast</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="max">Max</option>
+          </select>
+        </div>
+      </div>
+      <label for="composer">Message</label>
+      <textarea id="composer" placeholder="Ask EACHAT a question..."></textarea>
+      <div class="composer-actions">
+        <button class="primary" type="button" onclick="sendRequest()">Send to graph</button>
+        <button class="secondary" type="button" onclick="startHumanFlow()">Run with human gate</button>
+        <button class="secondary" type="button" onclick="replayThread()">Replay checkpoint</button>
+        <button class="secondary" type="button" onclick="inspectThread()">Inspect state</button>
+        <span id="activity" class="composer-note">Ready</span>
+      </div>
+    </footer>
   </section>
 
-  <div class="grid">
-    <section class="card">
-      <h2>Response</h2>
-      <div id="status"></div>
-      <div id="answer" class="answer" style="min-height:60px"></div>
-    </section>
+  <aside class="inspector">
+    <div class="section-title">Run status</div>
+    <div id="statusPanel" class="panel"><div class="empty">No graph run selected.</div></div>
 
-    <section class="card">
-      <h2>Energy Card v2</h2>
-      <div id="energyCard"></div>
-    </section>
-  </div>
+    <div id="humanPanel" class="panel human-panel">
+      <h3>Human response required</h3>
+      <div id="humanReason" class="human-reason"></div>
+      <div class="row"><span>Action contract</span><span id="humanActionType" class="human-type"></span></div>
+      <label for="humanResponse" style="margin-top:10px">Response</label>
+      <textarea id="humanResponse" placeholder="Enter the requested clarification or escalation response..."></textarea>
+      <button class="primary wide" type="button" onclick="resumeHumanAction()">Submit human response</button>
+      <p class="empty">Supported typed actions: clarify_response and escalate_response.</p>
+    </div>
 
-  <div class="grid">
-    <section class="card">
-      <h2>Provider Metrics</h2>
-      <div id="metrics"></div>
-    </section>
-    <section class="card">
-      <h2>Ledger & Trace</h2>
-      <div id="ledger"></div>
-    </section>
-  </div>
+    <div class="section-title">Energy Card</div>
+    <div id="energyPanel" class="panel"><div class="empty">No Energy Card available.</div></div>
 
-  <section class="card">
-    <h2>Thread History</h2>
-    <div id="threadHistory" class="thread-list"></div>
-  </section>
-</main>
+    <div class="section-title">Provider and graph</div>
+    <div id="auditPanel" class="panel"><div class="empty">No execution metrics available.</div></div>
+
+    <div class="section-title">Safe state projection</div>
+    <pre id="statePanel">No state inspected.</pre>
+  </aside>
+</div>
+
+<template id="user-message-template">
+  <article class="message user">
+    <div class="avatar">You</div>
+    <div><div class="bubble"></div><div class="message-meta"></div></div>
+  </article>
+</template>
+<template id="assistant-message-template">
+  <article class="message assistant">
+    <div class="avatar">EA</div>
+    <div><div class="bubble"></div><div class="message-meta"></div></div>
+  </article>
+</template>
 
 <script>
-  const THREADS = [];
+  const THREAD_STORAGE_KEY = 'eachat:v2:threads';
+  const MESSAGE_STORAGE_PREFIX = 'eachat:v2:messages:';
+  let activeThreadId = null;
+  let currentMessages = [];
+  let pendingHumanAction = null;
+  let lastResult = null;
 
-  function endpoint() {
-    return document.getElementById('execution').value === 'live'
-      ? '/energy-chat/v2/chat/live' : '/energy-chat/v2/chat';
+  function readJsonStorage(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (_) {
+      return fallback;
+    }
   }
 
-  function buildPayload() {
-    const p = {
-      user_message: document.getElementById('question').value,
+  function writeJsonStorage(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function threadRecords() {
+    return readJsonStorage(THREAD_STORAGE_KEY, []);
+  }
+
+  function messageStorageKey(threadId) {
+    return `${MESSAGE_STORAGE_PREFIX}${threadId}`;
+  }
+
+  function setActivity(text, kind = '') {
+    const node = document.getElementById('activity');
+    node.textContent = text;
+    node.style.color = kind === 'error' ? 'var(--bad)' : kind === 'ok' ? 'var(--ok)' : 'var(--muted)';
+  }
+
+  function titleFromMessage(message) {
+    const compact = message.trim().replace(/\s+/g, ' ');
+    return compact.length > 46 ? `${compact.slice(0, 46)}…` : compact || 'Untitled run';
+  }
+
+  function saveThread(result, userMessage) {
+    if (!result.thread_id) return;
+    const records = threadRecords().filter(item => item.thread_id !== result.thread_id);
+    records.unshift({
+      thread_id: result.thread_id,
+      request_id: result.request_id || '',
+      title: titleFromMessage(userMessage),
+      graph_status: result.graph_status || 'unknown',
+      disposition: result.final_disposition || null,
+      updated_at: new Date().toISOString()
+    });
+    writeJsonStorage(THREAD_STORAGE_KEY, records.slice(0, 50));
+    renderThreadList();
+  }
+
+  function persistMessages() {
+    if (activeThreadId) writeJsonStorage(messageStorageKey(activeThreadId), currentMessages);
+  }
+
+  function renderThreadList() {
+    const list = document.getElementById('threadList');
+    list.replaceChildren();
+    const records = threadRecords();
+    if (!records.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'No saved graph threads yet.';
+      list.appendChild(empty);
+      return;
+    }
+    for (const item of records) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `thread-button${item.thread_id === activeThreadId ? ' active' : ''}`;
+      button.addEventListener('click', () => loadThread(item.thread_id));
+      const title = document.createElement('span');
+      title.className = 'thread-title';
+      title.textContent = item.title;
+      const meta = document.createElement('span');
+      meta.className = 'thread-meta';
+      meta.textContent = `${item.graph_status}${item.disposition ? ` · ${item.disposition}` : ''}`;
+      button.append(title, meta);
+      list.appendChild(button);
+    }
+  }
+
+  function renderMessages() {
+    const container = document.getElementById('messages');
+    container.replaceChildren();
+    if (!currentMessages.length) {
+      const welcome = document.getElementById('welcome').cloneNode(true);
+      welcome.id = 'welcome-active';
+      container.appendChild(welcome);
+      return;
+    }
+    for (const message of currentMessages) {
+      const template = document.getElementById(
+        message.role === 'user' ? 'user-message-template' : 'assistant-message-template'
+      );
+      const node = template.content.firstElementChild.cloneNode(true);
+      node.querySelector('.bubble').textContent = message.content;
+      node.querySelector('.message-meta').textContent = message.meta || '';
+      container.appendChild(node);
+    }
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function appendMessage(role, content, meta = '') {
+    currentMessages.push({ role, content, meta, created_at: new Date().toISOString() });
+    renderMessages();
+    persistMessages();
+  }
+
+  function newConversation() {
+    activeThreadId = null;
+    currentMessages = [];
+    pendingHumanAction = null;
+    lastResult = null;
+    document.getElementById('composer').value = '';
+    document.getElementById('conversationTitle').textContent = 'New Energy-Aware run';
+    document.getElementById('statePanel').textContent = 'No state inspected.';
+    hideHumanPanel();
+    clearInspector();
+    renderMessages();
+    renderThreadList();
+    setActivity('Ready');
+  }
+
+  function loadThread(threadId) {
+    activeThreadId = threadId;
+    currentMessages = readJsonStorage(messageStorageKey(threadId), []);
+    const record = threadRecords().find(item => item.thread_id === threadId);
+    document.getElementById('conversationTitle').textContent = record?.title || threadId;
+    pendingHumanAction = null;
+    hideHumanPanel();
+    renderMessages();
+    renderThreadList();
+    inspectThread();
+  }
+
+  function syncExecutionControls() {
+    const live = document.getElementById('execution').value === 'live';
+    document.getElementById('provider').disabled = !live;
+    document.getElementById('effort').disabled = !live;
+    setActivity(live ? 'Live calls require configured provider credentials.' : 'Deterministic graph selected.');
+  }
+
+  function buildPayload(message, executionProfile) {
+    const payload = {
+      user_message: message,
       mode: document.getElementById('mode').value,
       provider_preference: document.getElementById('provider').value,
       effort_profile: document.getElementById('effort').value,
-      context_profile: document.getElementById('context').value,
-      execution_profile: document.getElementById('execution').value === 'live' ? 'live_bounded' : 'deterministic'
+      context_profile: 'balanced',
+      orchestration_mode: 'critic'
     };
-    const tid = document.getElementById('thread').value.trim();
-    if (tid) p.thread_id = tid;
-    return p;
+    if (executionProfile) payload.execution_profile = executionProfile;
+    return payload;
+  }
+
+  async function requestJson(url, options = {}) {
+    const response = await fetch(url, options);
+    let data;
+    try {
+      data = await response.json();
+    } catch (_) {
+      data = { detail: { error: 'invalid_json', detail: 'Server returned a non-JSON response.' } };
+    }
+    if (!response.ok) {
+      const detail = data.detail || {};
+      const error = new Error(detail.detail || detail.error || `HTTP ${response.status}`);
+      error.payload = data;
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  function normalEndpoint() {
+    return document.getElementById('execution').value === 'live'
+      ? '/energy-chat/v2/chat/live'
+      : '/energy-chat/v2/chat';
+  }
+
+  async function runInitialRequest(endpoint, message, executionProfile = null) {
+    setActivity('Graph running…');
+    currentMessages = [];
+    appendMessage('user', message, endpoint.includes('/human') ? 'Human-gated graph request' : 'Graph request');
+    try {
+      const data = await requestJson(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload(message, executionProfile))
+      });
+      activeThreadId = data.thread_id;
+      document.getElementById('conversationTitle').textContent = titleFromMessage(message);
+      const answer = responseText(data);
+      appendMessage('assistant', answer, responseMeta(data));
+      saveThread(data, message);
+      renderResult(data);
+      setActivity(data.graph_status === 'awaiting_human' ? 'Human response required.' : 'Graph completed.', 'ok');
+    } catch (error) {
+      appendMessage('assistant', `Request failed: ${error.message}`, `HTTP ${error.status || 'error'}`);
+      renderError(error);
+      setActivity(error.message, 'error');
+    }
   }
 
   async function sendRequest() {
-    const payload = buildPayload();
-    const resp = await fetch(endpoint(), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await resp.json();
-    THREADS.push({ thread_id: data.thread_id, request_id: data.request_id, time: new Date().toLocaleTimeString(), status: data.graph_status });
-    render(data, resp.status);
-    renderThreads();
+    const message = document.getElementById('composer').value.trim();
+    if (!message) {
+      setActivity('Enter a message first.', 'error');
+      return;
+    }
+    document.getElementById('composer').value = '';
+    const live = document.getElementById('execution').value === 'live';
+    await runInitialRequest(normalEndpoint(), message, live ? 'live_bounded' : 'deterministic');
+  }
+
+  async function startHumanFlow() {
+    const message = document.getElementById('composer').value.trim();
+    if (!message) {
+      setActivity('Enter a message first.', 'error');
+      return;
+    }
+    document.getElementById('composer').value = '';
+    document.getElementById('execution').value = 'deterministic';
+    syncExecutionControls();
+    await runInitialRequest('/energy-chat/v2/chat/human', message, 'deterministic');
   }
 
   async function replayThread() {
-    const tid = document.getElementById('thread').value.trim();
-    if (!tid) { alert('Enter a Thread ID to replay'); return; }
-    const resp = await fetch(endpoint(), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_message: document.getElementById('question').value, thread_id: tid })
-    });
-    render(await resp.json(), resp.status);
+    const threadId = activeThreadId;
+    if (!threadId) {
+      setActivity('Select a saved thread first.', 'error');
+      return;
+    }
+    setActivity('Loading checkpoint replay…');
+    try {
+      const data = await requestJson(
+        `/energy-chat/v2/threads/${encodeURIComponent(threadId)}/replay`,
+        { method: 'POST' }
+      );
+      renderResult(data);
+      appendMessage('assistant', responseText(data), `Checkpoint replay · ${responseMeta(data)}`);
+      setActivity('Checkpoint replayed without graph execution.', 'ok');
+    } catch (error) {
+      renderError(error);
+      setActivity(error.message, 'error');
+    }
   }
 
-  function render(data, status) {
-    document.getElementById('status').innerHTML = status === 200
-      ? `<span class="pill ok">${data.graph_status}</span>`
-      : `<span class="pill bad">HTTP ${status}: ${data.detail?.error || 'error'}</span>`;
-
-    if (data.awaiting_evidence) {
-      document.getElementById('answer').textContent = '⏳ Awaiting external evidence — no candidate generated.';
-    } else if (data.final_answer) {
-      document.getElementById('answer').textContent = data.final_answer;
-    } else {
-      document.getElementById('answer').textContent = '(no answer)';
+  async function inspectThread() {
+    const threadId = activeThreadId;
+    if (!threadId) {
+      setActivity('Select a saved thread first.', 'error');
+      return;
     }
+    try {
+      const data = await requestJson(
+        `/energy-chat/v2/threads/${encodeURIComponent(threadId)}/state`
+      );
+      document.getElementById('statePanel').textContent = JSON.stringify(data, null, 2);
+      if (data.human_action_request) showHumanPanel(data.human_action_request);
+      setActivity('Safe checkpoint state loaded.', 'ok');
+    } catch (error) {
+      renderError(error);
+      setActivity(error.message, 'error');
+    }
+  }
 
-    // Energy Card v2
+  async function resumeHumanAction() {
+    const threadId = activeThreadId;
+    const responseTextValue = document.getElementById('humanResponse').value.trim();
+    if (!threadId || !pendingHumanAction) {
+      setActivity('No pending human action is loaded.', 'error');
+      return;
+    }
+    if (!responseTextValue) {
+      setActivity('Enter the requested human response.', 'error');
+      return;
+    }
+    setActivity('Resuming graph from checkpoint…');
+    try {
+      const data = await requestJson(
+        `/energy-chat/v2/threads/${encodeURIComponent(threadId)}/resume`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action_id: pendingHumanAction.action_id,
+            action: pendingHumanAction.action,
+            expected_revision: pendingHumanAction.expected_revision,
+            actor: 'same-origin-browser',
+            payload: { response: responseTextValue }
+          })
+        }
+      );
+      appendMessage('user', responseTextValue, `Human ${pendingHumanAction.action}`);
+      appendMessage('assistant', responseText(data), responseMeta(data));
+      pendingHumanAction = null;
+      document.getElementById('humanResponse').value = '';
+      hideHumanPanel();
+      saveThread(data, currentMessages[0]?.content || threadId);
+      renderResult(data);
+      setActivity('Graph resumed from the authoritative checkpoint.', 'ok');
+    } catch (error) {
+      renderError(error);
+      setActivity(error.message, 'error');
+    }
+  }
+
+  function responseText(data) {
+    if (data.awaiting_evidence) return 'External evidence is required before candidate generation.';
+    if (data.graph_status === 'awaiting_human') {
+      return data.human_action_request?.reason || 'A typed human response is required before continuation.';
+    }
+    return data.final_answer || 'The graph completed without a user-visible answer.';
+  }
+
+  function responseMeta(data) {
+    const parts = [data.graph_status || 'unknown'];
+    if (data.final_disposition) parts.push(data.final_disposition);
+    if (data.served_provider) parts.push(`${data.served_provider}/${data.served_model || 'none'}`);
+    if (data.replayed_from_checkpoint) parts.push('replayed');
+    return parts.join(' · ');
+  }
+
+  function clearInspector() {
+    document.getElementById('statusPanel').innerHTML = '<div class="empty">No graph run selected.</div>';
+    document.getElementById('energyPanel').innerHTML = '<div class="empty">No Energy Card available.</div>';
+    document.getElementById('auditPanel').innerHTML = '<div class="empty">No execution metrics available.</div>';
+  }
+
+  function renderRows(targetId, rows) {
+    const target = document.getElementById(targetId);
+    target.replaceChildren();
+    for (const [label, value] of rows) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const left = document.createElement('span');
+      left.textContent = label;
+      const right = document.createElement('span');
+      right.textContent = value ?? '—';
+      row.append(left, right);
+      target.appendChild(row);
+    }
+  }
+
+  function renderResult(data) {
+    lastResult = data;
+    pendingHumanAction = data.human_action_request || null;
+    renderRows('statusPanel', [
+      ['Thread', data.thread_id],
+      ['Graph status', data.graph_status],
+      ['Disposition', data.final_disposition],
+      ['Checkpoint', data.checkpoint_id],
+      ['Awaiting evidence', String(Boolean(data.awaiting_evidence))],
+      ['Replayed', String(Boolean(data.replayed_from_checkpoint))]
+    ]);
+
     const card = data.energy_card_v2;
     if (card) {
-      document.getElementById('energyCard').innerHTML =
-        `<div class="metric-row"><span>Decision</span><span class="pill ${card.decision === 'accept' ? 'ok' : 'warn'}">${card.decision}</span></div>
-         <div class="metric-row"><span>Hard constraints</span><span>${card.hard_constraints_passed ? '✅ passed' : '❌ violated'}</span></div>
-         <div class="metric-row"><span>Energy before</span><span>${card.energy_before}</span></div>
-         <div class="metric-row"><span>Energy after</span><span>${card.energy_after} (Δ${card.energy_delta})</span></div>
-         <div class="metric-row"><span>Repairs</span><span>${card.repair_attempts} (${(card.repair_outcomes||[]).join(', ') || 'none'})</span></div>
-         <div class="metric-row"><span>Policy</span><span>${card.policy_rule_id} v${card.policy_version}</span></div>
-         <div class="metric-row"><span>Ledger entry</span><span class="small">${card.ledger_entry_id}</span></div>`;
+      renderRows('energyPanel', [
+        ['Decision', card.decision],
+        ['Hard constraints', card.hard_constraints_passed ? 'passed' : 'violated'],
+        ['Energy before', String(card.energy_before)],
+        ['Energy after', String(card.energy_after)],
+        ['Energy delta', String(card.energy_delta)],
+        ['Repairs', String(card.repair_attempts)],
+        ['Policy rule', card.policy_rule_id],
+        ['Ledger entry', card.ledger_entry_id]
+      ]);
     } else {
-      document.getElementById('energyCard').innerHTML = '<span class="small">(no Energy Card v2)</span>';
+      document.getElementById('energyPanel').innerHTML = '<div class="empty">No Energy Card available for this state.</div>';
     }
 
-    // Metrics
-    const m = data.provider_metrics_summary || {};
-    document.getElementById('metrics').innerHTML =
-      `<div class="metric-row"><span>Provider</span><span>${data.served_provider || 'none'} / ${data.served_model || 'none'}</span></div>
-       <div class="metric-row"><span>Requested</span><span>${data.requested_provider}</span></div>
-       <div class="metric-row"><span>Fallback</span><span>${data.fallback_used ? '⚠️ yes' : 'no'}</span></div>
-       <div class="metric-row"><span>Calls</span><span>${m.provider_call_count || 0}</span></div>
-       <div class="metric-row"><span>Cost</span><span>$${(m.total_cost_usd || 0).toFixed(4)}</span></div>
-       <div class="metric-row"><span>Latency</span><span>${m.total_latency_ms || 0}ms</span></div>
-       <div class="metric-row"><span>Routing</span><span class="small">${data.routing_reason || ''}</span></div>`;
+    const metrics = data.provider_metrics_summary || {};
+    const graphMetrics = data.graph_metrics || {};
+    renderRows('auditPanel', [
+      ['Requested provider', data.requested_provider],
+      ['Served provider', `${data.served_provider || 'none'} / ${data.served_model || 'none'}`],
+      ['Provider calls', String(metrics.provider_call_count || 0)],
+      ['Fallback used', String(Boolean(data.fallback_used))],
+      ['Cost USD', String(metrics.total_cost_usd || 0)],
+      ['Provider latency', `${metrics.total_latency_ms || 0} ms`],
+      ['Graph nodes', String(graphMetrics.node_count || 0)],
+      ['Graph wall time', `${graphMetrics.total_wall_ms || 0} ms`],
+      ['Ledger entries', String((data.ledger_entry_ids || []).length)],
+      ['Evidence refs', String((data.evidence_refs || []).length)]
+    ]);
 
-    // Ledger
-    const ids = data.ledger_entry_ids || [];
-    document.getElementById('ledger').innerHTML =
-      `<div class="metric-row"><span>Ledger entries</span><span>${ids.length}</span></div>
-       <div class="metric-row"><span>Evidence refs</span><span>${(data.evidence_refs||[]).length}</span></div>
-       <div class="metric-row"><span>Candidates</span><span>${data.candidate_count}</span></div>
-       <div class="metric-row"><span>Repairs</span><span>${data.repair_count}</span></div>
-       <div class="metric-row"><span>Markers</span><span>${(data.execution_markers||[]).join(', ') || 'none'}</span></div>
-       <div class="metric-row"><span>Limitations</span><span class="small">${(data.limitations||[]).join('; ') || 'none'}</span></div>`;
+    if (pendingHumanAction) showHumanPanel(pendingHumanAction);
+    else hideHumanPanel();
   }
 
-  function renderThreads() {
-    document.getElementById('threadHistory').innerHTML = THREADS.map(t =>
-      `<div class="thread-item" onclick="document.getElementById('thread').value='${t.thread_id}'">
-        <span>${t.time}</span> — <span class="pill ok">${t.status}</span> <span class="small">${t.thread_id}</span>
-      </div>`
-    ).reverse().join('');
+  function showHumanPanel(action) {
+    pendingHumanAction = action;
+    document.getElementById('humanPanel').classList.add('visible');
+    document.getElementById('humanReason').textContent = action.reason || 'Human response required.';
+    document.getElementById('humanActionType').textContent = action.action || 'unknown';
   }
 
-  function clearOutput() {
-    document.getElementById('status').innerHTML = '';
-    document.getElementById('answer').textContent = '';
-    document.getElementById('energyCard').innerHTML = '';
-    document.getElementById('metrics').innerHTML = '';
-    document.getElementById('ledger').innerHTML = '';
+  function hideHumanPanel() {
+    document.getElementById('humanPanel').classList.remove('visible');
   }
+
+  function renderError(error) {
+    const payload = error.payload || {};
+    const detail = payload.detail || {};
+    renderRows('statusPanel', [
+      ['Error', detail.error || 'request_failed'],
+      ['Detail', detail.detail || error.message],
+      ['HTTP status', String(error.status || 'unknown')]
+    ]);
+  }
+
+  document.getElementById('composer').addEventListener('keydown', event => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') sendRequest();
+  });
+
+  syncExecutionControls();
+  renderThreadList();
+  renderMessages();
 </script>
 </body>
 </html>
