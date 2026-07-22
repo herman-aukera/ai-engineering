@@ -26,6 +26,7 @@ def test_eacode_capabilities_use_verified_sources() -> None:
     models = {model["model_id"]: model for model in payload["models"]}
     assert models["deepseek-v4-pro"]["source_version"] == "2026-07-22"
     assert models["k3"]["surface"] == "kimi_code"
+    assert models["k3"]["entitlement_state"] == "membership_required"
 
 
 def test_eacode_select_separates_requested_planned_and_served() -> None:
@@ -36,6 +37,7 @@ def test_eacode_select_separates_requested_planned_and_served() -> None:
             "profile": "max",
             "context_profile": "max",
             "max_cost_usd": 1,
+            "entitled_surfaces": ["kimi_code"],
         },
     )
     assert response.status_code == 200
@@ -44,6 +46,20 @@ def test_eacode_select_separates_requested_planned_and_served() -> None:
     assert payload["planned"]["model_id"] == "k3"
     assert payload["served"] is None
     assert "not proof" in payload["claim_boundary"]
+
+
+def test_eacode_unentitled_kimi_code_route_fails_closed() -> None:
+    response = client.post(
+        "/eacode/select",
+        json={
+            "provider": "kimi",
+            "profile": "max",
+            "context_profile": "max",
+            "max_cost_usd": 1,
+        },
+    )
+    assert response.status_code == 422
+    assert "Entitlement required" in response.json()["detail"]
 
 
 def test_eacode_premium_route_fails_closed_without_reason() -> None:
@@ -65,3 +81,4 @@ def test_eacode_selector_ui_is_same_origin_and_explicit() -> None:
     assert "EACODE" in response.text
     assert "fetch('/eacode/select'" in response.text
     assert "does not claim a provider was called" in response.text
+    assert "Kimi Code membership confirmed" in response.text
