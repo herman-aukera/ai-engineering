@@ -1,120 +1,131 @@
 # Spec 0010 — Acceptance
 
-Status: partial implementation; recovery gates open
+Status: deterministic runtime accepted; live provider/browser/manual quality evidence pending
 
-## Documentation acceptance
+## SDD and documentation
 
-- [x] Product preference for Kimi is separated from benchmark claims.
-- [x] GPT-5.6 uses Luna/Terra/Sol product naming rather than obsolete nano/instant assumptions.
-- [x] EACODE, EACHAT, task branches, and EACORE boundaries are explicit.
-- [x] Context compaction is designed to preserve immutable source-of-truth records.
-- [x] Multi-agent consensus is not treated as authority.
-- [x] Rescue audit records provider, selector, and Spec 0009 drift.
-- [x] Kimi K3 documentation reflects current low/high/max Kimi Code effort support.
-- [ ] Every runtime capability fixture is refreshed and source-versioned from current official documentation.
+- [x] Provider preference is separated from benchmark claims.
+- [x] DeepSeek, Kimi Platform, Kimi Code, and OpenAI surfaces are explicit.
+- [x] EACODE, EACHAT, LIDR, and EACORE boundaries are explicit.
+- [x] Context compaction preserves immutable source-of-truth references.
+- [x] Multi-agent consensus is evidence, never authority.
+- [x] Rescue defects and corrected claim boundaries are recorded.
+- [x] Authoritative release checkpoint synchronizes code, tests, specs, and docs.
 
-## Runtime acceptance — selector and registry
+## Provider registry and routing
 
-### Implemented deterministic evidence
+- [x] Request supports auto/deepseek/kimi/openai and minimal/medium/max.
+- [x] Unknown or unsupported combinations fail closed.
+- [x] Explicit and auto routes resolve deterministically.
+- [x] Capability snapshots are deterministic.
+- [x] Verified overlay records source identity, source version, freshness, entitlement, and consistent price units.
+- [x] DeepSeek price/cache and reasoning controls are corrected in the verified overlay.
+- [x] Kimi Platform and Kimi Code are distinct.
+- [x] Kimi Code K3 low/high/max and conservative context/entitlement are represented.
+- [x] K2.7 Code does not invent provider-native effort evidence.
+- [x] GPT-5.6 Luna/Terra/Sol pricing is corrected in the verified overlay.
+- [x] Explicit empty/custom registries remain explicit and isolated.
+- [x] Budget estimation uses input, cached-input, and output quantities.
+- [x] Every provider is budget checked.
+- [x] OpenAI premium escalation requires an explicit reason.
+- [x] Requested, planned, configured, and served facts remain distinct.
+- [x] Served effort is recorded only when provider evidence confirms it.
+- [x] API fails closed for stale, unavailable, or unentitled routes.
+- [x] Deterministic CI is keyless and network-free.
 
-- [x] Provider selection contract accepts auto/deepseek/kimi/openai.
-- [x] Profiles accept minimal/medium/max.
-- [x] Unknown provider/profile combinations fail closed.
-- [x] Explicit DeepSeek, Kimi, and OpenAI selections resolve deterministically against curated fixtures.
-- [x] Auto selection defaults to DeepSeek.
-- [x] Deterministic capability snapshot hashes are produced.
-- [x] Keyless deterministic tests run in CI.
+## Live-provider adapter contracts
 
-### Required repair evidence
+- [x] Live adapters are disabled by default.
+- [x] DeepSeek endpoint, thinking control, effort, timeout conversion, and sanitized errors are tested.
+- [x] Kimi Code membership endpoint and K3 effort payload are tested.
+- [x] OpenAI endpoint, effort payload, cached-token parsing, and cost evidence are tested.
+- [x] HTTP timeout milliseconds are converted to seconds.
+- [x] Provider errors do not persist raw credentials or response bodies.
+- [x] Provider evidence re-enters deterministic critics and the boss through `EnergyAwareControlPlane`.
+- [x] A provider/model/tool never self-authorizes downstream action.
 
-- [ ] DeepSeek context, output, cache, effort, and price fixtures match current official facts.
-- [ ] Kimi API and Kimi Code model surfaces are represented separately.
-- [ ] K3 low/high/max and K2.7 Code context/entitlement facts are represented correctly.
-- [ ] GPT-5.6 context, output, effort, and price fixtures match current official facts.
-- [ ] Capability records contain source identity, version, price units, and freshness state.
-- [ ] Explicitly supplied empty/custom registries do not silently load or mutate defaults.
-- [ ] Budget estimation uses explicit input, cached-input, and output token quantities.
-- [ ] Budget checks apply to every provider.
-- [ ] OpenAI escalation requires explicit premium reason and authorization.
-- [ ] Requested, planned, and served provider/model/effort remain distinct facts.
-- [ ] Exact served model and effort are recorded only from live-provider evidence.
-- [ ] Cross-provider fallback records retries and circuit state.
-- [ ] Cross-provider fallback never bypasses critics or the deterministic decider.
-- [ ] UI/API disable unsupported, stale, unavailable, or unentitled combinations.
+Manual live evidence:
 
-## Runtime acceptance — Spec 0009 dependency
+- [ ] Current DeepSeek smoke succeeds with a valid secret.
+- [ ] Current Kimi Code smoke succeeds with a valid entitled secret.
+- [ ] Current OpenAI smoke succeeds with a valid secret.
+- [ ] Live provider/model/request/token/latency/cost evidence is sanitized and retained.
 
-These gates must pass before EACODE can rely on live-process evidence:
+## Spec 0009 dependency
 
-- [ ] `dry_run` plans cannot start real processes.
-- [ ] `fake` or `allow_fake` plans cannot start real processes.
-- [ ] Real process execution requires explicit typed live intent.
-- [ ] Authorization binds to exact plan hash and exact repository snapshot.
-- [ ] Repository snapshot covers HEAD, tree, staged diff, unstaged diff, and untracked state/digest.
-- [ ] Authorization receipt provenance is verified against an authoritative store or integrity contract.
-- [ ] Cancellation is observed promptly during execution.
-- [ ] Unix process-group cleanup is structurally valid and demonstrated.
-- [ ] Windows cleanup result is checked rather than assumed.
-- [ ] Cleanup uncertainty fails closed.
-- [ ] Output truncation flags are accurate.
-- [ ] Cross-chunk and final-output redaction fixtures pass.
-- [ ] A harmless opt-in manual process smoke is recorded without secrets.
-- [ ] Timeout and complete process-tree cleanup are demonstrated on the host OS.
+- [x] Fake and dry-run plans cannot start real processes.
+- [x] Typed live intent and authority are mandatory.
+- [x] Authority binds to plan hash and complete repository snapshot.
+- [x] Receipt provenance is verified through an authoritative integrity store.
+- [x] Cancellation, timeout, cleanup, truncation, and redaction fail closed.
+- [x] Secure execution evidence re-enters deterministic critics and the boss.
+- [ ] Harmless host process smoke is recorded.
+- [ ] Windows timeout/cancellation/process-tree cleanup is demonstrated.
 
-## Runtime acceptance — compaction
+## Context compaction
 
-- [ ] Local interrupted compaction work is inspected before reuse.
-- [ ] Raw events and source artifacts remain immutable.
-- [ ] Every summary records source ranges and hashes.
-- [ ] Hard constraints survive all profiles.
-- [ ] Evidence and decision references remain resolvable.
-- [ ] Branch, repository snapshot, policy, and schema freshness are checked.
-- [ ] Secrets are absent from durable summaries.
-- [ ] Hidden chain of thought is not persisted.
-- [ ] Loss-audit fixtures pass for minimal, medium, and max profiles.
-- [ ] Failed loss audit blocks acceptance and triggers rehydration.
-- [ ] Hysteresis prevents repeated compaction churn.
-- [ ] Contradictory and summary-of-summary decay cases are detected.
-- [ ] Quality, contradiction, latency, and token metrics are recorded.
+- [x] Raw events and source artifacts remain immutable.
+- [x] Summaries record source range and hashes.
+- [x] Hard constraints survive all profiles.
+- [x] Evidence, decision, and rehydration references remain resolvable.
+- [x] Repository snapshot, policy, schema, source-hash, and age freshness are checked.
+- [x] Secrets and hidden reasoning are rejected.
+- [x] Loss audits pass for accepted fixtures.
+- [x] Failed loss audit blocks acceptance and triggers rehydration.
+- [x] Trigger/release hysteresis exists.
+- [x] Contradiction, failing-gate, and summary-of-summary decay are detected.
+- [x] Deterministic tests cover acceptance and rejection paths.
 
-## Runtime acceptance — multi-agent
+Blocked claim: model-generated compaction quality is not proven by deterministic fixtures.
 
-- [ ] Single-agent quality, safety, cost, and latency baselines exist.
-- [ ] Fan-out is bounded by concurrency, cost, time, and tool budgets.
-- [ ] Independent agents do not modify the same working tree concurrently.
-- [ ] Disagreement is preserved in evidence.
-- [ ] Hard constraints cannot be overturned by majority vote.
-- [ ] The deterministic boss owns final disposition.
-- [ ] A benchmark shows whether multi-agent mode improves over the single-agent baseline.
-- [ ] Multi-agent mode is disabled when no measurable gain is shown.
+## Boss, critics, and budgets
 
-## Product boundaries
+- [x] Missing or invalid findings escalate instead of accepting.
+- [x] Hard constraints cannot be overturned by consensus.
+- [x] Disagreement is preserved.
+- [x] Per-agent cost, latency, and tool-call budgets are enforced.
+- [x] Global cost, latency, tool, agent-count, and concurrency budgets are enforced.
+- [x] Duplicate task ownership fails closed.
+- [x] Budget overrun escalates.
+- [x] Deterministic boss owns final disposition.
+- [x] Provider and tool evidence re-enter the same boss boundary.
 
-- [x] Spec 0009 remains provider-neutral in module ownership.
-- [x] EACODE and EACHAT retain product-specific objectives and critics.
+## API and UI
+
+- [x] FastAPI router is registered in the application composition root.
+- [x] Status, capabilities, selection, and same-origin UI routes exist.
+- [x] Requested, planned, and served states are visually and structurally distinct.
+- [x] Unentitled Kimi Code routes fail closed unless entitlement is declared.
+- [x] API and HTML contracts pass deterministic tests.
+- [ ] Manual browser smoke is recorded.
+
+## Benchmark
+
+- [x] Matched deterministic single-unchecked versus governed fixtures exist.
+- [x] Default fixtures report 1/4 versus 4/4 expected dispositions.
+- [x] The report refuses to invent improvement when modes tie.
+- [x] Claim boundary states that this is a contract benchmark only.
+- [ ] Live provider/agent quality, cost, and latency benchmark exists.
+- [ ] Multi-agent mode is enabled or disabled from measured live benefit.
+
+## Product boundary
+
+- [x] Spec 0009 remains provider-neutral.
+- [x] EACODE and EACHAT remain product-specific.
 - [x] No EACORE runtime extraction is claimed.
-- [x] Task extras remain separate from mandatory coursework gates.
-- [ ] Provider and compaction contracts are proven independently in both products before extraction.
+- [x] Task extras remain separate from mandatory coursework.
+- [ ] Equivalent selector and compaction semantics are proven independently in EACHAT.
 
-## Current claim boundary
+## Allowed claims
 
-Allowed:
+- Deterministic provider routing, hardened adapter contracts, boss/critic governance, compaction acceptance, control-plane API/UI, and contract benchmark are implemented and CI-tested.
+- Live process and provider behavior remain explicit, disabled by default, and separate from deterministic CI.
 
-- architecture and SDD are documented;
-- a deterministic provider registry and selector implementation exists;
-- provider selection behavior is CI-tested against curated fixtures;
-- Spec 0009 implementation and deterministic tests exist and are CI-validated;
-- real process execution remains disabled by default;
-- recovery defects and required repair gates are documented.
+## Blocked claims
 
-Blocked:
-
-- current provider catalog accuracy until fixture refresh passes;
-- live DeepSeek, Kimi K3, or OpenAI routing;
-- exact served-model claims;
-- safe real-process sandboxing;
-- exact Git-snapshot authorization;
-- safe context compaction;
-- multi-agent quality improvement;
-- shared-core readiness;
-- production readiness.
+- current live success for every provider;
+- exact served effort when not echoed;
+- arbitrary-code sandboxing;
+- real-world multi-agent or provider superiority;
+- production readiness;
+- EACORE extraction readiness.
