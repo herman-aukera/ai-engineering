@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from threading import RLock
 from typing import Protocol
 
-from cryptography.fernet import Fernet, InvalidToken
-
 from app.energy_chat.conversation_models import ConversationRecord, ConversationTurn
 
 
@@ -131,13 +129,28 @@ class InMemoryConversationStore:
         return None
 
 
+def _load_fernet_types():
+    """Load the production-only encryption dependency without polluting keyless CI."""
+
+    try:
+        from cryptography.fernet import Fernet, InvalidToken
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Encrypted conversation storage requires the isolated EACHAT production "
+            "dependency set."
+        ) from exc
+    return Fernet, InvalidToken
+
+
 class ConversationCipher:
     """Application-level authenticated encryption for persisted turn payloads."""
 
     def __init__(self, key: str | bytes) -> None:
         encoded = key.encode("utf-8") if isinstance(key, str) else key
+        fernet_type, invalid_token_type = _load_fernet_types()
+        self._invalid_token_type = invalid_token_type
         try:
-            self._fernet = Fernet(encoded)
+            self._fernet = fernet_type(encoded)
         except (TypeError, ValueError) as exc:
             raise ValueError("Invalid EACHAT conversation encryption key") from exc
 
@@ -147,8 +160,10 @@ class ConversationCipher:
     def decrypt_turn(self, payload: bytes) -> ConversationTurn:
         try:
             plaintext = self._fernet.decrypt(payload)
-        except InvalidToken as exc:
-            raise RuntimeError("Conversation payload authentication failed") from exc
+        except Exception as exc:
+            if isinstance(exc, self._invalid_token_type):
+                raise RuntimeError("Conversation payload authentication failed") from exc
+            raise
         return ConversationTurn.model_validate_json(plaintext)
 
 
