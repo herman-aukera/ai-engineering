@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 
-from app.energy_chat.checkpoint_postgres import PostgresCheckpointer
+from app.energy_chat.checkpoint_strict import StrictPostgresCheckpointer
 from app.energy_chat.conversation_router import router as conversation_router
 from app.energy_chat.conversation_store import (
     ConversationStore,
@@ -39,7 +39,7 @@ def _truthy(value: str | None) -> bool:
 
 def _build_runtime() -> tuple[
     EnergyChatApplicationRuntime,
-    PostgresCheckpointer | None,
+    StrictPostgresCheckpointer | None,
     ConversationStore,
 ]:
     if not _truthy(os.getenv("LANGGRAPH_STRICT_MSGPACK")):
@@ -54,7 +54,7 @@ def _build_runtime() -> tuple[
             raise RuntimeError(
                 "EACHAT_MEMORY_ENCRYPTION_KEY is required for durable conversation memory."
             )
-        checkpointer = PostgresCheckpointer(postgres_url)
+        checkpointer = StrictPostgresCheckpointer(postgres_url)
         try:
             checkpointer.setup()
             conversation_store = PostgresConversationStore(
