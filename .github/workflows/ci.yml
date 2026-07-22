@@ -148,6 +148,40 @@ jobs:
             --env GRAPH_RETRIEVAL_MODE=parallel \
             --env GRAPH_RETRIEVAL_MAX_CONCURRENCY=4 \
             estimador-cag:${{ github.sha }}
+      - name: Capture sanitized graph runtime diagnostics
+        run: |
+          mkdir -p /tmp/container-readiness
+          cat > /tmp/runtime_probe.py <<'PY'
+          import asyncio
+          import re
+
+          from app.generation.graph.reviewed_runtime import open_reviewed_graph_estimation_service
+          from app.generation.graph.runtime import open_graph_estimation_service
+
+          def sanitize(value: str) -> str:
+              text = re.sub(r"(?i)(postgres(?:ql)?://)[^@\s]+@", r"\1[redacted]@", value)
+              text = re.sub(r"(?i)bearer\s+[A-Za-z0-9._~+/-]{12,}", "Bearer [redacted]", text)
+              text = re.sub(r"sk-[A-Za-z0-9_-]{12,}", "[redacted-key]", text)
+              return " ".join(text.split())[:600]
+
+          async def probe(name, factory) -> None:
+              try:
+                  async with factory():
+                      print(f"{name}: ready")
+              except Exception as exc:
+                  qualified = f"{type(exc).__module__}.{type(exc).__name__}"
+                  print(f"{name}: {qualified}: {sanitize(str(exc))}")
+
+          async def main() -> None:
+              await probe("graph_runtime", open_graph_estimation_service)
+              await probe("reviewed_graph_runtime", open_reviewed_graph_estimation_service)
+
+          asyncio.run(main())
+          PY
+          sleep 5
+          docker cp /tmp/runtime_probe.py estimador-cag:/tmp/runtime_probe.py
+          docker exec estimador-cag /app/.venv/bin/python /tmp/runtime_probe.py > /tmp/container-readiness/runtime-diagnostic.txt 2>&1 || true
+          cat /tmp/container-readiness/runtime-diagnostic.txt
       - name: Probe liveness and readiness
         run: |
           mkdir -p /tmp/container-readiness
