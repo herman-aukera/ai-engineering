@@ -1,13 +1,11 @@
 """Provider-neutral Energy-Aware control plane for EACODE.
 
-This service sits between providers/tools and downstream actions. Provider or tool
-adapters return evidence; deterministic critics and the boss own disposition. A
-control-plane decision never grants process authority by itself.
+Providers and tools return evidence. Deterministic critics and the boss own the
+resulting disposition. A control-plane decision never creates process authority.
 """
 
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Any, Protocol
 
 from pydantic import Field
@@ -27,12 +25,10 @@ class ProviderPort(Protocol):
         *,
         messages: list[dict[str, str]] | None = None,
     ) -> ProviderExecutionEvidence:
-        """Return provider execution evidence without deciding acceptance."""
+        """Return provider evidence without deciding acceptance."""
 
 
 class GovernedProviderRequest(EnergyModel):
-    """One provider request plus candidate findings for deterministic review."""
-
     request_id: str = Field(min_length=1)
     selection: ProviderSelection
     messages: tuple[dict[str, str], ...] = Field(default_factory=tuple)
@@ -40,8 +36,6 @@ class GovernedProviderRequest(EnergyModel):
 
 
 class ControlPlaneDecision(EnergyModel):
-    """Deterministic decision over provider or tool evidence."""
-
     request_id: str = Field(min_length=1)
     evidence_type: str
     requested: dict[str, Any] = Field(default_factory=dict)
@@ -75,38 +69,35 @@ class EnergyAwareControlPlane:
         request: GovernedProviderRequest,
         adapter: ProviderPort,
     ) -> ControlPlaneDecision:
-        """Call one provider adapter and reevaluate its evidence deterministically."""
-
         planned = self._selector.select(request.selection)
         evidence = adapter.invoke(
             request.selection,
             messages=[dict(message) for message in request.messages],
         )
         findings = list(request.candidate_findings)
-        findings.extend(_provider_critic_findings(request.selection, planned, evidence))
+        findings.extend(_provider_findings(request.selection, planned, evidence))
         governed = self._boss.aggregate(
             MultiAgentRun(run_id=f"provider-{request.request_id}"),
             findings=findings,
         )
-
-        return ControlPlaneDecision(
-            request_id=request.request_id,
-            evidence_type="provider_execution",
-            requested=request.selection.model_dump(mode="json"),
-            planned=planned.model_dump(mode="json"),
-            served={
+        served = None
+        if evidence.execution_performed:
+            served = {
                 "provider": evidence.served_provider,
                 "model_id": evidence.served_model_id,
                 "effort": evidence.served_effort,
                 "request_ref": evidence.safe_provider_request_ref,
             }
-            if evidence.execution_performed
-            else None,
+        return ControlPlaneDecision(
+            request_id=request.request_id,
+            evidence_type="provider_execution",
+            requested=request.selection.model_dump(mode="json"),
+            planned=planned.model_dump(mode="json"),
+            served=served,
             evidence_status="pass" if evidence.execution_performed else "missing",
             findings=tuple(findings),
             disposition=governed.final_disposition or "escalate",
             decided_by=governed.decided_by,
-            downstream_action_authorized=False,
         )
 
     def evaluate_tool_evidence(
@@ -115,10 +106,8 @@ class EnergyAwareControlPlane:
         *,
         candidate_findings: tuple[dict[str, Any], ...] = (),
     ) -> ControlPlaneDecision:
-        """Reevaluate normalized tool evidence after secure execution."""
-
         findings = list(candidate_findings)
-        findings.extend(_tool_critic_findings(evidence))
+        findings.extend(_tool_findings(evidence))
         governed = self._boss.aggregate(
             MultiAgentRun(run_id=f"tool-{evidence.run_id}"),
             findings=findings,
@@ -140,119 +129,85 @@ class EnergyAwareControlPlane:
             findings=tuple(findings),
             disposition=governed.final_disposition or "escalate",
             decided_by=governed.decided_by,
-            downstream_action_authorized=False,
         )
 
 
-def _provider_critic_findings(
+def _provider_findings(
     selection: ProviderSelection,
     planned: ResolvedProvider,
     evidence: ProviderExecutionEvidence,
 ) -> list[dict[str, Any]]:
-    findings: list[dict[str, Any]] = []
-
     if not evidence.execution_performed:
-        return [
-            {
-                "owner": "provider-evidence-critic",
-                "disposition": "escalate",
-                "reason": "provider_execution_missing",
-            }
-        ]
+        return [{
+            "owner": "provider-evidence-critic",
+            "disposition": "escalate",
+            "reason": "provider_execution_missing",
+        }]
 
+    findings: list[dict[str, Any]] = []
     if not evidence.served_provider or not evidence.served_model_id:
-        findings.append(
-            {
-                "owner": "provider-evidence-critic",
-                "disposition": "repair",
-                "reason": "served_identity_missing",
-            }
-        )
-    elif (
-        evidence.served_provider != planned.provider
-        and not evidence.fallback_used
-    ):
-        findings.append(
-            {
-                "owner": "provider-route-critic",
-                "disposition": "repair",
-                "reason": "unexplained_provider_mismatch",
-            }
-        )
+        findings.append({
+            "owner": "provider-evidence-critic",
+            "disposition": "repair",
+            "reason": "served_identity_missing",
+        })
+    elif evidence.served_provider != planned.provider and not evidence.fallback_used:
+        findings.append({
+            "owner": "provider-route-critic",
+            "disposition": "repair",
+            "reason": "unexplained_provider_mismatch",
+        })
 
     if evidence.cost_usd > selection.max_cost_usd:
-        findings.append(
-            {
-                "owner": "provider-budget-critic",
-                "disposition": "reject",
-                "reason": "cost_budget_exceeded",
-                "hard_constraint_violation": True,
-            }
-        )
-    if (
-        selection.max_latency_ms is not None
-        and evidence.latency_ms > selection.max_latency_ms
-    ):
-        findings.append(
-            {
-                "owner": "provider-budget-critic",
-                "disposition": "repair",
-                "reason": "latency_budget_exceeded",
-            }
-        )
+        findings.append({
+            "owner": "provider-budget-critic",
+            "disposition": "reject",
+            "reason": "cost_budget_exceeded",
+            "hard_constraint_violation": True,
+        })
+    if selection.max_latency_ms is not None and evidence.latency_ms > selection.max_latency_ms:
+        findings.append({
+            "owner": "provider-budget-critic",
+            "disposition": "repair",
+            "reason": "latency_budget_exceeded",
+        })
 
-    if not findings:
-        findings.append(
-            {
-                "owner": "provider-evidence-critic",
-                "disposition": "accept",
-                "reason": "provider_evidence_sufficient",
-            }
-        )
-    return findings
+    return findings or [{
+        "owner": "provider-evidence-critic",
+        "disposition": "accept",
+        "reason": "provider_evidence_sufficient",
+    }]
 
 
-def _tool_critic_findings(
-    evidence: LiveExecutionEvidence,
-) -> list[dict[str, Any]]:
+def _tool_findings(evidence: LiveExecutionEvidence) -> list[dict[str, Any]]:
     if not evidence.execution_performed:
-        return [
-            {
-                "owner": "tool-evidence-critic",
-                "disposition": "escalate",
-                "reason": "process_not_started",
-            }
-        ]
-    if not evidence.authority_completion_verified:
-        return [
-            {
-                "owner": "tool-authority-critic",
-                "disposition": "reject",
-                "reason": "authority_completion_unverified",
-                "hard_constraint_violation": True,
-            }
-        ]
-    if not evidence.cleanup_verified or evidence.status == "conflict":
-        return [
-            {
-                "owner": "tool-cleanup-critic",
-                "disposition": "reject",
-                "reason": "cleanup_unverified",
-                "hard_constraint_violation": True,
-            }
-        ]
-    if evidence.status == "fail" or evidence.exit_code not in (0, None):
-        return [
-            {
-                "owner": "tool-result-critic",
-                "disposition": "repair",
-                "reason": "tool_execution_failed",
-            }
-        ]
-    return [
-        {
+        return [{
             "owner": "tool-evidence-critic",
-            "disposition": "accept",
-            "reason": "tool_evidence_sufficient",
-        }
-    ]
+            "disposition": "escalate",
+            "reason": "process_not_started",
+        }]
+    if not evidence.authority_completion_verified:
+        return [{
+            "owner": "tool-authority-critic",
+            "disposition": "reject",
+            "reason": "authority_completion_unverified",
+            "hard_constraint_violation": True,
+        }]
+    if not evidence.cleanup_verified or evidence.status == "conflict":
+        return [{
+            "owner": "tool-cleanup-critic",
+            "disposition": "reject",
+            "reason": "cleanup_unverified",
+            "hard_constraint_violation": True,
+        }]
+    if evidence.status == "fail" or evidence.exit_code not in (0, None):
+        return [{
+            "owner": "tool-result-critic",
+            "disposition": "repair",
+            "reason": "tool_execution_failed",
+        }]
+    return [{
+        "owner": "tool-evidence-critic",
+        "disposition": "accept",
+        "reason": "tool_evidence_sufficient",
+    }]
