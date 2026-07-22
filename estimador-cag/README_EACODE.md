@@ -1,69 +1,72 @@
-# Energy Aware Code (EACODE)
+# Energy Aware Code (EACODE) ⚡
 
-Status: living product incubator inside the LIDR AI Engineering repository  
+Status: deterministic alpha control plane  
 Canonical branch: `EACODE`  
-PR: #4, open draft, not a routine merge target
+Authoritative checkpoint: `docs/eacode_release_checkpoint_2026-07-22.md`
 
 ## Product
 
-EACODE is a provider-neutral supervision layer for coding agents and tools.
+EACODE is a provider-neutral supervision layer between coding agents, language models, repositories, and tools.
 
 ```text
-specification + policy + candidate + evidence
-    -> critics
-    -> constraint-energy score
+SDD specification + policy + candidate + evidence
+    -> independent critics
+    -> constraint-energy evaluation
     -> deterministic boss/decider
     -> accept | repair | reject | clarify | escalate
-    -> bounded action or human gate
-    -> normalized evidence and immutable ledger
+    -> bounded authorization and action
+    -> normalized evidence and append-only ledger
 ```
 
-The intended consumers include Claude Code, Cline, Aider, OpenCode, IDE adapters, and local automation. Models and tools may propose work; they do not approve themselves.
+Models and agentic tools may propose work. They do not approve themselves. Deterministic Python owns hard constraints, budgets, repository verification, authority, evidence sufficiency, and final disposition.
 
-## Current proven boundary
+## Kiro-like SDD layer
 
-Implemented and remotely CI validated:
+Every governed feature is represented through versioned:
 
-- typed Energy policies, candidates, evidence, decisions, and ledgers;
-- deterministic critics, scoring, and disposition;
-- evidence integrity, hashing, recovery, manifests, and retention;
+```text
+requirements
+-> design
+-> tasks
+-> energy policy
+-> red-green implementation
+-> acceptance
+-> decisions
+-> evidence
+```
+
+The SDD packets live under `.energy/specs/`. This is Kiro-like methodology, not a claim of IDE feature parity with Kiro.
+
+## Current implemented boundary
+
+### Trust and deterministic judgment
+
+- typed Energy policies, candidates, findings, evidence, decisions, and ledgers;
+- deterministic critics, scoring, and boss disposition;
+- hashing, integrity, recovery, retention, and manifests;
 - persistent LangGraph judge with SQLite restart/resume;
-- typed human clarification and escalation;
-- controlled command planning with root/path/symlink checks;
-- dry-run and fake execution evidence;
-- revision-guarded one-time authorization with replay protection;
-- deterministic keyless CI.
+- typed clarification, human gate, and escalation;
+- no self-approval.
 
-Not yet proven:
+### Governed command execution
 
-- safe real process execution;
-- live provider routing;
-- autonomous repair quality;
-- multi-agent quality improvement;
-- context-compaction fidelity;
-- product UI or production readiness.
+- controlled planning with executable, argument, repository, path, symlink, timeout, output, and environment policy;
+- fake and dry-run evidence remain non-executing;
+- explicit typed live plan and intent;
+- exact repository snapshot binding: HEAD, tree, staged diff, unstaged diff, and untracked-state digest;
+- one-time SQLite authorization with integrity, replay protection, atomic reservation, and restart persistence;
+- pre-start actor, authority, snapshot, path, executable, argument, and environment verification;
+- `shell=False`, argument lists, process-group/session isolation, cancellation polling, timeout, and verified cleanup;
+- cross-chunk and final redaction, bounded output, accurate truncation, and normalized evidence;
+- secure CLI requires typed live artifacts, authoritative receipt store, receipt ID, and `--live-tool`;
+- legacy real adapter is permanently disabled;
+- deterministic CI creates no real OS process.
 
-## Current implementation slice
+A harmless host-level smoke and Windows cleanup demonstration remain manual evidence gates. EACODE does not claim VM/container isolation or safety for arbitrary untrusted code.
 
-```text
-Spec 0009 — disabled-by-default sandboxed tool adapter
-```
+### Provider-neutral model routing
 
-The complete Claude Code handoff is:
-
-```text
-docs/eacode_phase3c_claude_deepseek_handoff.md
-```
-
-Claude Code automatically loads:
-
-```text
-CLAUDE.md
-```
-
-## Provider strategy
-
-The future common selector is:
+Public request contract:
 
 ```text
 provider: auto | deepseek | kimi | openai
@@ -71,89 +74,96 @@ profile: minimal | medium | max
 context_profile: minimal | medium | max
 ```
 
-Policy intent:
+Implemented:
 
-| Role | Provider/model path |
-|---|---|
-| Default cost-sensitive path | DeepSeek V4 Flash/Pro |
-| User-preferred frontier/open path | Kimi, with Kimi K3 as max |
-| Explicit premium escalation | OpenAI GPT-5.6 Luna/Terra/Sol |
+- verified, source-versioned capability overlay;
+- DeepSeek API, Kimi Platform, Kimi Code, and OpenAI API represented as distinct surfaces;
+- entitlement, freshness, context, effort, output, cache, and pricing metadata;
+- consistent per-1K price fields and token-aware budget checks;
+- Kimi Code `k3`, `kimi-for-coding`, and entitlement-dependent high-speed route;
+- provider-specific reasoning controls and corrected HTTP timeout units;
+- requested, planned, configured, and served provider/model/effort remain distinct facts;
+- served effort is not asserted unless the provider echoes evidence;
+- deterministic CI remains keyless and network-free.
 
-Selectors must resolve through a capability registry. Unsupported combinations must be disabled or rejected rather than silently coerced.
+Live DeepSeek, Kimi, and OpenAI success requires separate opt-in secret-backed smoke evidence.
 
-Canonical architecture:
+### Context compaction
+
+- immutable raw source references and hashes;
+- typed canonical state and versioned summaries;
+- minimal, medium, and max profiles;
+- branch/repository snapshot, policy, schema, source-hash, and age freshness checks;
+- constraint, decision, evidence, conflict, question, and rehydration preservation;
+- secret and hidden-reasoning exclusion;
+- loss audit, contradiction detection, summary-decay detection, and fail-closed rehydration.
+
+This proves deterministic compaction contracts, not LLM summary quality.
+
+### Energy-Aware boss and critics
+
+- typed proposer, critic, reviewer, and boss roles;
+- independent task ownership;
+- preserved disagreement records;
+- per-agent and global cost, latency, tool-call, agent-count, and concurrency budgets;
+- missing findings escalate;
+- hard constraints cannot be outvoted;
+- budget overruns escalate;
+- deterministic boss owns the final disposition.
+
+### Product API and UI
+
+FastAPI exposes:
 
 ```text
-docs/energy_aware_product_family_provider_and_context_strategy.md
-.energy/specs/0010-provider-routing-context-compaction/
+GET  /eacode/status
+GET  /eacode/capabilities
+POST /eacode/select
+GET  /eacode/ui
 ```
+
+The selector UI and API explicitly separate requested, planned, and served state. Route selection does not call a provider and does not claim that a provider served the request.
+
+### Deterministic governance benchmark
+
+A matched synthetic contract benchmark compares a single unchecked proposal with the deterministic governed boss:
+
+```text
+single unchecked: 1/4 expected dispositions
+governed boss:    4/4 expected dispositions
+```
+
+This is evidence for the encoded governance cases only. It is not evidence that multi-agent LLM execution improves real-world quality, cost, or latency.
 
 ## Product family
 
-- **EACODE:** coding/repository/tool supervision.
-- **EACHAT:** general conversational answer supervision and repair.
-- **LIDR task branches:** exact mandatory coursework plus isolated, evidenced extras.
-- **EACORE:** optional shared documentation/contracts after two-product proof.
+- **EACODE:** coding, repository, tool, evidence, repair, and authorization supervision.
+- **EACHAT:** conversational answers, grounding, memory, critics, and repair.
+- **LIDR branches:** exact coursework plus isolated evidenced extras.
+- **EACORE:** extraction candidate only after equivalent stable semantics are proven independently in EACODE and EACHAT.
 
-Session 13 Plus is a major source of supervisor/boss, interrupt, retry, trace, and multi-agent orchestration patterns. Estimation-specific domain logic remains task-specific.
+## Safety and claim boundary
 
-## Context compaction
+Allowed claims are defined in `docs/eacode_release_checkpoint_2026-07-22.md`.
 
-Every long-running workflow must separate:
+Do not claim:
 
-```text
-immutable raw events and artifacts
--> typed canonical state
--> versioned hierarchical summaries
--> bounded recent working window
--> evidence rehydration
-```
-
-User context profiles:
-
-- `minimal`: active objective, constraints, state, blocker, next action;
-- `medium`: minimal plus decisions, evidence digest, pivots, and a larger recent window;
-- `max`: medium plus hierarchical history and broader evidence rehydration within budget.
-
-Raw evidence is never replaced by a summary. Secrets and hidden chain of thought are never persisted.
-
-## Multi-agent policy
-
-Useful for:
-
-- independent parallel critics;
-- alternative repair proposals;
-- provider comparisons;
-- benchmark evaluators;
-- security, cost, retrieval, and correctness specialists.
-
-Required controls:
-
-- bounded fan-out;
-- typed shared state;
-- deterministic aggregation;
-- disagreement records;
-- cost/time/tool budgets;
-- no shared mutable worktree;
-- no self-approval;
-- deterministic boss owns final disposition.
+- production readiness;
+- arbitrary-code sandboxing;
+- complete Windows host cleanup proof;
+- successful live routing for all providers without current smoke evidence;
+- exact served effort when the provider does not echo it;
+- provider or multi-agent superiority without matched live benchmarks;
+- EACORE extraction readiness.
 
 ## Reviewer entry points
 
 ```text
+docs/eacode_release_checkpoint_2026-07-22.md
 docs/eacode_handoff_status.md
 docs/eacode_product_completion_plan.md
 docs/eacode_threat_model.md
-docs/eacode_phase3c_claude_deepseek_handoff.md
-docs/energy_aware_product_family_provider_and_context_strategy.md
+CLAUDE.md
+.energy/specs/0009-sandboxed-tool-adapter/
 .energy/specs/0010-provider-routing-context-compaction/
 ```
-
-## Safety boundary
-
-- no automatic commit or push;
-- no force-push, reset, clean, merge, or branch deletion;
-- no real provider calls in deterministic CI;
-- no real tool execution unless explicitly enabled and authorized;
-- no secret values in repository, logs, summaries, or evidence;
-- no unsupported completion or benchmark claims.
