@@ -118,9 +118,13 @@ class SandboxedToolAdapter:
         plan: ExecutionPlan,
         authorization_receipt: AuthorizationReceipt | None = None,
     ) -> RealToolResult:
-        del plan, authorization_receipt
+        del authorization_receipt
         if not self.config.enabled:
             raise PermissionError("SandboxedToolAdapter is disabled.")
+        if plan.execution_mode in {"dry_run", "fake"}:
+            raise PermissionError(
+                f"{plan.execution_mode} plans cannot reach the legacy real-process adapter."
+            )
         raise PermissionError(
             "legacy real-process adapter is disabled; use SecureProcessAdapter "
             "through SecureExecutionService."
@@ -137,7 +141,18 @@ class SandboxedToolAdapter:
         run_id: str,
         authorization_receipt: AuthorizationReceipt | None = None,
     ) -> ExecutionEvidence:
-        del authorization_receipt
+        if (
+            authorization_receipt is not None
+            and authorization_receipt.plan_hash != plan.plan_hash
+        ):
+            raise PermissionError("Receipt plan_hash mismatch.")
+        if (
+            authorization_receipt is not None
+            and authorization_receipt.execution_performed
+        ):
+            raise PermissionError(
+                "Authorization receipt execution_performed=True is not reusable."
+            )
         return _build_legacy_evidence(plan, result, run_id=run_id)
 
 
@@ -245,7 +260,9 @@ def _verify_failure_fixture_preconditions(
         if authorization_receipt.plan_hash != plan.plan_hash:
             raise PermissionError("Receipt plan_hash mismatch.")
         if authorization_receipt.execution_performed:
-            raise PermissionError("Authorization receipt has already executed.")
+            raise PermissionError(
+                "Authorization receipt execution_performed=True is not reusable."
+            )
         if authorization_receipt.accepted_revision != config.current_revision:
             raise PermissionError(
                 "Authorization receipt revision does not match current revision."
