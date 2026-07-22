@@ -104,3 +104,5 @@ jobs:
           git add -A
           git commit -m "merge(main): resolve PR #10 conflicts preserving Session 13 Plus"
           git push origin HEAD:gg-session-13/plus-main-sync
+
+# Trigger after the resolver workflow existed on the branch.
