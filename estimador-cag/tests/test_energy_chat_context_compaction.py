@@ -1,6 +1,9 @@
 """Milestone 18 contracts and explicit runtime-maturity boundaries."""
 
-from app.energy_chat import context_compaction
+context_compaction = __import__(
+    "app.energy_chat.context_compaction",
+    fromlist=["context_compaction"],
+)
 
 
 # ── compaction policies ─────────────────────────────────────────────────
