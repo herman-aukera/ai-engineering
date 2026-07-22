@@ -1,0 +1,103 @@
+name: EACHAT - Final Repair Once
+
+on:
+  push:
+    branches:
+      - repair/eachat-foundation-and-release-evidence
+    paths:
+      - .github/workflows/eachat-final-repair-once.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair-and-prove:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUNBUFFERED: "1"
+      UV_HTTP_TIMEOUT: "300"
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+    steps:
+      - name: Checkout exact repair head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: repair/eachat-foundation-and-release-evidence
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install frozen test environment
+        working-directory: estimador-cag
+        run: uv sync --frozen --extra dev
+
+      - name: Apply exact fail-closed repair
+        working-directory: estimador-cag
+        run: uv run python scripts/repair_eachat_release_head.py
+
+      - name: Format and lint repaired paths
+        working-directory: estimador-cag
+        run: |
+          uv run ruff check --fix \
+            app/energy_chat/committee_orchestration.py \
+            app/energy_chat/graph_checkpoint.py \
+            scripts/run_eachat_fixed_quality.py \
+            tests/test_energy_chat_api_v2.py \
+            tests/test_energy_chat_fixed_benchmark_routes.py
+          uv run ruff check \
+            app/energy_chat/committee_orchestration.py \
+            app/energy_chat/graph_checkpoint.py \
+            scripts/run_eachat_fixed_quality.py \
+            tests/test_energy_chat_api_v2.py \
+            tests/test_energy_chat_fixed_benchmark_routes.py
+
+      - name: Compile repaired Python
+        working-directory: estimador-cag
+        run: >-
+          uv run python -m py_compile
+          app/energy_chat/committee_orchestration.py
+          app/energy_chat/graph_checkpoint.py
+          scripts/run_eachat_fixed_quality.py
+          tests/test_energy_chat_api_v2.py
+          tests/test_energy_chat_fixed_benchmark_routes.py
+
+      - name: Run focused regression
+        working-directory: estimador-cag
+        run: >-
+          uv run pytest -q
+          tests/test_energy_chat_api_v2.py
+          tests/test_energy_chat_committee_orchestration.py
+          tests/test_energy_chat_fixed_benchmark.py
+          tests/test_energy_chat_fixed_benchmark_routes.py
+          tests/test_energy_chat_graph_checkpoint.py
+          tests/test_energy_chat_multi_turn_service.py
+
+      - name: Prove fixed quality runner import and output
+        working-directory: estimador-cag
+        run: uv run python scripts/run_eachat_fixed_quality.py
+
+      - name: Verify diff hygiene
+        run: git diff --check
+
+      - name: Commit only proven product repairs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            estimador-cag/app/energy_chat/committee_orchestration.py \
+            estimador-cag/app/energy_chat/graph_checkpoint.py \
+            estimador-cag/scripts/run_eachat_fixed_quality.py \
+            estimador-cag/tests/test_energy_chat_api_v2.py \
+            estimador-cag/tests/test_energy_chat_fixed_benchmark_routes.py
+          git diff --cached --check
+          git commit -m "eachat: fix(release): restore final deterministic gates"
+          git push origin HEAD:repair/eachat-foundation-and-release-evidence
