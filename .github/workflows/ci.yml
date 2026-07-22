@@ -19,6 +19,7 @@ jobs:
       run:
         working-directory: estimador-cag
     env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       OPENAI_API_KEY: test
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
@@ -26,10 +27,17 @@ jobs:
       UV_HTTP_TIMEOUT: "300"
 
     steps:
-      - name: Checkout
+      - name: Checkout exact branch head
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: |
+          ACTUAL_HEAD_SHA=$(git rev-parse HEAD)
+          printf '%s\n' "$ACTUAL_HEAD_SHA" | tee /tmp/checked-out-sha.txt
+          test "$ACTUAL_HEAD_SHA" = "$EXPECTED_HEAD_SHA"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -56,7 +64,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ruff-output
-          path: /tmp/ruff-output.txt
+          path: |
+            /tmp/checked-out-sha.txt
+            /tmp/ruff-output.txt
           if-no-files-found: ignore
 
       - name: Compile Python
@@ -98,6 +108,7 @@ jobs:
       run:
         working-directory: estimador-cag
     env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       OPENAI_API_KEY: test
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
@@ -106,10 +117,14 @@ jobs:
       UV_HTTP_TIMEOUT: "300"
 
     steps:
-      - name: Checkout
+      - name: Checkout exact branch head
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -140,6 +155,7 @@ jobs:
       run:
         working-directory: estimador-cag
     env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       OPENAI_API_KEY: test
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
@@ -150,10 +166,14 @@ jobs:
       UV_HTTP_TIMEOUT: "300"
 
     steps:
-      - name: Checkout
+      - name: Checkout exact branch head
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -214,6 +234,7 @@ jobs:
       run:
         working-directory: estimador-cag
     env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       OPENAI_API_KEY: test
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
@@ -221,10 +242,14 @@ jobs:
       UV_HTTP_TIMEOUT: "300"
 
     steps:
-      - name: Checkout full branch history
+      - name: Checkout exact branch head with full history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -294,7 +319,7 @@ jobs:
             /tmp/eachat-production-health.json
             /tmp/eachat-production-response.json
             /tmp/eachat-production-server.log
-            deploy/eachat/uv.lock
+            ${{ github.workspace }}/estimador-cag/deploy/eachat/uv.lock
           if-no-files-found: warn
 
       - name: Stop isolated production service
