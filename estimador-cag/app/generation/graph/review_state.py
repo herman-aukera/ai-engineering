@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import operator
 from typing import Annotated, Literal, TypedDict
 
 from app.generation.graph.state import EstimationGraphState
@@ -80,7 +81,10 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     active_provider: str
     provider_circuits: dict[str, dict[str, object]]
     execution_budgets: dict[str, object]
-    parallel_retrieval_results: Annotated[list[dict[str, object]], merge_parallel_retrieval_results]
+    parallel_retrieval_results: Annotated[
+        list[dict[str, object]],
+        merge_parallel_retrieval_results,
+    ]
     final_review_revision: int
     final_review_status: str
     final_review_route: FinalReviewRoute
@@ -94,5 +98,6 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     arbitrated_assessment: dict[str, object]
     v3_route_plan: dict[str, object]
     provider_selection: dict[str, object]
+    stage_route_events: Annotated[list[dict[str, object]], operator.add]
     reliability_report: dict[str, object]
     proposal: dict[str, object]

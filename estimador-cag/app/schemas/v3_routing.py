@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 ComplexityLevel = Literal["C0", "C1", "C2", "C3", "C4", "C5"]
 ExecutionProfileV3 = Literal["cost_first", "balanced", "quality_first", "human_controlled"]
 ModelMode = Literal["deterministic", "instant", "thinking"]
-ReasoningEffort = Literal["none", "low", "high", "max"]
+ReasoningEffort = Literal["none", "low", "medium", "high", "max", "xhigh"]
 RoutingStage = Literal["complexity", "structure", "recovery", "reliability", "proposal"]
 
 

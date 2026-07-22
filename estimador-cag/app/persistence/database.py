@@ -16,6 +16,11 @@ from sqlalchemy.ext.asyncio import (
 )
 
 DEFAULT_DATABASE_URL = "postgresql+asyncpg://estimator:estimator@localhost:5432/estimator"
+_ASYNC_DATABASE_PREFIXES = (
+    "postgresql+asyncpg://",
+    "postgresql+psycopg://",
+    "postgresql+psycopg_async://",
+)
 
 
 def get_database_url() -> str:
@@ -27,10 +32,25 @@ def get_database_url() -> str:
     return os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
 
 
+def normalize_async_database_url(database_url: str) -> str:
+    """Return an explicit async SQLAlchemy URL for common deployment DSNs."""
+
+    normalized = database_url.strip()
+    if not normalized:
+        raise ValueError("database_url must not be blank")
+    if normalized.startswith(_ASYNC_DATABASE_PREFIXES):
+        return normalized
+    if normalized.startswith("postgresql://"):
+        return "postgresql+asyncpg://" + normalized[len("postgresql://") :]
+    if normalized.startswith("postgres://"):
+        return "postgresql+asyncpg://" + normalized[len("postgres://") :]
+    raise ValueError("database_url must use a supported PostgreSQL scheme")
+
+
 def build_async_engine(database_url: str | None = None) -> AsyncEngine:
     """Build an async SQLAlchemy engine without opening a connection."""
     return create_async_engine(
-        database_url or get_database_url(),
+        normalize_async_database_url(database_url or get_database_url()),
         pool_pre_ping=True,
     )
 
@@ -44,6 +64,6 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def get_async_session() -> AsyncIterator[AsyncSession]:
-    """Yield one async database session for FastAPI dependencies."""
+    """Yield one database session for FastAPI dependencies."""
     async with AsyncSessionLocal() as session:
         yield session

@@ -23,6 +23,7 @@ from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.graph_estimations import router as graph_estimations_router
 from app.routers.graph_rollout import router as graph_rollout_router
+from app.routers.readiness import router as readiness_router
 from app.routers.reviewed_graph_estimations import (
     router as reviewed_graph_estimations_router,
 )
@@ -41,13 +42,16 @@ async def lifespan(app: FastAPI):
     stack = AsyncExitStack()
     app.state.graph_estimation_service = None
     app.state.reviewed_graph_estimation_service = None
+    app.state.graph_runtime_error = None
+    app.state.reviewed_graph_runtime_error = None
 
     try:
         try:
             service = await stack.enter_async_context(
                 open_graph_estimation_service()
             )
-        except Exception:
+        except Exception as exc:
+            app.state.graph_runtime_error = type(exc).__name__
             logger.exception(
                 "graph_estimation_runtime_initialization_failed"
             )
@@ -58,7 +62,8 @@ async def lifespan(app: FastAPI):
             reviewed_service = await stack.enter_async_context(
                 open_reviewed_graph_estimation_service()
             )
-        except Exception:
+        except Exception as exc:
+            app.state.reviewed_graph_runtime_error = type(exc).__name__
             logger.exception(
                 "reviewed_graph_estimation_runtime_initialization_failed"
             )
@@ -101,6 +106,7 @@ app.include_router(v2_estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
 app.include_router(search_router, tags=["search"])
+app.include_router(readiness_router)
 
 
 @app.get("/health", tags=["health"])
