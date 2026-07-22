@@ -77,6 +77,14 @@ class AgentContribution(TypedDict):
     summary: str
     state_delta_keys: list[str]
 
+class SupervisorRouteEvent(TypedDict):
+    """One replay-safe, sanitized supervisor routing decision."""
+
+    route_event_id: str
+    sequence: int
+    next_agent: SupervisorDestination
+    reason_code: RouteReasonCode
+    reason: str
 
 def merge_agent_contributions(
     current: list[AgentContribution],
@@ -112,6 +120,44 @@ def merge_agent_contributions(
         key=lambda contribution: (
             contribution["sequence"],
             contribution["contribution_id"],
+        ),
+    )
+
+def merge_supervisor_route_events(
+    current: list[SupervisorRouteEvent],
+    incoming: list[SupervisorRouteEvent],
+) -> list[SupervisorRouteEvent]:
+    """Merge identical route replays and reject conflicting identifier reuse."""
+
+    by_id: dict[str, SupervisorRouteEvent] = {}
+
+    for route_event in [*current, *incoming]:
+        route_event_id = route_event["route_event_id"].strip()
+
+        if not route_event_id:
+            raise ValueError("route_event_id must not be blank")
+
+        candidate = SupervisorRouteEvent(
+            route_event_id=route_event_id,
+            sequence=route_event["sequence"],
+            next_agent=route_event["next_agent"],
+            reason_code=route_event["reason_code"],
+            reason=route_event["reason"],
+        )
+        existing = by_id.get(route_event_id)
+
+        if existing is not None and existing != candidate:
+            raise ValueError(
+                f"conflicting route_event_id: {route_event_id}"
+            )
+
+        by_id[route_event_id] = candidate
+
+    return sorted(
+        by_id.values(),
+        key=lambda route_event: (
+            route_event["sequence"],
+            route_event["route_event_id"],
         ),
     )
 
@@ -171,6 +217,10 @@ class Session14EstimationGraphState(
     previous_agent: Session14AgentId | None
     next_agent: SupervisorDestination | None
     route_reason_code: RouteReasonCode | None
+    route_events: Annotated[
+        list[SupervisorRouteEvent],
+        merge_supervisor_route_events,
+    ]
     agent_contributions: Annotated[
         list[AgentContribution],
         merge_agent_contributions,
