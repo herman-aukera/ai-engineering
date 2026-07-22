@@ -237,21 +237,51 @@ jobs:
       - name: Scan tracked files and branch history for secrets
         run: python scripts/security_scan_eachat.py --base-ref origin/EACHAT --report /tmp/eachat-secret-scan.json
 
-      - name: Install application dependencies
+      - name: Install coursework test dependencies
         run: uv sync --frozen --extra dev
 
-      - name: Run public security contract tests
+      - name: Run public and production security contract tests
         run: |
           set -o pipefail
-          uv run pytest -q tests/test_energy_chat_security.py 2>&1 | tee /tmp/security-pytest-output.txt
+          uv run pytest -q tests/test_energy_chat_security.py tests/test_energy_chat_production_app.py 2>&1 | tee /tmp/security-pytest-output.txt
 
-      - name: Export production dependency set
-        run: uv export --frozen --no-dev --extra postgres --format requirements-txt --output-file /tmp/eachat-production-requirements.txt
+      - name: Resolve isolated production lock
+        run: uv lock --project deploy/eachat
 
-      - name: Audit production dependencies
+      - name: Export isolated production dependencies
+        run: uv export --project deploy/eachat --frozen --no-dev --format requirements-txt --output-file /tmp/eachat-production-requirements.txt
+
+      - name: Audit isolated production dependencies
         run: uvx --from pip-audit==2.10.1 pip-audit --requirement /tmp/eachat-production-requirements.txt --strict --format json --output /tmp/eachat-pip-audit.json
 
-      - name: Upload security evidence
+      - name: Install isolated production environment
+        run: |
+          uv venv /tmp/eachat-production-venv --python 3.11
+          uv pip install --python /tmp/eachat-production-venv/bin/python --requirement /tmp/eachat-production-requirements.txt
+
+      - name: Smoke isolated production service
+        env:
+          EACHAT_ALLOW_IN_MEMORY: "true"
+          PYTHONPATH: .
+        run: |
+          /tmp/eachat-production-venv/bin/uvicorn app.energy_chat.production_app:app --host 127.0.0.1 --port 8010 > /tmp/eachat-production-server.log 2>&1 &
+          echo $! > /tmp/eachat-production-server.pid
+          SERVER_READY=0
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8010/health > /tmp/eachat-production-health.json; then
+              SERVER_READY=1
+              break
+            fi
+            sleep 1
+          done
+          test "$SERVER_READY" = "1"
+          curl -fsS -X POST http://127.0.0.1:8010/energy-chat/v2/chat \
+            -H 'Content-Type: application/json' \
+            -d '{"user_message":"Explain the safest production validation step."}' \
+            > /tmp/eachat-production-response.json
+          grep -q 'energy_card_v2' /tmp/eachat-production-response.json
+
+      - name: Upload security and production evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -261,4 +291,15 @@ jobs:
             /tmp/security-pytest-output.txt
             /tmp/eachat-production-requirements.txt
             /tmp/eachat-pip-audit.json
+            /tmp/eachat-production-health.json
+            /tmp/eachat-production-response.json
+            /tmp/eachat-production-server.log
+            deploy/eachat/uv.lock
           if-no-files-found: warn
+
+      - name: Stop isolated production service
+        if: always()
+        run: |
+          if test -f /tmp/eachat-production-server.pid; then
+            kill "$(cat /tmp/eachat-production-server.pid)" 2>/dev/null || true
+          fi
