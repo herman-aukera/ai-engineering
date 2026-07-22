@@ -50,7 +50,7 @@ def main() -> None:
         "PROJECT_ROOT = Path(__file__).resolve().parents[1]\n"
         "if str(PROJECT_ROOT) not in sys.path:\n"
         "    sys.path.insert(0, str(PROJECT_ROOT))\n\n"
-        "from app.energy_chat.fixed_benchmark import (\n",
+        "from app.energy_chat.fixed_benchmark import (  # noqa: E402\n",
     )
 
     api_tests = ROOT / "tests/test_energy_chat_api_v2.py"
