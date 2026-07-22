@@ -77,7 +77,10 @@ def build_supervisor_digest(
         ),
         budget_match_count=_list_size(state.get("budget_matches")),
         budget_search_completed=state.get("budget_search_completed", False),
-        estimate_ready=state.get("estimate") is not None,
+        estimate_ready=(
+            _list_size(state.get("component_estimates")) > 0
+            or state.get("estimate") is not None
+        ),
         validation_ready=state.get("validation") is not None,
         confidence=state.get("confidence"),
         review_required=state.get("review_required", False),

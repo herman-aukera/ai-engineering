@@ -9,7 +9,7 @@ from app.generation.graph.review_state import (
     AgentContribution,
     Session14EstimationGraphState,
 )
-from app.generation.graph.state import ComponentItem
+from app.generation.graph.state import ComponentEstimate, ComponentItem
 from app.services.session14_privileges import assert_tool_allowed
 
 Session14WorkerOperation = Callable[
@@ -435,3 +435,128 @@ def build_estimate_generator_agent(
         return update
 
     return estimate_generator
+
+def _validation_tool_state(
+    state: Session14EstimationGraphState,
+    *,
+    component_estimates: list[ComponentEstimate],
+) -> Session14EstimationGraphState:
+    review_required = state.get("review_required", False)
+    errors = state.get("errors", [])
+
+    if not isinstance(review_required, bool):
+        raise ValueError(
+            "coherence_validator requires review_required to be boolean"
+        )
+
+    if not isinstance(errors, list):
+        raise ValueError(
+            "coherence_validator requires errors to be a list"
+        )
+
+    projected_state = Session14EstimationGraphState(
+        component_estimates=deepcopy(component_estimates),
+        review_required=review_required,
+        errors=deepcopy(errors),
+    )
+
+    existing_estimate = state.get("estimate")
+
+    if existing_estimate is not None:
+        if not isinstance(existing_estimate, Mapping):
+            raise ValueError(
+                "coherence_validator requires estimate to be a mapping"
+            )
+
+        projected_state["estimate"] = deepcopy(
+            dict(existing_estimate)
+        )
+
+    return projected_state
+
+
+def build_coherence_validator_agent(
+    validate_estimate: Session14WorkerOperation,
+) -> Session14WorkerOperation:
+    """Wrap deterministic validation with least-privilege context."""
+
+    async def coherence_validator(
+        state: Session14EstimationGraphState,
+    ) -> Session14EstimationGraphState:
+        component_estimates = state.get("component_estimates")
+
+        if (
+            not isinstance(component_estimates, list)
+            or not component_estimates
+        ):
+            raise ValueError(
+                "coherence_validator requires component estimates"
+            )
+
+        assert_tool_allowed(
+            "coherence_validator",
+            "validate_estimate",
+        )
+
+        update = _copy_worker_update(
+            await validate_estimate(
+                _validation_tool_state(
+                    state,
+                    component_estimates=component_estimates,
+                )
+            ),
+            operation="validate_estimate",
+        )
+
+        if not isinstance(update.get("estimate"), Mapping):
+            raise ValueError(
+                "validate_estimate update must contain estimate"
+            )
+
+        status = update.get("status")
+        if not isinstance(status, str) or status not in {
+            "validated",
+            "needs_review",
+        }:
+            raise ValueError(
+                "validate_estimate update must contain a valid status"
+            )
+
+        review_required = update.get("review_required")
+        if not isinstance(review_required, bool):
+            raise ValueError(
+                "validate_estimate update must contain "
+                "boolean review_required"
+            )
+
+        update["validation"] = {
+            "is_coherent": (
+                status == "validated" and not review_required
+            ),
+            "review_required": review_required,
+            "status": status,
+        }
+
+        sequence = _routing_sequence(state)
+        contribution = AgentContribution(
+            contribution_id=(
+                f"{_estimation_id(state)}:"
+                f"coherence_validator:{sequence}"
+            ),
+            agent_id="coherence_validator",
+            sequence=sequence,
+            summary=(
+                f"Validation completed with status {status}."
+            ),
+            state_delta_keys=sorted(
+                {
+                    *update.keys(),
+                    "agent_contributions",
+                }
+            ),
+        )
+        update["agent_contributions"] = [contribution]
+
+        return update
+
+    return coherence_validator

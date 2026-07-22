@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from app.schemas.session14_supervision import SupervisorStateDigest
+from app.schemas.session14_supervision import (
+    SupervisorStateDigest,
+    build_supervisor_digest,
+)
 from app.services.session14_supervision import (
     MAX_ROUTING_STEPS,
     choose_deterministic_route,
@@ -127,3 +130,35 @@ def test_route_selection_does_not_mutate_the_digest() -> None:
     choose_deterministic_route(digest)
 
     assert digest.model_dump() == before
+
+def test_generated_component_estimates_route_to_coherence_validator() -> None:
+    digest = build_supervisor_digest(
+        {
+            "requirements": [
+                {
+                    "requirement_id": "requirement-1",
+                    "text": "Provide authentication.",
+                }
+            ],
+            "requirements_extraction_completed": True,
+            "budget_matches": [],
+            "budget_search_completed": True,
+            "component_estimates": [
+                {
+                    "component_id": "component-1",
+                }
+            ],
+            "estimate": None,
+            "validation": None,
+            "confidence": None,
+            "review_required": False,
+            "routing_steps": 3,
+            "status": "pending",
+        }
+    )
+
+    decision = choose_deterministic_route(digest)
+
+    assert digest.estimate_ready is True
+    assert decision.next_agent == "coherence_validator"
+    assert decision.reason_code == "missing_validation"

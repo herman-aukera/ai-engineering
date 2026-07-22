@@ -7,7 +7,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 import app.generation.graph.nodes.session14_workers as session14_workers
-from app.generation.graph.nodes import build_classify_components_node, build_generate_estimate_node
+from app.generation.graph.nodes import (
+    build_classify_components_node,
+    build_generate_estimate_node,
+    build_validate_and_consolidate_node,
+)
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.review_state import (
     Session14EstimationGraphState,
@@ -861,6 +865,326 @@ async def test_estimate_generator_preserves_real_python_arithmetic(
                 "component_estimates",
                 "execution_metadata",
                 "trace_events",
+            ],
+        }
+    ]
+def _state_for_validation() -> Session14EstimationGraphState:
+    state = _state_for_estimate()
+    state["component_estimates"] = [
+        {
+            "component_id": "component-1",
+            "name": "Authentication",
+            "hours": 100.0,
+            "grounding_status": "grounded",
+            "reference_budget_ids": ["budget-1", "budget-2"],
+            "reference_component_ids": [
+                "reference-1",
+                "reference-2",
+            ],
+            "source_hours": [80.0, 120.0],
+            "source_range_low": 80.0,
+            "source_range_high": 120.0,
+            "dispersion": 0.4,
+            "confidence": 0.55,
+            "derivation_method": "median_recorded_hours",
+            "review_reasons": [],
+        }
+    ]
+    state["status"] = "pending"
+    state["review_required"] = False
+    state["errors"] = []
+    state["routing_steps"] = 4
+    state.pop("validation", None)
+    return state
+
+
+def _canonical_validation_estimate(
+    state: Session14EstimationGraphState,
+) -> dict[str, object]:
+    return {
+        "components": deepcopy(state["component_estimates"]),
+        "subtotal_hours": 100.0,
+        "contingency_hours": 0.0,
+        "total_hours": 100.0,
+        "total_cost_eur": None,
+        "currency": "EUR",
+    }
+
+
+@pytest.mark.asyncio
+async def test_coherence_validator_uses_authorized_minimum_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received_states: list[Session14EstimationGraphState] = []
+    authorization_checks: list[tuple[str, str]] = []
+
+    state = _state_for_validation()
+    state["validation"] = {"stale": True}
+    before = deepcopy(state)
+    canonical_estimate = _canonical_validation_estimate(state)
+    trace_event = {
+        "event_type": "estimate_validated",
+        "node": "validate_and_consolidate",
+        "summary": (
+            "Validated 1 grounded component estimates "
+            "totaling 100.0 hours."
+        ),
+        "evidence_refs": [
+            "component-1",
+            "budget-1",
+            "budget-2",
+        ],
+        "state_delta_keys": [
+            "estimate",
+            "status",
+            "review_required",
+            "trace_events",
+        ],
+    }
+
+    async def validate_estimate(
+        projected_state: Session14EstimationGraphState,
+    ) -> Session14EstimationGraphState:
+        received_states.append(deepcopy(projected_state))
+        return {
+            "estimate": deepcopy(canonical_estimate),
+            "status": "validated",
+            "review_required": False,
+            "trace_events": [deepcopy(trace_event)],
+        }
+
+    def record_authorization(
+        agent_id: str,
+        tool: str,
+    ) -> None:
+        authorization_checks.append((agent_id, tool))
+
+    monkeypatch.setattr(
+        session14_workers,
+        "assert_tool_allowed",
+        record_authorization,
+    )
+
+    agent = session14_workers.build_coherence_validator_agent(
+        validate_estimate
+    )
+
+    update = await agent(state)
+
+    assert authorization_checks == [
+        ("coherence_validator", "validate_estimate")
+    ]
+    assert received_states == [
+        {
+            "component_estimates": before["component_estimates"],
+            "review_required": False,
+            "errors": [],
+        }
+    ]
+    assert "transcript" not in received_states[0]
+    assert "requirements" not in received_states[0]
+    assert "components" not in received_states[0]
+    assert "budget_matches" not in received_states[0]
+    assert "execution_metadata" not in received_states[0]
+    assert "validation" not in received_states[0]
+    assert "estimate" not in received_states[0]
+    assert state == before
+
+    assert update["estimate"] == canonical_estimate
+    assert update["status"] == "validated"
+    assert update["review_required"] is False
+    assert update["validation"] == {
+        "is_coherent": True,
+        "review_required": False,
+        "status": "validated",
+    }
+    assert update["trace_events"] == [trace_event]
+    assert "component_estimates" not in update
+    assert "transcript" not in update
+    assert "budget_matches" not in update
+
+    assert update["agent_contributions"] == [
+        {
+            "contribution_id": (
+                "estimate-14:coherence_validator:4"
+            ),
+            "agent_id": "coherence_validator",
+            "sequence": 4,
+            "summary": (
+                "Validation completed with status validated."
+            ),
+            "state_delta_keys": [
+                "agent_contributions",
+                "estimate",
+                "review_required",
+                "status",
+                "trace_events",
+                "validation",
+            ],
+        }
+    ]
+    assert "CLIENT-SECRET" not in str(
+        update["agent_contributions"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_coherence_validator_rejects_missing_estimates_before_call() -> None:
+    call_count = 0
+
+    async def validate_estimate(
+        state: Session14EstimationGraphState,
+    ) -> Session14EstimationGraphState:
+        nonlocal call_count
+        call_count += 1
+        return {
+            "estimate": {},
+            "status": "needs_review",
+            "review_required": True,
+        }
+
+    agent = session14_workers.build_coherence_validator_agent(
+        validate_estimate
+    )
+
+    missing_estimates = _state_for_validation()
+    missing_estimates.pop("component_estimates")
+
+    with pytest.raises(ValueError, match="component estimates"):
+        await agent(missing_estimates)
+
+    empty_estimates = _state_for_validation()
+    empty_estimates["component_estimates"] = []
+
+    with pytest.raises(ValueError, match="component estimates"):
+        await agent(empty_estimates)
+
+    assert call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_coherence_validator_checks_authorization_before_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_count = 0
+
+    async def validate_estimate(
+        state: Session14EstimationGraphState,
+    ) -> Session14EstimationGraphState:
+        nonlocal call_count
+        call_count += 1
+        return {
+            "estimate": {},
+            "status": "validated",
+            "review_required": False,
+        }
+
+    def deny_tool(agent_id: str, tool: str) -> None:
+        assert agent_id == "coherence_validator"
+        assert tool == "validate_estimate"
+        raise PermissionError("denied for test")
+
+    monkeypatch.setattr(
+        session14_workers,
+        "assert_tool_allowed",
+        deny_tool,
+    )
+
+    agent = session14_workers.build_coherence_validator_agent(
+        validate_estimate
+    )
+
+    with pytest.raises(PermissionError, match="denied for test"):
+        await agent(_state_for_validation())
+
+    assert call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_coherence_validator_preserves_real_mismatch_detection() -> None:
+    state = _state_for_validation()
+    stale_estimate = _canonical_validation_estimate(state)
+    stale_estimate["total_hours"] = 999.0
+    state["estimate"] = stale_estimate
+    before = deepcopy(state)
+
+    agent = session14_workers.build_coherence_validator_agent(
+        build_validate_and_consolidate_node()
+    )
+
+    update = await agent(state)
+
+    assert state == before
+    assert update["estimate"] == {
+        "components": before["component_estimates"],
+        "subtotal_hours": 100.0,
+        "contingency_hours": 0.0,
+        "total_hours": 100.0,
+        "total_cost_eur": None,
+        "currency": "EUR",
+    }
+    assert update["status"] == "needs_review"
+    assert update["review_required"] is True
+    assert update["validation"] == {
+        "is_coherent": False,
+        "review_required": True,
+        "status": "needs_review",
+    }
+    assert update["errors"] == [
+        {
+            "code": "estimate_total_mismatch",
+            "message": (
+                "A pre-existing aggregate estimate did not match "
+                "the component-derived arithmetic."
+            ),
+            "node": "validate_and_consolidate",
+            "severity": "error",
+        }
+    ]
+    assert update["trace_events"] == [
+        {
+            "event_type": "estimate_needs_review",
+            "node": "validate_and_consolidate",
+            "summary": (
+                "Consolidated 1 component estimates; "
+                "0 requires review."
+            ),
+            "evidence_refs": [
+                "component-1",
+                "budget-1",
+                "budget-2",
+            ],
+            "state_delta_keys": [
+                "estimate",
+                "status",
+                "review_required",
+                "errors",
+                "trace_events",
+            ],
+        }
+    ]
+    assert "component_estimates" not in update
+    assert "transcript" not in update
+    assert "budget_matches" not in update
+
+    assert update["agent_contributions"] == [
+        {
+            "contribution_id": (
+                "estimate-14:coherence_validator:4"
+            ),
+            "agent_id": "coherence_validator",
+            "sequence": 4,
+            "summary": (
+                "Validation completed with status needs_review."
+            ),
+            "state_delta_keys": [
+                "agent_contributions",
+                "errors",
+                "estimate",
+                "review_required",
+                "status",
+                "trace_events",
+                "validation",
             ],
         }
     ]
