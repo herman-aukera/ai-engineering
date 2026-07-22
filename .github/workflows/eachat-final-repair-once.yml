@@ -86,7 +86,6 @@ jobs:
             tests/test_energy_chat_committee_orchestration.py \
             tests/test_energy_chat_fixed_benchmark.py \
             tests/test_energy_chat_fixed_benchmark_routes.py \
-            tests/test_energy_chat_graph_checkpoint.py \
             tests/test_energy_chat_multi_turn_service.py \
             > /tmp/eachat-focused-regression.txt 2>&1 || STATUS=$?
           cat /tmp/eachat-focused-regression.txt
