@@ -16,6 +16,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MAX_FILE_BYTES = 2_000_000
 PLACEHOLDERS = {"test", "dummy", "placeholder", "changeme", "example"}
+PLACEHOLDER_PREFIXES = (
+    "replace-with-",
+    "your-",
+    "example-",
+    "dummy-",
+    "test-",
+)
 
 
 @dataclass(frozen=True)
@@ -31,7 +38,12 @@ def _patterns() -> tuple[tuple[str, re.Pattern[str]], ...]:
     private_key = "-" * 5 + r"BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY" + "-" * 5
     return (
         ("provider_api_key", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")),
-        ("github_token", re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b")),
+        (
+            "github_token",
+            re.compile(
+                r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b"
+            ),
+        ),
         ("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
         ("google_api_key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
         ("bearer_token", re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{24,}")),
@@ -67,10 +79,10 @@ def _redact(value: str) -> str:
 
 
 def _is_placeholder(match: re.Match[str]) -> bool:
-    if match.lastindex:
-        candidate = match.group(match.lastindex).strip("\"'").casefold()
-        return candidate in PLACEHOLDERS
-    return False
+    if not match.lastindex:
+        return False
+    candidate = match.group(match.lastindex).strip("\"'").casefold()
+    return candidate in PLACEHOLDERS or candidate.startswith(PLACEHOLDER_PREFIXES)
 
 
 def _scan_text(*, source: str, path: str, text: str) -> list[Finding]:
