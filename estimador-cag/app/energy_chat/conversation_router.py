@@ -7,7 +7,6 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from app.energy_chat.api_v2_contracts import (
     ProviderUnavailableError,
     UnsupportedProfileError,
-    build_v2_error_detail,
 )
 from app.energy_chat.candidate_provider import ProviderBudgetExceededError
 from app.energy_chat.conversation_models import (
@@ -29,6 +28,7 @@ from app.energy_chat.conversation_store import (
     ConversationStore,
     ConversationTurnConflictError,
 )
+from app.energy_chat.graph_application import build_v2_error_detail
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
 from app.energy_chat.settings import energy_chat_v2_enabled
 
