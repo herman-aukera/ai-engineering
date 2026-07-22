@@ -1,10 +1,12 @@
-"""Milestone 18: context compaction policies and multi-agent budget models."""
+"""Milestone 18 contracts and explicit runtime-maturity boundaries."""
 
 from app.energy_chat.context_compaction import (
     ContextSnapshot,
+    get_m18_runtime_status,
     resolve_compaction_policy,
     resolve_multi_agent_budget,
 )
+
 
 # ── compaction policies ─────────────────────────────────────────────────
 
@@ -35,7 +37,6 @@ def test_max_policy_retains_most_context() -> None:
 
 
 def test_policies_scale_monotonically() -> None:
-    """Target tokens, raw turns, and summary depth must increase with profile."""
     minimal = resolve_compaction_policy("minimal")
     balanced = resolve_compaction_policy("balanced")
     max_p = resolve_compaction_policy("max")
@@ -94,3 +95,14 @@ def test_all_budgets_have_positive_limits() -> None:
         assert budget.max_agent_count >= 1
         assert budget.token_ceiling >= 1
         assert budget.wall_clock_deadline_ms >= 1
+
+
+def test_m18_reports_contracts_without_claiming_runtime_execution() -> None:
+    status = get_m18_runtime_status()
+
+    assert status.context_compaction == "contract_only"
+    assert status.multi_agent_orchestration == "contract_only"
+    assert status.active_context_profiles == ["balanced"]
+    assert status.active_orchestration_modes == ["critic"]
+    assert "No runtime context compaction is executed." in status.limitations
+    assert "No committee or adaptive agent runtime is executed." in status.limitations
