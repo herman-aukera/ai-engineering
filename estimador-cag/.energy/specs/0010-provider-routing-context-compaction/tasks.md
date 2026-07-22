@@ -1,131 +1,112 @@
 # Spec 0010 — Tasks
 
-Status: rescue checkpoint after interrupted provider session
+Status: deterministic runtime complete; live/manual/product-extraction gates open
 
-## Documentation checkpoint
+## Recovery and source correction
 
-- [x] Define EACODE, EACHAT, LIDR task, and EACORE boundaries.
-- [x] Define provider-neutral selection profiles.
-- [x] Define context-compaction profiles and anti-rot invariants.
-- [x] Define bounded multi-agent governance.
-- [x] Record the 2026-07-20 provider and execution rescue audit.
-- [x] Correct the obsolete Kimi K3 max-only documentation assumption.
-- [ ] Re-verify every curated provider capability and price against current official sources in code fixtures.
+- [x] Stop direct repair on `EACODE` and use isolated PR #15.
+- [x] Preserve the restored green EACODE checkpoint.
+- [x] Audit stale provider, execution, compaction, boss, API, and documentation claims.
+- [x] Re-verify mutable provider facts against official sources.
+- [x] Remove temporary diagnostics after repair.
 
-## Recovery gate — mandatory before new feature work
+## Provider contracts and routing
 
-- [ ] Close or stop competing agent sessions.
-- [ ] Inspect the local EACODE working tree and preserve interrupted files.
-- [ ] Compare local HEAD and diff with `origin/EACODE` without destructive commands.
-- [ ] Identify the local-only `context_compaction.py` and related tests/docs, if present.
-- [ ] Classify each local file as keep, repair, rewrite, or discard-with-evidence.
-- [ ] Run `git diff --check` before implementation edits.
-- [ ] Do not commit or push without explicit user approval.
+- [x] ProviderSelection and ModelCapability contracts.
+- [x] Distinct DeepSeek API, Kimi Platform, Kimi Code, and OpenAI surfaces.
+- [x] Verified capability overlay with source/version/freshness/entitlement.
+- [x] Correct DeepSeek and OpenAI price units and values in the verified overlay.
+- [x] Conservative Kimi Code K3/K2.7 context and effort contracts.
+- [x] Explicit empty/custom registry behavior.
+- [x] Input, cached-input, output, cost, latency, and premium-reason budgets.
+- [x] Requested/planned/configured/served distinction.
+- [x] Unsupported, stale, unavailable, and unentitled API routes fail closed.
 
-## Slice A — provider contracts and deterministic registry
+## Spec 0009 dependency
 
-Implemented but requiring repair:
+- [x] Typed live plan and intent.
+- [x] Fake/dry-run non-promotion tests.
+- [x] Complete repository snapshot binding.
+- [x] Authoritative SQLite receipt integrity and provenance.
+- [x] Atomic reservation and one-time completion.
+- [x] Process-group/session lifecycle, prompt cancellation, timeout, and verified cleanup.
+- [x] Accurate truncation and final redaction.
+- [x] Secure CLI and legacy real-adapter shutdown.
+- [x] Provider/tool evidence re-enters deterministic boss.
 
-- [x] Add strict `ProviderSelection` and `ModelCapability` contracts.
-- [x] Add deterministic curated capability fixtures.
-- [x] Add capability registry and unsupported-combination tests.
-- [x] Add deterministic resolved-provider/plan metadata.
-- [x] Keep live provider calls out of deterministic CI.
+## Context compaction
 
-Repair work:
+- [x] CompactionRecord, source range, hashes, and rehydration references.
+- [x] Minimal, medium, and max profiles.
+- [x] Trigger/release hysteresis.
+- [x] Repository snapshot, policy, schema, source-hash, and age freshness.
+- [x] Secret and hidden-reasoning exclusion.
+- [x] Loss audit and failed-audit rehydration.
+- [x] Contradiction, failing-gate, and summary-decay detection.
 
-- [ ] Add explicit source identity/version and price units to capability records.
-- [ ] Correct DeepSeek V4 context, output, cache, effort, and pricing data.
-- [ ] Distinguish Kimi API `kimi-k3` from Kimi Code `k3`.
-- [ ] Add Kimi Code `kimi-for-coding-highspeed` as entitlement-dependent.
-- [ ] Correct K3 effort support to low/high/max and K2.7 Code context limits.
-- [ ] Correct GPT-5.6 Luna/Terra/Sol context, output, and pricing data.
-- [ ] Remove mutable module-global registry state.
-- [ ] Preserve explicitly supplied empty registries rather than silently loading defaults.
-- [ ] Add capability freshness/staleness tests.
+## Provider adapters
 
-## Slice B — deterministic routing policy
+- [x] Fake provider adapter for CI.
+- [x] Hardened opt-in DeepSeek adapter.
+- [x] Hardened opt-in Kimi Code adapter.
+- [x] Hardened opt-in OpenAI adapter.
+- [x] Correct endpoints and timeout conversion.
+- [x] Provider-specific reasoning controls.
+- [x] Sanitized failure evidence.
+- [x] Served effort recorded only from provider echo.
+- [x] Provider evidence re-enters critics and boss.
 
-Implemented but requiring repair:
+## Multi-agent governance
 
-- [x] Implement deterministic minimal/medium/max resolution.
-- [x] Implement explicit provider selection.
-- [x] Implement DeepSeek-default auto policy.
-- [x] Add governed cross-provider fallback metadata.
+- [x] Typed roles, shared state, independent ownership, and disagreement records.
+- [x] Empty/invalid findings escalate.
+- [x] Hard constraints cannot be outvoted.
+- [x] Per-agent cost, latency, and tool budgets.
+- [x] Global cost, latency, tool, agent-count, and concurrency budgets.
+- [x] Budget overrun escalates.
+- [x] Deterministic boss owns final disposition.
 
-Incomplete or defective:
+## Product surface
 
-- [ ] Replace fixed 100K-input-only cost estimation with explicit input/output/cached-token assumptions.
-- [ ] Enforce budgets across every provider.
-- [ ] Require explicit premium reason and authorization for OpenAI escalation.
-- [ ] Add retry and circuit-breaker state.
-- [ ] Add shadow-routing reports.
-- [ ] Distinguish planned provider/model from externally served provider/model.
-- [ ] Prove every fallback candidate re-enters critics and the deterministic decider.
+- [x] Register a real FastAPI EACODE router.
+- [x] Add status, capability, and deterministic selection endpoints.
+- [x] Add same-origin selector UI.
+- [x] Separate requested, planned, and served state.
+- [x] Add Kimi Code entitlement confirmation and fail-closed route handling.
+- [x] Add API and HTML contract tests.
 
-## Slice C — Spec 0009 security repair dependency
+## Benchmark
 
-This repair blocks context compaction and live provider work:
+- [x] Add matched synthetic single-unchecked baseline.
+- [x] Add deterministic governed-boss evaluation.
+- [x] Report expected-disposition accuracy and delta.
+- [x] Fail closed on empty cases.
+- [x] Refuse to claim improvement when modes tie.
+- [x] State contract-only benchmark boundary.
 
-- [ ] Add a red test proving `dry_run` plans cannot invoke a real process.
-- [ ] Add a red test proving `fake`/`allow_fake` plans cannot invoke a real process.
-- [ ] Add explicit typed live-execution intent and authority transition.
-- [ ] Bind authority to HEAD, tree, staged diff, unstaged diff, and untracked-state digest.
-- [ ] Verify authorization-receipt provenance or authoritative-store lookup.
-- [ ] Start Unix children in a dedicated process group/session before using `killpg`.
-- [ ] Verify Windows and Unix cleanup results; do not assume success.
-- [ ] Make cancellation polling prompt rather than waiting for the command timeout.
-- [ ] Correct truncation flags when reader budgets are reached.
-- [ ] Add cross-chunk and final-assembly secret-redaction tests.
-- [ ] Fail closed when cleanup or output sanitation cannot be proven.
-- [ ] Run focused Spec 0007/0008/0009 regression tests.
+## Documentation and integration
 
-## Slice D — context compaction contracts
+- [x] Add authoritative 2026-07-22 release checkpoint.
+- [x] Synchronize README_EACODE, CLAUDE memory, handoff, and product plan.
+- [x] Synchronize Specs 0009/0010 tasks and acceptance.
+- [ ] Append final merge and post-merge CI evidence.
+- [ ] Update PR #15 title/body and mark ready.
+- [ ] Merge PR #15 into `EACODE` after final green CI.
+- [ ] Verify post-merge EACODE CI.
 
-Do not begin until the recovery gate and Slice C are green.
+## Manual evidence
 
-- [ ] Audit and recover or reject interrupted local compaction work.
-- [ ] Add `CompactionRecord` and source-range/hash contracts.
-- [ ] Add structured state projector.
-- [ ] Add minimal, medium, and max assemblers.
-- [ ] Add threshold hysteresis.
-- [ ] Add branch/repository-snapshot/policy/schema freshness guards.
-- [ ] Add rehydration references.
-- [ ] Add deterministic loss-audit fixtures.
-- [ ] Add contradiction and stale-summary detection.
-- [ ] Add summary-of-summary decay detection.
-
-## Slice E — provider adapters
-
-- [ ] Add fake provider adapter for CI.
-- [ ] Add opt-in DeepSeek adapter and sanitized smoke.
-- [ ] Add opt-in Kimi Code adapter with K3 capability discovery.
-- [ ] Add opt-in OpenAI GPT-5.6 adapter.
-- [ ] Record exact served provider, model, effort, request ID, latency, tokens, and cost.
-- [ ] Ensure every candidate re-enters product critics and decider.
-- [ ] Add clean-session handoff tests for model/effort/provider switching.
-
-## Slice F — multi-agent evaluation
-
-- [ ] Establish single-agent baselines.
-- [ ] Add bounded parallel critic prototype.
-- [ ] Add disagreement and aggregation records.
-- [ ] Add cost, latency, tool, and concurrency budgets.
-- [ ] Compare quality and safety against the baseline.
-- [ ] Disable multi-agent mode when no measurable gain is shown.
-
-## Slice G — product surfaces
-
-- [ ] Add selector API schema.
-- [ ] Add UI controls that disable unsupported or unavailable combinations.
-- [ ] Add compact requested/planned/served provider status card.
-- [ ] Add context-profile control and compaction status.
-- [ ] Add browser smoke.
-- [ ] Add migration and rollback documentation.
+- [ ] Harmless secure live-tool smoke.
+- [ ] Windows timeout/cancellation/process-tree cleanup proof.
+- [ ] Live DeepSeek smoke.
+- [ ] Live Kimi Code smoke with entitlement.
+- [ ] Live OpenAI smoke.
+- [ ] Browser smoke of `/eacode/ui`.
+- [ ] Matched live provider/agent quality, cost, and latency evaluation.
 
 ## EACORE extraction gate
 
-- [ ] Prove equivalent stable selector contracts in EACODE and EACHAT.
-- [ ] Prove equivalent compaction semantics in both products.
+- [ ] Prove equivalent stable selector contracts in EACHAT.
+- [ ] Prove equivalent compaction semantics in EACHAT.
 - [ ] Compare product-specific fields and failure modes.
-- [ ] Extract only the minimal shared contract with compatibility tests.
+- [ ] Extract only the minimal compatible shared contract with rollback tests.
