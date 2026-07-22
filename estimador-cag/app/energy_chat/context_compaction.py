@@ -1,13 +1,10 @@
-"""Context-compaction and multi-agent contracts with explicit runtime maturity.
-
-Milestone 18 currently provides validated policy and budget contracts. The active
-V2 runtime does not execute context compaction, committee orchestration, or adaptive
-orchestration. ``get_m18_runtime_status`` is the authoritative claim boundary.
-"""
+"""Versioned context compaction and bounded orchestration contracts for EACHAT."""
 
 from __future__ import annotations
 
-from typing import Literal
+import hashlib
+import json
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +14,7 @@ RuntimeMaturity = Literal["contract_only", "implemented"]
 
 
 class ContextCompactionPolicy(BaseModel):
-    """Explicit retention rules for a future compaction runtime."""
+    """Explicit deterministic retention rules for conversation context."""
 
     profile: ContextProfile
     target_input_tokens: int = Field(ge=1)
@@ -34,11 +31,11 @@ class ContextCompactionPolicy(BaseModel):
 
 
 class ContextSnapshot(BaseModel):
-    """Versioned future compaction result linked to its source revision range."""
+    """Versioned context projection linked to its exact source revision range."""
 
     snapshot_id: str = Field(min_length=1)
     thread_id: str = Field(min_length=1)
-    revision: int = Field(ge=1)
+    revision: int = Field(ge=0)
     profile: ContextProfile
     source_start_revision: int = Field(ge=0)
     source_end_revision: int = Field(ge=0)
@@ -51,8 +48,8 @@ class ContextSnapshot(BaseModel):
     ledger_entry_ids: list[str] = Field(default_factory=list)
     token_count_before: int = Field(default=0, ge=0)
     token_count_after: int = Field(default=0, ge=0)
-    source_hash: str = ""
-    summary_hash: str = ""
+    source_hash: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    summary_hash: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     limitations: list[str] = Field(default_factory=list)
 
 
@@ -60,7 +57,7 @@ POLICY_MINIMAL = ContextCompactionPolicy(
     profile="minimal",
     target_input_tokens=4_000,
     recent_raw_turns=2,
-    summarizer_profile="fast",
+    summarizer_profile="deterministic",
     max_summary_depth=1,
 )
 
@@ -68,21 +65,21 @@ POLICY_BALANCED = ContextCompactionPolicy(
     profile="balanced",
     target_input_tokens=16_000,
     recent_raw_turns=8,
-    summarizer_profile="balanced",
-    max_summary_depth=2,
+    summarizer_profile="deterministic",
+    max_summary_depth=1,
 )
 
 POLICY_MAX = ContextCompactionPolicy(
     profile="max",
     target_input_tokens=64_000,
     recent_raw_turns=24,
-    summarizer_profile="max",
-    max_summary_depth=3,
+    summarizer_profile="deterministic",
+    max_summary_depth=1,
 )
 
 
 def resolve_compaction_policy(profile: ContextProfile) -> ContextCompactionPolicy:
-    """Return a validated policy contract without claiming runtime execution."""
+    """Return the active deterministic policy for a public context profile."""
 
     return {
         "minimal": POLICY_MINIMAL,
@@ -91,8 +88,123 @@ def resolve_compaction_policy(profile: ContextProfile) -> ContextCompactionPolic
     }[profile]
 
 
+def build_context_snapshot(
+    *,
+    conversation_id: str,
+    revision: int,
+    turns: list[Any],
+    profile: ContextProfile,
+) -> ContextSnapshot:
+    """Build a bounded, hash-linked projection without model-generated summaries."""
+
+    policy = resolve_compaction_policy(profile)
+    source_payload = [
+        {
+            "turn_id": turn.turn_id,
+            "turn_index": turn.turn_index,
+            "graph_thread_id": turn.graph_thread_id,
+            "request_fingerprint": turn.request_fingerprint,
+            "user_message": turn.user_message,
+            "assistant_message": turn.assistant_message,
+            "required_constraints": list(getattr(turn, "required_constraints", [])),
+            "required_sections": list(getattr(turn, "required_sections", [])),
+            "disposition": turn.graph_response.final_disposition,
+            "evidence_refs": turn.graph_response.evidence_refs,
+            "ledger_entry_ids": turn.graph_response.ledger_entry_ids,
+            "awaiting_evidence": turn.graph_response.awaiting_evidence,
+            "human_action_pending": turn.graph_response.human_action_request is not None,
+        }
+        for turn in turns
+    ]
+    source_json = json.dumps(source_payload, sort_keys=True, separators=(",", ":"))
+    source_hash = _sha256(source_json)
+    retained = turns[-policy.recent_raw_turns :] if policy.recent_raw_turns else []
+    raw_lines: list[str] = []
+    for turn in retained:
+        raw_lines.extend(
+            (
+                f"Turn {turn.turn_index} ID {turn.turn_id}",
+                f"User: {turn.user_message.strip()}",
+                f"Assistant: {turn.assistant_message.strip()}",
+            )
+        )
+    hard_constraints = _unique(
+        value
+        for turn in turns
+        for value in getattr(turn, "required_constraints", [])
+    )
+    accepted_decisions = _unique(
+        f"turn:{turn.turn_index}:{turn.graph_response.final_disposition}"
+        for turn in turns
+        if turn.graph_response.final_disposition is not None
+    )
+    evidence_refs = _unique(
+        value for turn in turns for value in turn.graph_response.evidence_refs
+    )
+    ledger_entry_ids = _unique(
+        value for turn in turns for value in turn.graph_response.ledger_entry_ids
+    )
+    unresolved_items = _unique(
+        item
+        for turn in turns
+        for item in (
+            [f"turn:{turn.turn_index}:awaiting_evidence"]
+            if turn.graph_response.awaiting_evidence
+            else []
+        )
+        + (
+            [f"turn:{turn.turn_index}:human_action_pending"]
+            if turn.graph_response.human_action_request is not None
+            else []
+        )
+    )
+    structural_lines = [
+        f"Conversation ID: {conversation_id}",
+        f"Source revision: {revision}",
+        f"Source hash: {source_hash}",
+        f"Retained turn IDs: {', '.join(turn.turn_id for turn in retained) or 'none'}",
+        f"Hard constraints: {'; '.join(hard_constraints) or 'none'}",
+        f"Decision refs: {'; '.join(accepted_decisions) or 'none'}",
+        f"Evidence refs: {', '.join(evidence_refs) or 'none'}",
+        f"Ledger refs: {', '.join(ledger_entry_ids) or 'none'}",
+        f"Unresolved refs: {', '.join(unresolved_items) or 'none'}",
+    ]
+    before_text = "\n".join(
+        f"User: {turn.user_message}\nAssistant: {turn.assistant_message}" for turn in turns
+    )
+    summary = "\n".join([*structural_lines, "Recent visible turns:", *raw_lines])
+    character_ceiling = policy.target_input_tokens * 4
+    if len(summary) > character_ceiling:
+        summary = summary[:character_ceiling]
+        limitations = ["Context projection reached the deterministic character ceiling."]
+    else:
+        limitations = []
+    summary_hash = _sha256(summary)
+    snapshot_id = f"{conversation_id}:context:{revision}:{profile}:{summary_hash[-16:]}"
+    return ContextSnapshot(
+        snapshot_id=snapshot_id,
+        thread_id=conversation_id,
+        revision=revision,
+        profile=profile,
+        source_start_revision=turns[0].turn_index if turns else 0,
+        source_end_revision=turns[-1].turn_index if turns else 0,
+        summary_text=summary,
+        pinned_facts=[f"conversation_id:{conversation_id}", f"revision:{revision}"],
+        hard_constraints=hard_constraints,
+        accepted_decisions=accepted_decisions,
+        unresolved_items=unresolved_items,
+        evidence_refs=evidence_refs,
+        ledger_entry_ids=ledger_entry_ids,
+        token_count_before=_approx_tokens(before_text),
+        token_count_after=_approx_tokens(summary),
+        source_hash=source_hash,
+        summary_hash=summary_hash,
+        limitations=limitations,
+    )
+
+
 class MultiAgentBudget(BaseModel):
-    """Resource ceilings for future orchestration modes."""
+    """Resource ceilings for bounded orchestration modes."""
 
     mode: OrchestrationMode
     max_agent_count: int = Field(ge=1, le=16)
@@ -155,7 +267,7 @@ BUDGET_ADAPTIVE = MultiAgentBudget(
 
 
 def resolve_multi_agent_budget(mode: OrchestrationMode) -> MultiAgentBudget:
-    """Return a budget contract without claiming that the mode executes."""
+    """Return the enforced budget for an orchestration mode."""
 
     return {
         "single": BUDGET_SINGLE,
@@ -166,21 +278,20 @@ def resolve_multi_agent_budget(mode: OrchestrationMode) -> MultiAgentBudget:
 
 
 class M18RuntimeStatus(BaseModel):
-    """Authoritative distinction between available contracts and active runtime."""
+    """Authoritative distinction between active and deferred runtime behavior."""
 
-    context_compaction: RuntimeMaturity = "contract_only"
+    context_compaction: RuntimeMaturity = "implemented"
     multi_agent_orchestration: RuntimeMaturity = "contract_only"
     active_context_profiles: list[ContextProfile] = Field(
-        default_factory=lambda: ["balanced"]
+        default_factory=lambda: ["minimal", "balanced", "max"]
     )
     active_orchestration_modes: list[OrchestrationMode] = Field(
         default_factory=lambda: ["critic"]
     )
     limitations: list[str] = Field(
         default_factory=lambda: [
-            "No runtime context compaction is executed.",
-            "No committee or adaptive agent runtime is executed.",
-            "Policy and budget models are contract scaffolding only.",
+            "Context snapshots are deterministic projections, not model-generated summaries.",
+            "Committee and adaptive orchestration remain deferred until runtime integration.",
         ]
     )
 
@@ -189,3 +300,15 @@ def get_m18_runtime_status() -> M18RuntimeStatus:
     """Return the exact M18 runtime claim boundary."""
 
     return M18RuntimeStatus()
+
+
+def _sha256(value: str) -> str:
+    return f"sha256:{hashlib.sha256(value.encode('utf-8')).hexdigest()}"
+
+
+def _approx_tokens(value: str) -> int:
+    return (len(value) + 3) // 4
+
+
+def _unique(values) -> list[str]:
+    return list(dict.fromkeys(value for value in values if value))
