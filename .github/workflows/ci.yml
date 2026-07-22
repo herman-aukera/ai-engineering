@@ -180,7 +180,7 @@ jobs:
           PY
           sleep 5
           docker cp /tmp/runtime_probe.py estimador-cag:/tmp/runtime_probe.py
-          docker exec estimador-cag /app/.venv/bin/python /tmp/runtime_probe.py > /tmp/container-readiness/runtime-diagnostic.txt 2>&1 || true
+          docker exec --workdir /app --env PYTHONPATH=/app estimador-cag /app/.venv/bin/python /tmp/runtime_probe.py > /tmp/container-readiness/runtime-diagnostic.txt 2>&1 || true
           cat /tmp/container-readiness/runtime-diagnostic.txt
       - name: Probe liveness and readiness
         run: |
