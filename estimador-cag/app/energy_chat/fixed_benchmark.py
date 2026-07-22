@@ -1,9 +1,9 @@
 """Fixed deterministic benchmark for Energy Aware Chat quality gates.
 
-This benchmark intentionally does not call DeepSeek or Kimi. It evaluates a
-versioned dataset of baseline drafts so CI can prove the evaluator, repair seam,
-and benchmark reporting stay stable. Live provider comparisons must be recorded
-separately before making any quality-improvement claim.
+This benchmark never calls a provider. It measures committed baseline drafts,
+constraint energy, deterministic repair, guardrails, and hard-reject exposure.
+Its quality claim is limited to this fixed corpus; live-provider comparisons remain
+separate evidence.
 """
 
 from __future__ import annotations
@@ -50,18 +50,21 @@ class FixedBenchmarkCaseResult(BaseModel):
     final_decision: str
     final_energy: int
     energy_delta_after_repair: int
+    energy_improved: bool
     accepted_baseline: bool
     accepted_after_repair: bool
+    accepted_hard_reject_exposure: bool
     repairs_attempted: bool
     hard_reject_violations: list[str] = Field(default_factory=list)
     hard_repair_violations: list[str] = Field(default_factory=list)
     soft_violations: list[str] = Field(default_factory=list)
     missing_expected_terms: list[str] = Field(default_factory=list)
     forbidden_terms_present: list[str] = Field(default_factory=list)
+    guardrails_passed: bool
 
 
 class FixedBenchmarkRunResult(BaseModel):
-    """Deterministic benchmark run summary."""
+    """Deterministic benchmark summary with an evidence-bounded quality claim."""
 
     run_id: str
     dataset_path: str
@@ -70,7 +73,16 @@ class FixedBenchmarkRunResult(BaseModel):
     accepted_after_repair: int
     repairs_attempted: int
     hard_rejects: int
+    guardrail_cases_passed: int
+    energy_improved_cases: int
+    baseline_energy_total: int
+    final_energy_total: int
+    mean_baseline_energy: float
+    mean_final_energy: float
     average_energy_delta_after_repair: float
+    accepted_hard_reject_exposures: int
+    quality_claim_allowed: bool
+    quality_claim: str
     results: list[FixedBenchmarkCaseResult]
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -92,6 +104,9 @@ def load_fixed_benchmark_cases(
         cases.append(FixedBenchmarkCase.model_validate(payload))
     if not cases:
         raise ValueError(f"Fixed benchmark dataset is empty: {path}")
+    case_ids = [case.case_id for case in cases]
+    if len(case_ids) != len(set(case_ids)):
+        raise ValueError("Fixed benchmark case_id values must be unique")
     return cases
 
 
@@ -100,7 +115,7 @@ def run_fixed_benchmark(
     run_id: str = "energy-chat-fixed-benchmark-local",
     dataset_path: Path = DEFAULT_FIXED_BENCHMARK_PATH,
 ) -> FixedBenchmarkRunResult:
-    """Run deterministic evaluator and one-pass repair against fixed cases."""
+    """Measure fixed baseline energy, deterministic repair, and output guardrails."""
 
     cases = load_fixed_benchmark_cases(dataset_path)
     results: list[FixedBenchmarkCaseResult] = []
@@ -122,6 +137,13 @@ def run_fixed_benchmark(
         repaired = evaluate_with_one_pass_repair(request)
         final = repaired.final_result
         final_answer = final.request.draft_answer
+        missing = _missing_terms(final_answer, case.must_include)
+        forbidden = _present_terms(final_answer, case.must_not_include)
+        hard_reject_exposure = bool(
+            baseline.score.hard_reject_violations
+            and final.decision.decision == "accept"
+        )
+        delta = final.score.total_energy - baseline.score.total_energy
         results.append(
             FixedBenchmarkCaseResult(
                 case=case,
@@ -129,15 +151,18 @@ def run_fixed_benchmark(
                 baseline_energy=baseline.score.total_energy,
                 final_decision=final.decision.decision,
                 final_energy=final.score.total_energy,
-                energy_delta_after_repair=final.score.total_energy - baseline.score.total_energy,
+                energy_delta_after_repair=delta,
+                energy_improved=delta < 0,
                 accepted_baseline=baseline.decision.decision == "accept",
                 accepted_after_repair=final.decision.decision == "accept",
+                accepted_hard_reject_exposure=hard_reject_exposure,
                 repairs_attempted=repaired.repair_attempted,
                 hard_reject_violations=baseline.score.hard_reject_violations,
                 hard_repair_violations=baseline.score.hard_repair_violations,
                 soft_violations=baseline.score.soft_violations,
-                missing_expected_terms=_missing_terms(final_answer, case.must_include),
-                forbidden_terms_present=_present_terms(final_answer, case.must_not_include),
+                missing_expected_terms=missing,
+                forbidden_terms_present=forbidden,
+                guardrails_passed=not missing and not forbidden,
             )
         )
 
@@ -145,7 +170,26 @@ def run_fixed_benchmark(
     accepted_after_repair = sum(result.accepted_after_repair for result in results)
     repairs_attempted = sum(result.repairs_attempted for result in results)
     hard_rejects = sum(bool(result.hard_reject_violations) for result in results)
-    average_delta = sum(result.energy_delta_after_repair for result in results) / len(results)
+    guardrail_passed = sum(result.guardrails_passed for result in results)
+    energy_improved = sum(result.energy_improved for result in results)
+    accepted_hard_reject_exposures = sum(
+        result.accepted_hard_reject_exposure for result in results
+    )
+    baseline_energy_total = sum(result.baseline_energy for result in results)
+    final_energy_total = sum(result.final_energy for result in results)
+    mean_baseline = baseline_energy_total / len(results)
+    mean_final = final_energy_total / len(results)
+    average_delta = mean_final - mean_baseline
+    quality_claim_allowed = (
+        average_delta < 0
+        and energy_improved > 0
+        and accepted_hard_reject_exposures == 0
+    )
+    quality_claim = (
+        "deterministic_fixed_corpus_energy_reduction"
+        if quality_claim_allowed
+        else "measurement_only_no_quality_improvement_proven"
+    )
 
     return FixedBenchmarkRunResult(
         run_id=run_id,
@@ -155,20 +199,31 @@ def run_fixed_benchmark(
         accepted_after_repair=accepted_after_repair,
         repairs_attempted=repairs_attempted,
         hard_rejects=hard_rejects,
+        guardrail_cases_passed=guardrail_passed,
+        energy_improved_cases=energy_improved,
+        baseline_energy_total=baseline_energy_total,
+        final_energy_total=final_energy_total,
+        mean_baseline_energy=round(mean_baseline, 2),
+        mean_final_energy=round(mean_final, 2),
         average_energy_delta_after_repair=round(average_delta, 2),
+        accepted_hard_reject_exposures=accepted_hard_reject_exposures,
+        quality_claim_allowed=quality_claim_allowed,
+        quality_claim=quality_claim,
         results=results,
         metadata={
             "benchmark_family": "energy_chat_fixed_deterministic",
-            "claim_status": "measurement_only_no_quality_claim",
+            "claim_status": quality_claim,
+            "claim_scope": "committed deterministic corpus only",
             "provider_calls": 0,
             "live_provider_required": False,
-            "quality_claim_allowed": False,
+            "quality_claim_allowed": quality_claim_allowed,
+            "live_provider_quality_proven": False,
         },
     )
 
 
 def render_fixed_benchmark_markdown(result: FixedBenchmarkRunResult) -> str:
-    """Render a reviewer-readable deterministic benchmark report."""
+    """Render a reviewer-readable report without exceeding the evidence."""
 
     lines = [
         "# Energy Aware Chat Fixed Benchmark Report",
@@ -176,26 +231,27 @@ def render_fixed_benchmark_markdown(result: FixedBenchmarkRunResult) -> str:
         "status: generated-deterministic-evidence",
         f"run_id: `{result.run_id}`",
         f"dataset_path: `{result.dataset_path}`",
-        "claim_status: `measurement_only_no_quality_claim`",
+        f"claim_status: `{result.quality_claim}`",
+        "claim_scope: `committed deterministic corpus only`",
         "",
         "## Summary",
         "",
         f"- Cases total: {result.cases_total}",
+        f"- Guardrail cases passed: {result.guardrail_cases_passed}",
         f"- Accepted baseline: {result.accepted_baseline}",
         f"- Accepted after repair: {result.accepted_after_repair}",
         f"- Repairs attempted: {result.repairs_attempted}",
         f"- Hard rejects: {result.hard_rejects}",
-        f"- Average energy delta after repair: {result.average_energy_delta_after_repair}",
-        "",
-        "## Boundary",
-        "",
-        "This report is deterministic CI evidence. It does not prove live provider quality improvement.",
-        "Use it to verify benchmark plumbing, case stability, evaluator behavior, and repair behavior.",
+        f"- Cases with lower energy: {result.energy_improved_cases}",
+        f"- Mean baseline energy: {result.mean_baseline_energy}",
+        f"- Mean final energy: {result.mean_final_energy}",
+        f"- Mean energy delta after repair: {result.average_energy_delta_after_repair}",
+        f"- Accepted hard-reject exposures: {result.accepted_hard_reject_exposures}",
         "",
         "## Cases",
         "",
-        "| Case | Category | Baseline | Final | Energy delta | Missing expected terms | Forbidden terms present |",
-        "| --- | --- | ---: | ---: | ---: | --- | --- |",
+        "| Case | Category | Baseline | Final | Energy delta | Guardrails |",
+        "| --- | --- | ---: | ---: | ---: | --- |",
     ]
     for item in result.results:
         lines.append(
@@ -205,15 +261,23 @@ def render_fixed_benchmark_markdown(result: FixedBenchmarkRunResult) -> str:
             f"{item.baseline_decision} / {item.baseline_energy} | "
             f"{item.final_decision} / {item.final_energy} | "
             f"{item.energy_delta_after_repair} | "
-            f"{', '.join(item.missing_expected_terms) or 'none'} | "
-            f"{', '.join(item.forbidden_terms_present) or 'none'} |"
+            f"{'pass' if item.guardrails_passed else 'fail'} |"
         )
     lines.extend(
         [
             "",
-            "## Next step",
+            "## Claim boundary",
             "",
-            "Run a separate live-provider benchmark over the same case IDs before making any quality-improvement claim.",
+            (
+                "This committed deterministic corpus demonstrates lower measured constraint "
+                "energy without accepting any hard-reject baseline."
+                if result.quality_claim_allowed
+                else "This run does not demonstrate deterministic corpus energy reduction."
+            ),
+            "It does not prove live provider quality improvement, production usefulness, or "
+            "superiority over DeepSeek, Kimi, OpenAI, or another model.",
+            "Run the separate credentialed live-provider benchmark over the same case IDs "
+            "before making external-model claims.",
             "",
         ]
     )

@@ -40,10 +40,14 @@ class BaselineDraftProvider(Protocol):
         """Return a provider-normalized draft completion."""
 
 
-def build_deepseek_baseline_messages(request: DeepSeekBaselineRequest) -> list[dict[str, str]]:
+def build_deepseek_baseline_messages(
+    request: DeepSeekBaselineRequest,
+) -> list[dict[str, str]]:
     """Build the plain baseline messages used before energy-aware evaluation."""
 
-    constraints = _format_optional_list("Required constraints", request.required_constraints)
+    constraints = _format_optional_list(
+        "Required constraints", request.required_constraints
+    )
     sections = _format_optional_list("Required sections", request.required_sections)
     user_content = (
         "Create a draft answer candidate for this user request.\n\n"
@@ -62,28 +66,32 @@ def generate_deepseek_baseline_draft(
     request: DeepSeekBaselineRequest,
     *,
     provider: BaselineDraftProvider | None = None,
+    allow_provider_fallback: bool = True,
+    tier_ladder: list[ProviderTier] | None = None,
 ) -> DeepSeekBaselineResult:
-    """
-    Generate one plain DeepSeek draft answer for later Energy Aware evaluation.
+    """Generate one plain provider draft for later Energy Aware evaluation.
 
-    The default provider is loaded lazily so imports and normal tests never require
-    real provider keys. Tests should inject a fake provider through the seam.
-
-    Slice 19 upgrades the live path from a single DeepSeek call to the existing
-    tier ladder: DeepSeek flash, DeepSeek pro, Kimi backup, Kimi backup pro.
+    Legacy callers retain the historical fallback ladder. New V2 callers must
+    pass an explicit fallback policy; the safe V2 default disables fallback.
     """
 
     active_provider = provider or _build_default_provider()
     messages = build_deepseek_baseline_messages(request)
+    active_ladder = list(tier_ladder or BASELINE_TIER_LADDER)
+    if request.tier not in active_ladder:
+        active_ladder.insert(0, request.tier)
     provider_result = _complete_baseline_messages(
         provider=active_provider,
         messages=messages,
         starting_tier=request.tier,
+        tier_ladder=active_ladder,
         max_tokens=request.max_tokens,
+        allow_provider_fallback=allow_provider_fallback,
     )
     draft_answer = _extract_draft_answer(provider_result)
     resolved_tier = _provider_tier(provider_result.get("tier") or request.tier)
     fallback_used = bool(provider_result.get("fallback_used", False))
+    served_provider = str(provider_result.get("provider") or "deepseek")
     evidence_refs = ["provider:deepseek_baseline", f"tier:{resolved_tier}"]
     if fallback_used:
         evidence_refs.append(f"fallback_from:{request.tier}")
@@ -91,7 +99,7 @@ def generate_deepseek_baseline_draft(
     return DeepSeekBaselineResult(
         request=request,
         draft_answer=draft_answer,
-        provider=str(provider_result.get("provider") or "deepseek"),
+        provider=served_provider,
         model=str(provider_result.get("model") or "unknown"),
         tier=resolved_tier,
         input_tokens=_optional_int(provider_result.get("input_tokens")),
@@ -103,10 +111,13 @@ def generate_deepseek_baseline_draft(
         metadata={
             "prompt_family": "plain_baseline",
             "energy_evaluated": False,
-            "fallback_capable": hasattr(active_provider, "complete_with_fallback_messages"),
+            "fallback_capable": hasattr(
+                active_provider, "complete_with_fallback_messages"
+            ),
+            "fallback_authorized": allow_provider_fallback,
             "requested_tier": request.tier,
             "resolved_tier": resolved_tier,
-            "tier_ladder": list(BASELINE_TIER_LADDER),
+            "tier_ladder": active_ladder,
         },
     )
 
@@ -116,14 +127,16 @@ def _complete_baseline_messages(
     provider: BaselineDraftProvider,
     messages: list[dict[str, str]],
     starting_tier: str,
+    tier_ladder: list[ProviderTier],
     max_tokens: int,
+    allow_provider_fallback: bool,
 ) -> dict:
     fallback_method = getattr(provider, "complete_with_fallback_messages", None)
-    if callable(fallback_method):
+    if allow_provider_fallback and callable(fallback_method):
         return fallback_method(
             messages=messages,
             starting_tier=starting_tier,
-            tier_ladder=list(BASELINE_TIER_LADDER),
+            tier_ladder=tier_ladder,
             max_tokens=max_tokens,
         )
 
@@ -135,7 +148,7 @@ def _complete_baseline_messages(
 
 
 def _build_default_provider() -> BaselineDraftProvider:
-    """Load the existing LiteLLM provider only when the live baseline is called."""
+    """Load the LiteLLM provider only when the live baseline is called."""
 
     from app.services.litellm_provider import LiteLLMProvider
 
@@ -150,7 +163,9 @@ def _format_optional_list(label: str, values: list[str]) -> str:
 
 
 def _extract_draft_answer(provider_result: dict) -> str:
-    raw_answer = provider_result.get("estimation") or provider_result.get("draft_answer")
+    raw_answer = provider_result.get("estimation") or provider_result.get(
+        "draft_answer"
+    )
     if not isinstance(raw_answer, str) or not raw_answer.strip():
         raise RuntimeError("DeepSeek baseline provider returned no visible draft answer.")
     return raw_answer.strip()
@@ -163,18 +178,12 @@ def _provider_tier(value: object) -> ProviderTier:
 
 
 def _optional_int(value) -> int | None:
-    if value is None:
-        return None
-    return int(value)
+    return None if value is None else int(value)
 
 
 def _optional_float(value) -> float | None:
-    if value is None:
-        return None
-    return float(value)
+    return None if value is None else float(value)
 
 
 def _optional_str(value) -> str | None:
-    if value is None:
-        return None
-    return str(value)
+    return None if value is None else str(value)

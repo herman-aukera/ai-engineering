@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from typing import Annotated, Any, Literal, TypedDict
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -27,7 +29,18 @@ from app.energy_chat.contracts import (
     RequestPolicyAssessment,
     SourceNeedResult,
 )
-from app.energy_chat.evaluation_nodes import calculate_energy, decide_candidate, run_critic_panel
+from app.energy_chat.evaluation_nodes import (
+    calculate_energy,
+    decide_candidate,
+    run_critic_panel,
+)
+from app.energy_chat.evidence_hardening import (
+    CandidateCitationValidation,
+    EvidenceBodyMetadata,
+    build_project_evidence_metadata,
+    metadata_without_body,
+    validate_candidate_citations,
+)
 from app.energy_chat.evidence_nodes import (
     EvidenceRoute,
     determine_evidence_need,
@@ -58,6 +71,7 @@ from app.energy_chat.human_gate import (
     HumanGateMode,
     enable_human_gates,
 )
+from app.energy_chat.observability import NodeSpan
 from app.energy_chat.repair_nodes import (
     RepairStrategy,
     apply_repair,
@@ -118,6 +132,25 @@ def _reduce_trace_events(
     return append_unique_records(current, incoming, id_field="event_id")
 
 
+def _reduce_node_spans(
+    current: list[NodeSpan], incoming: list[NodeSpan]
+) -> list[NodeSpan]:
+    return append_unique_records(current, incoming, id_field="span_id")
+
+
+def _reduce_evidence_metadata(
+    current: list[EvidenceBodyMetadata], incoming: list[EvidenceBodyMetadata]
+) -> list[EvidenceBodyMetadata]:
+    return append_unique_records(current, incoming, id_field="evidence_ref")
+
+
+def _reduce_citation_validations(
+    current: list[CandidateCitationValidation],
+    incoming: list[CandidateCitationValidation],
+) -> list[CandidateCitationValidation]:
+    return append_unique_records(current, incoming, id_field="candidate_id")
+
+
 def _reduce_ledger_entries(
     current: list[DecisionLedgerEntry], incoming: list[DecisionLedgerEntry]
 ) -> list[DecisionLedgerEntry]:
@@ -131,7 +164,7 @@ def _reduce_errors(
 
 
 class EnergyChatRuntimeState(TypedDict):
-    """LangGraph wiring schema; domain validation remains in EnergyChatGraphState."""
+    """LangGraph wiring schema; domain validation remains authoritative."""
 
     schema_version: str
     contract_version: str
@@ -144,6 +177,12 @@ class EnergyChatRuntimeState(TypedDict):
     request_policy: RequestPolicyAssessment | None
     constraints: list[str]
     evidence_refs: Annotated[list[str], _reduce_evidence_refs]
+    evidence_body_metadata: Annotated[
+        list[EvidenceBodyMetadata], _reduce_evidence_metadata
+    ]
+    citation_validations: Annotated[
+        list[CandidateCitationValidation], _reduce_citation_validations
+    ]
     source_need: SourceNeedResult | None
     project_rag: ProjectRagResult | None
     candidate_versions: Annotated[list[CandidateVersion], _reduce_candidates]
@@ -158,6 +197,7 @@ class EnergyChatRuntimeState(TypedDict):
     retry_budget: RetryBudget
     cost_budget: CostBudget
     trace_events: Annotated[list[TraceEvent], _reduce_trace_events]
+    node_spans: Annotated[list[NodeSpan], _reduce_node_spans]
     decision_ledger_entries: Annotated[list[DecisionLedgerEntry], _reduce_ledger_entries]
     errors: Annotated[list[ErrorRecord], _reduce_errors]
     final_answer: str | None
@@ -177,21 +217,38 @@ def build_energy_chat_graph(
     repair_strategy: RepairStrategy | None = None,
     checkpointer: BaseCheckpointSaver | None = None,
     human_gate_mode: HumanGateMode = "disabled",
+    clock: Callable[[], float] | None = None,
 ):
-    """Compile the provider-injected graph with one bounded repair loop.
-
-    When *checkpointer* is provided (e.g. an InMemoryCheckpointer's saver),
-    the graph checkpoints after every node and supports thread-isolated
-    replay and resume through LangGraph's configurable thread_id.
-
-    When *human_gate_mode* is ``"required"``, clarify and escalate dispositions
-    interrupt the graph for human action instead of terminating. Resume is
-    revision-guarded through the HumanActionRequest.expected_revision field.
-    """
+    """Compile the graph with bounded repair, evidence integrity, and spans."""
 
     active_provider = provider or DeterministicCandidateProvider()
     active_budget = budget or ProviderBudget()
+    active_clock = clock or time.perf_counter
     builder = StateGraph(EnergyChatRuntimeState)
+
+    def observed(
+        node_name: str,
+        handler: Callable[[EnergyChatRuntimeState], dict[str, Any]],
+    ) -> Callable[[EnergyChatRuntimeState], dict[str, Any]]:
+        def run(state: EnergyChatRuntimeState) -> dict[str, Any]:
+            started_at_ms = max(0, round(active_clock() * 1000))
+            update = handler(state)
+            finished_at_ms = max(started_at_ms, round(active_clock() * 1000))
+            occurrence = (
+                sum(span.node_name == node_name for span in state.get("node_spans", []))
+                + 1
+            )
+            update["node_spans"] = [
+                NodeSpan(
+                    span_id=f"{state['trace_id']}:{node_name}:{occurrence}",
+                    node_name=node_name,
+                    started_at_ms=started_at_ms,
+                    finished_at_ms=finished_at_ms,
+                )
+            ]
+            return update
+
+        return run
 
     def interpret_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
         delta = interpret_request(_domain_state(state))
@@ -221,15 +278,27 @@ def build_energy_chat_graph(
         }
 
     def evidence_route_node(
-        state: EnergyChatRuntimeState, expected_route: EvidenceRoute
+        state: EnergyChatRuntimeState,
+        expected_route: EvidenceRoute,
     ) -> dict[str, Any]:
         delta = route_evidence(_domain_state(state))
         if delta.route != expected_route:
             raise ValueError(
                 f"Evidence branch changed from {expected_route!r} to {delta.route!r}"
             )
+        metadata = build_project_evidence_metadata(delta.project_rag)
+        hashed_refs = {item.evidence_ref for item in metadata}
+        metadata.extend(
+            metadata_without_body(
+                evidence_ref,
+                permitted=True,
+            )
+            for evidence_ref in delta.evidence_refs
+            if evidence_ref not in hashed_refs
+        )
         update: dict[str, Any] = {
             "evidence_refs": delta.evidence_refs,
+            "evidence_body_metadata": metadata,
             "status": delta.status,
             "trace_events": delta.trace_events,
         }
@@ -239,23 +308,46 @@ def build_energy_chat_graph(
 
     def candidate_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
         delta = generate_candidate(
-            _domain_state(state), provider=active_provider, budget=active_budget
+            _domain_state(state),
+            provider=active_provider,
+            budget=active_budget,
+        )
+        candidate = delta.candidate_versions[-1]
+        validation = validate_candidate_citations(
+            candidate_id=candidate.candidate_id,
+            answer_text=candidate.answer,
+            known_evidence_refs=candidate.evidence_refs,
         )
         return {
             "candidate_versions": delta.candidate_versions,
             "active_candidate_id": delta.active_candidate_id,
             "provider_metrics": delta.provider_metrics,
             "evidence_refs": delta.evidence_refs,
+            "citation_validations": [validation],
             "cost_budget": delta.cost_budget,
             "status": delta.status,
             "trace_events": delta.trace_events,
         }
 
     def critic_node(state: EnergyChatRuntimeState) -> dict[str, Any]:
-        delta = run_critic_panel(_domain_state(state))
+        domain = _domain_state(state)
+        if domain.active_candidate_id is None:
+            raise ValueError("Critic panel requires an active candidate")
+        candidate = next(
+            item
+            for item in domain.candidate_versions
+            if item.candidate_id == domain.active_candidate_id
+        )
+        validation = validate_candidate_citations(
+            candidate_id=candidate.candidate_id,
+            answer_text=candidate.answer,
+            known_evidence_refs=candidate.evidence_refs,
+        )
+        delta = run_critic_panel(domain)
         return {
             "critic_panels": delta.critic_panels,
             "critic_findings": delta.critic_panels[0].findings,
+            "citation_validations": [validation],
             "status": delta.status,
             "trace_events": delta.trace_events,
         }
@@ -313,15 +405,17 @@ def build_energy_chat_graph(
         request = HumanActionRequest(
             action_id=f"{domain.trace_id}:human:{turn}",
             action=action_type,  # type: ignore[arg-type]
-            reason=f"Decision {last_decision.decision_id} requires human action: {last_decision.reason}",
+            reason=(
+                f"Decision {last_decision.decision_id} requires human action: "
+                f"{last_decision.reason}"
+            ),
             expected_revision=turn,
         )
-        # Interrupt and wait for human. On resume, the caller passes
-        # Command(resume=human_action) with the response.
         response = interrupt(request)
         if not isinstance(response, HumanActionRequest):
             raise ValueError(
-                f"Human gate resume requires a HumanActionRequest, got {type(response).__name__}"
+                "Human gate resume requires a HumanActionRequest, "
+                f"got {type(response).__name__}"
             )
         return {
             "human_action_request": request,
@@ -349,30 +443,52 @@ def build_energy_chat_graph(
             "trace_events": delta.trace_events,
         }
 
-    builder.add_node("interpret_request", interpret_node)
-    builder.add_node("load_policy_and_constraints", policy_node)
-    builder.add_node("determine_evidence_need", evidence_need_node)
+    builder.add_node("interpret_request", observed("interpret_request", interpret_node))
     builder.add_node(
-        "skip_evidence", lambda state: evidence_route_node(state, "skip")
+        "load_policy_and_constraints",
+        observed("load_policy_and_constraints", policy_node),
+    )
+    builder.add_node(
+        "determine_evidence_need",
+        observed("determine_evidence_need", evidence_need_node),
+    )
+    builder.add_node(
+        "skip_evidence",
+        observed(
+            "skip_evidence",
+            lambda state: evidence_route_node(state, "skip"),
+        ),
     )
     builder.add_node(
         "retrieve_project_evidence",
-        lambda state: evidence_route_node(state, "retrieve_project"),
+        observed(
+            "retrieve_project_evidence",
+            lambda state: evidence_route_node(state, "retrieve_project"),
+        ),
     )
     builder.add_node(
         "await_external_evidence",
-        lambda state: evidence_route_node(state, "external_required"),
+        observed(
+            "await_external_evidence",
+            lambda state: evidence_route_node(state, "external_required"),
+        ),
     )
-    builder.add_node("generate_candidate", candidate_node)
-    builder.add_node("run_critic_panel", critic_node)
-    builder.add_node("calculate_energy", score_node)
-    builder.add_node("decide_candidate", decision_node)
-    builder.add_node("plan_repair", repair_plan_node)
-    builder.add_node("apply_repair", repair_apply_node)
-    builder.add_node("finalize_repair", repair_finalize_node)
-    builder.add_node("request_human_action", human_action_node)
-    builder.add_node("record_decision", ledger_node)
-    builder.add_node("build_final_projection", projection_node)
+    builder.add_node("generate_candidate", observed("generate_candidate", candidate_node))
+    builder.add_node("run_critic_panel", observed("run_critic_panel", critic_node))
+    builder.add_node("calculate_energy", observed("calculate_energy", score_node))
+    builder.add_node("decide_candidate", observed("decide_candidate", decision_node))
+    builder.add_node("plan_repair", observed("plan_repair", repair_plan_node))
+    builder.add_node("apply_repair", observed("apply_repair", repair_apply_node))
+    builder.add_node("finalize_repair", observed("finalize_repair", repair_finalize_node))
+    builder.add_node(
+        "request_human_action",
+        observed("request_human_action", human_action_node),
+    )
+    builder.add_node("record_decision", observed("record_decision", ledger_node))
+    builder.add_node(
+        "build_final_projection",
+        observed("build_final_projection", projection_node),
+    )
 
     builder.add_conditional_edges(
         START,
@@ -397,30 +513,25 @@ def build_energy_chat_graph(
     builder.add_edge("run_critic_panel", "calculate_energy")
     builder.add_edge("calculate_energy", "decide_candidate")
 
-    # ── decision routing closure (captures human_gate_mode) ──────────
-
-    def _route_decision(
+    def route_decision(
         state: EnergyChatRuntimeState,
     ) -> Literal["end", "repair", "finalize", "human"]:
-        domain_state = _domain_state(state)
-        active_candidate_id = domain_state.active_candidate_id
-        if active_candidate_id is None:
+        domain = _domain_state(state)
+        if domain.active_candidate_id is None:
             return "end"
         decision = next(
             item
-            for item in reversed(domain_state.decision_outcomes)
-            if item.candidate_id == active_candidate_id
+            for item in reversed(domain.decision_outcomes)
+            if item.candidate_id == domain.active_candidate_id
         )
         repaired_candidate = any(
-            request.target_candidate_id == active_candidate_id
-            for request in domain_state.repair_requests
+            request.target_candidate_id == domain.active_candidate_id
+            for request in domain.repair_requests
         )
         if repaired_candidate:
             return "finalize"
         if decision.disposition == "repair":
-            return (
-                "repair" if domain_state.retry_budget.remaining > 0 else "finalize"
-            )
+            return "repair" if domain.retry_budget.remaining > 0 else "finalize"
         if decision.disposition in ("clarify", "escalate") and enable_human_gates(
             human_gate_mode
         ):
@@ -429,7 +540,7 @@ def build_energy_chat_graph(
 
     builder.add_conditional_edges(
         "decide_candidate",
-        _route_decision,
+        route_decision,
         {
             "end": "record_decision",
             "repair": "plan_repair",
@@ -458,24 +569,20 @@ def run_energy_chat_graph(
     repair_strategy: RepairStrategy | None = None,
     checkpointer: BaseCheckpointSaver | None = None,
     human_gate_mode: HumanGateMode = "disabled",
+    clock: Callable[[], float] | None = None,
 ) -> EnergyChatGraphState:
-    """Run the graph and validate its complete domain state output.
-
-    When *checkpointer* is provided, the graph uses LangGraph's thread-isolated
-    checkpointing. The caller's *state.thread_id* is used as the configurable
-    thread key so that replay and resume are thread-scoped.
-    """
+    """Run and validate the complete graph state."""
 
     config: dict[str, object] | None = None
     if checkpointer is not None:
         config = {"configurable": {"thread_id": state.thread_id}}
-
     result = build_energy_chat_graph(
         provider=provider,
         budget=budget,
         repair_strategy=repair_strategy,
         checkpointer=checkpointer,
         human_gate_mode=human_gate_mode,
+        clock=clock,
     ).invoke(_runtime_payload(state), config)
     return EnergyChatGraphState.model_validate(result)
 

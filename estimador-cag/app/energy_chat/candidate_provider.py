@@ -9,12 +9,17 @@ from typing import Any, Protocol
 from pydantic import Field, field_validator
 
 from app.energy_chat.agent import build_project_grounded_draft
-from app.energy_chat.baseline import BaselineDraftProvider, generate_deepseek_baseline_draft
+from app.energy_chat.baseline import (
+    BASELINE_TIER_LADDER,
+    BaselineDraftProvider,
+    generate_deepseek_baseline_draft,
+)
 from app.energy_chat.contracts import (
     DeepSeekBaselineRequest,
     EnergyAwareChatAgentRequest,
     Mode,
     ProjectRagResult,
+    ProviderTier,
 )
 from app.energy_chat.graph_state import GraphStateRecord, ProviderMetrics
 from app.energy_chat.live_agent import build_provider_grounded_prompt
@@ -96,7 +101,11 @@ class DeterministicCandidateProvider:
 
 
 class BaselineCandidateProvider:
-    """Adapter over the existing DeepSeek/Kimi fallback-capable baseline seam."""
+    """Adapter over the existing live baseline seam.
+
+    The legacy default remains fallback-capable. V2 configures an explicit
+    per-request policy before graph execution and defaults to no fallback.
+    """
 
     def __init__(
         self,
@@ -106,6 +115,20 @@ class BaselineCandidateProvider:
     ) -> None:
         self._provider = provider
         self._clock = clock
+        self._allow_provider_fallback = True
+        self._fallback_tier_ladder = list(BASELINE_TIER_LADDER)
+
+    def configure_fallback_policy(
+        self,
+        *,
+        allow_provider_fallback: bool,
+        tier_ladder: list[ProviderTier],
+    ) -> BaselineCandidateProvider:
+        """Bind one explicit fallback policy to this request-scoped adapter."""
+
+        self._allow_provider_fallback = allow_provider_fallback
+        self._fallback_tier_ladder = list(tier_ladder)
+        return self
 
     def generate(self, request: CandidateProviderRequest) -> CandidateGenerationResult:
         agent_request = EnergyAwareChatAgentRequest(
@@ -126,11 +149,21 @@ class BaselineCandidateProvider:
                 required_sections=request.required_sections,
             ),
             provider=self._provider,
+            allow_provider_fallback=self._allow_provider_fallback,
+            tier_ladder=self._fallback_tier_ladder,
         )
         latency_ms = max(0, round((self._clock() - started) * 1000))
+        evidence_refs = list(baseline.evidence_refs)
+        if baseline.fallback_used and self._allow_provider_fallback:
+            evidence_refs.extend(
+                [
+                    f"fallback_to:{baseline.provider}",
+                    "fallback_authorized:true",
+                ]
+            )
         return CandidateGenerationResult(
             answer=baseline.draft_answer,
-            evidence_refs=baseline.evidence_refs,
+            evidence_refs=list(dict.fromkeys(evidence_refs)),
             metrics=ProviderMetrics(
                 provider_call_id=request.provider_call_id,
                 provider=baseline.provider,

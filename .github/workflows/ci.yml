@@ -4,13 +4,18 @@ on:
   push:
     branches:
       - main
+      - master
       - EACHAT
       - finalproject-GGC
       - "gg-*"
       - "sesion-*"
       - "session*"
+      - repair/eachat-foundation-and-release-evidence
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test-estimador-cag:
@@ -19,17 +24,23 @@ jobs:
       run:
         working-directory: estimador-cag
     env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       OPENAI_API_KEY: test
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
+      LANGGRAPH_STRICT_MSGPACK: "true"
       PYTHONUNBUFFERED: "1"
       UV_HTTP_TIMEOUT: "300"
 
     steps:
-      - name: Checkout
+      - name: Checkout exact branch head
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -44,11 +55,18 @@ jobs:
 
       - name: Ruff
         run: |
-          TARGETS="app tests"
-          test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
-          test -f energy_chat_streamlit_app.py && TARGETS="$TARGETS energy_chat_streamlit_app.py"
-          test -d evals && TARGETS="$TARGETS evals"
-          uv run ruff check $TARGETS
+          STATUS=0
+          uv run ruff check . > /tmp/ruff-output.txt 2>&1 || STATUS=$?
+          cat /tmp/ruff-output.txt
+          test "$STATUS" = "0"
+
+      - name: Upload Ruff output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruff-output
+          path: /tmp/ruff-output.txt
+          if-no-files-found: ignore
 
       - name: Compile Python
         run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null) streamlit_app.py energy_chat_streamlit_app.py
@@ -68,3 +86,273 @@ jobs:
       - name: Energy Chat validation gate
         if: ${{ hashFiles('estimador-cag/scripts/validate_energy_chat.sh') != '' }}
         run: bash scripts/validate_energy_chat.sh
+
+  test-energy-chat-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: eachat
+          POSTGRES_PASSWORD: eachat_test
+          POSTGRES_DB: eachat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eachat -d eachat_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      EACHAT_POSTGRES_URL: postgresql://eachat:eachat_test@localhost:5432/eachat_test
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      PYTHONUNBUFFERED: "1"
+      UV_HTTP_TIMEOUT: "300"
+
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev --extra postgres
+
+      - name: PostgreSQL integration tests
+        run: |
+          set -o pipefail
+          uv run pytest -q tests/test_energy_chat_postgres_runtime.py 2>&1 | tee /tmp/postgres-pytest-output.txt
+
+      - name: Upload PostgreSQL pytest output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-pytest-output
+          path: /tmp/postgres-pytest-output.txt
+
+  test-energy-chat-browser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      EACHAT_V2_ENABLED: "true"
+      EACHAT_BROWSER_BASE_URL: http://127.0.0.1:8000
+      EACHAT_BROWSER_SCREENSHOT: /tmp/eachat-v2-browser.png
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      PYTHONUNBUFFERED: "1"
+      UV_HTTP_TIMEOUT: "300"
+
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install application dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Install pinned browser runner
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start FastAPI product server
+        run: |
+          uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/eachat-browser-server.log 2>&1 &
+          echo $! > /tmp/eachat-browser-server.pid
+          SERVER_READY=0
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8000/health > /tmp/eachat-health.json; then
+              SERVER_READY=1
+              break
+            fi
+            sleep 1
+          done
+          test "$SERVER_READY" = "1"
+
+      - name: Run V2 browser journey
+        run: |
+          STATUS=0
+          node scripts/smoke_eachat_v2_browser.mjs > /tmp/eachat-browser-smoke.log 2>&1 || STATUS=$?
+          cat /tmp/eachat-browser-smoke.log
+          test "$STATUS" = "0"
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eachat-v2-browser-evidence
+          path: |
+            /tmp/eachat-v2-browser.png
+            /tmp/eachat-browser-smoke.log
+            /tmp/eachat-browser-server.log
+            /tmp/eachat-health.json
+          if-no-files-found: warn
+
+      - name: Stop FastAPI product server
+        if: always()
+        run: |
+          if test -f /tmp/eachat-browser-server.pid; then
+            kill "$(cat /tmp/eachat-browser-server.pid)" 2>/dev/null || true
+          fi
+
+  test-energy-chat-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      PYTHONUNBUFFERED: "1"
+      UV_HTTP_TIMEOUT: "300"
+
+    steps:
+      - name: Checkout exact branch head with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Scan tracked files and branch history for secrets
+        run: python scripts/security_scan_eachat.py --base-ref origin/EACHAT --report /tmp/eachat-secret-scan.json
+
+      - name: Install coursework test dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Run public and production security contract tests
+        run: |
+          set -o pipefail
+          uv run pytest -q tests/test_energy_chat_security.py tests/test_energy_chat_production_app.py 2>&1 | tee /tmp/security-pytest-output.txt
+
+      - name: Resolve isolated production lock
+        run: uv lock --project deploy/eachat
+
+      - name: Verify audited production lock digest
+        working-directory: estimador-cag/deploy/eachat
+        run: sha256sum --check uv.lock.sha256
+
+      - name: Export isolated production dependencies
+        run: uv export --project deploy/eachat --frozen --no-dev --format requirements-txt --output-file /tmp/eachat-production-requirements.txt
+
+      - name: Audit isolated production dependencies
+        run: |
+          uv tool run pip-audit --requirement /tmp/eachat-production-requirements.txt --progress-spinner off --format json --output /tmp/eachat-pip-audit.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('/tmp/eachat-pip-audit.json').read_text(encoding='utf-8'))
+          dependencies = payload.get('dependencies', [])
+          assert dependencies, 'pip-audit returned no dependency inventory'
+          vulnerabilities = payload.get('vulnerabilities')
+          if vulnerabilities is None:
+              vulnerabilities = [
+                  {'dependency': dependency.get('name'), **vulnerability}
+                  for dependency in dependencies
+                  for vulnerability in dependency.get('vulns', [])
+              ]
+          assert not vulnerabilities, vulnerabilities
+          PY
+
+      - name: Install isolated production environment
+        run: uv sync --project deploy/eachat --frozen --no-dev
+
+      - name: Smoke isolated production service
+        run: |
+          EACHAT_ALLOW_IN_MEMORY=true \
+          uv run --project deploy/eachat \
+          uvicorn app.energy_chat.production_app:app --app-dir . --host 127.0.0.1 --port 8010 \
+          > /tmp/eachat-production.log 2>&1 &
+          echo $! > /tmp/eachat-production.pid
+          READY=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8010/health > /tmp/eachat-production-health.json; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          test "$READY" = "1"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('/tmp/eachat-production-health.json').read_text(encoding='utf-8'))
+          assert payload['status'] == 'ok'
+          assert payload['service'] == 'eachat'
+          assert payload['strict_msgpack'] is True
+          PY
+
+      - name: Upload security and production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eachat-security-production-evidence
+          path: |
+            /tmp/eachat-secret-scan.json
+            /tmp/security-pytest-output.txt
+            /tmp/eachat-pip-audit.json
+            /tmp/eachat-production-requirements.txt
+            /tmp/eachat-production-health.json
+            /tmp/eachat-production.log
+          if-no-files-found: warn
+
+      - name: Stop isolated production service
+        if: always()
+        run: |
+          if test -f /tmp/eachat-production.pid; then
+            kill "$(cat /tmp/eachat-production.pid)" 2>/dev/null || true
+          fi

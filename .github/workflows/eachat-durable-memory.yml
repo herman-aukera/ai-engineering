@@ -1,0 +1,99 @@
+name: EACHAT - Durable Memory
+
+on:
+  pull_request:
+    paths:
+      - estimador-cag/app/energy_chat/**
+      - estimador-cag/tests/test_energy_chat_postgres_runtime.py
+      - estimador-cag/tests/test_energy_chat_postgres_conversations.py
+      - estimador-cag/deploy/eachat/**
+      - .github/workflows/eachat-durable-memory.yml
+  push:
+    branches:
+      - EACHAT
+      - repair/eachat-foundation-and-release-evidence
+    paths:
+      - estimador-cag/app/energy_chat/**
+      - estimador-cag/tests/test_energy_chat_postgres_runtime.py
+      - estimador-cag/tests/test_energy_chat_postgres_conversations.py
+      - estimador-cag/deploy/eachat/**
+      - .github/workflows/eachat-durable-memory.yml
+  workflow_dispatch:
+
+jobs:
+  encrypted-postgres-memory:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: eachat
+          POSTGRES_PASSWORD: eachat_test
+          POSTGRES_DB: eachat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eachat -d eachat_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EACHAT_POSTGRES_URL: postgresql://eachat:eachat_test@localhost:5432/eachat_test
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      PYTHONUNBUFFERED: "1"
+      UV_HTTP_TIMEOUT: "300"
+    defaults:
+      run:
+        working-directory: estimador-cag
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deterministic test environment
+        run: uv sync --frozen --extra dev --extra postgres
+
+      - name: Verify isolated production lock
+        run: |
+          uv lock --project deploy/eachat
+          cd deploy/eachat
+          sha256sum --check uv.lock.sha256
+
+      - name: Install exact production dependencies into test environment
+        run: |
+          uv export --project deploy/eachat --frozen --no-dev --format requirements-txt --output-file /tmp/eachat-production-requirements.txt
+          uv pip install --python .venv/bin/python --requirement /tmp/eachat-production-requirements.txt
+
+      - name: Run checkpoint and encrypted conversation restart proofs
+        run: |
+          uv run pytest -q \
+            tests/test_energy_chat_postgres_runtime.py \
+            tests/test_energy_chat_postgres_conversations.py \
+            2>&1 | tee /tmp/eachat-memory-pytest.txt
+
+      - name: Upload durable-memory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eachat-durable-memory-evidence
+          path: |
+            /tmp/eachat-production-requirements.txt
+            /tmp/eachat-memory-pytest.txt
+          if-no-files-found: warn

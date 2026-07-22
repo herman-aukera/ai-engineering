@@ -3,208 +3,120 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EACHAT V2 — Graph-Backed Demo</title>
+  <title>EACHAT — Energy-Aware Chat</title>
   <style>
-    :root {
-      color-scheme: dark;
-      --bg: #111827; --panel: #172033; --panel-2: #0f172a;
-      --border: #334155; --text: #e5e7eb; --muted: #94a3b8;
-      --accent: #38bdf8; --ok: #10b981; --warn: #f59e0b; --bad: #ef4444;
-    }
-    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 72px; }
-    h1, h2, h3 { margin: 0 0 10px; }
-    p { color: var(--muted); line-height: 1.5; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 20px; }
-    .card { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
-    label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 0.85rem; }
-    textarea, input, select { width: 100%; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--border); background: #020617; color: var(--text); padding: 10px; font: inherit; }
-    textarea { min-height: 80px; resize: vertical; }
-    button { cursor: pointer; border: 1px solid #2563eb; background: #1d4ed8; color: white; padding: 10px 16px; margin: 10px 6px 0 0; border-radius: 10px; font-weight: 700; }
-    button.secondary { background: #0f172a; border-color: var(--border); }
-    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #020617; border: 1px solid var(--border); border-radius: 12px; padding: 12px; min-height: 100px; color: #dbeafe; font-size: 0.9rem; }
-    .pill { display: inline-flex; gap: 6px; align-items: center; border-radius: 999px; padding: 6px 10px; border: 1px solid var(--border); background: #020617; color: var(--muted); margin: 3px 6px 3px 0; font-size: 0.82rem; }
-    .pill.ok { color: #d1fae5; border-color: #065f46; background: #064e3b; }
-    .pill.warn { color: #fef3c7; border-color: #92400e; background: #78350f; }
-    .pill.bad { color: #fee2e2; border-color: #991b1b; background: #7f1d1d; }
-    .answer { background: #020617; border: 1px solid var(--border); border-radius: 12px; padding: 14px; line-height: 1.5; white-space: pre-wrap; }
-    .small { font-size: 0.82rem; color: var(--muted); }
-    .selectors { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-    .metric-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
-    .metric-row span:first-child { color: var(--muted); }
-    .thread-list { max-height: 200px; overflow-y: auto; }
-    .thread-item { cursor: pointer; padding: 6px 10px; border-radius: 8px; margin: 3px 0; background: #020617; border: 1px solid var(--border); font-size: 0.85rem; }
-    .thread-item:hover { border-color: var(--accent); }
+    :root{color-scheme:dark;--bg:#0b1020;--side:#0f172a;--panel:#17233d;--border:#2b3a58;--text:#edf2ff;--muted:#9caecc;--accent:#2563eb;--ok:#34d399;--warn:#fbbf24;--bad:#fb7185}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:var(--bg);color:var(--text)}button,textarea,select,input{font:inherit}button{cursor:pointer}.app{min-height:100vh;display:grid;grid-template-columns:260px minmax(0,1fr) 325px}.sidebar,.inspector{background:var(--side);padding:18px;overflow:auto}.sidebar{border-right:1px solid var(--border)}.inspector{border-left:1px solid var(--border)}.workspace{min-width:0;display:flex;flex-direction:column}.brand{display:flex;gap:10px;align-items:center;margin-bottom:18px}.mark{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#1d4ed8,#7c3aed);font-size:1.25rem}.brand h1{margin:0;font-size:1.05rem}.brand p{margin:2px 0 0;color:var(--muted);font-size:.78rem}.primary,.secondary,.conversation{border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;background:var(--panel)}.primary{background:var(--accent);border-color:#3b82f6;font-weight:700}.secondary:hover,.conversation:hover{border-color:#60a5fa}.danger{border-color:#7f1d1d;color:#fecaca}.wide{width:100%}.section{color:var(--muted);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin:20px 0 8px}.conversation-list{display:grid;gap:7px}.conversation{width:100%;text-align:left}.conversation.active{border-color:#60a5fa;background:#13264a}.conversation-title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.conversation-meta{display:block;color:var(--muted);font-size:.7rem;margin-top:5px}.topbar{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}.topbar h2{margin:0;font-size:1rem}.badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.badge{border:1px solid var(--border);border-radius:999px;padding:5px 9px;color:var(--muted);font-size:.7rem}.badge.ok{color:#d1fae5;border-color:#065f46;background:#064e3b}.badge.warn{color:#fef3c7;border-color:#92400e;background:#78350f}.messages{flex:1;overflow:auto;padding:28px max(20px,calc((100% - 900px)/2));display:flex;flex-direction:column;gap:18px}.welcome{margin:auto;max-width:650px;text-align:center;padding:30px}.welcome h3{font-size:1.55rem;margin:0 0 10px}.welcome p,.empty{color:var(--muted);line-height:1.5}.message{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start}.avatar{width:38px;height:38px;border:1px solid var(--border);border-radius:11px;display:grid;place-items:center;font-size:.75rem;font-weight:800}.message.user .avatar{background:#1d4ed8}.message.assistant .avatar{background:linear-gradient(135deg,#0f766e,#2563eb)}.bubble{border:1px solid var(--border);border-radius:14px;padding:14px 16px;white-space:pre-wrap;line-height:1.55;overflow-wrap:anywhere;background:var(--panel)}.message.user .bubble{background:#13264a}.meta{color:var(--muted);font-size:.7rem;margin-top:6px}.composer{border-top:1px solid var(--border);padding:14px max(20px,calc((100% - 900px)/2)) 20px}.selectors{display:grid;grid-template-columns:repeat(6,minmax(100px,1fr));gap:8px;margin-bottom:9px}label{display:block;color:var(--muted);font-size:.72rem;margin-bottom:4px}select,textarea,input{width:100%;color:var(--text);background:#080d19;border:1px solid var(--border);border-radius:10px;padding:9px 10px}textarea{min-height:88px;resize:vertical}.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px}.activity{margin-left:auto;color:var(--muted);font-size:.72rem}.panel{border:1px solid var(--border);background:var(--panel);border-radius:13px;padding:13px;margin-bottom:12px}.panel h3{font-size:.9rem;margin:0 0 10px}.row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(43,58,88,.7);font-size:.78rem}.row:last-child{border:0}.row span:first-child{color:var(--muted)}.row span:last-child{text-align:right;overflow-wrap:anywhere}.human{display:none;border-color:#92400e;background:#3b2508}.human.visible{display:block}.human-type{font-family:ui-monospace,monospace;color:#fde68a}.hidden{display:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;background:#080d19;border:1px solid var(--border);border-radius:10px;padding:10px;color:#dbeafe;font-size:.72rem}
+    @media(max-width:1100px){.app{grid-template-columns:230px minmax(0,1fr)}.inspector{display:none}}@media(max-width:760px){.app{display:block}.sidebar{display:none}.selectors{grid-template-columns:repeat(2,1fr)}.badges{display:none}.messages{min-height:55vh;padding:20px 14px}.composer{padding:12px 14px 18px}}
   </style>
 </head>
 <body>
-<main>
-  <h1>EACHAT V2 ⚡ Graph-Backed Demo</h1>
-  <p>V2 API: one graph execution per request. Energy Card v2, Decision Ledger, provider metrics. Legacy routes unchanged.</p>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="mark">⚡</div><div><h1>EACHAT</h1><p>Energy-aware answers</p></div></div>
+    <button class="primary wide" type="button" onclick="newConversation()">＋ New conversation</button>
+    <button class="secondary danger wide" type="button" onclick="deleteConversation()" style="margin-top:8px">Delete conversation</button>
+    <div class="section">Durable conversations</div><div id="conversationList" class="conversation-list"></div>
+    <div class="section">Current maturity</div>
+    <div class="empty">Server-owned multi-turn history.<br />Hash-linked minimal, balanced and max context snapshots.<br />One immutable checkpoint and Energy Card per turn.<br />Browser storage contains IDs and titles only.</div>
+  </aside>
 
-  <section class="card">
-    <h2>Request</h2>
-    <label for="question">Question</label>
-    <textarea id="question">Is deployment evidence mandatory for the Energy Aware Chat final project MVP?</textarea>
-
-    <div class="selectors">
-      <div><label for="mode">Mode</label><select id="mode"><option>project</option><option>chat_lite</option><option>research</option><option>tutor</option></select></div>
-      <div><label for="provider">Provider</label><select id="provider"><option value="deepseek" selected>DeepSeek (default)</option><option value="auto">Auto (uncalibrated)</option><option value="kimi">Kimi (deferred)</option><option value="openai">OpenAI (deferred)</option></select></div>
-      <div><label for="effort">Effort</label><select id="effort"><option value="balanced" selected>Balanced</option><option value="fast">Fast</option><option value="max">Max</option></select></div>
-      <div><label for="context">Context</label><select id="context"><option value="balanced" selected>Balanced</option><option value="minimal">Minimal (unsupported)</option><option value="max">Max (unsupported)</option></select></div>
-    </div>
-
-    <div class="selectors" style="margin-top:6px">
-      <div><label for="thread">Thread ID (for replay)</label><input id="thread" type="text" placeholder="auto-generated" /></div>
-      <div><label for="execution">Execution</label><select id="execution"><option value="deterministic" selected>Deterministic (CI-safe)</option><option value="live">Live (bounded)</option></select></div>
-    </div>
-
-    <div style="margin-top:10px">
-      <button onclick="sendRequest()">Send (V2 Graph)</button>
-      <button class="secondary" onclick="replayThread()">Replay Thread</button>
-      <button class="secondary" onclick="clearOutput()">Clear</button>
-    </div>
+  <section class="workspace">
+    <header class="topbar">
+      <h2 id="conversationTitle">New Energy-Aware conversation</h2>
+      <div class="badges">
+        <span class="badge ok">Durable bounded memory</span><span class="badge ok">Context compaction active</span><span class="badge ok">Bounded orchestration active</span>
+        <span class="badge warn">Live committee/adaptive: gated</span>
+      </div>
+    </header>
+    <main id="messages" class="messages"></main>
+    <footer class="composer">
+      <div class="selectors">
+        <div><label for="mode">Mode</label><select id="mode"><option value="project" selected>Project</option><option value="chat_lite">Chat lite</option><option value="research">Research</option><option value="tutor">Tutor</option></select></div>
+        <div><label for="execution">Execution</label><select id="execution" onchange="syncExecutionControls()"><option value="deterministic" selected>Deterministic</option><option value="live">Live bounded</option></select></div>
+        <div><label for="provider">Provider</label><select id="provider"><option value="deepseek" selected>DeepSeek</option><option value="kimi">Kimi Platform</option><option value="openai">OpenAI</option></select></div>
+        <div><label for="effort">Effort</label><select id="effort"><option value="fast">Fast</option><option value="balanced" selected>Balanced</option><option value="max">Max</option></select></div>
+        <div><label for="contextProfile">Context detail</label><select id="contextProfile"><option value="minimal">Minimal</option><option value="balanced" selected>Balanced</option><option value="max">Max</option></select></div>
+        <div><label for="orchestrationMode">Orchestration</label><select id="orchestrationMode"><option value="critic" selected>Critic</option><option value="committee">Committee</option><option value="adaptive">Adaptive</option></select></div>
+      </div>
+      <label for="composerInput">Message</label><textarea id="composerInput" placeholder="Ask EACHAT a question..."></textarea>
+      <div class="actions">
+        <button class="primary" type="button" onclick="sendRequest()">Send turn</button>
+        <button class="secondary" type="button" onclick="startHumanFlow()">Run protected one-off</button>
+        <button class="secondary" type="button" onclick="replayThread()">Replay checkpoint</button>
+        <button class="secondary" type="button" onclick="inspectThread()">Inspect state</button>
+        <span id="activity" class="activity">Ready</span>
+      </div>
+    </footer>
   </section>
 
-  <div class="grid">
-    <section class="card">
-      <h2>Response</h2>
-      <div id="status"></div>
-      <div id="answer" class="answer" style="min-height:60px"></div>
-    </section>
+  <aside class="inspector">
+    <div class="section">Run status</div><div id="statusPanel" class="panel"><div class="empty">No graph turn selected.</div></div>
+    <div id="humanPanel" class="panel human">
+      <h3>Protected outcome review</h3><div id="humanReason" class="empty"></div>
+      <div class="row"><span>Action contract</span><span id="humanActionType" class="human-type"></span></div>
+      <label for="humanDecision">Authority decision</label><select id="humanDecision" onchange="syncHumanDecision()"><option value="approve">Approve</option><option value="adjust">Adjust and re-evaluate</option><option value="reject">Reject</option></select>
+      <label for="humanDecisionReason">Reviewer reason</label><textarea id="humanDecisionReason" placeholder="Record the reviewer rationale..."></textarea>
+      <div id="humanAdjustGroup" class="hidden"><label for="humanAdjustedAnswer">Revised answer</label><textarea id="humanAdjustedAnswer" placeholder="Enter the complete reviewer-owned replacement answer..."></textarea></div>
+      <button class="primary wide" type="button" onclick="resumeHumanAction()">Apply human decision</button>
+      <p class="empty">Approve authorizes the protected outcome. Adjust creates a new candidate and reruns critics, energy and Boss. Reject writes an authoritative rejection to the ledger.</p>
+    </div>
+    <div class="section">Energy Card</div><div id="energyPanel" class="panel"><div class="empty">No Energy Card available.</div></div>
+    <div class="section">Provider and graph</div><div id="auditPanel" class="panel"><div class="empty">No execution metrics available.</div></div>
+    <div class="section">Safe state projection</div><pre id="statePanel">No state inspected.</pre>
+  </aside>
+</div>
 
-    <section class="card">
-      <h2>Energy Card v2</h2>
-      <div id="energyCard"></div>
-    </section>
-  </div>
-
-  <div class="grid">
-    <section class="card">
-      <h2>Provider Metrics</h2>
-      <div id="metrics"></div>
-    </section>
-    <section class="card">
-      <h2>Ledger & Trace</h2>
-      <div id="ledger"></div>
-    </section>
-  </div>
-
-  <section class="card">
-    <h2>Thread History</h2>
-    <div id="threadHistory" class="thread-list"></div>
-  </section>
-</main>
+<template id="user-message-template"><article class="message user"><div class="avatar">You</div><div><div class="bubble"></div><div class="meta"></div></div></article></template>
+<template id="assistant-message-template"><article class="message assistant"><div class="avatar">EA</div><div><div class="bubble"></div><div class="meta"></div></div></article></template>
 
 <script>
-  const THREADS = [];
+  const CONVERSATION_INDEX_KEY='eachat:v2:conversation-index';
+  let activeConversationId=null,activeRevision=0,activeGraphThreadId=null,currentMessages=[],pendingHumanAction=null,pendingHumanIdempotencyKey=null;
 
-  function endpoint() {
-    return document.getElementById('execution').value === 'live'
-      ? '/energy-chat/v2/chat/live' : '/energy-chat/v2/chat';
-  }
+  function readIndex(){try{return JSON.parse(localStorage.getItem(CONVERSATION_INDEX_KEY)||'[]')}catch(_){return[]}}
+  function writeIndex(value){localStorage.setItem(CONVERSATION_INDEX_KEY,JSON.stringify(value))}
+  function titleFor(text){const value=text.trim().replace(/\s+/g,' ');return value.length>46?`${value.slice(0,46)}…`:value||'Untitled conversation'}
+  function setActivity(text,kind=''){const node=document.getElementById('activity');node.textContent=text;node.style.color=kind==='error'?'var(--bad)':kind==='ok'?'var(--ok)':'var(--muted)'}
+  function emptyWelcome(){const node=document.createElement('div');node.className='welcome';node.innerHTML='<h3>Ask. Evaluate. Remember safely.</h3><p>Each turn receives a fresh graph checkpoint, critics, deterministic disposition, Decision Ledger entry, Energy Card and versioned context snapshot.</p>';return node}
+  function renderMessages(){const root=document.getElementById('messages');root.replaceChildren();if(!currentMessages.length){root.appendChild(emptyWelcome());return}for(const message of currentMessages){const template=document.getElementById(message.role==='user'?'user-message-template':'assistant-message-template');const node=template.content.firstElementChild.cloneNode(true);node.querySelector('.bubble').textContent=message.content;node.querySelector('.meta').textContent=message.meta||'';root.appendChild(node)}root.scrollTop=root.scrollHeight}
+  function appendMessage(role,content,meta=''){currentMessages.push({role,content,meta});renderMessages()}
+  async function requestJson(url,options={}){const response=await fetch(url,options);let data;try{data=await response.json()}catch(_){data={detail:{error:'invalid_json',detail:'Server returned non-JSON data.'}}}if(!response.ok){const detail=data.detail||{};const error=new Error(detail.detail||detail.error||`HTTP ${response.status}`);error.payload=data;error.status=response.status;throw error}return data}
 
-  function buildPayload() {
-    const p = {
-      user_message: document.getElementById('question').value,
-      mode: document.getElementById('mode').value,
-      provider_preference: document.getElementById('provider').value,
-      effort_profile: document.getElementById('effort').value,
-      context_profile: document.getElementById('context').value,
-      execution_profile: document.getElementById('execution').value === 'live' ? 'live_bounded' : 'deterministic'
-    };
-    const tid = document.getElementById('thread').value.trim();
-    if (tid) p.thread_id = tid;
-    return p;
-  }
+  function renderConversationList(){const root=document.getElementById('conversationList');root.replaceChildren();const records=readIndex();if(!records.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No durable conversations yet.';root.appendChild(empty);return}for(const item of records){const button=document.createElement('button');button.type='button';button.className=`conversation${item.conversation_id===activeConversationId?' active':''}`;button.addEventListener('click',()=>loadConversation(item.conversation_id));const title=document.createElement('span');title.className='conversation-title';title.textContent=item.title;const meta=document.createElement('span');meta.className='conversation-meta';meta.textContent=`revision ${item.revision||0}`;button.append(title,meta);root.appendChild(button)}}
+  function saveConversationIndex(title){if(!activeConversationId)return;const records=readIndex().filter(item=>item.conversation_id!==activeConversationId);records.unshift({conversation_id:activeConversationId,title,revision:activeRevision,updated_at:new Date().toISOString()});writeIndex(records.slice(0,50));renderConversationList()}
+  function removeConversationIndex(conversationId){writeIndex(readIndex().filter(item=>item.conversation_id!==conversationId));renderConversationList()}
 
-  async function sendRequest() {
-    const payload = buildPayload();
-    const resp = await fetch(endpoint(), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await resp.json();
-    THREADS.push({ thread_id: data.thread_id, request_id: data.request_id, time: new Date().toLocaleTimeString(), status: data.graph_status });
-    render(data, resp.status);
-    renderThreads();
-  }
+  async function newConversation(){setActivity('Creating durable conversation…');try{const data=await requestJson('/energy-chat/v2/conversations',{method:'POST'});activeConversationId=data.conversation_id;activeRevision=data.revision;activeGraphThreadId=null;currentMessages=[];pendingHumanAction=null;pendingHumanIdempotencyKey=null;document.getElementById('conversationTitle').textContent='New Energy-Aware conversation';document.getElementById('composerInput').value='';document.getElementById('statePanel').textContent='No state inspected.';hideHumanPanel();clearInspector();saveConversationIndex('New conversation');renderMessages();setActivity('Durable conversation created.','ok')}catch(error){renderError(error);setActivity(error.message,'error')}}
+  async function ensureConversation(){if(!activeConversationId)await newConversation();if(!activeConversationId)throw new Error('Conversation creation failed.');return activeConversationId}
+  async function loadConversation(conversationId){setActivity('Loading server history…');try{const data=await requestJson(`/energy-chat/v2/conversations/${encodeURIComponent(conversationId)}`);activeConversationId=data.conversation_id;activeRevision=data.revision;currentMessages=[];activeGraphThreadId=null;pendingHumanAction=null;pendingHumanIdempotencyKey=null;for(const turn of data.turns){const profile=turn.context_snapshot?.profile||'none';currentMessages.push({role:'user',content:turn.user_message,meta:`Turn ${turn.turn_index} · context ${profile}`});currentMessages.push({role:'assistant',content:turn.assistant_message,meta:`Turn ${turn.turn_index} · memory messages ${turn.memory_message_count}`});activeGraphThreadId=turn.graph_thread_id}const record=readIndex().find(item=>item.conversation_id===conversationId);document.getElementById('conversationTitle').textContent=record?.title||conversationId;if(data.turns.length){const last=data.turns[data.turns.length-1];document.getElementById('contextProfile').value=last.context_snapshot?.profile||'balanced';renderResult(last.graph_response,{memory_message_count:last.memory_message_count,context_profile:last.context_snapshot?.profile,context_snapshot_id:last.context_snapshot?.snapshot_id})}else clearInspector();renderMessages();renderConversationList();hideHumanPanel();setActivity('Server history loaded.','ok')}catch(error){if(error.status===404)removeConversationIndex(conversationId);renderError(error);setActivity(error.message,'error')}}
+  async function deleteConversation(){if(!activeConversationId){setActivity('No conversation selected.','error');return}const conversationId=activeConversationId;setActivity('Deleting conversation…');try{await requestJson(`/energy-chat/v2/conversations/${encodeURIComponent(conversationId)}`,{method:'DELETE'});removeConversationIndex(conversationId);activeConversationId=null;activeRevision=0;activeGraphThreadId=null;currentMessages=[];document.getElementById('conversationTitle').textContent='New Energy-Aware conversation';clearInspector();renderMessages();setActivity('Conversation deleted from the server.','ok')}catch(error){renderError(error);setActivity(error.message,'error')}}
 
-  async function replayThread() {
-    const tid = document.getElementById('thread').value.trim();
-    if (!tid) { alert('Enter a Thread ID to replay'); return; }
-    const resp = await fetch(endpoint(), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_message: document.getElementById('question').value, thread_id: tid })
-    });
-    render(await resp.json(), resp.status);
-  }
+  function syncExecutionControls(){const live=document.getElementById('execution').value==='live';document.getElementById('provider').disabled=!live;document.getElementById('effort').disabled=!live;setActivity(live?'Live calls require configured provider credentials.':'Deterministic graph selected.')}
+  function turnPayload(message,turnId){return{turn_id:turnId,expected_revision:activeRevision,user_message:message,mode:document.getElementById('mode').value,provider_preference:document.getElementById('provider').value,effort_profile:document.getElementById('effort').value,context_profile:document.getElementById('contextProfile').value,orchestration_mode:document.getElementById('orchestrationMode').value,execution_profile:document.getElementById('execution').value==='live'?'live_bounded':'deterministic'}}
+  function newTurnId(){const random=crypto.getRandomValues(new Uint32Array(2));return`turn-${Date.now()}-${random[0]}-${random[1]}`}
+  function newReviewIdempotencyKey(){const random=crypto.getRandomValues(new Uint32Array(2));return`review-${Date.now()}-${random[0]}-${random[1]}`}
+  async function sendRequest(){const message=document.getElementById('composerInput').value.trim();if(!message){setActivity('Enter a message first.','error');return}document.getElementById('composerInput').value='';setActivity('Executing durable graph turn…');try{await ensureConversation();const turnId=newTurnId();const data=await requestJson(`/energy-chat/v2/conversations/${encodeURIComponent(activeConversationId)}/turns`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(turnPayload(message,turnId))});activeRevision=data.revision;activeGraphThreadId=data.turn.graph_thread_id;const profile=data.turn.context_snapshot?.profile||'none';appendMessage('user',data.turn.user_message,`Turn ${data.turn.turn_index} · context ${profile}`);appendMessage('assistant',data.turn.assistant_message,`Turn ${data.turn.turn_index} · memory messages ${data.turn.memory_message_count}`);const title=currentMessages.find(item=>item.role==='user')?.content||message;document.getElementById('conversationTitle').textContent=titleFor(title);saveConversationIndex(titleFor(title));renderResult(data.turn.graph_response,{memory_message_count:data.turn.memory_message_count,idempotent_replay:data.replayed_idempotency_key,context_profile:profile,context_snapshot_id:data.turn.context_snapshot?.snapshot_id});setActivity('Durable graph turn completed.','ok')}catch(error){appendMessage('assistant',`Request failed: ${error.message}`,`HTTP ${error.status||'error'}`);renderError(error);setActivity(error.message,'error')}}
 
-  function render(data, status) {
-    document.getElementById('status').innerHTML = status === 200
-      ? `<span class="pill ok">${data.graph_status}</span>`
-      : `<span class="pill bad">HTTP ${status}: ${data.detail?.error || 'error'}</span>`;
+  function standalonePayload(message){return{user_message:message,mode:document.getElementById('mode').value,provider_preference:'deepseek',effort_profile:'balanced',context_profile:'balanced',orchestration_mode:'critic',execution_profile:'deterministic'}}
+  async function startHumanFlow(){const message=document.getElementById('composerInput').value.trim();if(!message){setActivity('Enter a message first.','error');return}document.getElementById('composerInput').value='';setActivity('Starting protected graph…');try{const data=await requestJson('/energy-chat/v2/chat/human',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(standalonePayload(message))});activeGraphThreadId=data.thread_id;appendMessage('user',message,'Protected one-off; not conversation memory');appendMessage('assistant',responseText(data),responseMeta(data));renderResult(data);setActivity(data.graph_status==='awaiting_human'?'Human decision required.':'Protected graph completed.','ok')}catch(error){renderError(error);setActivity(error.message,'error')}}
+  async function replayThread(){if(!activeGraphThreadId){setActivity('No graph checkpoint selected.','error');return}setActivity('Loading checkpoint replay…');try{const data=await requestJson(`/energy-chat/v2/threads/${encodeURIComponent(activeGraphThreadId)}/replay`,{method:'POST'});renderResult(data);appendMessage('assistant',responseText(data),`Checkpoint replay · ${responseMeta(data)}`);setActivity('Checkpoint replayed without graph execution.','ok')}catch(error){renderError(error);setActivity(error.message,'error')}}
+  async function inspectThread(){if(!activeGraphThreadId){setActivity('No graph checkpoint selected.','error');return}try{const data=await requestJson(`/energy-chat/v2/threads/${encodeURIComponent(activeGraphThreadId)}/state`);document.getElementById('statePanel').textContent=JSON.stringify(data,null,2);if(data.human_action_request)showHumanPanel(data.human_action_request);setActivity('Safe checkpoint state loaded.','ok')}catch(error){renderError(error);setActivity(error.message,'error')}}
+  function syncHumanDecision(){const adjusting=document.getElementById('humanDecision').value==='adjust';document.getElementById('humanAdjustGroup').classList.toggle('hidden',!adjusting)}
+  async function resumeHumanAction(){const decision=document.getElementById('humanDecision').value;const reason=document.getElementById('humanDecisionReason').value.trim();const revisedAnswer=document.getElementById('humanAdjustedAnswer').value.trim();if(!activeGraphThreadId||!pendingHumanAction){setActivity('No pending human action is loaded.','error');return}if(!reason){setActivity('Enter the reviewer reason.','error');return}if(decision==='adjust'&&!revisedAnswer){setActivity('Enter the complete revised answer.','error');return}pendingHumanIdempotencyKey=pendingHumanIdempotencyKey||newReviewIdempotencyKey();const payload={action_id:pendingHumanAction.action_id,action:pendingHumanAction.action,expected_revision:pendingHumanAction.expected_revision,actor:'same-origin-browser',decision,decision_reason:reason,idempotency_key:pendingHumanIdempotencyKey,payload:{response:reason}};if(decision==='adjust')payload.adjustments={revised_answer:revisedAnswer};setActivity('Applying authoritative human decision…');try{const data=await requestJson(`/energy-chat/v2/threads/${encodeURIComponent(activeGraphThreadId)}/resume`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});appendMessage('user',`${decision.toUpperCase()}: ${reason}`,`Human authority · ${pendingHumanAction.action}`);appendMessage('assistant',responseText(data),responseMeta(data));pendingHumanAction=null;pendingHumanIdempotencyKey=null;document.getElementById('humanDecisionReason').value='';document.getElementById('humanAdjustedAnswer').value='';hideHumanPanel();renderResult(data);setActivity('Authoritative human decision applied.','ok')}catch(error){renderError(error);setActivity(error.message,'error')}}
 
-    if (data.awaiting_evidence) {
-      document.getElementById('answer').textContent = '⏳ Awaiting external evidence — no candidate generated.';
-    } else if (data.final_answer) {
-      document.getElementById('answer').textContent = data.final_answer;
-    } else {
-      document.getElementById('answer').textContent = '(no answer)';
-    }
+  function responseText(data){if(data.awaiting_evidence)return'External evidence is required before candidate generation.';if(data.graph_status==='awaiting_human')return data.human_action_request?.reason||'A typed human decision is required.';return data.final_answer||'The graph completed without a user-visible answer.'}
+  function responseMeta(data){const parts=[data.graph_status||'unknown'];if(data.final_disposition)parts.push(data.final_disposition);if(data.human_decision)parts.push(`human:${data.human_decision}`);if(data.served_provider)parts.push(`${data.served_provider}/${data.served_model||'none'}`);if(data.replayed_from_checkpoint)parts.push('replayed');return parts.join(' · ')}
+  function clearInspector(){document.getElementById('statusPanel').innerHTML='<div class="empty">No graph turn selected.</div>';document.getElementById('energyPanel').innerHTML='<div class="empty">No Energy Card available.</div>';document.getElementById('auditPanel').innerHTML='<div class="empty">No execution metrics available.</div>'}
+  function renderRows(targetId,rows){const root=document.getElementById(targetId);root.replaceChildren();for(const [label,value]of rows){const row=document.createElement('div');row.className='row';const left=document.createElement('span');left.textContent=label;const right=document.createElement('span');right.textContent=value??'—';row.append(left,right);root.appendChild(row)}}
+  function renderResult(data,extra={}){pendingHumanAction=data.human_action_request||null;renderRows('statusPanel',[['Conversation',activeConversationId||'protected one-off'],['Revision',String(activeRevision)],['Thread',data.thread_id],['Graph status',data.graph_status],['Disposition',data.final_disposition],['Human decision',data.human_decision],['Checkpoint',data.checkpoint_id],['Context profile',extra.context_profile],['Context snapshot',extra.context_snapshot_id],['Requested orchestration',data.requested_orchestration_mode],['Resolved orchestration',data.resolved_orchestration_mode],['Orchestration candidates',String(data.orchestration_candidate_count||1)],['Orchestration reason',data.orchestration_reason],['Memory messages',String(extra.memory_message_count||0)],['Idempotent replay',String(Boolean(extra.idempotent_replay))],['Replayed checkpoint',String(Boolean(data.replayed_from_checkpoint))]]);const card=data.energy_card_v2;if(card)renderRows('energyPanel',[['Decision',card.decision],['Hard constraints',card.hard_constraints_passed?'passed':'violated'],['Energy before',String(card.energy_before)],['Energy after',String(card.energy_after)],['Energy delta',String(card.energy_delta)],['Repairs',String(card.repair_attempts)],['Policy rule',card.policy_rule_id],['Ledger entry',card.ledger_entry_id]]);else document.getElementById('energyPanel').innerHTML='<div class="empty">No Energy Card available for this state.</div>';const metrics=data.provider_metrics_summary||{},graph=data.graph_metrics||{};renderRows('auditPanel',[['Requested provider',data.requested_provider],['Served provider',`${data.served_provider||'none'} / ${data.served_model||'none'}`],['Provider calls',String(metrics.provider_call_count||0)],['Fallback used',String(Boolean(data.fallback_used))],['Cost USD',String(metrics.total_cost_usd||0)],['Provider latency',`${metrics.total_latency_ms||0} ms`],['Graph nodes',String(graph.node_count||0)],['Graph wall time',`${graph.total_wall_ms||0} ms`],['Ledger entries',String((data.ledger_entry_ids||[]).length)],['Evidence refs',String((data.evidence_refs||[]).length)]]);if(pendingHumanAction)showHumanPanel(pendingHumanAction);else hideHumanPanel()}
+  function showHumanPanel(action){pendingHumanAction=action;pendingHumanIdempotencyKey=pendingHumanIdempotencyKey||newReviewIdempotencyKey();document.getElementById('humanPanel').classList.add('visible');document.getElementById('humanReason').textContent=action.reason||'Human decision required.';document.getElementById('humanActionType').textContent=action.action||'unknown';document.getElementById('humanDecision').value='approve';syncHumanDecision()}
+  function hideHumanPanel(){document.getElementById('humanPanel').classList.remove('visible')}
+  function renderError(error){const detail=error.payload?.detail||{};renderRows('statusPanel',[['Error',detail.error||'request_failed'],['Detail',detail.detail||error.message],['HTTP status',String(error.status||'unknown')]])}
 
-    // Energy Card v2
-    const card = data.energy_card_v2;
-    if (card) {
-      document.getElementById('energyCard').innerHTML =
-        `<div class="metric-row"><span>Decision</span><span class="pill ${card.decision === 'accept' ? 'ok' : 'warn'}">${card.decision}</span></div>
-         <div class="metric-row"><span>Hard constraints</span><span>${card.hard_constraints_passed ? '✅ passed' : '❌ violated'}</span></div>
-         <div class="metric-row"><span>Energy before</span><span>${card.energy_before}</span></div>
-         <div class="metric-row"><span>Energy after</span><span>${card.energy_after} (Δ${card.energy_delta})</span></div>
-         <div class="metric-row"><span>Repairs</span><span>${card.repair_attempts} (${(card.repair_outcomes||[]).join(', ') || 'none'})</span></div>
-         <div class="metric-row"><span>Policy</span><span>${card.policy_rule_id} v${card.policy_version}</span></div>
-         <div class="metric-row"><span>Ledger entry</span><span class="small">${card.ledger_entry_id}</span></div>`;
-    } else {
-      document.getElementById('energyCard').innerHTML = '<span class="small">(no Energy Card v2)</span>';
-    }
-
-    // Metrics
-    const m = data.provider_metrics_summary || {};
-    document.getElementById('metrics').innerHTML =
-      `<div class="metric-row"><span>Provider</span><span>${data.served_provider || 'none'} / ${data.served_model || 'none'}</span></div>
-       <div class="metric-row"><span>Requested</span><span>${data.requested_provider}</span></div>
-       <div class="metric-row"><span>Fallback</span><span>${data.fallback_used ? '⚠️ yes' : 'no'}</span></div>
-       <div class="metric-row"><span>Calls</span><span>${m.provider_call_count || 0}</span></div>
-       <div class="metric-row"><span>Cost</span><span>$${(m.total_cost_usd || 0).toFixed(4)}</span></div>
-       <div class="metric-row"><span>Latency</span><span>${m.total_latency_ms || 0}ms</span></div>
-       <div class="metric-row"><span>Routing</span><span class="small">${data.routing_reason || ''}</span></div>`;
-
-    // Ledger
-    const ids = data.ledger_entry_ids || [];
-    document.getElementById('ledger').innerHTML =
-      `<div class="metric-row"><span>Ledger entries</span><span>${ids.length}</span></div>
-       <div class="metric-row"><span>Evidence refs</span><span>${(data.evidence_refs||[]).length}</span></div>
-       <div class="metric-row"><span>Candidates</span><span>${data.candidate_count}</span></div>
-       <div class="metric-row"><span>Repairs</span><span>${data.repair_count}</span></div>
-       <div class="metric-row"><span>Markers</span><span>${(data.execution_markers||[]).join(', ') || 'none'}</span></div>
-       <div class="metric-row"><span>Limitations</span><span class="small">${(data.limitations||[]).join('; ') || 'none'}</span></div>`;
-  }
-
-  function renderThreads() {
-    document.getElementById('threadHistory').innerHTML = THREADS.map(t =>
-      `<div class="thread-item" onclick="document.getElementById('thread').value='${t.thread_id}'">
-        <span>${t.time}</span> — <span class="pill ok">${t.status}</span> <span class="small">${t.thread_id}</span>
-      </div>`
-    ).reverse().join('');
-  }
-
-  function clearOutput() {
-    document.getElementById('status').innerHTML = '';
-    document.getElementById('answer').textContent = '';
-    document.getElementById('energyCard').innerHTML = '';
-    document.getElementById('metrics').innerHTML = '';
-    document.getElementById('ledger').innerHTML = '';
-  }
+  async function bootstrap(){syncExecutionControls();syncHumanDecision();renderConversationList();renderMessages();const records=readIndex();if(records.length)await loadConversation(records[0].conversation_id)}
+  document.getElementById('composerInput').addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter')sendRequest()});
+  bootstrap();
 </script>
 </body>
 </html>

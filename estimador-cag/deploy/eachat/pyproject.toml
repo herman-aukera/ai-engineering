@@ -1,0 +1,21 @@
+[project]
+name = "eachat-production-runtime"
+version = "0.1.0"
+description = "Minimal deployable dependency surface for Energy Aware Chat"
+requires-python = ">=3.11,<3.15"
+dependencies = [
+    "cryptography==48.0.1",
+    "fastapi==0.139.2",
+    "uvicorn==0.51.0",
+    "pydantic-settings==2.14.2",
+    "openai==2.46.0",
+    "langgraph==1.2.9",
+    "langgraph-checkpoint-postgres==3.1.0",
+    "psycopg[binary]==3.3.4",
+    "psycopg-pool==3.3.1",
+    "python-dotenv==1.2.2",
+    "python-multipart==0.0.32",
+]
+
+[tool.uv]
+package = false

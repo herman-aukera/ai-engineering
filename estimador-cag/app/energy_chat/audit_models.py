@@ -15,18 +15,20 @@ FINAL_PROJECTION_SCHEMA_VERSION = "1.0.0"
 TrustStatus = Literal["trusted", "unverified", "unknown"]
 FreshnessStatus = Literal["current", "stale", "not_applicable", "unknown"]
 RedactionStatus = Literal["reference_only", "redacted", "unknown"]
+BodyHashStatus = Literal["hashed", "not_permitted", "unavailable"]
+VerificationStatus = Literal["verified", "failed", "not_checked"]
 
 
 class AuditRecord(BaseModel):
-    """Strict base for checkpoint-safe audit projections."""
-
     model_config = ConfigDict(extra="forbid")
 
 
 class EvidenceIntegrityMetadata(AuditRecord):
     """Integrity and disclosure metadata for one evidence reference.
 
-    The hash covers the exact reference string, not a potentially sensitive evidence body.
+    ``reference_hash`` covers the exact reference string. ``body_hash`` is present
+    only when a non-sensitive project body was explicitly permitted for hashing.
+    No evidence body is retained by this model.
     """
 
     evidence_ref: str = Field(min_length=1)
@@ -35,11 +37,16 @@ class EvidenceIntegrityMetadata(AuditRecord):
     freshness_status: FreshnessStatus = "unknown"
     redaction_status: RedactionStatus = "reference_only"
     body_included: Literal[False] = False
+    body_hash: str | None = Field(
+        default=None,
+        pattern=r"^(sha256:[0-9a-f]{64})?$",
+    )
+    body_hash_status: BodyHashStatus = "unavailable"
+    verification_status: VerificationStatus = "not_checked"
+    byte_count: int | None = Field(default=None, ge=0)
 
 
 class DecisionLedgerEntry(AuditRecord):
-    """Append-only authoritative decision record linked to exact graph artifacts."""
-
     schema_version: Literal["1.0.0"] = AUDIT_SCHEMA_VERSION
     ledger_entry_id: str = Field(min_length=1)
     sequence: int = Field(ge=1)
@@ -69,8 +76,6 @@ class DecisionLedgerEntry(AuditRecord):
 
 
 class EnergyCardV2(AuditRecord):
-    """User-safe projection of one authoritative ledger entry."""
-
     schema_version: Literal["2.0.0"] = ENERGY_CARD_V2_SCHEMA_VERSION
     ledger_entry_id: str = Field(min_length=1)
     candidate_id: str = Field(min_length=1)
@@ -91,8 +96,6 @@ class EnergyCardV2(AuditRecord):
 
 
 class FinalAnswerProjection(AuditRecord):
-    """Final user-facing answer plus its authoritative Energy Card v2."""
-
     schema_version: Literal["1.0.0"] = FINAL_PROJECTION_SCHEMA_VERSION
     ledger_entry_id: str = Field(min_length=1)
     candidate_id: str = Field(min_length=1)

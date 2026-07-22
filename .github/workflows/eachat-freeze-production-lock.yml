@@ -1,0 +1,43 @@
+name: EACHAT - Freeze Production Lock
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  freeze-production-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Resolve isolated production lock
+        working-directory: estimador-cag
+        run: uv lock --project deploy/eachat
+
+      - name: Write audited digest
+        working-directory: estimador-cag/deploy/eachat
+        run: |
+          LOCK_SHA=$(sha256sum uv.lock | awk '{print $1}')
+          printf '%s  uv.lock\n' "$LOCK_SHA" > uv.lock.sha256
+          sha256sum --check uv.lock.sha256
+
+      - name: Commit exact generated lock
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add estimador-cag/deploy/eachat/uv.lock estimador-cag/deploy/eachat/uv.lock.sha256
+          if git diff --cached --quiet; then
+            echo "Production lock already frozen."
+          else
+            git commit -m "eachat: chore(deploy): freeze audited production dependencies"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
