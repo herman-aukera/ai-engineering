@@ -135,6 +135,14 @@ jobs:
         working-directory: estimador-cag
         run: python scripts/canary_eachat_container.py cleanup
 
+      - name: Verify strict checkpoint deserialization
+        run: |
+          docker logs eachat-app > /tmp/eachat-app-restarted.log 2>&1
+          if grep -E 'Blocked deserialization|not in allowed_msgpack_modules|Deserializing unregistered type' /tmp/eachat-app-first.log /tmp/eachat-app-restarted.log; then
+            echo "Strict checkpoint serializer rejected or warned on an EACHAT state type."
+            false
+          fi
+
       - name: Capture container evidence
         if: always()
         run: |
@@ -145,6 +153,7 @@ jobs:
           cp /tmp/eachat-canary-health-first.json /tmp/eachat-canary/health-first.json 2>/dev/null || true
           cp /tmp/eachat-canary-health-restarted.json /tmp/eachat-canary/health-restarted.json 2>/dev/null || true
           cp /tmp/eachat-app-first.log /tmp/eachat-canary/app-first.log 2>/dev/null || true
+          cp /tmp/eachat-app-restarted.log /tmp/eachat-canary/app-restarted.log 2>/dev/null || true
 
       - name: Upload container canary evidence
         if: always()
