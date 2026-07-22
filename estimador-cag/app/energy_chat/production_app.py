@@ -1,9 +1,10 @@
 """Isolated production composition root for Energy Aware Chat.
 
 The coursework application remains available through ``app.main``. This module
-contains only the EACHAT service surface and requires durable PostgreSQL plus strict
-checkpoint deserialization by default. A process-local runtime is available only
-through the explicit ``EACHAT_ALLOW_IN_MEMORY=true`` development/test override.
+contains only the EACHAT service surface and requires durable PostgreSQL, encrypted
+conversation memory, and strict checkpoint deserialization by default. Process-local
+storage is available only through the explicit ``EACHAT_ALLOW_IN_MEMORY=true``
+development/test override.
 """
 
 from __future__ import annotations
@@ -18,6 +19,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 
 from app.energy_chat.checkpoint_postgres import PostgresCheckpointer
+from app.energy_chat.conversation_router import router as conversation_router
+from app.energy_chat.conversation_store import (
+    ConversationStore,
+    InMemoryConversationStore,
+    PostgresConversationStore,
+)
 from app.energy_chat.human_router import router as human_router
 from app.energy_chat.router import router as energy_chat_router
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
@@ -30,18 +37,45 @@ def _truthy(value: str | None) -> bool:
     return (value or "").strip().casefold() in {"1", "true", "yes", "on"}
 
 
-def _build_runtime() -> tuple[EnergyChatApplicationRuntime, PostgresCheckpointer | None]:
+def _build_runtime() -> tuple[
+    EnergyChatApplicationRuntime,
+    PostgresCheckpointer | None,
+    ConversationStore,
+]:
     if not _truthy(os.getenv("LANGGRAPH_STRICT_MSGPACK")):
         raise RuntimeError(
             "LANGGRAPH_STRICT_MSGPACK=true is required for the production service."
         )
+
     postgres_url = os.getenv("EACHAT_POSTGRES_URL", "").strip()
     if postgres_url:
+        encryption_key = os.getenv("EACHAT_MEMORY_ENCRYPTION_KEY", "").strip()
+        if not encryption_key:
+            raise RuntimeError(
+                "EACHAT_MEMORY_ENCRYPTION_KEY is required for durable conversation memory."
+            )
         checkpointer = PostgresCheckpointer(postgres_url)
-        checkpointer.setup()
-        return EnergyChatApplicationRuntime(checkpointer=checkpointer), checkpointer
+        try:
+            checkpointer.setup()
+            conversation_store = PostgresConversationStore(
+                postgres_url,
+                encryption_key=encryption_key,
+            )
+            conversation_store.setup()
+        except Exception:
+            checkpointer.close()
+            raise
+        return (
+            EnergyChatApplicationRuntime(checkpointer=checkpointer),
+            checkpointer,
+            conversation_store,
+        )
+
     if _truthy(os.getenv("EACHAT_ALLOW_IN_MEMORY")):
-        return EnergyChatApplicationRuntime(), None
+        conversation_store = InMemoryConversationStore()
+        conversation_store.setup()
+        return EnergyChatApplicationRuntime(), None, conversation_store
+
     raise RuntimeError(
         "EACHAT_POSTGRES_URL is required for the production service. "
         "Set EACHAT_ALLOW_IN_MEMORY=true only for explicit local/test execution."
@@ -50,15 +84,18 @@ def _build_runtime() -> tuple[EnergyChatApplicationRuntime, PostgresCheckpointer
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    runtime, durable_backend = _build_runtime()
+    runtime, checkpoint_backend, conversation_store = _build_runtime()
     app.state.energy_chat_runtime = runtime
-    app.state.restart_persistent = durable_backend is not None
+    app.state.energy_chat_conversation_store = conversation_store
+    app.state.restart_persistent = checkpoint_backend is not None
+    app.state.conversation_restart_persistent = conversation_store.restart_persistent
     app.state.strict_msgpack = True
     try:
         yield
     finally:
-        if durable_backend is not None:
-            durable_backend.close()
+        conversation_store.close()
+        if checkpoint_backend is not None:
+            checkpoint_backend.close()
 
 
 def create_production_app() -> FastAPI:
@@ -74,7 +111,7 @@ def create_production_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=["*"],
         allow_credentials=False,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type"],
     )
 
@@ -111,6 +148,11 @@ def create_production_app() -> FastAPI:
         return response
 
     service.include_router(energy_chat_router, prefix="/energy-chat", tags=["energy-chat"])
+    service.include_router(
+        conversation_router,
+        prefix="/energy-chat",
+        tags=["energy-chat-memory"],
+    )
     service.include_router(human_router, prefix="/energy-chat", tags=["energy-chat-human"])
 
     @service.get("/health", include_in_schema=False)
@@ -119,6 +161,9 @@ def create_production_app() -> FastAPI:
             "status": "ok",
             "service": "eachat",
             "restart_persistent": bool(service.state.restart_persistent),
+            "conversation_restart_persistent": bool(
+                service.state.conversation_restart_persistent
+            ),
             "strict_msgpack": bool(service.state.strict_msgpack),
         }
 
