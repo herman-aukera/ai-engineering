@@ -1,4 +1,4 @@
-"""Typed HTTP transport for process-local human interrupt and resume."""
+"""Typed HTTP transport for durable human interrupt and authoritative resume."""
 
 from __future__ import annotations
 
@@ -11,8 +11,10 @@ from app.energy_chat.api_v2_contracts import (
     UnsupportedProfileError,
 )
 from app.energy_chat.graph_application import build_v2_error_detail
+from app.energy_chat.human_authority_service import resume_human_authoritatively
 from app.energy_chat.human_gate import (
     HumanActionMismatchError,
+    HumanIdempotencyConflictError,
     StaleHumanActionError,
 )
 from app.energy_chat.runtime_container import (
@@ -91,7 +93,7 @@ def start_human_gated_chat(
     request: EnergyChatV2Request,
     http_request: Request,
 ) -> EnergyChatV2Response:
-    """Run one deterministic graph and return a typed interrupt when required."""
+    """Run one deterministic graph and return a typed protected interrupt."""
 
     _require_v2_enabled()
     try:
@@ -129,11 +131,15 @@ def resume_human_gated_chat(
     http_request: Request,
     thread_id: str = Path(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$"),
 ) -> EnergyChatV2Response:
-    """Validate and resume one process-local pending human interrupt."""
+    """Apply approve, adjust, or reject to one pending protected checkpoint."""
 
     _require_v2_enabled()
     try:
-        return _runtime(http_request).resume_human(thread_id, submission)
+        return resume_human_authoritatively(
+            _runtime(http_request),
+            thread_id,
+            submission,
+        )
     except ThreadCheckpointNotFoundError as exc:
         raise HTTPException(
             status_code=404,
@@ -155,6 +161,14 @@ def resume_human_gated_chat(
             status_code=409,
             detail=build_v2_error_detail(
                 "human_action_mismatch",
+                str(exc),
+            ).model_dump(),
+        ) from exc
+    except HumanIdempotencyConflictError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=build_v2_error_detail(
+                "human_idempotency_conflict",
                 str(exc),
             ).model_dump(),
         ) from exc
