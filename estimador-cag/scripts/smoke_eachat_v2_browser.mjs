@@ -42,9 +42,11 @@ try {
   assert(userCount === 1, "First durable turn did not render one user message");
   assert(assistantCount === 1, "First durable turn did not render one assistant message");
   assert(status?.includes("evaluated"), "First durable turn did not reach evaluated state");
+  assert(status?.includes("Context profilebalanced"), "Balanced context profile was not recorded");
   assert(status?.includes("Memory messages0"), "First turn unexpectedly received prior memory");
   assert(card?.includes("Decision"), "First turn Energy Card was not rendered");
 
+  await page.selectOption("#contextProfile", "minimal");
   await page.fill(
     "#composerInput",
     "What release-validation keyword did I give you in the previous visible turn?",
@@ -57,6 +59,8 @@ try {
   status = await page.locator("#statusPanel").textContent();
   assert(userCount === 2, "Second durable turn did not retain ordered user history");
   assert(assistantCount === 2, "Second durable turn did not retain ordered assistant history");
+  assert(status?.includes("Context profileminimal"), "Minimal context snapshot was not applied");
+  assert(status?.includes("Context snapshotconversation-"), "Context snapshot identity was not rendered");
   assert(status?.includes("Memory messages2"), "Second turn did not receive bounded prior context");
 
   await page.getByRole("button", { name: "Inspect state" }).click();
@@ -88,6 +92,7 @@ try {
   assistantCount = await page.locator(".message.assistant").count();
   assert(userCount === 2, "Reload did not recover two user turns from server memory");
   assert(assistantCount === 2, "Reload did not recover two assistant turns from server memory");
+  assert(await page.locator("#contextProfile").inputValue() === "minimal", "Context profile did not survive server-history reload");
 
   await page.getByRole("button", { name: "Delete conversation" }).click();
   await waitForActivity("Conversation deleted from the server");
@@ -95,16 +100,20 @@ try {
 
   await page.fill("#composerInput", "Approve the production release.");
   await page.getByRole("button", { name: "Run protected one-off" }).click();
-  await waitForActivity("Human response required");
+  await waitForActivity("Human decision required");
   await page.waitForSelector("#humanPanel.visible");
   const actionType = await page.locator("#humanActionType").textContent();
   assert(actionType === "escalate_response", "Expected an escalation human-action contract");
 
-  await page.fill("#humanResponse", "Reviewed by the browser smoke operator.");
-  await page.getByRole("button", { name: "Submit human response" }).click();
-  await waitForActivity("Graph resumed from the authoritative checkpoint");
+  await page.selectOption("#humanDecision", "reject");
+  await page.fill("#humanDecisionReason", "Release evidence is insufficient in the browser canary.");
+  await page.getByRole("button", { name: "Apply human decision" }).click();
+  await waitForActivity("Authoritative human decision applied");
   const completedStatus = await page.locator("#statusPanel").textContent();
+  card = await page.locator("#energyPanel").textContent();
   assert(completedStatus?.includes("completed"), "Human-gated graph did not complete");
+  assert(completedStatus?.includes("Human decisionreject"), "Human reject authority was not rendered");
+  assert(card?.includes("Decisionreject"), "Rejected Energy Card was not rendered");
 
   await page.screenshot({ path: screenshotPath, fullPage: true });
   assert(consoleErrors.length === 0, `Browser console errors: ${consoleErrors.join(" | ")}`);
