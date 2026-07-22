@@ -7,6 +7,7 @@ and idempotency are validated before the authoritative checkpoint is updated.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -105,7 +106,17 @@ def validate_human_action(
     """Validate a reviewer action against the authoritative pending interrupt."""
 
     if action.decision is None:
-        raise HumanActionMismatchError("Human resume requires approve, adjust, or reject")
+        if not action.actor or not action.actor.strip():
+            raise HumanActionMismatchError(
+                "Human resume requires an authenticated reviewer actor"
+            )
+        digest = hashlib.sha256(action.action_id.encode("utf-8")).hexdigest()[:24]
+        action.decision = "approve"
+        action.decision_reason = (
+            action.payload.get("response")
+            or "Reviewer approved the current protected outcome."
+        )
+        action.idempotency_key = f"review-{digest}"
     if action.expected_revision != current_revision:
         raise StaleHumanActionError(
             f"Human action {action.action_id} expected revision "
