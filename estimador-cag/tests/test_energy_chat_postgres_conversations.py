@@ -6,6 +6,7 @@ import os
 import uuid
 
 import psycopg
+import pytest
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
@@ -19,6 +20,11 @@ from app.energy_chat.conversation_service import (
 from app.energy_chat.conversation_store import PostgresConversationStore
 from app.energy_chat.production_app import create_production_app
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("EACHAT_POSTGRES_URL", "").strip(),
+    reason="PostgreSQL conversation tests require EACHAT_POSTGRES_URL",
+)
 
 
 def _postgres_url() -> str:
