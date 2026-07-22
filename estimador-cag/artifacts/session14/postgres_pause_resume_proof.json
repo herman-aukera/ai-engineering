@@ -1,0 +1,11 @@
+{
+  "connection_cycles": 3,
+  "estimation_id": "8926a2ce-f7f9-4f34-912c-27e669bdca00",
+  "human_review_status": "approved",
+  "pause_restored": true,
+  "same_thread_resume": true,
+  "schema_version": "session14.postgres_hitl.v1",
+  "terminal_status": "validated",
+  "thread_id": "estimate:8926a2ce-f7f9-4f34-912c-27e669bdca00",
+  "trace_continuity": true
+}

@@ -1,0 +1,80 @@
+# Session 14 edge-case demo journey
+
+## Goal
+
+Demonstrate the teacher-required lifecycle through the public API:
+
+```text
+edge transcript
+-> supervisor and specialists
+-> low confidence
+-> persisted interrupt
+-> checkpointer reopen
+-> human approval
+-> same-thread completion
+```
+
+## Start the edge case
+
+Use a stable UUID and the teacher edge transcript (or an equivalent request
+with insufficient historical evidence):
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/api/v1/estimate/graph \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "estimation_id": "f5317c82-05ad-4df5-bf43-f9b286f70e82",
+    "transcript": "Build secure authentication with a persistent, auditable human review decision."
+  }'
+```
+
+Expected evidence:
+
+- `status` is `awaiting_human_review`;
+- `revision` is `1`;
+- `thread_id` is stable;
+- the interrupt lists `approve`, `adjust`, and `reject`;
+- the interrupt contains no transcript, provider payload, credential, or DSN.
+
+Stop the API process after the paused response and start it again against the
+same PostgreSQL database. This is the human-visible equivalent of the
+automated close/reopen proof.
+
+## Resume the original thread
+
+```bash
+curl -sS -X POST \
+  http://127.0.0.1:8000/api/v1/estimate/graph/f5317c82-05ad-4df5-bf43-f9b286f70e82/resume \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "action": "approve",
+    "expected_revision": 1,
+    "actor": "session14-demo-reviewer",
+    "idempotency_key": "session14-demo-approve-001"
+  }'
+```
+
+Expected evidence:
+
+- terminal `status` is `validated`;
+- `revision` is `2`;
+- `human_review_status` is `approved`;
+- the thread ID matches the paused response;
+- the final trace ends with `session14_human_review_paused` and
+  `session14_human_review_approve`.
+
+## Alternatives
+
+An `adjust` decision must include component hours and evidence references; the
+service recalculates the total. A `reject` decision completes without
+authorizing the estimate. A stale revision returns HTTP 409. Repeating an
+identical decision with the same idempotency key returns the original result;
+conflicting reuse returns HTTP 409.
+
+## Hosted trace capture
+
+Run the journey with `LOGFIRE_TOKEN` configured. In Logfire, filter service
+`estimador-cag`, graph name `session14_estimation_graph`, and the stable
+estimation ID. Confirm the pause request and resume request share the same
+thread ID, then copy the shareable trace URL into `session14_evidence.md` and
+the delivery email. Never paste credentials or the transcript into evidence.
