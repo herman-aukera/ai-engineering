@@ -1,4 +1,4 @@
-name: EACHAT - Wire Orchestration Once
+name: EACHAT - Finalize Orchestration Once
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  wire:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repair head
@@ -21,18 +21,24 @@ jobs:
           fetch-depth: 0
           ref: repair/eachat-foundation-and-release-evidence
 
-      - name: Apply exact fail-closed migration
+      - name: Apply exact fail-closed finalization
         working-directory: estimador-cag
-        run: python scripts/wire_eachat_orchestration.py
+        run: python scripts/finalize_eachat_orchestration.py
 
-      - name: Compile wired modules
+      - name: Compile finalized modules
         working-directory: estimador-cag
-        run: python -m py_compile app/energy_chat/api_v2_contracts.py app/energy_chat/graph_application.py
+        run: python -m py_compile app/energy_chat/context_compaction.py
 
-      - name: Commit wired runtime
+      - name: Commit finalized product contract
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add estimador-cag/app/energy_chat/api_v2_contracts.py estimador-cag/app/energy_chat/graph_application.py
-          git commit -m "eachat: feat(orchestration): wire committee and adaptive runtime"
+          git add \
+            estimador-cag/app/energy_chat/context_compaction.py \
+            estimador-cag/docs/energy_chat_v2_demo.html \
+            estimador-cag/tests/test_energy_chat_context_compaction.py \
+            estimador-cag/tests/test_energy_chat_context_runtime.py \
+            estimador-cag/tests/test_energy_chat_v2_product_ui.py \
+            estimador-cag/scripts/smoke_eachat_v2_browser.mjs
+          git commit -m "eachat: feat(orchestration): expose bounded runtime modes"
           git push origin HEAD:repair/eachat-foundation-and-release-evidence
