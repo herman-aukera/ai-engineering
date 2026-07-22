@@ -18,20 +18,23 @@ def test_minimal_policy_retains_core_constraints() -> None:
     assert policy.preserve_evidence_refs is True
     assert policy.preserve_ledger_refs is True
     assert policy.drift_check_enabled is True
+    assert policy.max_summary_depth == 1
 
 
 def test_balanced_policy_is_default() -> None:
     policy = context_compaction.resolve_compaction_policy("balanced")
     assert policy.target_input_tokens == 16_000
     assert policy.recent_raw_turns == 8
-    assert policy.max_summary_depth == 2
+    assert policy.max_summary_depth == 1
+    assert policy.summarizer_profile == "deterministic"
 
 
 def test_max_policy_retains_most_context() -> None:
     policy = context_compaction.resolve_compaction_policy("max")
     assert policy.target_input_tokens == 64_000
     assert policy.recent_raw_turns == 24
-    assert policy.max_summary_depth == 3
+    assert policy.max_summary_depth == 1
+    assert policy.summarizer_profile == "deterministic"
 
 
 def test_policies_scale_monotonically() -> None:
@@ -42,7 +45,8 @@ def test_policies_scale_monotonically() -> None:
     assert minimal.recent_raw_turns < balanced.recent_raw_turns < max_p.recent_raw_turns
 
 
-def test_context_snapshot_links_source_range() -> None:
+def test_context_snapshot_links_source_range_and_hashes() -> None:
+    digest = "sha256:" + "0" * 64
     snap = context_compaction.ContextSnapshot(
         snapshot_id="snap-1",
         thread_id="thread-1",
@@ -50,10 +54,14 @@ def test_context_snapshot_links_source_range() -> None:
         profile="balanced",
         source_start_revision=0,
         source_end_revision=5,
+        source_hash=digest,
+        summary_hash=digest,
     )
     assert snap.token_count_before == 0
     assert snap.token_count_after == 0
     assert snap.pinned_facts == []
+    assert snap.source_hash == digest
+    assert snap.summary_hash == digest
 
 
 # ── multi-agent budgets ─────────────────────────────────────────────────
@@ -95,12 +103,12 @@ def test_all_budgets_have_positive_limits() -> None:
         assert budget.wall_clock_deadline_ms >= 1
 
 
-def test_m18_reports_contracts_without_claiming_runtime_execution() -> None:
+def test_m18_reports_context_runtime_and_deferred_multi_agent_execution() -> None:
     status = context_compaction.get_m18_runtime_status()
 
-    assert status.context_compaction == "contract_only"
+    assert status.context_compaction == "implemented"
     assert status.multi_agent_orchestration == "contract_only"
-    assert status.active_context_profiles == ["balanced"]
+    assert status.active_context_profiles == ["minimal", "balanced", "max"]
     assert status.active_orchestration_modes == ["critic"]
-    assert "No runtime context compaction is executed." in status.limitations
-    assert "No committee or adaptive agent runtime is executed." in status.limitations
+    assert any("deterministic projections" in item for item in status.limitations)
+    assert any("Committee and adaptive" in item for item in status.limitations)
