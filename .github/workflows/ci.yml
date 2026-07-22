@@ -6,12 +6,12 @@ on:
       - main
       - master
       - EACHAT
+      - finalproject-GGC
+      - "gg-*"
+      - "sesion-*"
+      - "session*"
       - repair/eachat-foundation-and-release-evidence
   pull_request:
-    branches:
-      - main
-      - master
-      - EACHAT
   workflow_dispatch:
 
 permissions:
@@ -295,8 +295,16 @@ jobs:
           from pathlib import Path
 
           payload = json.loads(Path('/tmp/eachat-pip-audit.json').read_text(encoding='utf-8'))
-          assert payload['dependencies'], 'pip-audit returned no dependency inventory'
-          assert not payload['vulnerabilities'], payload['vulnerabilities']
+          dependencies = payload.get('dependencies', [])
+          assert dependencies, 'pip-audit returned no dependency inventory'
+          vulnerabilities = payload.get('vulnerabilities')
+          if vulnerabilities is None:
+              vulnerabilities = [
+                  {'dependency': dependency.get('name'), **vulnerability}
+                  for dependency in dependencies
+                  for vulnerability in dependency.get('vulns', [])
+              ]
+          assert not vulnerabilities, vulnerabilities
           PY
 
       - name: Install isolated production environment
