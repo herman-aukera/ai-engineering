@@ -79,14 +79,26 @@ jobs:
 
       - name: Run focused regression
         working-directory: estimador-cag
-        run: >-
-          uv run pytest -q
-          tests/test_energy_chat_api_v2.py
-          tests/test_energy_chat_committee_orchestration.py
-          tests/test_energy_chat_fixed_benchmark.py
-          tests/test_energy_chat_fixed_benchmark_routes.py
-          tests/test_energy_chat_graph_checkpoint.py
-          tests/test_energy_chat_multi_turn_service.py
+        run: |
+          STATUS=0
+          uv run pytest -q --tb=short \
+            tests/test_energy_chat_api_v2.py \
+            tests/test_energy_chat_committee_orchestration.py \
+            tests/test_energy_chat_fixed_benchmark.py \
+            tests/test_energy_chat_fixed_benchmark_routes.py \
+            tests/test_energy_chat_graph_checkpoint.py \
+            tests/test_energy_chat_multi_turn_service.py \
+            > /tmp/eachat-focused-regression.txt 2>&1 || STATUS=$?
+          cat /tmp/eachat-focused-regression.txt
+          test "$STATUS" = "0"
+
+      - name: Upload focused evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eachat-final-repair-focused
+          path: /tmp/eachat-focused-regression.txt
+          if-no-files-found: warn
 
       - name: Prove fixed quality runner import and output
         working-directory: estimador-cag
