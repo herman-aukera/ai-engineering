@@ -46,7 +46,7 @@ def test_live_route_rejects_caller_deterministic_profile() -> None:
 
 
 def test_live_route_rejects_kimi_without_explicit_fallback() -> None:
-    """Direct Kimi selection remains unavailable until its adapter is enabled."""
+    """Direct Kimi selection remains unavailable until credentials are configured."""
 
     response = client.post(
         "/energy-chat/v2/chat/live",
@@ -146,13 +146,13 @@ def test_v2_deterministic_route_repeated_request_is_stable() -> None:
     assert body1["final_disposition"] == body2["final_disposition"]
 
 
-# ── M16: V2 demo route ────────────────────────────────────────────────────
+# ── M16: V2 product route ──────────────────────────────────────────────────
 
 
 def test_v2_demo_route_is_registered() -> None:
-    """The V2 graph-backed demo must be served at /energy-chat/v2/demo."""
+    """The V2 product client must be served at /energy-chat/v2/demo."""
 
     response = client.get("/energy-chat/v2/demo")
     assert response.status_code == 200
-    assert "EACHAT V2" in response.text
-    assert "Graph-Backed Demo" in response.text
+    assert "EACHAT" in response.text
+    assert "Send to graph" in response.text
