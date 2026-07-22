@@ -16,7 +16,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.energy_chat.candidate_provider import (
     CandidateGenerationResult,
-    CandidateProvider,
     CandidateProviderRequest,
 )
 from app.energy_chat.contracts import EnergyAwareChatAgentRequest
@@ -53,7 +52,7 @@ class ProviderTransport(Protocol):
     ) -> ProviderTransportResult: ...
 
 
-class CatalogCandidateProvider(CandidateProvider):
+class CatalogCandidateProvider:
     """Candidate provider bound to one verified catalog profile and transport."""
 
     def __init__(
@@ -150,7 +149,9 @@ class OpenAICompatibleChatTransport:
             thinking = str(parameters.get("thinking", "enabled"))
             kwargs["extra_body"] = {"thinking": {"type": thinking}}
             if thinking == "enabled":
-                kwargs["reasoning_effort"] = "max" if profile.effort_profile == "max" else "high"
+                kwargs["reasoning_effort"] = (
+                    "max" if profile.effort_profile == "max" else "high"
+                )
         elif profile.provider == "kimi":
             reasoning_effort = parameters.get("reasoning_effort")
             if reasoning_effort is not None:
