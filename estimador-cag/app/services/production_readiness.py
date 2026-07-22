@@ -45,6 +45,12 @@ def _real_key(value: str) -> bool:
     return value.strip().lower() not in _PLACEHOLDERS
 
 
+def _safe_error_type(value: object) -> str | None:
+    if not isinstance(value, str) or len(value) > 120:
+        return None
+    return value if value.isidentifier() else None
+
+
 def configured_providers(config: Settings = settings) -> list[str]:
     providers: list[str] = []
     if _real_key(config.deepseek_api_key):
@@ -160,13 +166,11 @@ def runtime_availability_from_app_state(state: object) -> RuntimeAvailability:
         values = state
     else:
         values = vars(state)
-    graph_error = values.get("graph_runtime_error")
-    reviewed_error = values.get("reviewed_graph_runtime_error")
     return RuntimeAvailability(
         graph_runtime=values.get("graph_estimation_service") is not None,
         reviewed_graph_runtime=values.get("reviewed_graph_estimation_service") is not None,
-        graph_runtime_error=graph_error if isinstance(graph_error, str) else None,
-        reviewed_graph_runtime_error=(
-            reviewed_error if isinstance(reviewed_error, str) else None
+        graph_runtime_error=_safe_error_type(values.get("graph_runtime_error")),
+        reviewed_graph_runtime_error=_safe_error_type(
+            values.get("reviewed_graph_runtime_error")
         ),
     )
