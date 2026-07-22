@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 
 from app.embedding_pipeline.router import router as embedding_router
+from app.energy_chat.conversation_router import router as conversation_router
+from app.energy_chat.conversation_store import InMemoryConversationStore
 from app.energy_chat.human_router import router as energy_chat_human_router
 from app.energy_chat.router import router as energy_chat_router
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
@@ -21,6 +23,7 @@ app = FastAPI(
     version="0.3.0",
 )
 app.state.energy_chat_runtime = EnergyChatApplicationRuntime()
+app.state.energy_chat_conversation_store = InMemoryConversationStore()
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,6 +72,7 @@ app.include_router(estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
 app.include_router(energy_chat_router, prefix="/energy-chat", tags=["energy-chat"])
+app.include_router(conversation_router, prefix="/energy-chat", tags=["energy-chat-memory"])
 app.include_router(
     energy_chat_human_router,
     prefix="/energy-chat",
