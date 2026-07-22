@@ -15,13 +15,14 @@ from app.energy_chat.api_v2_contracts import (
     OrchestrationMode,
     ProviderPreference,
 )
+from app.energy_chat.context_compaction import ContextSnapshot
 from app.energy_chat.contracts import Mode
 
 ConversationRole = Literal["user", "assistant"]
 
 
 class ConversationTurn(BaseModel):
-    """One immutable user/assistant exchange tied to one graph checkpoint thread."""
+    """One immutable exchange tied to one graph checkpoint and context snapshot."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -31,7 +32,10 @@ class ConversationTurn(BaseModel):
     graph_thread_id: str = Field(min_length=1, max_length=128)
     user_message: str = Field(min_length=1, max_length=10_000)
     assistant_message: str = Field(min_length=1)
+    required_constraints: list[str] = Field(default_factory=list)
+    required_sections: list[str] = Field(default_factory=list)
     memory_message_count: int = Field(default=0, ge=0)
+    context_snapshot: ContextSnapshot | None = None
     graph_response: EnergyChatV2Response
 
 
