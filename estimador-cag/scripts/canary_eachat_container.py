@@ -26,7 +26,8 @@ def request_json(path: str, *, method: str = "GET", payload: dict | None = None)
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             data = json.loads(response.read().decode("utf-8"))
-            return response.status, dict(response.headers.items()), data
+            headers = {key.casefold(): value for key, value in response.headers.items()}
+            return response.status, headers, data
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"HTTP {exc.code} for {path}: {detail}") from exc
@@ -79,7 +80,7 @@ def verify() -> None:
     assert health["restart_persistent"] is True
     assert health["conversation_restart_persistent"] is True
     assert health["strict_msgpack"] is True
-    assert headers.get("X-Content-Type-Options") == "nosniff"
+    assert headers.get("x-content-type-options") == "nosniff"
     history = request_json(f"/energy-chat/v2/conversations/{conversation_id}")[2]
     assert history["revision"] == 2
     assert len(history["turns"]) == 2
