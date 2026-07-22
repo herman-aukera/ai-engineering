@@ -205,3 +205,60 @@ jobs:
           if test -f /tmp/eachat-browser-server.pid; then
             kill "$(cat /tmp/eachat-browser-server.pid)" 2>/dev/null || true
           fi
+
+  test-energy-chat-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      PYTHONUNBUFFERED: "1"
+      UV_HTTP_TIMEOUT: "300"
+
+    steps:
+      - name: Checkout full branch history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Scan tracked files and branch history for secrets
+        run: python scripts/security_scan_eachat.py --base-ref origin/EACHAT --report /tmp/eachat-secret-scan.json
+
+      - name: Install application dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Run public security contract tests
+        run: |
+          set -o pipefail
+          uv run pytest -q tests/test_energy_chat_security.py 2>&1 | tee /tmp/security-pytest-output.txt
+
+      - name: Export production dependency set
+        run: uv export --frozen --no-dev --extra postgres --format requirements-txt --output-file /tmp/eachat-production-requirements.txt
+
+      - name: Audit production dependencies
+        run: uvx --from pip-audit==2.10.1 pip-audit --requirement /tmp/eachat-production-requirements.txt --strict --format json --output /tmp/eachat-pip-audit.json
+
+      - name: Upload security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eachat-security-evidence
+          path: |
+            /tmp/eachat-secret-scan.json
+            /tmp/security-pytest-output.txt
+            /tmp/eachat-production-requirements.txt
+            /tmp/eachat-pip-audit.json
+          if-no-files-found: warn
