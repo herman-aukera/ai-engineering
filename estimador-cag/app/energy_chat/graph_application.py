@@ -21,6 +21,10 @@ from app.energy_chat.candidate_provider import (
     DeterministicCandidateProvider,
     ProviderBudget,
 )
+from app.energy_chat.committee_orchestration import (
+    CommitteeCandidateProvider,
+    resolve_adaptive_orchestration,
+)
 from app.energy_chat.contracts import ProviderTier
 from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
 from app.energy_chat.graph_runtime import run_energy_chat_graph
@@ -45,6 +49,9 @@ def run_graph_chat_v2(
         request, route_profile=execution_profile
     )
     _validate_v2_selectors(request, active_execution_profile)
+    resolved_orchestration, orchestration_reason = _resolve_orchestration(
+        request, active_execution_profile
+    )
     thread_id = request.thread_id or active_id_factory.new_thread_id()
     request_id = request.request_id or active_id_factory.new_request_id()
     trace_id = request.trace_id or active_id_factory.new_trace_id()
@@ -54,6 +61,11 @@ def run_graph_chat_v2(
             "request_id": request_id,
             "trace_id": trace_id,
             "execution_profile": active_execution_profile,
+            "metadata": {
+                **request.metadata,
+                "resolved_orchestration_mode": resolved_orchestration,
+                "orchestration_reason": orchestration_reason,
+            },
         }
     )
     resolved_provider = provider or _resolve_provider(
@@ -135,13 +147,19 @@ def _validate_v2_selectors(
                 "only 'balanced' is active"
             ),
         )
-    if request.orchestration_mode != "critic":
+    if request.orchestration_mode == "single":
+        raise UnsupportedProfileError(
+            field="orchestration_mode",
+            value=request.orchestration_mode,
+            detail="Single mode is not a distinct runtime; use critic.",
+        )
+    if execution_profile == "live_bounded" and request.orchestration_mode != "critic":
         raise UnsupportedProfileError(
             field="orchestration_mode",
             value=request.orchestration_mode,
             detail=(
-                f"Orchestration mode '{request.orchestration_mode}' is not implemented; "
-                "only 'critic' is active"
+                "Live committee/adaptive orchestration is blocked until matched "
+                "quality, cost, and latency calibration exists."
             ),
         )
     if request.human_gate:
@@ -158,11 +176,38 @@ def _validate_v2_selectors(
         )
 
 
+def _resolve_orchestration(
+    request: EnergyChatV2Request,
+    execution_profile: ExecutionProfile,
+) -> tuple[str, str]:
+    if execution_profile == "live_bounded":
+        return "critic", "live route uses calibrated critic orchestration only"
+    if request.orchestration_mode == "committee":
+        return (
+            "committee",
+            "caller selected bounded three-proposal deterministic committee",
+        )
+    if request.orchestration_mode == "adaptive":
+        decision = resolve_adaptive_orchestration(
+            user_request=request.user_message,
+            mode=request.mode,
+            constraints=request.required_constraints,
+            required_sections=request.required_sections,
+        )
+        return (
+            decision.resolved_mode,
+            "adaptive policy: " + ",".join(decision.reason_codes),
+        )
+    return "critic", "caller selected the standard critic pipeline"
+
+
 def _resolve_provider(
     request: EnergyChatV2Request,
     execution_profile: ExecutionProfile,
 ) -> CandidateProvider:
     if execution_profile == "deterministic":
+        if request.metadata.get("resolved_orchestration_mode") == "committee":
+            return CommitteeCandidateProvider()
         return DeterministicCandidateProvider()
     if request.provider_preference == "auto":
         raise ProviderUnavailableError(
@@ -265,6 +310,15 @@ def project_v2_response(
     restart_persistent: bool = False,
 ) -> EnergyChatV2Response:
     metrics_list = result.provider_metrics
+    resolved_orchestration = request.metadata.get(
+        "resolved_orchestration_mode", "critic"
+    )
+    orchestration_reason = request.metadata.get(
+        "orchestration_reason", "standard critic pipeline"
+    )
+    orchestration_candidate_count = (
+        3 if resolved_orchestration == "committee" else 1
+    )
     if not metrics_list:
         served_provider = "none"
         served_model = None
@@ -278,7 +332,9 @@ def project_v2_response(
         if replayed_from_checkpoint:
             routing_reason = "response replayed from the authoritative checkpoint"
         elif execution_profile == "deterministic":
-            routing_reason = "deterministic route used the local template provider"
+            routing_reason = (
+                f"{orchestration_reason}; deterministic provider={last.provider}"
+            )
         elif fallback_used:
             routing_reason = (
                 f"authorized fallback served {last.provider}/{last.model}; "
@@ -358,6 +414,10 @@ def project_v2_response(
         fallback_authorized=request.allow_provider_fallback,
         fallback_provider_allowlist=list(request.fallback_provider_allowlist),
         routing_reason=routing_reason,
+        requested_orchestration_mode=request.orchestration_mode,
+        resolved_orchestration_mode=resolved_orchestration,
+        orchestration_candidate_count=orchestration_candidate_count,
+        orchestration_reason=orchestration_reason,
         provider_metrics_summary=provider_summary,
         ledger_entry_ids=[
             item.ledger_entry_id for item in result.decision_ledger_entries

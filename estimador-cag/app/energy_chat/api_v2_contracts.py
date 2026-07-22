@@ -183,6 +183,10 @@ class EnergyChatV2Response(BaseModel):
     fallback_authorized: bool = False
     fallback_provider_allowlist: list[str] = Field(default_factory=list)
     routing_reason: str = ""
+    requested_orchestration_mode: OrchestrationMode = "critic"
+    resolved_orchestration_mode: Literal["critic", "committee"] = "critic"
+    orchestration_candidate_count: int = Field(default=1, ge=1, le=8)
+    orchestration_reason: str = ""
     provider_metrics_summary: ProviderMetricsSummary = Field(
         default_factory=ProviderMetricsSummary
     )
