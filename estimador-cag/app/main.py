@@ -60,7 +60,7 @@ ENERGY_CHAT_V2_DEMO_HTML_PATH = DOCS_DIR / "energy_chat_v2_demo.html"
 
 @app.get("/energy-chat/v2/demo", include_in_schema=False)
 def energy_chat_v2_browser_demo() -> FileResponse:
-    """Serve the V2 demo only while the V2 feature is enabled."""
+    """Serve the V2 product UI only while the feature is enabled."""
 
     if not energy_chat_v2_enabled():
         raise HTTPException(
@@ -75,14 +75,20 @@ def energy_chat_v2_browser_demo() -> FileResponse:
 
 @app.get("/energy-chat/demo", include_in_schema=False)
 def energy_chat_browser_demo() -> FileResponse:
+    """Preserve the legacy evaluator/demo as the rollback path."""
+
     return FileResponse(ENERGY_CHAT_DEMO_HTML_PATH)
+
+
+def _energy_chat_product_url() -> str:
+    return "/energy-chat/v2/demo" if energy_chat_v2_enabled() else "/energy-chat/demo"
 
 
 @app.get("/demo", include_in_schema=False)
 def browser_demo() -> RedirectResponse:
-    return RedirectResponse(url="/energy-chat/demo", status_code=307)
+    return RedirectResponse(url=_energy_chat_product_url(), status_code=307)
 
 
 @app.get("/", include_in_schema=False)
 def root_demo() -> RedirectResponse:
-    return RedirectResponse(url="/energy-chat/demo", status_code=307)
+    return RedirectResponse(url=_energy_chat_product_url(), status_code=307)
