@@ -1,0 +1,38 @@
+name: EACHAT - Wire Orchestration Once
+
+on:
+  push:
+    branches:
+      - repair/eachat-foundation-and-release-evidence
+    paths:
+      - .github/workflows/eachat-wire-orchestration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: repair/eachat-foundation-and-release-evidence
+
+      - name: Apply exact fail-closed migration
+        working-directory: estimador-cag
+        run: python scripts/wire_eachat_orchestration.py
+
+      - name: Compile wired modules
+        working-directory: estimador-cag
+        run: python -m py_compile app/energy_chat/api_v2_contracts.py app/energy_chat/graph_application.py
+
+      - name: Commit wired runtime
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add estimador-cag/app/energy_chat/api_v2_contracts.py estimador-cag/app/energy_chat/graph_application.py
+          git commit -m "eachat: feat(orchestration): wire committee and adaptive runtime"
+          git push origin HEAD:repair/eachat-foundation-and-release-evidence
