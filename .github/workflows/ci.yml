@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   test-estimador-cag:
@@ -184,3 +184,82 @@ jobs:
           assert 'database_url' not in serialized
           assert 'redis_url' not in serialized
           PY
+
+  resolve-main-conflicts:
+    if: github.event_name == 'pull_request' && github.head_ref == 'gg-session-13/plus-main-sync'
+    needs: test-estimador-cag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout synchronization branch
+        uses: actions/checkout@v4
+        with:
+          ref: gg-session-13/plus-main-sync
+          fetch-depth: 0
+      - name: Configure Git identity
+        run: |
+          git config user.name "GPT-5.6 Conflict Resolver"
+          git config user.email "actions@users.noreply.github.com"
+      - name: Merge main and resolve true conflicts with validated Plus versions
+        run: |
+          git fetch origin main
+          git merge --no-commit --no-ff -s ort -X ours origin/main || true
+          git diff --name-only --diff-filter=U > /tmp/session13-conflicts.txt
+          echo "Conflict paths:"
+          cat /tmp/session13-conflicts.txt
+          while IFS= read -r path; do
+            test -n "$path" || continue
+            if git cat-file -e "HEAD:$path" 2>/dev/null; then
+              git checkout HEAD -- "$path"
+              git add "$path"
+            else
+              git rm --ignore-unmatch "$path"
+            fi
+          done < /tmp/session13-conflicts.txt
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unresolved conflicts remain"
+            git diff --name-only --diff-filter=U
+            false
+          fi
+      - name: Finalize release workflow and remove temporary resolver
+        run: |
+          sed -i "s/github.head_ref == 'gg-session-13\/plus-production-readiness'/github.event_name == 'pull_request' \&\& github.base_ref == 'main' \&\& github.head_ref == 'gg-session-13\/plus'/g" .github/workflows/ci.yml
+          python -c "from pathlib import Path; p=Path('.github/workflows/ci.yml'); s=p.read_text(); s=s.split('\n  resolve-main-conflicts:\n', 1)[0].replace('permissions:\n  contents: write', 'permissions:\n  contents: read'); p.write_text(s.rstrip() + '\n')"
+          rm -f .github/workflows/session13-plus-main-sync.yml
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: estimador-cag
+        run: uv sync --frozen --extra dev
+      - name: Ruff
+        working-directory: estimador-cag
+        run: |
+          TARGETS="app tests scripts"
+          test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
+          test -d evals && TARGETS="$TARGETS evals"
+          uv run ruff check $TARGETS
+      - name: Compile Python
+        working-directory: estimador-cag
+        run: uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null)
+      - name: Deterministic tests
+        working-directory: estimador-cag
+        env:
+          OPENAI_API_KEY: test
+          DEEPSEEK_API_KEY: test
+          KIMI_API_KEY: test
+        run: uv run pytest -q -m "not live_provider"
+      - name: Diff and secret gates
+        run: |
+          git diff --check
+          if git diff | grep -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY'; then
+            echo "Potential secret in conflict-resolution diff"
+            false
+          fi
+      - name: Commit and push resolved merge
+        run: |
+          git add -A
+          git commit -m "merge(main): resolve PR #10 conflicts preserving Session 13 Plus"
+          git push origin HEAD:gg-session-13/plus-main-sync
