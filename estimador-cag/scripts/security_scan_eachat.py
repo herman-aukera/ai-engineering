@@ -65,8 +65,7 @@ def _run_git(*args: str) -> str:
         cwd=ROOT,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     return result.stdout
 
@@ -109,8 +108,7 @@ def _tracked_files() -> list[str]:
         ["git", "ls-files", "-z"],
         cwd=ROOT,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     ).stdout
     return [item.decode("utf-8") for item in output.split(b"\0") if item]
 
