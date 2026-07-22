@@ -22,9 +22,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from app.energy_chat.baseline import generate_deepseek_baseline_draft
-from app.energy_chat.contracts import DeepSeekBaselineRequest, ProviderTier
-from app.services.litellm_provider import LiteLLMProvider
+from app.energy_chat.baseline import generate_deepseek_baseline_draft  # noqa: E402
+from app.energy_chat.contracts import (  # noqa: E402
+    DeepSeekBaselineRequest,
+    ProviderTier,
+)
+from app.services.litellm_provider import LiteLLMProvider  # noqa: E402
 
 
 def _require_live_secret(name: str) -> None:
