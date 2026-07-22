@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, TypedDict
 
-from app.generation.graph.state import EstimationGraphState
+from app.generation.graph.state import (
+    EstimationGraphState,
+    new_estimation_graph_state,
+)
 from app.schemas.human_review import HumanReviewMode
 from app.schemas.session14_supervision import (
     RouteReasonCode,
@@ -225,3 +228,37 @@ class Session14EstimationGraphState(
         list[AgentContribution],
         merge_agent_contributions,
     ]
+
+
+def new_session14_estimation_graph_state(
+    *,
+    transcript: str,
+    estimation_id: str,
+    graph_version: str = "session14.v1",
+) -> Session14EstimationGraphState:
+    """Build a fresh Session 14 state with independent accumulators."""
+
+    state = Session14EstimationGraphState(
+        **new_estimation_graph_state(
+            transcript=transcript,
+            estimation_id=estimation_id,
+            graph_version=graph_version,
+        )
+    )
+    state.update(
+        {
+            "requirements_extraction_completed": False,
+            "budget_search_completed": False,
+            "validation": None,
+            "confidence": None,
+            "routing_steps": 0,
+            "max_routing_steps": 12,
+            "current_agent": None,
+            "previous_agent": None,
+            "next_agent": None,
+            "route_reason_code": None,
+            "route_events": [],
+            "agent_contributions": [],
+        }
+    )
+    return state

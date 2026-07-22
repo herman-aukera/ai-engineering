@@ -100,6 +100,22 @@ class ExecutionMetadataPayload(StrictPayload):
     graph_version: str | None = None
 
 
+class SupervisorRouteEventPayload(StrictPayload):
+    route_event_id: str = Field(min_length=1)
+    sequence: int = Field(ge=1)
+    next_agent: str = Field(min_length=1)
+    reason_code: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+
+
+class AgentContributionPayload(StrictPayload):
+    contribution_id: str = Field(min_length=1)
+    agent_id: str = Field(min_length=1)
+    sequence: int = Field(ge=1)
+    summary: str = Field(min_length=1)
+    state_delta_keys: list[str]
+
+
 class GraphEstimationRequest(StrictPayload):
     """Transcript and optional stable identifier for one graph thread."""
 
@@ -122,5 +138,11 @@ class GraphEstimationResponse(StrictPayload):
     component_estimates: list[ComponentEstimatePayload]
     errors: list[GraphIssuePayload]
     trace_events: list[DomainTraceEventPayload]
+    route_events: list[SupervisorRouteEventPayload] = Field(
+        default_factory=list
+    )
+    agent_contributions: list[AgentContributionPayload] = Field(
+        default_factory=list
+    )
     provider_metadata: ProviderMetadataPayload
     execution_metadata: ExecutionMetadataPayload

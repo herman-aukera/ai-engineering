@@ -18,7 +18,9 @@ from app.embedding_pipeline.router import router as embedding_router
 from app.generation.graph.reviewed_runtime import (
     open_reviewed_graph_estimation_service,
 )
-from app.generation.graph.runtime import open_graph_estimation_service
+from app.generation.graph.session14_runtime import (
+    open_session14_graph_estimation_service as open_graph_estimation_service,
+)
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.graph_estimations import router as graph_estimations_router

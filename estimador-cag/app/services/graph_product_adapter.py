@@ -29,6 +29,11 @@ def graph_response_from_run(run: GraphEstimationRun) -> GraphEstimationResponse:
             "component_estimates": state.get("component_estimates", []),
             "errors": state.get("errors", []),
             "trace_events": state.get("trace_events", []),
+            "route_events": state.get("route_events", []),
+            "agent_contributions": state.get(
+                "agent_contributions",
+                [],
+            ),
             "provider_metadata": state.get("provider_metadata", {}),
             "execution_metadata": state.get("execution_metadata", {}),
         }

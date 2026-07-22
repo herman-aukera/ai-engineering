@@ -47,6 +47,19 @@ class GraphRunner(Protocol):
         """Start or resume one graph execution."""
 
 
+class GraphStateFactory(Protocol):
+    """Build one checkpoint-safe initial state for a graph version."""
+
+    def __call__(
+        self,
+        *,
+        transcript: str,
+        estimation_id: str,
+        graph_version: str,
+    ) -> EstimationGraphState:
+        """Return a new independent graph state."""
+
+
 class GraphResultContractError(RuntimeError):
     """Raised when graph state violates the application contract."""
 
@@ -222,6 +235,8 @@ class GraphEstimationService:
     graph: GraphRunner
     tracer: GraphTracer = NOOP_GRAPH_TRACER
     graph_version: str = "session13.v1"
+    graph_name: str = GRAPH_NAME
+    state_factory: GraphStateFactory = new_estimation_graph_state
 
     async def estimate(
         self,
@@ -238,7 +253,7 @@ class GraphEstimationService:
 
         with self.tracer.span(
             ROOT_SPAN_NAME,
-            graph_name=GRAPH_NAME,
+            graph_name=self.graph_name,
             graph_version=self.graph_version,
             estimation_id=resolved_estimation_id,
             thread_id=thread_id,
@@ -310,7 +325,7 @@ class GraphEstimationService:
                     "new",
                 )
                 graph_input: EstimationGraphState | None = (
-                    new_estimation_graph_state(
+                    self.state_factory(
                         transcript=transcript,
                         estimation_id=resolved_estimation_id,
                         graph_version=self.graph_version,
