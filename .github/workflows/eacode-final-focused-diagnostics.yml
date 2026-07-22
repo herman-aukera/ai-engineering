@@ -1,0 +1,35 @@
+name: EACODE final focused diagnostics
+
+on:
+  push:
+    branches:
+      - gg-eacode-repair-spec0009-authority
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: estimador-cag
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: uv sync --frozen --extra dev
+      - name: Focused regression diagnostics
+        run: |
+          uv run pytest -vv \
+            tests/test_energy_core_control_plane.py \
+            tests/test_eacode_control_plane_api.py \
+            tests/test_energy_core_governance_benchmark.py \
+            tests/test_energy_core_selector_api.py \
+            tests/test_eacode_product_completion_plan.py \
+            tests/test_energy_core_spec_coverage.py \
+            > final-focused.txt 2>&1 || true
+          cat final-focused.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eacode-final-focused
+          path: estimador-cag/final-focused.txt
