@@ -1,11 +1,18 @@
 name: EACHAT - Final Repair Once
 
 on:
+  pull_request:
+    branches:
+      - EACHAT
+    paths:
+      - .github/workflows/eachat-final-repair-once.yml
+      - estimador-cag/scripts/repair_eachat_release_head.py
   push:
     branches:
       - repair/eachat-foundation-and-release-evidence
     paths:
       - .github/workflows/eachat-final-repair-once.yml
+      - estimador-cag/scripts/repair_eachat_release_head.py
   workflow_dispatch:
 
 permissions:
