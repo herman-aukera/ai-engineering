@@ -9,12 +9,6 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-fernet_module = pytest.importorskip(
-    "cryptography.fernet",
-    reason="Encrypted conversation integration requires the isolated production dependency set",
-)
-Fernet = fernet_module.Fernet
-
 from app.energy_chat.checkpoint_postgres import PostgresCheckpointer
 from app.energy_chat.conversation_models import ConversationTurnRequest
 from app.energy_chat.conversation_service import (
@@ -26,6 +20,11 @@ from app.energy_chat.conversation_store import PostgresConversationStore
 from app.energy_chat.production_app import create_production_app
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
 
+fernet_module = pytest.importorskip(
+    "cryptography.fernet",
+    reason="Encrypted conversation integration requires the isolated production dependency set",
+)
+Fernet = fernet_module.Fernet
 pytestmark = pytest.mark.postgres
 
 
