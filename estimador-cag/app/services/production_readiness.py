@@ -158,14 +158,18 @@ def build_production_readiness_report(
     )
 
 
+def _state_values(state: object) -> Mapping[str, object]:
+    if isinstance(state, Mapping):
+        return state
+    attributes = vars(state)
+    nested = attributes.get("_state")
+    return nested if isinstance(nested, Mapping) else attributes
+
+
 def runtime_availability_from_app_state(state: object) -> RuntimeAvailability:
     """Inspect service presence and allow-listed exception class names only."""
 
-    values: Mapping[str, object]
-    if isinstance(state, Mapping):
-        values = state
-    else:
-        values = vars(state)
+    values = _state_values(state)
     return RuntimeAvailability(
         graph_runtime=values.get("graph_estimation_service") is not None,
         reviewed_graph_runtime=values.get("reviewed_graph_estimation_service") is not None,
