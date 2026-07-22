@@ -71,7 +71,7 @@ try {
   await page.selectOption("#orchestrationMode", "adaptive");
   await page.fill(
     "#composerInput",
-    "What release-validation keyword did I give you in the previous visible turn?",
+    "What keyword did I give you in the previous visible turn?",
   );
   await page.getByRole("button", { name: "Send turn" }).click();
   await waitForActivity("Durable graph turn completed");
