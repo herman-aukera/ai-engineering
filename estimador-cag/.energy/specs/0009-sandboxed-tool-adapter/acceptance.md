@@ -1,98 +1,98 @@
 # Spec 0009 — Acceptance
 
-## Documentation acceptance
+Status: deterministic implementation accepted; manual host evidence pending
 
-- [x] Requirements define 10 functional requirements with hard constraints.
-- [x] Design covers architecture, contracts, pre-start verification, process creation, environment, output streaming, timeout/cancellation, process-tree cleanup, evidence, CLI, failure injection, and platform strategy.
-- [x] TDD tasks specify 22 red tests matching the handoff.
-- [x] Hard invariants match the threat model prerequisites.
+## Documentation and SDD
 
-## Runtime acceptance — required before implementation may be called complete
+- [x] Requirements define the governed live-tool boundary and hard constraints.
+- [x] Design covers authority, full repository snapshot, pre-start verification, process lifecycle, output safety, evidence, CLI, failure injection, and rollback.
+- [x] Tasks follow red-green TDD and map to tests.
+- [x] Decisions and evidence record the security repair and claim boundary.
 
-### Configuration and safety
+## Configuration and authority
 
-- [ ] SandboxedToolAdapter is disabled by default (`enabled=False`).
-- [ ] `--live-tool` flag is required for real execution via CLI.
-- [ ] Without opt-in, all execution paths raise a clear error.
+- [x] Real execution is disabled by default.
+- [x] Secure CLI requires explicit `--live-tool`.
+- [x] Fake and dry-run plans cannot become live execution.
+- [x] Real execution requires typed `LiveExecutionPlan` and `LiveExecutionIntent`.
+- [x] Authority binds to exact plan hash and repository snapshot.
+- [x] Snapshot includes HEAD, tree, staged diff, unstaged diff, and untracked-state digest.
+- [x] SQLite authority records have integrity checking and restart persistence.
+- [x] Nonce replay and receipt reuse fail closed.
+- [x] Authority is atomically reserved before process creation and completed once.
+- [x] Fabricated or non-authoritative receipts fail closed.
+- [x] Expired, stale, mismatched, or untrusted authority fails closed.
 
-### Pre-start verification
+## Pre-start verification
 
-- [ ] Missing authorization for human-gated plan fails closed.
-- [ ] Wrong plan hash fails closed.
-- [ ] Stale repository revision fails closed.
-- [ ] Replayed or mismatched authorization receipt fails closed.
-- [ ] Expired authorization fails closed.
-- [ ] Path traversal attempt fails closed.
-- [ ] Symlink escape attempt fails closed.
-- [ ] Unsupported executable fails closed.
-- [ ] Denied git mutation fails closed.
+- [x] Repository snapshot is recomputed immediately before process creation.
+- [x] Executable, arguments, working directory, environment names, timeout, and output budgets are bound to the live contract.
+- [x] Path traversal, symlink escape, unsupported executables, and denied Git mutations fail closed.
+- [x] Historical real-process adapter is permanently disabled.
 
-### Process execution
+## Process lifecycle
 
-- [ ] No `shell=True` anywhere in the code path.
-- [ ] Environment contains only allowlisted names plus PATH and SYSTEMROOT.
-- [ ] No API keys, tokens, or secrets in the process environment.
-- [ ] Timeout terminates the process tree.
-- [ ] Cancellation terminates the process tree.
-- [ ] Non-zero exit is recorded correctly.
-- [ ] Partial output is collected on timeout/cancellation.
+- [x] Process creation uses argument lists and `shell=False`.
+- [x] Environment is restricted to approved names plus platform essentials.
+- [x] API keys and unrelated secrets are not inherited.
+- [x] Unix uses a dedicated session/process-group contract.
+- [x] Windows uses explicit process-group creation flags.
+- [x] Cancellation is polled while the process is active.
+- [x] Timeout and cancellation trigger process-tree cleanup.
+- [x] Cleanup result is verified rather than assumed.
+- [x] Cleanup uncertainty fails closed.
+- [x] Process-creation, timeout, cancellation, cleanup, exit, and stream failures remain distinguishable.
 
-### Output safety
+## Output and evidence
 
-- [ ] Secret-like stdout is redacted.
-- [ ] Secret-like stderr is redacted.
-- [ ] Output is truncated at the plan's max_output_chars limit.
-- [ ] Redaction status and truncation status are recorded in evidence.
+- [x] stdout and stderr are bounded.
+- [x] Truncation flags reflect actual truncation.
+- [x] Cross-chunk secrets are detected by final assembled-output redaction.
+- [x] Raw unredacted output is not persisted by the secure service.
+- [x] `execution_performed=true` is set only after a process starts.
+- [x] Evidence links run, plan, intent, repository snapshot, and authorization receipt.
+- [x] Authority reservation and completion are recorded separately.
+- [x] Evidence serializes and round-trips.
+- [x] Executor returns evidence and never accepts the candidate.
 
-### Evidence integrity
+## CLI and compatibility
 
-- [ ] `execution_performed=true` for real executions.
-- [ ] Evidence links to plan hash, authorization receipt, run ID, revision.
-- [ ] Evidence serialization round-trips correctly.
-- [ ] Evidence is compatible with existing `EvidenceRecord` conversion.
+- [x] CLI requires typed live plan, intent, authority database, receipt ID, repository root, trusted actor, and `--live-tool`.
+- [x] CLI refusal occurs before receipt reservation when opt-in is absent.
+- [x] Legacy fake/failure-injection contracts remain compatible for deterministic CI.
+- [x] Legacy adapter cannot call `Popen`.
 
-### CI guarantees
+## CI guarantees
 
-- [ ] Deterministic CI uses `FakeToolAdapter` only.
-- [ ] No real process execution occurs in CI.
-- [ ] All domain, policy, authorization, adapter-contract, failure-injection, and serialization tests pass in CI.
+- [x] Ruff passes.
+- [x] Python compilation passes.
+- [x] Focused Spec 0009 tests pass.
+- [x] Full test suite passes.
+- [x] Energy Core boundary passes.
+- [x] Every smoke and canonical full gate pass.
+- [x] Root smoke passes.
+- [x] Repository remains clean after CI.
+- [x] Deterministic CI makes no real process or provider call.
 
-### Manual smoke
+## Manual host evidence
 
-- [ ] `--live-tool` executes a harmless command (e.g., `uv run pytest -q`) and prints sanitized evidence.
-- [ ] Timeout and process-tree cleanup are demonstrated.
-- [ ] No secrets appear in the manual smoke output.
-- [ ] No commit or push occurs during manual smoke.
-
-### Git restrictions
-
-- [ ] Every denied git subcommand is rejected.
-- [ ] Read-only git commands remain human-gated.
-- [ ] No commit, push, merge, reset, clean, checkout, restore, rebase, cherry-pick, or force-push path exists.
-
-### Gates
-
-- [ ] Ruff check passes with no errors.
-- [ ] Python compilation succeeds.
-- [ ] Focused tests (test_energy_core_sandboxed_tool.py) all pass.
-- [ ] Full test suite passes with no regressions.
-- [ ] Energy Core boundary check passes.
-- [ ] Canonical full gate passes.
-- [ ] Remote CI on the branch is green.
+- [ ] Secure CLI executes one harmless authorized command on the target host.
+- [ ] Timeout and child-process cleanup are demonstrated on Windows.
+- [ ] Cancellation responsiveness is demonstrated on Windows.
+- [ ] Sanitized evidence contains no secret material.
+- [ ] No commit, push, merge, reset, or destructive operation occurs during smoke.
 
 ## Claim boundary
 
-Until all runtime gates pass:
+Allowed:
 
-- Architecture, requirements, design, and acceptance criteria are documented.
-- Red tests are written and fail for the correct reasons.
-- Implementation exists behind `enabled=False`.
-- Deterministic fake adapter remains the only CI path.
+- Spec 0009 implementation is deterministic-CI accepted.
+- Real execution is explicit, disabled by default, snapshot-bound, one-time-authorized, bounded, sanitized, and evidence-producing.
+- Fake and injected paths remain the only CI execution modes.
 
-After all runtime gates pass:
+Blocked until manual evidence:
 
-- EACODE can execute a single validated command under strict policy and authorization.
-- Execution evidence is bounded, redacted, typed, and linked to authorization records.
-- No real execution path is enabled by default.
-- Deterministic CI uses fake adapters only.
-- Manual smoke produces sanitized real-execution evidence.
+- complete host-level cleanup proof;
+- arbitrary untrusted-code safety;
+- VM, container, kernel, or production sandbox isolation;
+- production readiness.

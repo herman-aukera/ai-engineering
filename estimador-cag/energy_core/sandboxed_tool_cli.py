@@ -1,163 +1,194 @@
-"""CLI for the sandboxed real-process tool adapter.
+"""Fail-closed CLI for the secure EACODE live-execution path.
 
-Disabled by default. Requires explicit --live-tool to enable real execution.
-Without --live-tool, the CLI prints configuration and exits without creating
-any process.
+The legacy real-process adapter is not reachable from this CLI. A process can
+be attempted only when all of the following are supplied and validated:
 
-Usage:
-    python -m energy_core.sandboxed_tool_cli \\
-        --plan <path-to-ExecutionPlan.json> \\
-        --repository-root <path> \\
-        --run-id <id> \\
-        [--authorization-receipt <path>] \\
-        [--live-tool] \\
-        [--format json|text]
+- an explicit ``LiveExecutionPlan``;
+- its matching ``LiveExecutionIntent``;
+- an authoritative SQLite live-authorization database;
+- a matching one-time receipt ID;
+- an explicit ``--live-tool`` opt-in.
+
+Without ``--live-tool`` the command refuses before reserving authority.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from energy_core.controlled_execution import ExecutionPlan
-from energy_core.execution_authorization import AuthorizationReceipt
-from energy_core.sandboxed_tool import (
-    RealToolResult,
-    SandboxedToolAdapter,
-    SandboxedToolConfig,
+from energy_core.live_authorization import (
+    LiveAuthorizationReceipt,
+    SQLiteLiveAuthorizationStore,
 )
+from energy_core.live_execution_contract import LiveExecutionIntent, LiveExecutionPlan
+from energy_core.secure_execution_service import (
+    SecureExecutionOutcome,
+    SecureExecutionService,
+)
+from energy_core.secure_process_adapter import SecureProcessAdapter, SecureProcessConfig
+
+Executor = Callable[..., SecureExecutionOutcome]
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(
+    argv: list[str] | None = None,
+    *,
+    executor: Executor | None = None,
+) -> int:
     parser = argparse.ArgumentParser(
-        description="Execute a validated EACODE ExecutionPlan under strict policy."
+        description="Execute one authorized EACODE live plan under strict policy."
     )
-    parser.add_argument(
-        "--plan", required=True, help="Path to an ExecutionPlan JSON file."
-    )
+    parser.add_argument("--plan", required=True, help="LiveExecutionPlan JSON path.")
+    parser.add_argument("--intent", required=True, help="LiveExecutionIntent JSON path.")
+    parser.add_argument("--authorization-db", required=True)
+    parser.add_argument("--receipt-id", required=True)
     parser.add_argument("--repository-root", required=True)
     parser.add_argument("--run-id", required=True)
-    parser.add_argument(
-        "--authorization-receipt",
-        default=None,
-        help="Path to an AuthorizationReceipt JSON file (required for human-gated plans).",
-    )
-    parser.add_argument(
-        "--live-tool",
-        action="store_true",
-        default=False,
-        help="Enable real process execution. Without this flag, execution is refused.",
-    )
-    parser.add_argument(
-        "--format", choices=["json", "text"], default="json"
-    )
-    parser.add_argument(
-        "--current-revision", type=int, default=0, help="Current repository revision."
-    )
+    parser.add_argument("--current-revision", type=int, required=True)
     parser.add_argument(
         "--trusted-actor",
         action="append",
         default=[],
         dest="trusted_actors",
-        help="Trusted actor names (may be repeated).",
     )
+    parser.add_argument(
+        "--live-tool",
+        action="store_true",
+        default=False,
+        help="Reserve authority and permit one bounded process attempt.",
+    )
+    parser.add_argument("--format", choices=["json", "text"], default="json")
     args = parser.parse_args(argv)
 
-    plan = ExecutionPlan.model_validate(
-        json.loads(Path(args.plan).read_text(encoding="utf-8"))
-    )
-
-    authorization_receipt = None
-    if args.authorization_receipt:
-        authorization_receipt = AuthorizationReceipt.model_validate(
-            json.loads(Path(args.authorization_receipt).read_text(encoding="utf-8"))
-        )
+    plan = LiveExecutionPlan.model_validate(_read_json(args.plan))
+    intent = LiveExecutionIntent.model_validate(_read_json(args.intent))
 
     if not args.live_tool:
-        print(
-            json.dumps(
-                {
-                    "status": "refused",
-                    "reason": (
-                        "Real execution requires --live-tool. "
-                        "Use energy_core.controlled_execution_cli for dry-run/fake review."
-                    ),
-                    "plan_id": plan.plan_id,
-                    "plan_hash": plan.plan_hash,
-                    "disposition": plan.disposition,
-                    "real_execution_supported": True,
-                    "real_execution_enabled": False,
-                },
-                indent=2,
-                sort_keys=True,
-            )
+        _print_payload(
+            {
+                "status": "refused",
+                "reason": "Real execution requires explicit --live-tool opt-in.",
+                "live_plan_hash": plan.plan_hash,
+                "base_plan_hash": plan.base_plan_hash,
+                "authorization_receipt_id": plan.authorization_receipt_id,
+                "real_execution_supported": True,
+                "real_execution_enabled": False,
+                "real_execution_performed": False,
+            },
+            output_format=args.format,
         )
-        return 1
+        return 2
 
-    config = SandboxedToolConfig(
-        enabled=True,
-        repository_root=args.repository_root,
-        current_revision=args.current_revision,
-        trusted_actors=args.trusted_actors,
-    )
+    store = SQLiteLiveAuthorizationStore(args.authorization_db)
+    receipt = store.get(args.receipt_id)
+    if receipt is None:
+        _print_refusal(
+            PermissionError("Authoritative live authorization receipt was not found."),
+            output_format=args.format,
+        )
+        return 2
 
-    adapter = SandboxedToolAdapter(config)
-    result = adapter.invoke(plan, authorization_receipt=authorization_receipt)
+    execute = executor or _execute_secure
+    try:
+        outcome = execute(
+            plan=plan,
+            intent=intent,
+            receipt=receipt,
+            store=store,
+            repository_root=args.repository_root,
+            current_revision=args.current_revision,
+            trusted_actors=args.trusted_actors,
+            run_id=args.run_id,
+        )
+    except (OSError, PermissionError, ValueError) as exc:
+        _print_refusal(exc, output_format=args.format)
+        return 2
 
-    evidence = adapter.build_evidence(
-        plan,
-        result,
-        run_id=args.run_id,
-        authorization_receipt=authorization_receipt,
-    )
-
-    payload: dict[str, Any] = {
-        "plan": plan.model_dump(mode="json"),
-        "result": result.model_dump(mode="json"),
-        "evidence": evidence.model_dump(mode="json"),
+    payload = {
+        "status": outcome.evidence.status,
         "real_execution_supported": True,
-        "real_execution_performed": True,
+        "real_execution_enabled": True,
+        "real_execution_performed": outcome.evidence.execution_performed,
+        "result": outcome.result.model_dump(mode="json"),
+        "evidence": outcome.evidence.model_dump(mode="json"),
+        "authority": {
+            "receipt_id": outcome.reserved_receipt.receipt_id,
+            "reserved": outcome.reserved_receipt.execution_reserved,
+            "completion_verified": (
+                outcome.evidence.authority_completion_verified
+            ),
+            "final_record_hash": (
+                outcome.final_receipt.record_hash
+                if outcome.final_receipt is not None
+                else None
+            ),
+        },
     }
+    _print_payload(payload, output_format=args.format)
+    return 0 if outcome.evidence.status == "pass" else 1
 
-    if args.format == "json":
+
+def _execute_secure(
+    *,
+    plan: LiveExecutionPlan,
+    intent: LiveExecutionIntent,
+    receipt: LiveAuthorizationReceipt,
+    store: SQLiteLiveAuthorizationStore,
+    repository_root: str,
+    current_revision: int,
+    trusted_actors: list[str],
+    run_id: str,
+) -> SecureExecutionOutcome:
+    config = SecureProcessConfig(
+        enabled=True,
+        repository_root=repository_root,
+        current_revision=current_revision,
+        trusted_actors=trusted_actors,
+    )
+    adapter = SecureProcessAdapter(config, receipt_store=store)
+    service = SecureExecutionService(adapter=adapter, receipt_store=store)
+    return service.execute(plan, intent, receipt, run_id=run_id)
+
+
+def _read_json(path: str | Path) -> Any:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _print_refusal(exc: Exception, *, output_format: str) -> None:
+    _print_payload(
+        {
+            "status": "refused",
+            "error_type": type(exc).__name__,
+            "reason": _bounded_reason(exc),
+            "real_execution_performed": False,
+        },
+        output_format=output_format,
+    )
+
+
+def _bounded_reason(exc: Exception) -> str:
+    value = " ".join(str(exc).split())
+    return value[:500] or type(exc).__name__
+
+
+def _print_payload(payload: dict[str, Any], *, output_format: str) -> None:
+    if output_format == "json":
         print(json.dumps(payload, indent=2, sort_keys=True))
-    else:
-        print(_format_text(payload, plan, result, evidence))
+        return
 
-    return 0 if result.exit_code == 0 else result.exit_code or 1
-
-
-def _format_text(
-    payload: dict[str, Any],
-    plan: ExecutionPlan,
-    result: RealToolResult,
-    evidence: Any,
-) -> str:
-    lines = [
-        "EACODE Sandboxed Tool Execution",
-        f"Plan: {plan.plan_id}",
-        f"Plan hash: {plan.plan_hash}",
-        f"Executable: {plan.executable}",
-        f"Arguments: {' '.join(plan.arguments)}",
-        f"Exit code: {result.exit_code}",
-        f"Duration: {result.duration_ms}ms",
-        f"Timed out: {result.timed_out}",
-        f"Cancelled: {result.cancelled}",
-        f"Process tree cleaned: {result.process_tree_cleaned}",
-        f"Failure class: {result.failure_class}",
-        f"Redacted: {result.redacted}",
-        f"Output truncated: {result.stdout_truncated or result.stderr_truncated}",
-        f"Evidence status: {evidence.status}",
-        f"Execution performed: {evidence.execution_performed}",
-        "--- stdout ---",
-        result.stdout,
-        "--- stderr ---",
-        result.stderr,
-        "Real execution performed: True",
-    ]
-    return "\n".join(lines)
+    lines = ["EACODE Secure Live Execution"]
+    for key, value in payload.items():
+        if isinstance(value, dict):
+            lines.append(f"{key}:")
+            for nested_key, nested_value in value.items():
+                lines.append(f"  {nested_key}: {nested_value}")
+        else:
+            lines.append(f"{key}: {value}")
+    print("\n".join(lines))
 
 
 if __name__ == "__main__":

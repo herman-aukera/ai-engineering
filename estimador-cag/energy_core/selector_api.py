@@ -1,13 +1,11 @@
-"""Selector API — FastAPI router for provider selection and capability queries.
+"""Domain facade for deterministic provider selection.
 
-Exposes the deterministic registry and selector as HTTP endpoints.
-Zero live API calls. Works with the curated capability manifest.
-Disabled-by-default live adapter endpoints require explicit opt-in.
-
-Spec 0010 Slice G — additive module.
+Despite the historical module name, this is not a FastAPI router. The actual HTTP
+surface is ``app.routers.eacode``. This facade remains for Python callers and uses
+the verified capability overlay by default. It never makes a live provider call.
 """
 
-from __future__ import annotations  # noqa: I001
+from __future__ import annotations
 
 from decimal import Decimal
 
@@ -16,13 +14,11 @@ from pydantic import BaseModel, Field
 from energy_core.provider_registry import (
     CapabilityRegistry,
     ProviderSelection,
-    ProviderSelector,
 )
-
-
-# ------------------------------------------------------------------
-# API response models
-# ------------------------------------------------------------------
+from energy_core.provider_verified import (
+    VerifiedCapabilityRegistry,
+    VerifiedProviderSelector,
+)
 
 
 class ModelSummary(BaseModel):
@@ -59,13 +55,15 @@ class SelectRequest(BaseModel):
     context_profile: str = "medium"
     fallback_policy: str = "none"
     expected_input_tokens: int = Field(default=50_000, ge=1)
+    expected_cached_input_tokens: int = Field(default=0, ge=0)
     expected_output_tokens: int = Field(default=4_000, ge=1)
     max_cost_usd: Decimal = Field(default=Decimal("1.00"), ge=0)
+    max_latency_ms: int | None = Field(default=None, ge=1)
     premium_reason: str | None = None
 
 
 class SelectResponse(BaseModel):
-    status: str  # ok, error
+    status: str
     route: ResolvedRoute | None = None
     available_models: list[ModelSummary] = Field(default_factory=list)
     error: str | None = None
@@ -94,86 +92,74 @@ class CapabilityDetail(BaseModel):
     source_version: str
 
 
-# ------------------------------------------------------------------
-# Selector API
-# ------------------------------------------------------------------
-
-
 class SelectorAPI:
-    """HTTP-friendly wrapper around the deterministic provider selector.
-
-    Exposes capability queries and route resolution. Does not make live
-    provider calls — returns planned routes only.
-    """
+    """Python facade around deterministic provider routing."""
 
     def __init__(self, registry: CapabilityRegistry | None = None) -> None:
-        self._registry = registry or CapabilityRegistry()
-        self._selector = ProviderSelector(self._registry)
+        self._registry = registry or VerifiedCapabilityRegistry()
+        self._selector = VerifiedProviderSelector(self._registry)
 
     def list_models(self) -> list[ModelSummary]:
         return [
             ModelSummary(
-                provider=m.provider,
-                surface=m.surface,
-                model_id=m.model_id,
-                aliases=list(m.aliases),
-                model_family=m.model_family,
-                context_window=m.context_window,
-                max_output_tokens=m.max_output_tokens,
-                reasoning_efforts=list(m.reasoning_efforts),
-                speed_class=m.speed_class,
-                supports_prompt_cache=m.supports_prompt_cache,
-                availability_state=m.availability_state,
-                entitlement_state=m.entitlement_state,
-                freshness_state=m.freshness_state,
+                provider=model.provider,
+                surface=model.surface,
+                model_id=model.model_id,
+                aliases=list(model.aliases),
+                model_family=model.model_family,
+                context_window=model.context_window,
+                max_output_tokens=model.max_output_tokens,
+                reasoning_efforts=list(model.reasoning_efforts),
+                speed_class=model.speed_class,
+                supports_prompt_cache=model.supports_prompt_cache,
+                availability_state=model.availability_state,
+                entitlement_state=model.entitlement_state,
+                freshness_state=model.freshness_state,
             )
-            for m in self._registry.list_available_models()
+            for model in self._registry.list_available_models()
         ]
 
     def get_model(self, model_id: str) -> CapabilityDetail | None:
-        cap = self._registry.get(model_id)
-        if cap is None:
+        capability = self._registry.get(model_id)
+        if capability is None:
             return None
         return CapabilityDetail(
-            provider=cap.provider,
-            surface=cap.surface,
-            model_id=cap.model_id,
-            aliases=list(cap.aliases),
-            model_family=cap.model_family,
-            context_window=cap.context_window,
-            max_output_tokens=cap.max_output_tokens,
-            reasoning_modes=list(cap.reasoning_modes),
-            reasoning_efforts=list(cap.reasoning_efforts),
-            speed_class=cap.speed_class,
-            supports_tools=cap.supports_tools,
-            supports_structured_output=cap.supports_structured_output,
-            supports_vision=cap.supports_vision,
-            supports_prompt_cache=cap.supports_prompt_cache,
+            provider=capability.provider,
+            surface=capability.surface,
+            model_id=capability.model_id,
+            aliases=list(capability.aliases),
+            model_family=capability.model_family,
+            context_window=capability.context_window,
+            max_output_tokens=capability.max_output_tokens,
+            reasoning_modes=list(capability.reasoning_modes),
+            reasoning_efforts=list(capability.reasoning_efforts),
+            speed_class=capability.speed_class,
+            supports_tools=capability.supports_tools,
+            supports_structured_output=capability.supports_structured_output,
+            supports_vision=capability.supports_vision,
+            supports_prompt_cache=capability.supports_prompt_cache,
             pricing={
-                "input_per_1k": str(cap.pricing.input_price_per_1k_tokens),
-                "cached_input_per_1k": str(cap.pricing.cached_input_price_per_1k_tokens),
-                "output_per_1k": str(cap.pricing.output_price_per_1k_tokens),
-                "unit": cap.pricing.price_unit,
+                "input_per_1k": str(
+                    capability.pricing.input_price_per_1k_tokens
+                ),
+                "cached_input_per_1k": str(
+                    capability.pricing.cached_input_price_per_1k_tokens
+                ),
+                "output_per_1k": str(
+                    capability.pricing.output_price_per_1k_tokens
+                ),
+                "unit": capability.pricing.price_unit,
             },
-            availability_state=cap.availability_state,
-            entitlement_state=cap.entitlement_state,
-            freshness_state=cap.freshness_state,
-            source_id=cap.source_id,
-            source_version=cap.source_version,
+            availability_state=capability.availability_state,
+            entitlement_state=capability.entitlement_state,
+            freshness_state=capability.freshness_state,
+            source_id=capability.source_id,
+            source_version=capability.source_version,
         )
 
     def select(self, request: SelectRequest) -> SelectResponse:
         try:
-            selection = ProviderSelection(
-                provider=request.provider,
-                profile=request.profile,
-                context_profile=request.context_profile,
-                fallback_policy=request.fallback_policy,
-                expected_input_tokens=request.expected_input_tokens,
-                expected_output_tokens=request.expected_output_tokens,
-                max_cost_usd=request.max_cost_usd,
-                premium_reason=request.premium_reason,
-            )
+            selection = ProviderSelection.model_validate(request.model_dump())
             planned = self._selector.select(selection)
             route = ResolvedRoute(
                 provider=planned.provider,
