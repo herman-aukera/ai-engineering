@@ -133,3 +133,75 @@ jobs:
         with:
           name: postgres-pytest-output
           path: /tmp/postgres-pytest-output.txt
+
+  test-energy-chat-browser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      EACHAT_V2_ENABLED: "true"
+      EACHAT_BROWSER_BASE_URL: http://127.0.0.1:8000
+      EACHAT_BROWSER_SCREENSHOT: /tmp/eachat-v2-browser.png
+      PYTHONUNBUFFERED: "1"
+      UV_HTTP_TIMEOUT: "300"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install application dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Install pinned browser runner
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start FastAPI product server
+        run: |
+          uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/eachat-browser-server.log 2>&1 &
+          echo $! > /tmp/eachat-browser-server.pid
+          SERVER_READY=0
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8000/health > /tmp/eachat-health.json; then
+              SERVER_READY=1
+              break
+            fi
+            sleep 1
+          done
+          test "$SERVER_READY" = "1"
+
+      - name: Run V2 browser journey
+        run: node scripts/smoke_eachat_v2_browser.mjs
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eachat-v2-browser-evidence
+          path: |
+            /tmp/eachat-v2-browser.png
+            /tmp/eachat-browser-server.log
+            /tmp/eachat-health.json
+          if-no-files-found: warn
+
+      - name: Stop FastAPI product server
+        if: always()
+        run: |
+          if test -f /tmp/eachat-browser-server.pid; then
+            kill "$(cat /tmp/eachat-browser-server.pid)" 2>/dev/null || true
+          fi
