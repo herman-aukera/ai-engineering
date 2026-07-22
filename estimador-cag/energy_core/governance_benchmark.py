@@ -105,7 +105,7 @@ def run_governance_benchmark(
 ) -> GovernanceBenchmarkReport:
     """Run identical findings through unchecked and governed decision modes."""
 
-    selected_cases = cases or default_governance_cases()
+    selected_cases = default_governance_cases() if cases is None else cases
     if not selected_cases:
         raise ValueError("At least one benchmark case is required.")
 
