@@ -1,12 +1,5 @@
 from fastapi.testclient import TestClient
 
-from app.energy_chat import baseline, benchmark, live_agent
-from app.energy_chat.contracts import (
-    DeepSeekBaselineRequest,
-    DeepSeekBaselineResult,
-    DeepSeekBenchmarkRequest,
-    DeepSeekBenchmarkRunResult,
-)
 from app.main import app
 
 client = TestClient(app)
