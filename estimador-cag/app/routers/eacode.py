@@ -30,6 +30,7 @@ class EACodeSelectRequest(BaseModel):
     max_cost_usd: Decimal = Field(default=Decimal("1.00"), ge=0)
     max_latency_ms: int | None = Field(default=None, ge=1)
     premium_reason: str | None = None
+    entitled_surfaces: tuple[str, ...] = Field(default_factory=tuple)
 
 
 @router.get("/status")
@@ -75,14 +76,30 @@ def select_provider(request: EACodeSelectRequest) -> dict[str, object]:
     """Resolve a deterministic planned route without calling a provider."""
 
     try:
-        selection = ProviderSelection.model_validate(request.model_dump())
+        selection = ProviderSelection.model_validate(
+            request.model_dump(exclude={"entitled_surfaces"})
+        )
         planned = _selector.select(selection)
+        capability = _registry.get(planned.model_id)
+        if capability is None:
+            raise ValueError("Resolved capability is missing.")
+        if capability.availability_state != "available":
+            raise ValueError("Resolved capability is unavailable.")
+        if capability.freshness_state != "current":
+            raise ValueError("Resolved capability is stale or unverified.")
+        if (
+            capability.entitlement_state != "open"
+            and capability.surface not in request.entitled_surfaces
+        ):
+            raise ValueError(
+                f"Entitlement required for provider surface: {capability.surface}"
+            )
     except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return {
         "status": "ok",
-        "requested": selection.model_dump(mode="json"),
+        "requested": request.model_dump(mode="json"),
         "planned": planned.model_dump(mode="json"),
         "served": None,
         "claim_boundary": (
@@ -107,6 +124,7 @@ def selector_ui() -> HTMLResponse:
     body { font-family: system-ui, sans-serif; max-width: 880px; margin: 2rem auto; padding: 0 1rem; }
     form { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
     label { display: grid; gap: .25rem; font-weight: 600; }
+    .check { display: flex; gap: .5rem; align-items: center; }
     button { padding: .7rem 1rem; cursor: pointer; }
     pre { white-space: pre-wrap; background: #111; color: #eee; padding: 1rem; border-radius: .4rem; }
     .boundary { border-left: 4px solid currentColor; padding-left: 1rem; }
@@ -124,6 +142,7 @@ def selector_ui() -> HTMLResponse:
     </label>
     <label>Maximum cost (USD)<input name="max_cost_usd" type="number" min="0" step="0.01" value="1.00"></label>
     <label>Premium reason<input name="premium_reason" placeholder="Required for premium escalation"></label>
+    <label class="check"><input name="kimi_code_entitled" type="checkbox">Kimi Code membership confirmed</label>
     <button type="submit">Resolve governed route</button>
   </form>
   <h2>Decision evidence</h2>
@@ -131,10 +150,13 @@ def selector_ui() -> HTMLResponse:
   <script>
     document.getElementById('selector').addEventListener('submit', async (event) => {
       event.preventDefault();
-      const data = Object.fromEntries(new FormData(event.target));
+      const form = new FormData(event.target);
+      const data = Object.fromEntries(form);
       data.max_cost_usd = Number(data.max_cost_usd);
       data.context_profile = data.profile;
       data.fallback_policy = 'none';
+      data.entitled_surfaces = form.has('kimi_code_entitled') ? ['kimi_code'] : [];
+      delete data.kimi_code_entitled;
       if (!data.premium_reason) data.premium_reason = null;
       const response = await fetch('/eacode/select', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
