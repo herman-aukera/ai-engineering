@@ -42,13 +42,16 @@ async def lifespan(app: FastAPI):
     stack = AsyncExitStack()
     app.state.graph_estimation_service = None
     app.state.reviewed_graph_estimation_service = None
+    app.state.graph_runtime_error = None
+    app.state.reviewed_graph_runtime_error = None
 
     try:
         try:
             service = await stack.enter_async_context(
                 open_graph_estimation_service()
             )
-        except Exception:
+        except Exception as exc:
+            app.state.graph_runtime_error = type(exc).__name__
             logger.exception(
                 "graph_estimation_runtime_initialization_failed"
             )
@@ -59,7 +62,8 @@ async def lifespan(app: FastAPI):
             reviewed_service = await stack.enter_async_context(
                 open_reviewed_graph_estimation_service()
             )
-        except Exception:
+        except Exception as exc:
+            app.state.reviewed_graph_runtime_error = type(exc).__name__
             logger.exception(
                 "reviewed_graph_estimation_runtime_initialization_failed"
             )
