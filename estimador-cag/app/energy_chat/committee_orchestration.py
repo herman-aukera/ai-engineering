@@ -150,7 +150,7 @@ def build_committee_selection(request: CandidateProviderRequest) -> CommitteeSel
                 total_energy=score.total_energy,
                 decision=evaluation.decision.decision,
                 hard_reject_count=len(score.hard_reject_violations),
-                violation_count=len(score.violations),
+                violation_count=len(score.findings),
             )
         )
     selected = min(proposals, key=_selection_key)

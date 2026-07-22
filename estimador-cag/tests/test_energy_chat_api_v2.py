@@ -115,24 +115,38 @@ def test_v2_request_rejects_single_orchestration_mode() -> None:
     assert response.json()["detail"]["error"] == "unsupported_orchestration_mode"
 
 
-def test_v2_request_rejects_committee_orchestration_mode() -> None:
+def test_v2_request_executes_bounded_deterministic_committee() -> None:
     response = client.post(
         "/energy-chat/v2/chat",
-        json={"user_message": "test", "orchestration_mode": "committee"},
+        json={
+            "user_message": "Prepare a bounded release recommendation.",
+            "orchestration_mode": "committee",
+        },
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"]["error"] == "unsupported_orchestration_mode"
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["requested_orchestration_mode"] == "committee"
+    assert body["resolved_orchestration_mode"] == "committee"
+    assert body["orchestration_candidate_count"] == 3
+    assert body["served_provider"] == "deterministic_committee"
 
 
-def test_v2_request_rejects_adaptive_orchestration_mode() -> None:
+def test_v2_request_keeps_ordinary_adaptive_request_on_critic() -> None:
     response = client.post(
         "/energy-chat/v2/chat",
-        json={"user_message": "test", "orchestration_mode": "adaptive"},
+        json={
+            "user_message": "Explain the bounded deterministic chat path.",
+            "orchestration_mode": "adaptive",
+        },
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"]["error"] == "unsupported_orchestration_mode"
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["requested_orchestration_mode"] == "adaptive"
+    assert body["resolved_orchestration_mode"] == "critic"
+    assert body["orchestration_candidate_count"] == 1
+    assert "ordinary_request" in body["orchestration_reason"]
 
 
 def test_v2_request_validates_identity_format() -> None:

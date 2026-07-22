@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
-from app.energy_chat.fixed_benchmark import (
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.energy_chat.fixed_benchmark import (  # noqa: E402
     render_fixed_benchmark_markdown,
     run_fixed_benchmark,
 )

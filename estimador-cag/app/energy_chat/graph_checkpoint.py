@@ -10,7 +10,9 @@ from __future__ import annotations
 from typing import Any
 
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
+from app.energy_chat.checkpoint_strict import STRICT_MSGPACK_ALLOWLIST
 from app.energy_chat.graph_state import EnergyChatGraphState
 
 
@@ -23,7 +25,11 @@ class InMemoryCheckpointer:
     """
 
     def __init__(self) -> None:
-        self._saver = MemorySaver()
+        self._saver = MemorySaver(
+            serde=JsonPlusSerializer(
+                allowed_msgpack_modules=STRICT_MSGPACK_ALLOWLIST,
+            )
+        )
 
     @property
     def langgraph_saver(self) -> MemorySaver:
