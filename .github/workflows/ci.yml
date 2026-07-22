@@ -220,11 +220,8 @@ jobs:
             git diff --name-only --diff-filter=U
             false
           fi
-      - name: Finalize release workflow and remove temporary resolver
-        run: |
-          sed -i "s/github.head_ref == 'gg-session-13\/plus-production-readiness'/github.event_name == 'pull_request' \&\& github.base_ref == 'main' \&\& github.head_ref == 'gg-session-13\/plus'/g" .github/workflows/ci.yml
-          python -c "from pathlib import Path; p=Path('.github/workflows/ci.yml'); s=p.read_text(); s=s.split('\n  resolve-main-conflicts:\n', 1)[0].replace('permissions:\n  contents: write', 'permissions:\n  contents: read'); p.write_text(s.rstrip() + '\n')"
-          rm -f .github/workflows/session13-plus-main-sync.yml
+      - name: Preserve workflow files during merge push
+        run: echo "Workflow cleanup is deferred to the GitHub connector after the merge commit is pushed."
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Set up Python
