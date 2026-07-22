@@ -5,662 +5,121 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EACHAT — Energy-Aware Chat</title>
   <style>
-    :root {
-      color-scheme: dark;
-      --bg: #0b1020;
-      --sidebar: #0f172a;
-      --panel: #111b31;
-      --panel-2: #17233d;
-      --border: #2b3a58;
-      --text: #edf2ff;
-      --muted: #9caecc;
-      --accent: #60a5fa;
-      --accent-strong: #2563eb;
-      --ok: #34d399;
-      --warn: #fbbf24;
-      --bad: #fb7185;
-      --user: #1d4ed8;
-      --assistant: #17233d;
-    }
-
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    button, textarea, select, input { font: inherit; }
-    button { cursor: pointer; }
-
-    .app { min-height: 100vh; display: grid; grid-template-columns: 270px minmax(0, 1fr) 330px; }
-    .sidebar, .inspector { background: var(--sidebar); padding: 18px; overflow-y: auto; }
-    .sidebar { border-right: 1px solid var(--border); }
-    .inspector { border-left: 1px solid var(--border); }
-    .workspace { min-width: 0; display: flex; flex-direction: column; }
-
-    .brand { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
-    .brand-mark { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: linear-gradient(135deg, #1d4ed8, #7c3aed); font-size: 1.25rem; }
-    .brand h1 { margin: 0; font-size: 1.05rem; }
-    .brand p { margin: 2px 0 0; color: var(--muted); font-size: .78rem; }
-
-    .primary, .secondary, .danger, .thread-button {
-      border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 12px; background: var(--panel);
-    }
-    .primary { background: var(--accent-strong); border-color: #3b82f6; font-weight: 700; }
-    .secondary:hover, .thread-button:hover { border-color: var(--accent); }
-    .danger { border-color: #9f1239; background: #4c0519; }
-    .wide { width: 100%; }
-
-    .section-title { color: var(--muted); font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin: 20px 0 8px; }
-    .thread-list { display: grid; gap: 7px; }
-    .thread-button { width: 100%; text-align: left; padding: 10px; }
-    .thread-button.active { border-color: var(--accent); background: #13264a; }
-    .thread-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .thread-meta { display: flex; gap: 7px; margin-top: 5px; color: var(--muted); font-size: .72rem; }
-
-    .topbar { padding: 14px 20px; border-bottom: 1px solid var(--border); background: rgba(11, 16, 32, .94); backdrop-filter: blur(12px); display: flex; gap: 12px; align-items: center; justify-content: space-between; }
-    .topbar h2 { margin: 0; font-size: 1rem; }
-    .runtime-badges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-    .badge { border: 1px solid var(--border); border-radius: 999px; color: var(--muted); background: #0f172a; padding: 5px 9px; font-size: .72rem; }
-    .badge.ok { color: #d1fae5; border-color: #047857; background: #064e3b; }
-    .badge.warn { color: #fef3c7; border-color: #92400e; background: #78350f; }
-    .badge.bad { color: #ffe4e6; border-color: #9f1239; background: #4c0519; }
-
-    .messages { flex: 1; overflow-y: auto; padding: 28px max(20px, calc((100% - 820px) / 2)); display: flex; flex-direction: column; gap: 18px; }
-    .welcome { margin: auto; max-width: 650px; text-align: center; padding: 30px; }
-    .welcome h3 { font-size: 1.55rem; margin: 0 0 10px; }
-    .welcome p { color: var(--muted); line-height: 1.55; }
-
-    .message { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: start; }
-    .message .avatar { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-size: .75rem; font-weight: 800; border: 1px solid var(--border); }
-    .message.user .avatar { background: var(--user); }
-    .message.assistant .avatar { background: linear-gradient(135deg, #0f766e, #2563eb); }
-    .bubble { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; white-space: pre-wrap; line-height: 1.55; overflow-wrap: anywhere; }
-    .message.user .bubble { background: #13264a; }
-    .message.assistant .bubble { background: var(--assistant); }
-    .message-meta { color: var(--muted); font-size: .72rem; margin-top: 7px; }
-
-    .composer-wrap { border-top: 1px solid var(--border); padding: 14px max(20px, calc((100% - 820px) / 2)) 20px; background: rgba(11, 16, 32, .96); }
-    .selectors { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 8px; margin-bottom: 9px; }
-    label { display: block; color: var(--muted); font-size: .72rem; margin-bottom: 4px; }
-    select, textarea, input { width: 100%; color: var(--text); background: #080d19; border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; }
-    textarea { min-height: 88px; max-height: 220px; resize: vertical; }
-    .composer-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 9px; }
-    .composer-note { color: var(--muted); font-size: .72rem; margin-left: auto; }
-
-    .panel { border: 1px solid var(--border); background: var(--panel); border-radius: 13px; padding: 13px; margin-bottom: 12px; }
-    .panel h3 { font-size: .9rem; margin: 0 0 10px; }
-    .row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(43, 58, 88, .7); font-size: .8rem; }
-    .row:last-child { border-bottom: 0; }
-    .row span:first-child { color: var(--muted); }
-    .row span:last-child { text-align: right; overflow-wrap: anywhere; }
-    .empty { color: var(--muted); font-size: .8rem; line-height: 1.45; }
-    .human-panel { display: none; border-color: #92400e; background: #3b2508; }
-    .human-panel.visible { display: block; }
-    .human-reason { color: #fef3c7; font-size: .8rem; line-height: 1.45; margin-bottom: 10px; }
-    .human-type { font-family: ui-monospace, SFMono-Regular, monospace; color: #fde68a; font-size: .75rem; }
-    pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow-y: auto; background: #080d19; border: 1px solid var(--border); border-radius: 10px; padding: 10px; color: #dbeafe; font-size: .74rem; }
-
-    .mobile-toggle { display: none; }
-    @media (max-width: 1100px) {
-      .app { grid-template-columns: 230px minmax(0, 1fr); }
-      .inspector { display: none; }
-    }
-    @media (max-width: 760px) {
-      .app { display: block; }
-      .sidebar { display: none; }
-      .selectors { grid-template-columns: repeat(2, 1fr); }
-      .runtime-badges { display: none; }
-      .messages { min-height: 55vh; padding: 20px 14px; }
-      .composer-wrap { padding: 12px 14px 18px; }
-    }
+    :root{color-scheme:dark;--bg:#0b1020;--side:#0f172a;--panel:#17233d;--border:#2b3a58;--text:#edf2ff;--muted:#9caecc;--accent:#2563eb;--ok:#34d399;--warn:#fbbf24;--bad:#fb7185}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:var(--bg);color:var(--text)}button,textarea,select,input{font:inherit}button{cursor:pointer}.app{min-height:100vh;display:grid;grid-template-columns:260px minmax(0,1fr) 325px}.sidebar,.inspector{background:var(--side);padding:18px;overflow:auto}.sidebar{border-right:1px solid var(--border)}.inspector{border-left:1px solid var(--border)}.workspace{min-width:0;display:flex;flex-direction:column}.brand{display:flex;gap:10px;align-items:center;margin-bottom:18px}.mark{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#1d4ed8,#7c3aed);font-size:1.25rem}.brand h1{margin:0;font-size:1.05rem}.brand p{margin:2px 0 0;color:var(--muted);font-size:.78rem}.primary,.secondary,.thread{border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;background:var(--panel)}.primary{background:var(--accent);border-color:#3b82f6;font-weight:700}.secondary:hover,.thread:hover{border-color:#60a5fa}.wide{width:100%}.section{color:var(--muted);font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin:20px 0 8px}.thread-list{display:grid;gap:7px}.thread{width:100%;text-align:left}.thread.active{border-color:#60a5fa;background:#13264a}.thread-title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.thread-meta{display:block;color:var(--muted);font-size:.7rem;margin-top:5px}.topbar{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}.topbar h2{margin:0;font-size:1rem}.badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.badge{border:1px solid var(--border);border-radius:999px;padding:5px 9px;color:var(--muted);font-size:.7rem}.badge.warn{color:#fef3c7;border-color:#92400e;background:#78350f}.messages{flex:1;overflow:auto;padding:28px max(20px,calc((100% - 820px)/2));display:flex;flex-direction:column;gap:18px}.welcome{margin:auto;max-width:650px;text-align:center;padding:30px}.welcome h3{font-size:1.55rem;margin:0 0 10px}.welcome p,.empty{color:var(--muted);line-height:1.5}.message{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start}.avatar{width:38px;height:38px;border:1px solid var(--border);border-radius:11px;display:grid;place-items:center;font-size:.75rem;font-weight:800}.message.user .avatar{background:#1d4ed8}.message.assistant .avatar{background:linear-gradient(135deg,#0f766e,#2563eb)}.bubble{border:1px solid var(--border);border-radius:14px;padding:14px 16px;white-space:pre-wrap;line-height:1.55;overflow-wrap:anywhere;background:var(--panel)}.message.user .bubble{background:#13264a}.meta{color:var(--muted);font-size:.7rem;margin-top:6px}.composer{border-top:1px solid var(--border);padding:14px max(20px,calc((100% - 820px)/2)) 20px}.selectors{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr));gap:8px;margin-bottom:9px}label{display:block;color:var(--muted);font-size:.72rem;margin-bottom:4px}select,textarea,input{width:100%;color:var(--text);background:#080d19;border:1px solid var(--border);border-radius:10px;padding:9px 10px}textarea{min-height:88px;resize:vertical}.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px}.activity{margin-left:auto;color:var(--muted);font-size:.72rem}.panel{border:1px solid var(--border);background:var(--panel);border-radius:13px;padding:13px;margin-bottom:12px}.panel h3{font-size:.9rem;margin:0 0 10px}.row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(43,58,88,.7);font-size:.78rem}.row:last-child{border:0}.row span:first-child{color:var(--muted)}.row span:last-child{text-align:right;overflow-wrap:anywhere}.human{display:none;border-color:#92400e;background:#3b2508}.human.visible{display:block}.human-type{font-family:ui-monospace,monospace;color:#fde68a}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;background:#080d19;border:1px solid var(--border);border-radius:10px;padding:10px;color:#dbeafe;font-size:.72rem}
+    @media(max-width:1100px){.app{grid-template-columns:230px minmax(0,1fr)}.inspector{display:none}}@media(max-width:760px){.app{display:block}.sidebar{display:none}.selectors{grid-template-columns:repeat(2,1fr)}.badges{display:none}.messages{min-height:55vh;padding:20px 14px}.composer{padding:12px 14px 18px}}
   </style>
 </head>
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">⚡</div>
-      <div><h1>EACHAT</h1><p>Energy-aware answers</p></div>
-    </div>
+    <div class="brand"><div class="mark">⚡</div><div><h1>EACHAT</h1><p>Energy-aware answers</p></div></div>
     <button class="primary wide" type="button" onclick="newConversation()">＋ New run</button>
-    <div class="section-title">Saved graph threads</div>
-    <div id="threadList" class="thread-list"></div>
-    <div class="section-title">Current maturity</div>
-    <div class="empty">
-      One graph request per backend thread.<br />
-      Browser thread history is local.<br />
-      Multi-turn server memory is not implemented.
-    </div>
+    <div class="section">Saved graph threads</div><div id="threadList" class="thread-list"></div>
+    <div class="section">Current maturity</div>
+    <div class="empty">One graph request per backend thread.<br />Browser history is local.<br />Multi-turn server memory is not implemented.</div>
   </aside>
 
   <section class="workspace">
     <header class="topbar">
-      <div><h2 id="conversationTitle">New Energy-Aware run</h2></div>
-      <div class="runtime-badges">
-        <span class="badge">Balanced context only</span>
-        <span class="badge">Critic orchestration only</span>
-        <span class="badge warn">Runtime compaction: not implemented</span>
-        <span class="badge warn">Committee runtime: not implemented</span>
+      <h2 id="conversationTitle">New Energy-Aware run</h2>
+      <div class="badges">
+        <span class="badge">Balanced context only</span><span class="badge">Critic orchestration only</span>
+        <span class="badge warn">Runtime compaction: not implemented</span><span class="badge warn">Committee runtime: not implemented</span>
       </div>
     </header>
-
-    <main id="messages" class="messages">
-      <div id="welcome" class="welcome">
-        <h3>Ask once. Evaluate before answering.</h3>
-        <p>
-          EACHAT generates one candidate, checks explicit constraints and evidence,
-          calculates constraint energy, applies one bounded repair when allowed, and
-          returns a Decision Ledger-backed Energy Card.
-        </p>
-      </div>
-    </main>
-
-    <footer class="composer-wrap">
+    <main id="messages" class="messages"></main>
+    <footer class="composer">
       <div class="selectors">
-        <div>
-          <label for="mode">Mode</label>
-          <select id="mode">
-            <option value="project" selected>Project</option>
-            <option value="chat_lite">Chat lite</option>
-            <option value="research">Research</option>
-            <option value="tutor">Tutor</option>
-          </select>
-        </div>
-        <div>
-          <label for="execution">Execution</label>
-          <select id="execution" onchange="syncExecutionControls()">
-            <option value="deterministic" selected>Deterministic</option>
-            <option value="live">Live bounded</option>
-          </select>
-        </div>
-        <div>
-          <label for="provider">Provider</label>
-          <select id="provider">
-            <option value="deepseek" selected>DeepSeek</option>
-            <option value="kimi">Kimi Platform K3</option>
-            <option value="openai">OpenAI GPT-5.6 preview</option>
-          </select>
-        </div>
-        <div>
-          <label for="effort">Effort</label>
-          <select id="effort">
-            <option value="fast">Fast</option>
-            <option value="balanced" selected>Balanced</option>
-            <option value="max">Max</option>
-          </select>
-        </div>
+        <div><label for="mode">Mode</label><select id="mode"><option value="project" selected>Project</option><option value="chat_lite">Chat lite</option><option value="research">Research</option><option value="tutor">Tutor</option></select></div>
+        <div><label for="execution">Execution</label><select id="execution" onchange="syncExecutionControls()"><option value="deterministic" selected>Deterministic</option><option value="live">Live bounded</option></select></div>
+        <div><label for="provider">Provider</label><select id="provider"><option value="deepseek" selected>DeepSeek</option><option value="kimi">Kimi Platform K3</option><option value="openai">OpenAI GPT-5.6 preview</option></select></div>
+        <div><label for="effort">Effort</label><select id="effort"><option value="fast">Fast</option><option value="balanced" selected>Balanced</option><option value="max">Max</option></select></div>
       </div>
-      <label for="composer">Message</label>
-      <textarea id="composer" placeholder="Ask EACHAT a question..."></textarea>
-      <div class="composer-actions">
+      <label for="composerInput">Message</label><textarea id="composerInput" placeholder="Ask EACHAT a question..."></textarea>
+      <div class="actions">
         <button class="primary" type="button" onclick="sendRequest()">Send to graph</button>
         <button class="secondary" type="button" onclick="startHumanFlow()">Run with human gate</button>
         <button class="secondary" type="button" onclick="replayThread()">Replay checkpoint</button>
         <button class="secondary" type="button" onclick="inspectThread()">Inspect state</button>
-        <span id="activity" class="composer-note">Ready</span>
+        <span id="activity" class="activity">Ready</span>
       </div>
     </footer>
   </section>
 
   <aside class="inspector">
-    <div class="section-title">Run status</div>
-    <div id="statusPanel" class="panel"><div class="empty">No graph run selected.</div></div>
-
-    <div id="humanPanel" class="panel human-panel">
-      <h3>Human response required</h3>
-      <div id="humanReason" class="human-reason"></div>
+    <div class="section">Run status</div><div id="statusPanel" class="panel"><div class="empty">No graph run selected.</div></div>
+    <div id="humanPanel" class="panel human">
+      <h3>Human response required</h3><div id="humanReason" class="empty"></div>
       <div class="row"><span>Action contract</span><span id="humanActionType" class="human-type"></span></div>
-      <label for="humanResponse" style="margin-top:10px">Response</label>
-      <textarea id="humanResponse" placeholder="Enter the requested clarification or escalation response..."></textarea>
+      <label for="humanResponse">Response</label><textarea id="humanResponse" placeholder="Enter the requested response..."></textarea>
       <button class="primary wide" type="button" onclick="resumeHumanAction()">Submit human response</button>
       <p class="empty">Supported typed actions: clarify_response and escalate_response.</p>
     </div>
-
-    <div class="section-title">Energy Card</div>
-    <div id="energyPanel" class="panel"><div class="empty">No Energy Card available.</div></div>
-
-    <div class="section-title">Provider and graph</div>
-    <div id="auditPanel" class="panel"><div class="empty">No execution metrics available.</div></div>
-
-    <div class="section-title">Safe state projection</div>
-    <pre id="statePanel">No state inspected.</pre>
+    <div class="section">Energy Card</div><div id="energyPanel" class="panel"><div class="empty">No Energy Card available.</div></div>
+    <div class="section">Provider and graph</div><div id="auditPanel" class="panel"><div class="empty">No execution metrics available.</div></div>
+    <div class="section">Safe state projection</div><pre id="statePanel">No state inspected.</pre>
   </aside>
 </div>
 
-<template id="user-message-template">
-  <article class="message user">
-    <div class="avatar">You</div>
-    <div><div class="bubble"></div><div class="message-meta"></div></div>
-  </article>
-</template>
-<template id="assistant-message-template">
-  <article class="message assistant">
-    <div class="avatar">EA</div>
-    <div><div class="bubble"></div><div class="message-meta"></div></div>
-  </article>
-</template>
+<template id="user-message-template"><article class="message user"><div class="avatar">You</div><div><div class="bubble"></div><div class="meta"></div></div></article></template>
+<template id="assistant-message-template"><article class="message assistant"><div class="avatar">EA</div><div><div class="bubble"></div><div class="meta"></div></div></article></template>
 
 <script>
-  const THREAD_STORAGE_KEY = 'eachat:v2:threads';
-  const MESSAGE_STORAGE_PREFIX = 'eachat:v2:messages:';
-  let activeThreadId = null;
-  let currentMessages = [];
-  let pendingHumanAction = null;
-  let lastResult = null;
+  const THREAD_STORAGE_KEY='eachat:v2:threads';
+  const MESSAGE_STORAGE_PREFIX='eachat:v2:messages:';
+  let activeThreadId=null,currentMessages=[],pendingHumanAction=null;
 
-  function readJsonStorage(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch (_) {
-      return fallback;
-    }
+  function readStore(key,fallback){try{const value=localStorage.getItem(key);return value?JSON.parse(value):fallback}catch(_){return fallback}}
+  function writeStore(key,value){localStorage.setItem(key,JSON.stringify(value))}
+  function threadRecords(){return readStore(THREAD_STORAGE_KEY,[])}
+  function messageKey(threadId){return `${MESSAGE_STORAGE_PREFIX}${threadId}`}
+  function titleFor(text){const value=text.trim().replace(/\s+/g,' ');return value.length>46?`${value.slice(0,46)}…`:value||'Untitled run'}
+  function setActivity(text,kind=''){const node=document.getElementById('activity');node.textContent=text;node.style.color=kind==='error'?'var(--bad)':kind==='ok'?'var(--ok)':'var(--muted)'}
+
+  function emptyWelcome(){const node=document.createElement('div');node.className='welcome';const title=document.createElement('h3');title.textContent='Ask once. Evaluate before answering.';const body=document.createElement('p');body.textContent='EACHAT generates a candidate, checks constraints and evidence, calculates constraint energy, applies bounded repair, and returns a Decision Ledger-backed Energy Card.';node.append(title,body);return node}
+  function renderMessages(){const root=document.getElementById('messages');root.replaceChildren();if(!currentMessages.length){root.appendChild(emptyWelcome());return}for(const message of currentMessages){const template=document.getElementById(message.role==='user'?'user-message-template':'assistant-message-template');const node=template.content.firstElementChild.cloneNode(true);node.querySelector('.bubble').textContent=message.content;node.querySelector('.meta').textContent=message.meta||'';root.appendChild(node)}root.scrollTop=root.scrollHeight}
+  function persistMessages(){if(activeThreadId)writeStore(messageKey(activeThreadId),currentMessages)}
+  function appendMessage(role,content,meta=''){currentMessages.push({role,content,meta,created_at:new Date().toISOString()});renderMessages();persistMessages()}
+
+  function renderThreadList(){const root=document.getElementById('threadList');root.replaceChildren();const records=threadRecords();if(!records.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No saved graph threads yet.';root.appendChild(empty);return}for(const item of records){const button=document.createElement('button');button.type='button';button.className=`thread${item.thread_id===activeThreadId?' active':''}`;button.addEventListener('click',()=>loadThread(item.thread_id));const title=document.createElement('span');title.className='thread-title';title.textContent=item.title;const meta=document.createElement('span');meta.className='thread-meta';meta.textContent=`${item.graph_status}${item.disposition?` · ${item.disposition}`:''}`;button.append(title,meta);root.appendChild(button)}}
+  function saveThread(result,userMessage){if(!result.thread_id)return;const records=threadRecords().filter(item=>item.thread_id!==result.thread_id);records.unshift({thread_id:result.thread_id,request_id:result.request_id||'',title:titleFor(userMessage),graph_status:result.graph_status||'unknown',disposition:result.final_disposition||null,updated_at:new Date().toISOString()});writeStore(THREAD_STORAGE_KEY,records.slice(0,50));renderThreadList()}
+  function loadThread(threadId){activeThreadId=threadId;currentMessages=readStore(messageKey(threadId),[]);const record=threadRecords().find(item=>item.thread_id===threadId);document.getElementById('conversationTitle').textContent=record?.title||threadId;pendingHumanAction=null;hideHumanPanel();renderMessages();renderThreadList();inspectThread()}
+  function newConversation(){activeThreadId=null;currentMessages=[];pendingHumanAction=null;document.getElementById('composerInput').value='';document.getElementById('conversationTitle').textContent='New Energy-Aware run';document.getElementById('statePanel').textContent='No state inspected.';hideHumanPanel();clearInspector();renderMessages();renderThreadList();setActivity('Ready')}
+
+  function syncExecutionControls(){const live=document.getElementById('execution').value==='live';document.getElementById('provider').disabled=!live;document.getElementById('effort').disabled=!live;setActivity(live?'Live calls require configured provider credentials.':'Deterministic graph selected.')}
+  function buildPayload(message,profile){const payload={user_message:message,mode:document.getElementById('mode').value,provider_preference:document.getElementById('provider').value,effort_profile:document.getElementById('effort').value,context_profile:'balanced',orchestration_mode:'critic'};if(profile)payload.execution_profile=profile;return payload}
+  function normalEndpoint(){return document.getElementById('execution').value==='live'?'/energy-chat/v2/chat/live':'/energy-chat/v2/chat'}
+  async function requestJson(url,options={}){const response=await fetch(url,options);let data;try{data=await response.json()}catch(_){data={detail:{error:'invalid_json',detail:'Server returned non-JSON data.'}}}if(!response.ok){const detail=data.detail||{};const error=new Error(detail.detail||detail.error||`HTTP ${response.status}`);error.payload=data;error.status=response.status;throw error}return data}
+
+  async function runInitial(endpoint,message,profile){setActivity('Graph running…');activeThreadId=null;currentMessages=[];appendMessage('user',message,endpoint.includes('/human')?'Human-gated graph request':'Graph request');try{const data=await requestJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildPayload(message,profile))});activeThreadId=data.thread_id;document.getElementById('conversationTitle').textContent=titleFor(message);appendMessage('assistant',responseText(data),responseMeta(data));persistMessages();saveThread(data,message);renderResult(data);setActivity(data.graph_status==='awaiting_human'?'Human response required.':'Graph completed.','ok')}catch(error){appendMessage('assistant',`Request failed: ${error.message}`,`HTTP ${error.status||'error'}`);renderError(error);setActivity(error.message,'error')}}
+  async function sendRequest(){const message=document.getElementById('composerInput').value.trim();if(!message){setActivity('Enter a message first.','error');return}document.getElementById('composerInput').value='';const live=document.getElementById('execution').value==='live';await runInitial(normalEndpoint(),message,live?'live_bounded':'deterministic')}
+  async function startHumanFlow(){const message=document.getElementById('composerInput').value.trim();if(!message){setActivity('Enter a message first.','error');return}document.getElementById('composerInput').value='';document.getElementById('execution').value='deterministic';syncExecutionControls();await runInitial('/energy-chat/v2/chat/human',message,'deterministic')}
+
+  async function replayThread(){
+    const threadId=activeThreadId;if(!threadId){setActivity('Select a saved thread first.','error');return}setActivity('Loading checkpoint replay…');
+    try{const data=await requestJson(`/energy-chat/v2/threads/${encodeURIComponent(threadId)}/replay`,{method:'POST'});renderResult(data);appendMessage('assistant',responseText(data),`Checkpoint replay · ${responseMeta(data)}`);setActivity('Checkpoint replayed without graph execution.','ok')}catch(error){renderError(error);setActivity(error.message,'error')}
+  }
+  async function inspectThread(){
+    const threadId=activeThreadId;if(!threadId){setActivity('Select a saved thread first.','error');return}
+    try{const data=await requestJson(`/energy-chat/v2/threads/${encodeURIComponent(threadId)}/state`);document.getElementById('statePanel').textContent=JSON.stringify(data,null,2);if(data.human_action_request)showHumanPanel(data.human_action_request);setActivity('Safe checkpoint state loaded.','ok')}catch(error){renderError(error);setActivity(error.message,'error')}
+  }
+  async function resumeHumanAction(){
+    const threadId=activeThreadId,response=document.getElementById('humanResponse').value.trim();if(!threadId||!pendingHumanAction){setActivity('No pending human action is loaded.','error');return}if(!response){setActivity('Enter the requested human response.','error');return}setActivity('Resuming graph from checkpoint…');
+    try{const data=await requestJson(`/energy-chat/v2/threads/${encodeURIComponent(threadId)}/resume`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action_id:pendingHumanAction.action_id,action:pendingHumanAction.action,expected_revision:pendingHumanAction.expected_revision,actor:'same-origin-browser',payload:{response}})});appendMessage('user',response,`Human ${pendingHumanAction.action}`);appendMessage('assistant',responseText(data),responseMeta(data));pendingHumanAction=null;document.getElementById('humanResponse').value='';hideHumanPanel();saveThread(data,currentMessages[0]?.content||threadId);renderResult(data);setActivity('Graph resumed from the authoritative checkpoint.','ok')}catch(error){renderError(error);setActivity(error.message,'error')}
   }
 
-  function writeJsonStorage(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-  }
+  function responseText(data){if(data.awaiting_evidence)return'External evidence is required before candidate generation.';if(data.graph_status==='awaiting_human')return data.human_action_request?.reason||'A typed human response is required.';return data.final_answer||'The graph completed without a user-visible answer.'}
+  function responseMeta(data){const parts=[data.graph_status||'unknown'];if(data.final_disposition)parts.push(data.final_disposition);if(data.served_provider)parts.push(`${data.served_provider}/${data.served_model||'none'}`);if(data.replayed_from_checkpoint)parts.push('replayed');return parts.join(' · ')}
+  function clearInspector(){document.getElementById('statusPanel').innerHTML='<div class="empty">No graph run selected.</div>';document.getElementById('energyPanel').innerHTML='<div class="empty">No Energy Card available.</div>';document.getElementById('auditPanel').innerHTML='<div class="empty">No execution metrics available.</div>'}
+  function renderRows(targetId,rows){const root=document.getElementById(targetId);root.replaceChildren();for(const [label,value]of rows){const row=document.createElement('div');row.className='row';const left=document.createElement('span');left.textContent=label;const right=document.createElement('span');right.textContent=value??'—';row.append(left,right);root.appendChild(row)}}
+  function renderResult(data){pendingHumanAction=data.human_action_request||null;renderRows('statusPanel',[['Thread',data.thread_id],['Graph status',data.graph_status],['Disposition',data.final_disposition],['Checkpoint',data.checkpoint_id],['Awaiting evidence',String(Boolean(data.awaiting_evidence))],['Replayed',String(Boolean(data.replayed_from_checkpoint))]]);const card=data.energy_card_v2;if(card)renderRows('energyPanel',[['Decision',card.decision],['Hard constraints',card.hard_constraints_passed?'passed':'violated'],['Energy before',String(card.energy_before)],['Energy after',String(card.energy_after)],['Energy delta',String(card.energy_delta)],['Repairs',String(card.repair_attempts)],['Policy rule',card.policy_rule_id],['Ledger entry',card.ledger_entry_id]]);else document.getElementById('energyPanel').innerHTML='<div class="empty">No Energy Card available for this state.</div>';const metrics=data.provider_metrics_summary||{},graph=data.graph_metrics||{};renderRows('auditPanel',[['Requested provider',data.requested_provider],['Served provider',`${data.served_provider||'none'} / ${data.served_model||'none'}`],['Provider calls',String(metrics.provider_call_count||0)],['Fallback used',String(Boolean(data.fallback_used))],['Cost USD',String(metrics.total_cost_usd||0)],['Provider latency',`${metrics.total_latency_ms||0} ms`],['Graph nodes',String(graph.node_count||0)],['Graph wall time',`${graph.total_wall_ms||0} ms`],['Ledger entries',String((data.ledger_entry_ids||[]).length)],['Evidence refs',String((data.evidence_refs||[]).length)]]);if(pendingHumanAction)showHumanPanel(pendingHumanAction);else hideHumanPanel()}
+  function showHumanPanel(action){pendingHumanAction=action;document.getElementById('humanPanel').classList.add('visible');document.getElementById('humanReason').textContent=action.reason||'Human response required.';document.getElementById('humanActionType').textContent=action.action||'unknown'}
+  function hideHumanPanel(){document.getElementById('humanPanel').classList.remove('visible')}
+  function renderError(error){const detail=error.payload?.detail||{};renderRows('statusPanel',[['Error',detail.error||'request_failed'],['Detail',detail.detail||error.message],['HTTP status',String(error.status||'unknown')]])}
 
-  function threadRecords() {
-    return readJsonStorage(THREAD_STORAGE_KEY, []);
-  }
-
-  function messageStorageKey(threadId) {
-    return `${MESSAGE_STORAGE_PREFIX}${threadId}`;
-  }
-
-  function setActivity(text, kind = '') {
-    const node = document.getElementById('activity');
-    node.textContent = text;
-    node.style.color = kind === 'error' ? 'var(--bad)' : kind === 'ok' ? 'var(--ok)' : 'var(--muted)';
-  }
-
-  function titleFromMessage(message) {
-    const compact = message.trim().replace(/\s+/g, ' ');
-    return compact.length > 46 ? `${compact.slice(0, 46)}…` : compact || 'Untitled run';
-  }
-
-  function saveThread(result, userMessage) {
-    if (!result.thread_id) return;
-    const records = threadRecords().filter(item => item.thread_id !== result.thread_id);
-    records.unshift({
-      thread_id: result.thread_id,
-      request_id: result.request_id || '',
-      title: titleFromMessage(userMessage),
-      graph_status: result.graph_status || 'unknown',
-      disposition: result.final_disposition || null,
-      updated_at: new Date().toISOString()
-    });
-    writeJsonStorage(THREAD_STORAGE_KEY, records.slice(0, 50));
-    renderThreadList();
-  }
-
-  function persistMessages() {
-    if (activeThreadId) writeJsonStorage(messageStorageKey(activeThreadId), currentMessages);
-  }
-
-  function renderThreadList() {
-    const list = document.getElementById('threadList');
-    list.replaceChildren();
-    const records = threadRecords();
-    if (!records.length) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.textContent = 'No saved graph threads yet.';
-      list.appendChild(empty);
-      return;
-    }
-    for (const item of records) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = `thread-button${item.thread_id === activeThreadId ? ' active' : ''}`;
-      button.addEventListener('click', () => loadThread(item.thread_id));
-      const title = document.createElement('span');
-      title.className = 'thread-title';
-      title.textContent = item.title;
-      const meta = document.createElement('span');
-      meta.className = 'thread-meta';
-      meta.textContent = `${item.graph_status}${item.disposition ? ` · ${item.disposition}` : ''}`;
-      button.append(title, meta);
-      list.appendChild(button);
-    }
-  }
-
-  function renderMessages() {
-    const container = document.getElementById('messages');
-    container.replaceChildren();
-    if (!currentMessages.length) {
-      const welcome = document.getElementById('welcome').cloneNode(true);
-      welcome.id = 'welcome-active';
-      container.appendChild(welcome);
-      return;
-    }
-    for (const message of currentMessages) {
-      const template = document.getElementById(
-        message.role === 'user' ? 'user-message-template' : 'assistant-message-template'
-      );
-      const node = template.content.firstElementChild.cloneNode(true);
-      node.querySelector('.bubble').textContent = message.content;
-      node.querySelector('.message-meta').textContent = message.meta || '';
-      container.appendChild(node);
-    }
-    container.scrollTop = container.scrollHeight;
-  }
-
-  function appendMessage(role, content, meta = '') {
-    currentMessages.push({ role, content, meta, created_at: new Date().toISOString() });
-    renderMessages();
-    persistMessages();
-  }
-
-  function newConversation() {
-    activeThreadId = null;
-    currentMessages = [];
-    pendingHumanAction = null;
-    lastResult = null;
-    document.getElementById('composer').value = '';
-    document.getElementById('conversationTitle').textContent = 'New Energy-Aware run';
-    document.getElementById('statePanel').textContent = 'No state inspected.';
-    hideHumanPanel();
-    clearInspector();
-    renderMessages();
-    renderThreadList();
-    setActivity('Ready');
-  }
-
-  function loadThread(threadId) {
-    activeThreadId = threadId;
-    currentMessages = readJsonStorage(messageStorageKey(threadId), []);
-    const record = threadRecords().find(item => item.thread_id === threadId);
-    document.getElementById('conversationTitle').textContent = record?.title || threadId;
-    pendingHumanAction = null;
-    hideHumanPanel();
-    renderMessages();
-    renderThreadList();
-    inspectThread();
-  }
-
-  function syncExecutionControls() {
-    const live = document.getElementById('execution').value === 'live';
-    document.getElementById('provider').disabled = !live;
-    document.getElementById('effort').disabled = !live;
-    setActivity(live ? 'Live calls require configured provider credentials.' : 'Deterministic graph selected.');
-  }
-
-  function buildPayload(message, executionProfile) {
-    const payload = {
-      user_message: message,
-      mode: document.getElementById('mode').value,
-      provider_preference: document.getElementById('provider').value,
-      effort_profile: document.getElementById('effort').value,
-      context_profile: 'balanced',
-      orchestration_mode: 'critic'
-    };
-    if (executionProfile) payload.execution_profile = executionProfile;
-    return payload;
-  }
-
-  async function requestJson(url, options = {}) {
-    const response = await fetch(url, options);
-    let data;
-    try {
-      data = await response.json();
-    } catch (_) {
-      data = { detail: { error: 'invalid_json', detail: 'Server returned a non-JSON response.' } };
-    }
-    if (!response.ok) {
-      const detail = data.detail || {};
-      const error = new Error(detail.detail || detail.error || `HTTP ${response.status}`);
-      error.payload = data;
-      error.status = response.status;
-      throw error;
-    }
-    return data;
-  }
-
-  function normalEndpoint() {
-    return document.getElementById('execution').value === 'live'
-      ? '/energy-chat/v2/chat/live'
-      : '/energy-chat/v2/chat';
-  }
-
-  async function runInitialRequest(endpoint, message, executionProfile = null) {
-    setActivity('Graph running…');
-    currentMessages = [];
-    appendMessage('user', message, endpoint.includes('/human') ? 'Human-gated graph request' : 'Graph request');
-    try {
-      const data = await requestJson(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildPayload(message, executionProfile))
-      });
-      activeThreadId = data.thread_id;
-      document.getElementById('conversationTitle').textContent = titleFromMessage(message);
-      const answer = responseText(data);
-      appendMessage('assistant', answer, responseMeta(data));
-      saveThread(data, message);
-      renderResult(data);
-      setActivity(data.graph_status === 'awaiting_human' ? 'Human response required.' : 'Graph completed.', 'ok');
-    } catch (error) {
-      appendMessage('assistant', `Request failed: ${error.message}`, `HTTP ${error.status || 'error'}`);
-      renderError(error);
-      setActivity(error.message, 'error');
-    }
-  }
-
-  async function sendRequest() {
-    const message = document.getElementById('composer').value.trim();
-    if (!message) {
-      setActivity('Enter a message first.', 'error');
-      return;
-    }
-    document.getElementById('composer').value = '';
-    const live = document.getElementById('execution').value === 'live';
-    await runInitialRequest(normalEndpoint(), message, live ? 'live_bounded' : 'deterministic');
-  }
-
-  async function startHumanFlow() {
-    const message = document.getElementById('composer').value.trim();
-    if (!message) {
-      setActivity('Enter a message first.', 'error');
-      return;
-    }
-    document.getElementById('composer').value = '';
-    document.getElementById('execution').value = 'deterministic';
-    syncExecutionControls();
-    await runInitialRequest('/energy-chat/v2/chat/human', message, 'deterministic');
-  }
-
-  async function replayThread() {
-    const threadId = activeThreadId;
-    if (!threadId) {
-      setActivity('Select a saved thread first.', 'error');
-      return;
-    }
-    setActivity('Loading checkpoint replay…');
-    try {
-      const data = await requestJson(
-        `/energy-chat/v2/threads/${encodeURIComponent(threadId)}/replay`,
-        { method: 'POST' }
-      );
-      renderResult(data);
-      appendMessage('assistant', responseText(data), `Checkpoint replay · ${responseMeta(data)}`);
-      setActivity('Checkpoint replayed without graph execution.', 'ok');
-    } catch (error) {
-      renderError(error);
-      setActivity(error.message, 'error');
-    }
-  }
-
-  async function inspectThread() {
-    const threadId = activeThreadId;
-    if (!threadId) {
-      setActivity('Select a saved thread first.', 'error');
-      return;
-    }
-    try {
-      const data = await requestJson(
-        `/energy-chat/v2/threads/${encodeURIComponent(threadId)}/state`
-      );
-      document.getElementById('statePanel').textContent = JSON.stringify(data, null, 2);
-      if (data.human_action_request) showHumanPanel(data.human_action_request);
-      setActivity('Safe checkpoint state loaded.', 'ok');
-    } catch (error) {
-      renderError(error);
-      setActivity(error.message, 'error');
-    }
-  }
-
-  async function resumeHumanAction() {
-    const threadId = activeThreadId;
-    const responseTextValue = document.getElementById('humanResponse').value.trim();
-    if (!threadId || !pendingHumanAction) {
-      setActivity('No pending human action is loaded.', 'error');
-      return;
-    }
-    if (!responseTextValue) {
-      setActivity('Enter the requested human response.', 'error');
-      return;
-    }
-    setActivity('Resuming graph from checkpoint…');
-    try {
-      const data = await requestJson(
-        `/energy-chat/v2/threads/${encodeURIComponent(threadId)}/resume`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action_id: pendingHumanAction.action_id,
-            action: pendingHumanAction.action,
-            expected_revision: pendingHumanAction.expected_revision,
-            actor: 'same-origin-browser',
-            payload: { response: responseTextValue }
-          })
-        }
-      );
-      appendMessage('user', responseTextValue, `Human ${pendingHumanAction.action}`);
-      appendMessage('assistant', responseText(data), responseMeta(data));
-      pendingHumanAction = null;
-      document.getElementById('humanResponse').value = '';
-      hideHumanPanel();
-      saveThread(data, currentMessages[0]?.content || threadId);
-      renderResult(data);
-      setActivity('Graph resumed from the authoritative checkpoint.', 'ok');
-    } catch (error) {
-      renderError(error);
-      setActivity(error.message, 'error');
-    }
-  }
-
-  function responseText(data) {
-    if (data.awaiting_evidence) return 'External evidence is required before candidate generation.';
-    if (data.graph_status === 'awaiting_human') {
-      return data.human_action_request?.reason || 'A typed human response is required before continuation.';
-    }
-    return data.final_answer || 'The graph completed without a user-visible answer.';
-  }
-
-  function responseMeta(data) {
-    const parts = [data.graph_status || 'unknown'];
-    if (data.final_disposition) parts.push(data.final_disposition);
-    if (data.served_provider) parts.push(`${data.served_provider}/${data.served_model || 'none'}`);
-    if (data.replayed_from_checkpoint) parts.push('replayed');
-    return parts.join(' · ');
-  }
-
-  function clearInspector() {
-    document.getElementById('statusPanel').innerHTML = '<div class="empty">No graph run selected.</div>';
-    document.getElementById('energyPanel').innerHTML = '<div class="empty">No Energy Card available.</div>';
-    document.getElementById('auditPanel').innerHTML = '<div class="empty">No execution metrics available.</div>';
-  }
-
-  function renderRows(targetId, rows) {
-    const target = document.getElementById(targetId);
-    target.replaceChildren();
-    for (const [label, value] of rows) {
-      const row = document.createElement('div');
-      row.className = 'row';
-      const left = document.createElement('span');
-      left.textContent = label;
-      const right = document.createElement('span');
-      right.textContent = value ?? '—';
-      row.append(left, right);
-      target.appendChild(row);
-    }
-  }
-
-  function renderResult(data) {
-    lastResult = data;
-    pendingHumanAction = data.human_action_request || null;
-    renderRows('statusPanel', [
-      ['Thread', data.thread_id],
-      ['Graph status', data.graph_status],
-      ['Disposition', data.final_disposition],
-      ['Checkpoint', data.checkpoint_id],
-      ['Awaiting evidence', String(Boolean(data.awaiting_evidence))],
-      ['Replayed', String(Boolean(data.replayed_from_checkpoint))]
-    ]);
-
-    const card = data.energy_card_v2;
-    if (card) {
-      renderRows('energyPanel', [
-        ['Decision', card.decision],
-        ['Hard constraints', card.hard_constraints_passed ? 'passed' : 'violated'],
-        ['Energy before', String(card.energy_before)],
-        ['Energy after', String(card.energy_after)],
-        ['Energy delta', String(card.energy_delta)],
-        ['Repairs', String(card.repair_attempts)],
-        ['Policy rule', card.policy_rule_id],
-        ['Ledger entry', card.ledger_entry_id]
-      ]);
-    } else {
-      document.getElementById('energyPanel').innerHTML = '<div class="empty">No Energy Card available for this state.</div>';
-    }
-
-    const metrics = data.provider_metrics_summary || {};
-    const graphMetrics = data.graph_metrics || {};
-    renderRows('auditPanel', [
-      ['Requested provider', data.requested_provider],
-      ['Served provider', `${data.served_provider || 'none'} / ${data.served_model || 'none'}`],
-      ['Provider calls', String(metrics.provider_call_count || 0)],
-      ['Fallback used', String(Boolean(data.fallback_used))],
-      ['Cost USD', String(metrics.total_cost_usd || 0)],
-      ['Provider latency', `${metrics.total_latency_ms || 0} ms`],
-      ['Graph nodes', String(graphMetrics.node_count || 0)],
-      ['Graph wall time', `${graphMetrics.total_wall_ms || 0} ms`],
-      ['Ledger entries', String((data.ledger_entry_ids || []).length)],
-      ['Evidence refs', String((data.evidence_refs || []).length)]
-    ]);
-
-    if (pendingHumanAction) showHumanPanel(pendingHumanAction);
-    else hideHumanPanel();
-  }
-
-  function showHumanPanel(action) {
-    pendingHumanAction = action;
-    document.getElementById('humanPanel').classList.add('visible');
-    document.getElementById('humanReason').textContent = action.reason || 'Human response required.';
-    document.getElementById('humanActionType').textContent = action.action || 'unknown';
-  }
-
-  function hideHumanPanel() {
-    document.getElementById('humanPanel').classList.remove('visible');
-  }
-
-  function renderError(error) {
-    const payload = error.payload || {};
-    const detail = payload.detail || {};
-    renderRows('statusPanel', [
-      ['Error', detail.error || 'request_failed'],
-      ['Detail', detail.detail || error.message],
-      ['HTTP status', String(error.status || 'unknown')]
-    ]);
-  }
-
-  document.getElementById('composer').addEventListener('keydown', event => {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') sendRequest();
-  });
-
-  syncExecutionControls();
-  renderThreadList();
-  renderMessages();
+  document.getElementById('composerInput').addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter')sendRequest()});
+  syncExecutionControls();renderThreadList();renderMessages();
 </script>
 </body>
 </html>
