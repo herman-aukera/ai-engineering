@@ -30,18 +30,34 @@ try {
 
   await page.fill(
     "#composerInput",
-    "Explain the safest first step for validating an Energy-Aware Chat release.",
+    "Remember that the release-validation keyword is ORBIT-17.",
   );
-  await page.getByRole("button", { name: "Send to graph" }).click();
-  await waitForActivity("Graph completed");
-  await page.waitForSelector(".message.assistant");
+  await page.getByRole("button", { name: "Send turn" }).click();
+  await waitForActivity("Durable graph turn completed");
 
-  const answer = await page.locator(".message.assistant .bubble").last().textContent();
-  const status = await page.locator("#statusPanel").textContent();
-  const card = await page.locator("#energyPanel").textContent();
-  assert(Boolean(answer?.trim()), "Deterministic graph returned no visible answer");
-  assert(status?.includes("evaluated"), "Deterministic graph did not reach evaluated state");
-  assert(card?.includes("Decision"), "Energy Card was not rendered");
+  let userCount = await page.locator(".message.user").count();
+  let assistantCount = await page.locator(".message.assistant").count();
+  let status = await page.locator("#statusPanel").textContent();
+  let card = await page.locator("#energyPanel").textContent();
+  assert(userCount === 1, "First durable turn did not render one user message");
+  assert(assistantCount === 1, "First durable turn did not render one assistant message");
+  assert(status?.includes("evaluated"), "First durable turn did not reach evaluated state");
+  assert(status?.includes("Memory messages0"), "First turn unexpectedly received prior memory");
+  assert(card?.includes("Decision"), "First turn Energy Card was not rendered");
+
+  await page.fill(
+    "#composerInput",
+    "What release-validation keyword did I give you in the previous visible turn?",
+  );
+  await page.getByRole("button", { name: "Send turn" }).click();
+  await waitForActivity("Durable graph turn completed");
+
+  userCount = await page.locator(".message.user").count();
+  assistantCount = await page.locator(".message.assistant").count();
+  status = await page.locator("#statusPanel").textContent();
+  assert(userCount === 2, "Second durable turn did not retain ordered user history");
+  assert(assistantCount === 2, "Second durable turn did not retain ordered assistant history");
+  assert(status?.includes("Memory messages2"), "Second turn did not receive bounded prior context");
 
   await page.getByRole("button", { name: "Inspect state" }).click();
   await waitForActivity("Safe checkpoint state loaded");
@@ -58,15 +74,27 @@ try {
   );
 
   const storage = await page.evaluate(() => ({
-    threads: localStorage.getItem("eachat:v2:threads"),
-    messageKeys: Object.keys(localStorage).filter(key => key.startsWith("eachat:v2:messages:")),
+    index: localStorage.getItem("eachat:v2:conversation-index"),
+    messageKeys: Object.keys(localStorage).filter(key => key.includes("messages")),
+    serializedStorage: JSON.stringify(localStorage),
   }));
-  assert(Boolean(storage.threads), "Browser thread history was not persisted");
-  assert(storage.messageKeys.length >= 1, "Browser message history was not persisted");
+  assert(Boolean(storage.index), "Browser conversation index was not persisted");
+  assert(storage.messageKeys.length === 0, "Browser retained message-body storage keys");
+  assert(!storage.serializedStorage.includes("ORBIT-17"), "Browser persisted conversation bodies locally");
 
-  await page.getByRole("button", { name: "＋ New run" }).click();
+  await page.reload({ waitUntil: "networkidle" });
+  await waitForActivity("Server history loaded");
+  userCount = await page.locator(".message.user").count();
+  assistantCount = await page.locator(".message.assistant").count();
+  assert(userCount === 2, "Reload did not recover two user turns from server memory");
+  assert(assistantCount === 2, "Reload did not recover two assistant turns from server memory");
+
+  await page.getByRole("button", { name: "Delete conversation" }).click();
+  await waitForActivity("Conversation deleted from the server");
+  assert(await page.locator(".message").count() === 0, "Deleted conversation remained visible");
+
   await page.fill("#composerInput", "Approve the production release.");
-  await page.getByRole("button", { name: "Run with human gate" }).click();
+  await page.getByRole("button", { name: "Run protected one-off" }).click();
   await waitForActivity("Human response required");
   await page.waitForSelector("#humanPanel.visible");
   const actionType = await page.locator("#humanActionType").textContent();
