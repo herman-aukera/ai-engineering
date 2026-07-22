@@ -133,6 +133,21 @@ def test_runtime_diagnostics_allow_only_exception_class_names() -> None:
     )
 
 
+def test_runtime_availability_reads_starlette_state_storage() -> None:
+    application = FastAPI()
+    application.state.graph_estimation_service = object()
+    application.state.reviewed_graph_estimation_service = object()
+    application.state.graph_runtime_error = None
+    application.state.reviewed_graph_runtime_error = None
+
+    runtime = runtime_availability_from_app_state(application.state)
+
+    assert runtime.graph_runtime is True
+    assert runtime.reviewed_graph_runtime is True
+    assert runtime.graph_runtime_error is None
+    assert runtime.reviewed_graph_runtime_error is None
+
+
 def test_ready_endpoint_returns_503_with_uninitialized_runtime_and_placeholder_keys() -> None:
     application = FastAPI()
     application.include_router(router)
