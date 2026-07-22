@@ -31,6 +31,9 @@ from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.review_state import (
     Session14EstimationGraphState,
 )
+from app.services.session14_human_review import (
+    DEFAULT_SESSION14_CONFIDENCE_THRESHOLD,
+)
 
 SESSION14_GRAPH_NAME = "session14_estimation_graph"
 
@@ -89,6 +92,9 @@ def build_session14_estimation_graph(
     *,
     human_review_gate: Session14HumanReviewGate,
     checkpointer: BaseCheckpointSaver | None = None,
+    confidence_threshold: float = (
+        DEFAULT_SESSION14_CONFIDENCE_THRESHOLD
+    ),
 ) -> CompiledStateGraph:
     """Compile the command-driven Level 1 supervisor workflow."""
 
@@ -120,7 +126,9 @@ def build_session14_estimation_graph(
 
     builder.add_node(
         "supervisor",
-        build_supervisor_node(),
+        build_supervisor_node(
+            confidence_threshold=confidence_threshold,
+        ),
     )
     builder.add_node(
         "requirements_extractor",

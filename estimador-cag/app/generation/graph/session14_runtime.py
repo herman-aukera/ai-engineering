@@ -1,20 +1,20 @@
-"""PostgreSQL-backed composition for the Session 14 supervisor graph."""
+"""PostgreSQL-backed composition for the Session 14 reviewed supervisor."""
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Literal
 
-from langgraph.types import Command
-
+from app.config import settings
 from app.generation.graph.adapters import build_graph_node_dependencies
+from app.generation.graph.nodes.session14_human_review import (
+    build_session14_human_review_gate,
+)
 from app.generation.graph.observability import (
     GraphTracer,
     get_logfire_graph_tracer,
 )
 from app.generation.graph.review_state import (
-    Session14EstimationGraphState,
     new_session14_estimation_graph_state,
 )
 from app.generation.graph.runtime import open_postgres_checkpointer
@@ -27,34 +27,9 @@ from app.services.graph_estimation import GraphEstimationService
 SESSION14_GRAPH_VERSION = "session14.v1"
 
 
-async def _level1_human_review_gate(
-    state: Session14EstimationGraphState,
-) -> Command[Literal["finalize"]]:
-    """Preserve the pre-HITL needs-review result during Level 1 rollout."""
-
-    return Command(
-        goto="finalize",
-        update=Session14EstimationGraphState(
-            status="needs_review",
-            review_required=True,
-            trace_events=[
-                {
-                    "event_type": "session14_human_review_deferred",
-                    "node": "human_review_gate",
-                    "summary": (
-                        "Human review is required; persistent pause and "
-                        "resume are introduced in the next mandatory slice."
-                    ),
-                    "evidence_refs": [],
-                    "state_delta_keys": [
-                        "status",
-                        "review_required",
-                        "trace_events",
-                    ],
-                }
-            ],
-        ),
-    )
+_session14_human_review_gate = build_session14_human_review_gate(
+    confidence_threshold=settings.session14_confidence_threshold,
+)
 
 
 @asynccontextmanager
@@ -63,7 +38,7 @@ async def open_session14_graph_estimation_service(
     *,
     tracer: GraphTracer | None = None,
 ) -> AsyncIterator[GraphEstimationService]:
-    """Compose the Session 14 Level 1 graph for one app lifetime."""
+    """Compose the Session 14 Level 2 graph for one app lifetime."""
 
     resolved_tracer = (
         tracer
@@ -77,8 +52,11 @@ async def open_session14_graph_estimation_service(
         dependencies = build_graph_node_dependencies()
         graph = build_session14_estimation_graph(
             dependencies,
-            human_review_gate=_level1_human_review_gate,
+            human_review_gate=_session14_human_review_gate,
             checkpointer=checkpointer,
+            confidence_threshold=(
+                settings.session14_confidence_threshold
+            ),
         )
 
         yield GraphEstimationService(

@@ -9,6 +9,12 @@ from app.generation.graph.state import (
     new_estimation_graph_state,
 )
 from app.schemas.human_review import HumanReviewMode
+from app.schemas.session14_human_review import (
+    HistoricalRangeStatus,
+    Session14HumanReviewActionRecord,
+    Session14HumanReviewReasonCode,
+    Session14HumanReviewStatus,
+)
 from app.schemas.session14_supervision import (
     RouteReasonCode,
     SupervisorDestination,
@@ -88,6 +94,46 @@ class SupervisorRouteEvent(TypedDict):
     next_agent: SupervisorDestination
     reason_code: RouteReasonCode
     reason: str
+
+
+def merge_session14_human_review_actions(
+    current: list[Session14HumanReviewActionRecord],
+    incoming: list[Session14HumanReviewActionRecord],
+) -> list[Session14HumanReviewActionRecord]:
+    """Deduplicate identical actions and reject idempotency-key conflicts."""
+
+    by_key: dict[str, Session14HumanReviewActionRecord] = {}
+
+    for action in [*current, *incoming]:
+        idempotency_key = action["idempotency_key"].strip()
+        if not idempotency_key:
+            raise ValueError("idempotency_key must not be blank")
+
+        candidate = Session14HumanReviewActionRecord(
+            action_id=action["action_id"],
+            idempotency_key=idempotency_key,
+            action=action["action"],
+            actor=action["actor"],
+            reason=action["reason"],
+            revision=action["revision"],
+            adjustments=[dict(item) for item in action["adjustments"]],
+        )
+        existing = by_key.get(idempotency_key)
+
+        if existing is not None and existing != candidate:
+            raise ValueError(
+                f"conflicting idempotency_key: {idempotency_key}"
+            )
+
+        by_key[idempotency_key] = candidate
+
+    return sorted(
+        by_key.values(),
+        key=lambda action: (
+            action["revision"],
+            action["action_id"],
+        ),
+    )
 
 def merge_agent_contributions(
     current: list[AgentContribution],
@@ -214,6 +260,17 @@ class Session14EstimationGraphState(
     budget_search_completed: bool
     validation: dict[str, object] | None
     confidence: float | None
+    thread_id: str
+    historical_range_status: HistoricalRangeStatus
+    human_review_revision: int
+    human_review_status: Session14HumanReviewStatus
+    human_review_reason_codes: list[
+        Session14HumanReviewReasonCode
+    ]
+    human_review_actions: Annotated[
+        list[Session14HumanReviewActionRecord],
+        merge_session14_human_review_actions,
+    ]
     routing_steps: int
     max_routing_steps: int
     current_agent: Session14AgentId | None
@@ -251,6 +308,12 @@ def new_session14_estimation_graph_state(
             "budget_search_completed": False,
             "validation": None,
             "confidence": None,
+            "thread_id": f"estimate:{estimation_id.strip()}",
+            "historical_range_status": "unavailable",
+            "human_review_revision": 1,
+            "human_review_status": "not_requested",
+            "human_review_reason_codes": [],
+            "human_review_actions": [],
             "routing_steps": 0,
             "max_routing_steps": 12,
             "current_agent": None,

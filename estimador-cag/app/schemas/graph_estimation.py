@@ -7,6 +7,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.session14_human_review import (
+    HistoricalRangeStatus,
+    Session14HumanReviewDecision,
+    Session14HumanReviewReasonCode,
+    Session14HumanReviewStatus,
+)
+
 
 class StrictPayload(BaseModel):
     """Reject undeclared HTTP fields at every public contract boundary."""
@@ -116,11 +123,39 @@ class AgentContributionPayload(StrictPayload):
     state_delta_keys: list[str]
 
 
+class Session14EstimateSummaryPayload(StrictPayload):
+    total_hours: float | None = Field(default=None, ge=0)
+    component_count: int = Field(ge=0)
+
+
+class Session14InterruptValuePayload(StrictPayload):
+    gate: Literal["session14_human_review"]
+    estimation_id: UUID
+    thread_id: str = Field(min_length=1, max_length=128)
+    revision: int = Field(ge=1)
+    reason_codes: list[str]
+    estimate_summary: Session14EstimateSummaryPayload
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    historical_range_status: HistoricalRangeStatus
+    evidence_count: int = Field(ge=0)
+    active_findings: list[str]
+    allowed_actions: list[Literal["approve", "adjust", "reject"]]
+
+
+class Session14InterruptPayload(StrictPayload):
+    id: str | None = None
+    value: Session14InterruptValuePayload
+
+
 class GraphEstimationRequest(StrictPayload):
     """Transcript and optional stable identifier for one graph thread."""
 
     transcript: str = Field(min_length=10, max_length=50_000)
     estimation_id: UUID | None = None
+
+
+class GraphHumanReviewResumeRequest(Session14HumanReviewDecision):
+    """Strict Task 14 resume value accepted by the public endpoint."""
 
 
 class GraphEstimationResponse(StrictPayload):
@@ -129,7 +164,11 @@ class GraphEstimationResponse(StrictPayload):
     estimation_id: UUID
     thread_id: str = Field(min_length=1, max_length=128)
     graph_version: str = Field(min_length=1)
-    status: Literal["validated", "needs_review"]
+    status: Literal[
+        "validated",
+        "needs_review",
+        "awaiting_human_review",
+    ]
     review_required: bool
     estimate: GraphEstimatePayload
     requirements: list[RequirementPayload]
@@ -144,5 +183,13 @@ class GraphEstimationResponse(StrictPayload):
     agent_contributions: list[AgentContributionPayload] = Field(
         default_factory=list
     )
+    revision: int = Field(default=0, ge=0)
+    human_review_status: Session14HumanReviewStatus | None = None
+    human_review_reason_codes: list[
+        Session14HumanReviewReasonCode
+    ] = Field(
+        default_factory=list
+    )
+    human_review: Session14InterruptPayload | None = None
     provider_metadata: ProviderMetadataPayload
     execution_metadata: ExecutionMetadataPayload

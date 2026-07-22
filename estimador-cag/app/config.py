@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     graph_rollout_mode: GraphRolloutMode = "off"
     graph_retrieval_mode: GraphRetrievalMode = "sequential"
     graph_retrieval_max_concurrency: int = 4
+    session14_confidence_threshold: float = 0.65
 
     deepseek_api_key: str = "dummy"
     deepseek_model: str = "deepseek-v4-flash"
@@ -64,6 +65,10 @@ class Settings(BaseSettings):
             )
         if self.graph_retrieval_max_concurrency <= 0:
             raise ValueError("GRAPH_RETRIEVAL_MAX_CONCURRENCY must be positive")
+        if not 0 <= self.session14_confidence_threshold <= 1:
+            raise ValueError(
+                "SESSION14_CONFIDENCE_THRESHOLD must be between zero and one"
+            )
         return self
 
     @property

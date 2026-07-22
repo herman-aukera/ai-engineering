@@ -120,6 +120,31 @@ def test_routing_budget_preempts_additional_agent_work() -> None:
     assert decision.reason_code == "routing_budget_exhausted"
 
 
+def test_low_confidence_preempts_finalization_at_configured_threshold() -> None:
+    digest = _digest(
+        requirements_count=1,
+        requirements_extraction_completed=True,
+        budget_match_count=1,
+        budget_search_completed=True,
+        estimate_ready=True,
+        validation_ready=True,
+        confidence=0.69,
+    )
+
+    review = choose_deterministic_route(
+        digest,
+        confidence_threshold=0.7,
+    )
+    complete = choose_deterministic_route(
+        digest,
+        confidence_threshold=0.65,
+    )
+
+    assert review.next_agent == "human_review_gate"
+    assert review.reason_code == "human_review_required"
+    assert complete.next_agent == "finalize"
+
+
 def test_route_selection_does_not_mutate_the_digest() -> None:
     digest = _digest(
         requirements_count=2,

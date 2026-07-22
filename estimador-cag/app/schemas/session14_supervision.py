@@ -62,6 +62,24 @@ def _list_size(value: object) -> int:
     return len(value) if isinstance(value, list) else 0
 
 
+def _minimum_component_confidence(value: object) -> float | None:
+    if not isinstance(value, list):
+        return None
+
+    confidences = [
+        float(confidence)
+        for item in value
+        if isinstance(item, Mapping)
+        and not isinstance(
+            confidence := item.get("confidence"),
+            bool,
+        )
+        and isinstance(confidence, (int, float))
+        and 0 <= float(confidence) <= 1
+    ]
+    return min(confidences) if confidences else None
+
+
 def build_supervisor_digest(
     state: Mapping[str, object],
 ) -> SupervisorStateDigest:
@@ -82,7 +100,13 @@ def build_supervisor_digest(
             or state.get("estimate") is not None
         ),
         validation_ready=state.get("validation") is not None,
-        confidence=state.get("confidence"),
+        confidence=(
+            state.get("confidence")
+            if state.get("confidence") is not None
+            else _minimum_component_confidence(
+                state.get("component_estimates")
+            )
+        ),
         review_required=state.get("review_required", False),
         routing_steps=state.get("routing_steps", 0),
         status=status if isinstance(status, str) and status else "pending",

@@ -11,6 +11,10 @@ from app.generation.graph.review_state import (
     SupervisorRouteEvent,
 )
 from app.schemas.session14_supervision import SupervisorDestination, build_supervisor_digest
+from app.services.session14_human_review import (
+    DEFAULT_SESSION14_CONFIDENCE_THRESHOLD,
+    assess_session14_human_review,
+)
 from app.services.session14_supervision import (
     MAX_ROUTING_STEPS,
     choose_deterministic_route,
@@ -70,7 +74,12 @@ def _max_routing_steps(
     return max_routing_steps
 
 
-def build_supervisor_node() -> Session14SupervisorNode:
+def build_supervisor_node(
+    *,
+    confidence_threshold: float = (
+        DEFAULT_SESSION14_CONFIDENCE_THRESHOLD
+    ),
+) -> Session14SupervisorNode:
     """Build the tool-free deterministic Session 14 supervisor."""
 
     async def supervisor(
@@ -83,6 +92,7 @@ def build_supervisor_node() -> Session14SupervisorNode:
         decision = choose_deterministic_route(
             digest,
             max_routing_steps=_max_routing_steps(state),
+            confidence_threshold=confidence_threshold,
         )
 
         sequence = routing_steps + 1
@@ -104,6 +114,25 @@ def build_supervisor_node() -> Session14SupervisorNode:
             routing_steps=sequence,
             route_events=[route_event],
         )
+
+        if decision.next_agent == "human_review_gate":
+            assessment = assess_session14_human_review(
+                {
+                    **dict(state),
+                    "route_reason_code": decision.reason_code,
+                },
+                confidence_threshold=confidence_threshold,
+            )
+            update.update(
+                confidence=assessment.confidence,
+                historical_range_status=(
+                    assessment.historical_range_status
+                ),
+                human_review_status="awaiting_human_review",
+                human_review_reason_codes=list(
+                    assessment.reason_codes
+                ),
+            )
 
         return Command(
             goto=decision.next_agent,

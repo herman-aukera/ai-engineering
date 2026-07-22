@@ -51,3 +51,18 @@ def test_parallel_retrieval_is_opt_in_with_sequential_rollback() -> None:
 def test_retrieval_concurrency_must_be_positive() -> None:
     with pytest.raises(ValidationError, match="GRAPH_RETRIEVAL_MAX_CONCURRENCY"):
         _settings(graph_retrieval_max_concurrency=0)
+
+
+def test_session14_confidence_threshold_is_configurable_and_bounded() -> None:
+    assert _settings().session14_confidence_threshold == 0.65
+    assert (
+        _settings(session14_confidence_threshold=0.8)
+        .session14_confidence_threshold
+        == 0.8
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="SESSION14_CONFIDENCE_THRESHOLD",
+    ):
+        _settings(session14_confidence_threshold=1.01)

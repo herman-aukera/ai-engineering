@@ -15,12 +15,18 @@ def graph_response_from_run(run: GraphEstimationRun) -> GraphEstimationResponse:
     """Validate one terminal graph run against the public graph contract."""
 
     state = run.state
+    human_review = run.interrupts[0] if run.interrupts else None
+    status = (
+        "awaiting_human_review"
+        if run.execution_status == "awaiting_human_review"
+        else state.get("status")
+    )
     return GraphEstimationResponse.model_validate(
         {
             "estimation_id": run.estimation_id,
             "thread_id": run.thread_id,
             "graph_version": state.get("graph_version"),
-            "status": state.get("status"),
+            "status": status,
             "review_required": state.get("review_required"),
             "estimate": state.get("estimate"),
             "requirements": state.get("requirements", []),
@@ -34,6 +40,13 @@ def graph_response_from_run(run: GraphEstimationRun) -> GraphEstimationResponse:
                 "agent_contributions",
                 [],
             ),
+            "revision": state.get("human_review_revision", 0),
+            "human_review_status": state.get("human_review_status"),
+            "human_review_reason_codes": state.get(
+                "human_review_reason_codes",
+                [],
+            ),
+            "human_review": human_review,
             "provider_metadata": state.get("provider_metadata", {}),
             "execution_metadata": state.get("execution_metadata", {}),
         }

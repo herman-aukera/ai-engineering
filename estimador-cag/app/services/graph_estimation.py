@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
+
+from langgraph.types import Command
 
 from app.generation.graph.build import GRAPH_NAME
 from app.generation.graph.observability import (
@@ -18,6 +20,12 @@ from app.generation.graph.state import (
     EstimationGraphState,
     new_estimation_graph_state,
 )
+from app.schemas.session14_human_review import (
+    Session14HumanReviewDecision,
+)
+from app.services.session14_human_review import (
+    action_record_matches_decision,
+)
 
 THREAD_ID_PREFIX = "estimate:"
 MAX_THREAD_ID_LENGTH = 128
@@ -28,6 +36,7 @@ class GraphStateSnapshot(Protocol):
 
     values: Mapping[str, object]
     next: tuple[str, ...]
+    interrupts: tuple[object, ...]
 
 
 class GraphRunner(Protocol):
@@ -41,7 +50,7 @@ class GraphRunner(Protocol):
 
     async def ainvoke(
         self,
-        input: EstimationGraphState | None,
+        input: EstimationGraphState | Command | None,
         config: dict[str, object] | None = None,
     ) -> Mapping[str, object]:
         """Start or resume one graph execution."""
@@ -64,13 +73,26 @@ class GraphResultContractError(RuntimeError):
     """Raised when graph state violates the application contract."""
 
 
+class GraphEstimationNotFoundError(LookupError):
+    """Raised when a resume target has no persisted checkpoint."""
+
+
+class GraphHumanReviewConflictError(RuntimeError):
+    """Raised for stale, conflicting, or non-pending review actions."""
+
+
 @dataclass(frozen=True)
 class GraphEstimationRun:
-    """One completed application-service graph invocation."""
+    """One completed or human-paused graph invocation."""
 
     estimation_id: str
     thread_id: str
     state: EstimationGraphState
+    execution_status: Literal[
+        "completed",
+        "awaiting_human_review",
+    ] = "completed"
+    interrupts: tuple[dict[str, Any], ...] = ()
 
 
 class GraphEstimationApplication(Protocol):
@@ -83,6 +105,14 @@ class GraphEstimationApplication(Protocol):
         estimation_id: UUID | None = None,
     ) -> GraphEstimationRun:
         """Create, resume, or return one estimation thread."""
+
+    async def resume_human_review(
+        self,
+        *,
+        estimation_id: UUID,
+        decision: Session14HumanReviewDecision,
+    ) -> GraphEstimationRun:
+        """Resume the persisted Session 14 interrupt on the same thread."""
 
 
 def thread_id_from_estimation_id(
@@ -122,7 +152,7 @@ def _validate_state_identity(
     state: EstimationGraphState,
     *,
     estimation_id: str,
-    transcript: str,
+    transcript: str | None,
     graph_version: str,
 ) -> None:
     if state.get("estimation_id") != estimation_id:
@@ -135,7 +165,7 @@ def _validate_state_identity(
             "graph state graph_version does not match the service"
         )
 
-    if state.get("transcript") != transcript:
+    if transcript is not None and state.get("transcript") != transcript:
         raise GraphResultContractError(
             "graph state transcript does not match the request"
         )
@@ -145,7 +175,7 @@ def _validate_terminal_state(
     value: object,
     *,
     estimation_id: str,
-    transcript: str,
+    transcript: str | None,
     graph_version: str,
 ) -> EstimationGraphState:
     state = _state_from_mapping(
@@ -185,6 +215,52 @@ def _validate_terminal_state(
         )
 
     return state
+
+
+def _validate_paused_state(
+    value: object,
+    *,
+    estimation_id: str,
+    transcript: str | None,
+    graph_version: str,
+) -> EstimationGraphState:
+    state = _state_from_mapping(value, context="paused graph state")
+    _validate_state_identity(
+        state,
+        estimation_id=estimation_id,
+        transcript=transcript,
+        graph_version=graph_version,
+    )
+    if state.get("review_required") is not True:
+        raise GraphResultContractError(
+            "paused graph state must require review"
+        )
+    if not isinstance(state.get("estimate"), Mapping):
+        raise GraphResultContractError(
+            "paused graph state does not contain an estimate"
+        )
+    return state
+
+
+def _serialize_interrupt(raw_interrupt: object) -> dict[str, Any]:
+    value = getattr(raw_interrupt, "value", raw_interrupt)
+    interrupt_id = getattr(raw_interrupt, "id", None)
+    return {
+        "id": str(interrupt_id) if interrupt_id is not None else None,
+        "value": value,
+    }
+
+
+def _interrupts(
+    result: Mapping[str, object] | None,
+    snapshot: GraphStateSnapshot,
+) -> tuple[dict[str, Any], ...]:
+    raw: object = result.get("__interrupt__") if result else None
+    if not raw:
+        raw = getattr(snapshot, "interrupts", ())
+    if not isinstance(raw, (list, tuple)):
+        return ()
+    return tuple(_serialize_interrupt(item) for item in raw)
 
 
 def _record_terminal_span_attributes(
@@ -289,6 +365,7 @@ class GraphEstimationService:
             )
 
         next_nodes = tuple(snapshot.next)
+        saved_interrupts = _interrupts(None, snapshot)
         saved_state: EstimationGraphState | None = None
 
         if snapshot.values:
@@ -306,6 +383,27 @@ class GraphEstimationService:
             raise GraphResultContractError(
                 "empty graph snapshot cannot have pending nodes"
             )
+
+        if saved_state is not None and saved_interrupts:
+            span.set_attribute(
+                "execution_mode",
+                "awaiting_human_review",
+            )
+            paused_state = _validate_paused_state(
+                saved_state,
+                estimation_id=resolved_estimation_id,
+                transcript=transcript,
+                graph_version=self.graph_version,
+            )
+            run = GraphEstimationRun(
+                estimation_id=resolved_estimation_id,
+                thread_id=thread_id,
+                state=paused_state,
+                execution_status="awaiting_human_review",
+                interrupts=saved_interrupts,
+            )
+            _record_terminal_span_attributes(span, paused_state)
+            return run
 
         if saved_state is not None and not next_nodes:
             span.set_attribute(
@@ -345,12 +443,14 @@ class GraphEstimationService:
                 config=config,
             )
 
-            final_state = _validate_terminal_state(
-                result,
+            run = await self._run_after_invoke(
                 estimation_id=resolved_estimation_id,
+                thread_id=thread_id,
                 transcript=transcript,
-                graph_version=self.graph_version,
+                result=result,
             )
+            _record_terminal_span_attributes(span, run.state)
+            return run
 
         _record_terminal_span_attributes(
             span,
@@ -361,4 +461,154 @@ class GraphEstimationService:
             estimation_id=resolved_estimation_id,
             thread_id=thread_id,
             state=final_state,
+        )
+
+    async def _run_after_invoke(
+        self,
+        *,
+        estimation_id: str,
+        thread_id: str,
+        transcript: str | None,
+        result: Mapping[str, object],
+    ) -> GraphEstimationRun:
+        if not isinstance(result, Mapping):
+            raise GraphResultContractError(
+                "graph result must be a mapping"
+            )
+        raw_interrupts = result.get("__interrupt__")
+        if not raw_interrupts:
+            state = _validate_terminal_state(
+                result,
+                estimation_id=estimation_id,
+                transcript=transcript,
+                graph_version=self.graph_version,
+            )
+            return GraphEstimationRun(
+                estimation_id=estimation_id,
+                thread_id=thread_id,
+                state=state,
+            )
+
+        config = {"configurable": {"thread_id": thread_id}}
+        snapshot = await self.graph.aget_state(config)
+        interrupts = _interrupts(result, snapshot)
+
+        if interrupts:
+            value: object = (
+                snapshot.values if snapshot.values else result
+            )
+            state = _validate_paused_state(
+                value,
+                estimation_id=estimation_id,
+                transcript=transcript,
+                graph_version=self.graph_version,
+            )
+            return GraphEstimationRun(
+                estimation_id=estimation_id,
+                thread_id=thread_id,
+                state=state,
+                execution_status="awaiting_human_review",
+                interrupts=interrupts,
+            )
+
+        raise GraphResultContractError(
+            "graph returned an empty interrupt payload"
+        )
+
+    async def resume_human_review(
+        self,
+        *,
+        estimation_id: UUID,
+        decision: Session14HumanReviewDecision,
+    ) -> GraphEstimationRun:
+        resolved_estimation_id = str(estimation_id)
+        thread_id = thread_id_from_estimation_id(
+            resolved_estimation_id
+        )
+        config = {"configurable": {"thread_id": thread_id}}
+        snapshot = await self.graph.aget_state(config)
+
+        if not isinstance(snapshot.values, Mapping) or not snapshot.values:
+            raise GraphEstimationNotFoundError(
+                "estimation checkpoint was not found"
+            )
+
+        state = _state_from_mapping(
+            snapshot.values,
+            context="graph snapshot",
+        )
+        _validate_state_identity(
+            state,
+            estimation_id=resolved_estimation_id,
+            transcript=None,
+            graph_version=self.graph_version,
+        )
+
+        actions = state.get("human_review_actions", [])
+        if isinstance(actions, list):
+            existing = next(
+                (
+                    item
+                    for item in actions
+                    if isinstance(item, Mapping)
+                    and item.get("idempotency_key")
+                    == decision.idempotency_key
+                ),
+                None,
+            )
+            if existing is not None:
+                if not action_record_matches_decision(
+                    existing,
+                    decision,
+                ):
+                    raise GraphHumanReviewConflictError(
+                        "idempotency key was already used for a "
+                        "different review action"
+                    )
+                if tuple(snapshot.next):
+                    result = await self.graph.ainvoke(None, config=config)
+                    return await self._run_after_invoke(
+                        estimation_id=resolved_estimation_id,
+                        thread_id=thread_id,
+                        transcript=None,
+                        result=result,
+                    )
+                final_state = _validate_terminal_state(
+                    state,
+                    estimation_id=resolved_estimation_id,
+                    transcript=None,
+                    graph_version=self.graph_version,
+                )
+                return GraphEstimationRun(
+                    estimation_id=resolved_estimation_id,
+                    thread_id=thread_id,
+                    state=final_state,
+                )
+
+        if not _interrupts(None, snapshot):
+            raise GraphHumanReviewConflictError(
+                "estimation is not awaiting human review"
+            )
+
+        revision = state.get("human_review_revision")
+        if revision != decision.expected_revision:
+            raise GraphHumanReviewConflictError(
+                "human review revision "
+                f"{decision.expected_revision} does not match {revision}"
+            )
+
+        result = await self.graph.ainvoke(
+            Command(
+                resume=decision.model_dump(
+                    mode="json",
+                    exclude_none=True,
+                )
+            ),
+            config=config,
+        )
+        return await self._run_after_invoke(
+            estimation_id=resolved_estimation_id,
+            thread_id=thread_id,
+            transcript=None,
+            result=result,
         )

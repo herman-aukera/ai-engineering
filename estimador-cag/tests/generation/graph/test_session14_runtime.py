@@ -85,7 +85,7 @@ def _dependencies() -> GraphNodeDependencies:
 def _service() -> GraphEstimationService:
     graph = build_session14_estimation_graph(
         _dependencies(),
-        human_review_gate=runtime_module._level1_human_review_gate,
+        human_review_gate=runtime_module._session14_human_review_gate,
         checkpointer=InMemorySaver(),
     )
     return GraphEstimationService(
@@ -125,6 +125,7 @@ async def test_session14_runtime_wires_graph_service_and_checkpointer(
         *,
         human_review_gate: object,
         checkpointer: object,
+        confidence_threshold: float,
     ):
         events.append(
             (
@@ -132,6 +133,7 @@ async def test_session14_runtime_wires_graph_service_and_checkpointer(
                 received_dependencies,
                 human_review_gate,
                 checkpointer,
+                confidence_threshold,
             )
         )
         return graph
@@ -170,8 +172,9 @@ async def test_session14_runtime_wires_graph_service_and_checkpointer(
             (
                 "graph",
                 dependencies,
-                runtime_module._level1_human_review_gate,
+                runtime_module._session14_human_review_gate,
                 checkpointer,
+                runtime_module.settings.session14_confidence_threshold,
             ),
         ]
 
