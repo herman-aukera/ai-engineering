@@ -46,7 +46,9 @@ def test_v2_product_ui_uses_real_graph_thread_and_human_endpoints(monkeypatch) -
     assert "/energy-chat/v2/threads/${encodeURIComponent(threadId)}/resume" in html
 
 
-def test_v2_product_ui_has_chat_history_and_human_action_controls(monkeypatch) -> None:
+def test_v2_product_ui_has_chat_history_and_real_human_response_controls(
+    monkeypatch,
+) -> None:
     monkeypatch.setenv("EACHAT_V2_ENABLED", "true")
     html = client.get("/energy-chat/v2/demo").text
 
@@ -54,13 +56,16 @@ def test_v2_product_ui_has_chat_history_and_human_action_controls(monkeypatch) -
     assert "eachat:v2:messages:" in html
     assert 'class="message user"' in html
     assert 'class="message assistant"' in html
-    assert "Approve" in html
-    assert "Adjust" in html
-    assert "Reject" in html
+    assert "Submit human response" in html
+    assert "clarify_response" in html
+    assert "escalate_response" in html
     assert "startHumanFlow" in html
     assert "resumeHumanAction" in html
     assert "inspectThread" in html
     assert "replayThread" in html
+    assert "Approve" not in html
+    assert "Adjust" not in html
+    assert "Reject" not in html
 
 
 def test_v2_product_ui_does_not_fake_unimplemented_m18_runtime(monkeypatch) -> None:
