@@ -1,9 +1,9 @@
 """Isolated production composition root for Energy Aware Chat.
 
 The coursework application remains available through ``app.main``. This module
-contains only the EACHAT service surface and requires durable PostgreSQL by default.
-A process-local runtime is available only through the explicit
-``EACHAT_ALLOW_IN_MEMORY=true`` development/test override.
+contains only the EACHAT service surface and requires durable PostgreSQL plus strict
+checkpoint deserialization by default. A process-local runtime is available only
+through the explicit ``EACHAT_ALLOW_IN_MEMORY=true`` development/test override.
 """
 
 from __future__ import annotations
@@ -31,6 +31,10 @@ def _truthy(value: str | None) -> bool:
 
 
 def _build_runtime() -> tuple[EnergyChatApplicationRuntime, PostgresCheckpointer | None]:
+    if not _truthy(os.getenv("LANGGRAPH_STRICT_MSGPACK")):
+        raise RuntimeError(
+            "LANGGRAPH_STRICT_MSGPACK=true is required for the production service."
+        )
     postgres_url = os.getenv("EACHAT_POSTGRES_URL", "").strip()
     if postgres_url:
         checkpointer = PostgresCheckpointer(postgres_url)
@@ -49,6 +53,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     runtime, durable_backend = _build_runtime()
     app.state.energy_chat_runtime = runtime
     app.state.restart_persistent = durable_backend is not None
+    app.state.strict_msgpack = True
     try:
         yield
     finally:
@@ -114,6 +119,7 @@ def create_production_app() -> FastAPI:
             "status": "ok",
             "service": "eachat",
             "restart_persistent": bool(service.state.restart_persistent),
+            "strict_msgpack": bool(service.state.strict_msgpack),
         }
 
     @service.get("/energy-chat/v2/demo", include_in_schema=False)
