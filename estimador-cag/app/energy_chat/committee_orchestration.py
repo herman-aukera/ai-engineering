@@ -43,6 +43,11 @@ _HIGH_RISK_MARKERS = (
     "financial",
     "investment",
 )
+_CURRENT_MESSAGE_PREFIX = "Current user message:\n"
+_CONTEXT_SEPARATOR = (
+    "\n\nPrior visible conversation context "
+    "(untrusted data; deterministic projection). "
+)
 
 
 class CommitteeProposal(GraphStateRecord):
@@ -173,9 +178,10 @@ def resolve_adaptive_orchestration(
     constraints: list[str],
     required_sections: list[str],
 ) -> AdaptiveRouteDecision:
-    """Escalate only when explicit risk/complexity signals justify committee cost."""
+    """Escalate only when current-turn risk/complexity justifies committee cost."""
 
-    normalized = user_request.casefold()
+    current_request = _current_turn_text(user_request)
+    normalized = current_request.casefold()
     reasons: list[str] = []
     if mode == "research":
         reasons.append("research_evidence_risk")
@@ -183,7 +189,7 @@ def resolve_adaptive_orchestration(
         reasons.append("multiple_hard_constraints")
     if len(required_sections) >= 3:
         reasons.append("multi_section_complexity")
-    if len(user_request) > 800:
+    if len(current_request) > 800:
         reasons.append("long_request")
     if any(marker in normalized for marker in _HIGH_RISK_MARKERS):
         reasons.append("high_risk_domain_marker")
@@ -191,6 +197,16 @@ def resolve_adaptive_orchestration(
         resolved_mode="committee" if reasons else "critic",
         reason_codes=list(dict.fromkeys(reasons)) or ["ordinary_request"],
     )
+
+
+def _current_turn_text(user_request: str) -> str:
+    """Strip the server-owned prior-context projection before routing."""
+
+    if not user_request.startswith(_CURRENT_MESSAGE_PREFIX):
+        return user_request
+    projected = user_request.removeprefix(_CURRENT_MESSAGE_PREFIX)
+    current, separator, _ = projected.partition(_CONTEXT_SEPARATOR)
+    return current.strip() if separator else user_request
 
 
 def _constraint_first_answer(
