@@ -1,9 +1,8 @@
-"""Context compaction and multi-agent profile contracts for Energy Aware Chat.
+"""Context-compaction and multi-agent contracts with explicit runtime maturity.
 
-Milestone 18: typed compaction policies per context profile, multi-agent
-budget models per orchestration mode. Profiles resolve to explicit retention
-rules and budget limits. Runtime execution is deferred to provider-integrated
-milestones; this module provides the validated contract layer.
+Milestone 18 currently provides validated policy and budget contracts. The active
+V2 runtime does not execute context compaction, committee orchestration, or adaptive
+orchestration. ``get_m18_runtime_status`` is the authoritative claim boundary.
 """
 
 from __future__ import annotations
@@ -12,18 +11,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-# ── Context profiles ────────────────────────────────────────────────────
-
 ContextProfile = Literal["minimal", "balanced", "max"]
+OrchestrationMode = Literal["single", "critic", "committee", "adaptive"]
+RuntimeMaturity = Literal["contract_only", "implemented"]
 
 
 class ContextCompactionPolicy(BaseModel):
-    """What to retain when compacting conversation context.
-
-    Each profile defines explicit retention rules. Hard constraints,
-    pinned facts, evidence/ledger references, and unresolved items are
-    always preserved regardless of profile.
-    """
+    """Explicit retention rules for a future compaction runtime."""
 
     profile: ContextProfile
     target_input_tokens: int = Field(ge=1)
@@ -40,11 +34,7 @@ class ContextCompactionPolicy(BaseModel):
 
 
 class ContextSnapshot(BaseModel):
-    """One versioned compaction of a conversation context.
-
-    Links back to source range via revision numbers and content hashes
-    so drift can be detected and the previous trusted snapshot restored.
-    """
+    """Versioned future compaction result linked to its source revision range."""
 
     snapshot_id: str = Field(min_length=1)
     thread_id: str = Field(min_length=1)
@@ -92,7 +82,8 @@ POLICY_MAX = ContextCompactionPolicy(
 
 
 def resolve_compaction_policy(profile: ContextProfile) -> ContextCompactionPolicy:
-    """Return the compaction policy for a given context profile."""
+    """Return a validated policy contract without claiming runtime execution."""
+
     return {
         "minimal": POLICY_MINIMAL,
         "balanced": POLICY_BALANCED,
@@ -100,17 +91,8 @@ def resolve_compaction_policy(profile: ContextProfile) -> ContextCompactionPolic
     }[profile]
 
 
-# ── Multi-agent profiles ────────────────────────────────────────────────
-
-OrchestrationMode = Literal["single", "critic", "committee", "adaptive"]
-
-
 class MultiAgentBudget(BaseModel):
-    """Bounded resource limits for one orchestration mode.
-
-    Every limit is explicit and enforced deterministically. The boss/
-    adjudicator cannot override these ceilings.
-    """
+    """Resource ceilings for future orchestration modes."""
 
     mode: OrchestrationMode
     max_agent_count: int = Field(ge=1, le=16)
@@ -173,10 +155,37 @@ BUDGET_ADAPTIVE = MultiAgentBudget(
 
 
 def resolve_multi_agent_budget(mode: OrchestrationMode) -> MultiAgentBudget:
-    """Return the budget limits for a given orchestration mode."""
+    """Return a budget contract without claiming that the mode executes."""
+
     return {
         "single": BUDGET_SINGLE,
         "critic": BUDGET_CRITIC,
         "committee": BUDGET_COMMITTEE,
         "adaptive": BUDGET_ADAPTIVE,
     }[mode]
+
+
+class M18RuntimeStatus(BaseModel):
+    """Authoritative distinction between available contracts and active runtime."""
+
+    context_compaction: RuntimeMaturity = "contract_only"
+    multi_agent_orchestration: RuntimeMaturity = "contract_only"
+    active_context_profiles: list[ContextProfile] = Field(
+        default_factory=lambda: ["balanced"]
+    )
+    active_orchestration_modes: list[OrchestrationMode] = Field(
+        default_factory=lambda: ["critic"]
+    )
+    limitations: list[str] = Field(
+        default_factory=lambda: [
+            "No runtime context compaction is executed.",
+            "No committee or adaptive agent runtime is executed.",
+            "Policy and budget models are contract scaffolding only.",
+        ]
+    )
+
+
+def get_m18_runtime_status() -> M18RuntimeStatus:
+    """Return the exact M18 runtime claim boundary."""
+
+    return M18RuntimeStatus()
