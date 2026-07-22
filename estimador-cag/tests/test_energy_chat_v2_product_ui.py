@@ -31,51 +31,51 @@ def test_root_and_demo_roll_back_to_legacy_when_v2_disabled(monkeypatch) -> None
     assert demo.headers["location"] == "/energy-chat/demo"
 
 
-def test_v2_product_ui_uses_real_graph_thread_and_human_endpoints(monkeypatch) -> None:
+def test_v2_product_ui_uses_server_conversations_and_real_graph_endpoints(monkeypatch) -> None:
     monkeypatch.setenv("EACHAT_V2_ENABLED", "true")
     response = client.get("/energy-chat/v2/demo")
 
     assert response.status_code == 200
     html = response.text
     assert "EACHAT" in html
-    assert "/energy-chat/v2/chat" in html
-    assert "/energy-chat/v2/chat/live" in html
+    assert "/energy-chat/v2/conversations" in html
+    assert "/turns" in html
+    assert "execution_profile" in html
+    assert "live_bounded" in html
     assert "/energy-chat/v2/chat/human" in html
-    assert "/energy-chat/v2/threads/${encodeURIComponent(threadId)}/state" in html
-    assert "/energy-chat/v2/threads/${encodeURIComponent(threadId)}/replay" in html
-    assert "/energy-chat/v2/threads/${encodeURIComponent(threadId)}/resume" in html
+    assert "/energy-chat/v2/threads/${encodeURIComponent(activeGraphThreadId)}/state" in html
+    assert "/energy-chat/v2/threads/${encodeURIComponent(activeGraphThreadId)}/replay" in html
+    assert "/energy-chat/v2/threads/${encodeURIComponent(activeGraphThreadId)}/resume" in html
 
 
-def test_v2_product_ui_has_chat_history_and_real_human_response_controls(
-    monkeypatch,
-) -> None:
+def test_v2_product_ui_keeps_only_safe_conversation_index_locally(monkeypatch) -> None:
     monkeypatch.setenv("EACHAT_V2_ENABLED", "true")
     html = client.get("/energy-chat/v2/demo").text
 
-    assert "eachat:v2:threads" in html
-    assert "eachat:v2:messages:" in html
+    assert "eachat:v2:conversation-index" in html
+    assert "eachat:v2:messages:" not in html
+    assert "eachat:v2:threads" not in html
     assert 'class="message user"' in html
     assert 'class="message assistant"' in html
+    assert "Server-owned multi-turn history" in html
+    assert "Browser storage contains IDs and titles only" in html
+    assert "loadConversation" in html
+    assert "deleteConversation" in html
     assert "Submit human response" in html
-    assert "clarify_response" in html
-    assert "escalate_response" in html
     assert "startHumanFlow" in html
     assert "resumeHumanAction" in html
     assert "inspectThread" in html
     assert "replayThread" in html
-    assert "Approve" not in html
-    assert "Adjust" not in html
-    assert "Reject" not in html
 
 
-def test_v2_product_ui_does_not_fake_unimplemented_m18_runtime(monkeypatch) -> None:
+def test_v2_product_ui_states_current_runtime_maturity_truthfully(monkeypatch) -> None:
     monkeypatch.setenv("EACHAT_V2_ENABLED", "true")
     html = client.get("/energy-chat/v2/demo").text
 
-    assert "Balanced context only" in html
-    assert "Critic orchestration only" in html
-    assert "Runtime compaction: not implemented" in html
-    assert "Committee runtime: not implemented" in html
+    assert "Durable bounded memory" in html
+    assert "Critic orchestration" in html
+    assert "Committee/adaptive: gated" in html
+    assert "context_profile:'balanced'" in html
     assert "Minimal (unsupported)" not in html
     assert "Max (unsupported)" not in html
     assert "Kimi (deferred)" not in html
