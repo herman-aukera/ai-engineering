@@ -8,7 +8,18 @@ from fastapi.testclient import TestClient
 from app.energy_chat.production_app import create_production_app
 
 
+def test_production_service_fails_closed_without_strict_msgpack(monkeypatch) -> None:
+    monkeypatch.delenv("LANGGRAPH_STRICT_MSGPACK", raising=False)
+    monkeypatch.setenv("EACHAT_ALLOW_IN_MEMORY", "true")
+    service = create_production_app()
+
+    with pytest.raises(RuntimeError, match="LANGGRAPH_STRICT_MSGPACK=true is required"):
+        with TestClient(service):
+            pass
+
+
 def test_production_service_fails_closed_without_durable_storage(monkeypatch) -> None:
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
     monkeypatch.delenv("EACHAT_POSTGRES_URL", raising=False)
     monkeypatch.delenv("EACHAT_ALLOW_IN_MEMORY", raising=False)
     service = create_production_app()
@@ -19,6 +30,7 @@ def test_production_service_fails_closed_without_durable_storage(monkeypatch) ->
 
 
 def test_explicit_in_memory_override_serves_v2_product_and_graph(monkeypatch) -> None:
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
     monkeypatch.delenv("EACHAT_POSTGRES_URL", raising=False)
     monkeypatch.setenv("EACHAT_ALLOW_IN_MEMORY", "true")
     service = create_production_app()
@@ -37,6 +49,7 @@ def test_explicit_in_memory_override_serves_v2_product_and_graph(monkeypatch) ->
         "status": "ok",
         "service": "eachat",
         "restart_persistent": False,
+        "strict_msgpack": True,
     }
     assert root.status_code == 307
     assert root.headers["location"] == "/energy-chat/v2/demo"
@@ -48,6 +61,7 @@ def test_explicit_in_memory_override_serves_v2_product_and_graph(monkeypatch) ->
 
 
 def test_production_openapi_contains_only_eachat_business_routes(monkeypatch) -> None:
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
     monkeypatch.delenv("EACHAT_POSTGRES_URL", raising=False)
     monkeypatch.setenv("EACHAT_ALLOW_IN_MEMORY", "true")
     service = create_production_app()
