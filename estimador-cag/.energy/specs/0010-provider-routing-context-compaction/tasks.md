@@ -89,10 +89,18 @@ Status: deterministic runtime complete; live/manual/product-extraction gates ope
 - [x] Add authoritative 2026-07-22 release checkpoint.
 - [x] Synchronize README_EACODE, CLAUDE memory, handoff, and product plan.
 - [x] Synchronize Specs 0009/0010 tasks and acceptance.
-- [ ] Append final merge and post-merge CI evidence.
+- [x] Append final repair-branch CI evidence.
 - [ ] Update PR #15 title/body and mark ready.
 - [ ] Merge PR #15 into `EACODE` after final green CI.
 - [ ] Verify post-merge EACODE CI.
+
+Final clean repair-branch gate before merge:
+
+```text
+GitHub Actions run 29910822380 — SUCCESS
+Ruff, compilation, full tests, every smoke, canonical full gate,
+root smoke, and repository cleanliness passed.
+```
 
 ## Manual evidence
 
