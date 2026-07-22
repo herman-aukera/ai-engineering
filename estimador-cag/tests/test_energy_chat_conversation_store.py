@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from cryptography.fernet import Fernet
 
 from app.energy_chat.api_v2_contracts import EnergyChatV2Response
 from app.energy_chat.conversation_models import ConversationTurn
@@ -14,6 +13,14 @@ from app.energy_chat.conversation_store import (
     ConversationTurnConflictError,
     InMemoryConversationStore,
 )
+
+
+def _fernet_type():
+    module = pytest.importorskip(
+        "cryptography.fernet",
+        reason="Cipher assertions require the isolated EACHAT production dependency set",
+    )
+    return module.Fernet
 
 
 def _turn(
@@ -99,7 +106,8 @@ def test_in_memory_store_delete_is_final() -> None:
 
 
 def test_conversation_cipher_round_trip_excludes_plaintext() -> None:
-    cipher = ConversationCipher(Fernet.generate_key())
+    fernet_type = _fernet_type()
+    cipher = ConversationCipher(fernet_type.generate_key())
     turn = _turn(
         "turn-secret",
         1,
@@ -116,8 +124,9 @@ def test_conversation_cipher_round_trip_excludes_plaintext() -> None:
 
 
 def test_wrong_conversation_key_fails_authentication() -> None:
-    writer = ConversationCipher(Fernet.generate_key())
-    reader = ConversationCipher(Fernet.generate_key())
+    fernet_type = _fernet_type()
+    writer = ConversationCipher(fernet_type.generate_key())
+    reader = ConversationCipher(fernet_type.generate_key())
     encrypted = writer.encrypt_turn(_turn("turn-wrong-key", 1))
 
     with pytest.raises(RuntimeError, match="authentication failed"):
@@ -125,5 +134,6 @@ def test_wrong_conversation_key_fails_authentication() -> None:
 
 
 def test_invalid_conversation_key_fails_startup() -> None:
+    _fernet_type()
     with pytest.raises(ValueError, match="Invalid EACHAT conversation encryption key"):
         ConversationCipher("not-a-fernet-key")
