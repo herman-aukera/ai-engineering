@@ -23,6 +23,17 @@ async function waitForActivity(fragment) {
   );
 }
 
+async function panelRowValue(panelId, label) {
+  return page.evaluate(
+    ({ targetPanelId, targetLabel }) => {
+      const rows = [...document.querySelectorAll(`#${targetPanelId} .row`)];
+      const row = rows.find(item => item.children[0]?.textContent === targetLabel);
+      return row?.children[1]?.textContent ?? null;
+    },
+    { targetPanelId: panelId, targetLabel: label },
+  );
+}
+
 try {
   await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
   assert(page.url().endsWith("/energy-chat/v2/demo"), "Root did not open the V2 product UI");
@@ -37,14 +48,24 @@ try {
 
   let userCount = await page.locator(".message.user").count();
   let assistantCount = await page.locator(".message.assistant").count();
-  let status = await page.locator("#statusPanel").textContent();
-  let card = await page.locator("#energyPanel").textContent();
   assert(userCount === 1, "First durable turn did not render one user message");
   assert(assistantCount === 1, "First durable turn did not render one assistant message");
-  assert(status?.includes("evaluated"), "First durable turn did not reach evaluated state");
-  assert(status?.includes("Context profilebalanced"), "Balanced context profile was not recorded");
-  assert(status?.includes("Memory messages0"), "First turn unexpectedly received prior memory");
-  assert(card?.includes("Decision"), "First turn Energy Card was not rendered");
+  assert(
+    await panelRowValue("statusPanel", "Graph status") === "evaluated",
+    "First durable turn did not reach evaluated state",
+  );
+  assert(
+    await panelRowValue("statusPanel", "Context profile") === "balanced",
+    "Balanced context profile was not recorded",
+  );
+  assert(
+    await panelRowValue("statusPanel", "Memory messages") === "0",
+    "First turn unexpectedly received prior memory",
+  );
+  assert(
+    Boolean(await panelRowValue("energyPanel", "Decision")),
+    "First turn Energy Card was not rendered",
+  );
 
   await page.selectOption("#contextProfile", "minimal");
   await page.selectOption("#orchestrationMode", "adaptive");
@@ -57,14 +78,29 @@ try {
 
   userCount = await page.locator(".message.user").count();
   assistantCount = await page.locator(".message.assistant").count();
-  status = await page.locator("#statusPanel").textContent();
   assert(userCount === 2, "Second durable turn did not retain ordered user history");
   assert(assistantCount === 2, "Second durable turn did not retain ordered assistant history");
-  assert(status?.includes("Context profileminimal"), "Minimal context snapshot was not applied");
-  assert(status?.includes("Requested orchestrationadaptive"), "Adaptive orchestration was not requested");
-  assert(status?.includes("Resolved orchestrationcritic"), "Low-risk adaptive turn did not stay on critic");
-  assert(status?.includes("Context snapshotconversation-"), "Context snapshot identity was not rendered");
-  assert(status?.includes("Memory messages2"), "Second turn did not receive bounded prior context");
+  assert(
+    await panelRowValue("statusPanel", "Context profile") === "minimal",
+    "Minimal context snapshot was not applied",
+  );
+  assert(
+    await panelRowValue("statusPanel", "Requested orchestration") === "adaptive",
+    "Adaptive orchestration was not requested",
+  );
+  assert(
+    await panelRowValue("statusPanel", "Resolved orchestration") === "critic",
+    "Low-risk adaptive turn did not stay on critic",
+  );
+  const contextSnapshot = await panelRowValue("statusPanel", "Context snapshot");
+  assert(
+    Boolean(contextSnapshot && contextSnapshot !== "—"),
+    "Context snapshot identity was not rendered",
+  );
+  assert(
+    await panelRowValue("statusPanel", "Memory messages") === "2",
+    "Second turn did not receive bounded prior context",
+  );
 
   await page.getByRole("button", { name: "Inspect state" }).click();
   await waitForActivity("Safe checkpoint state loaded");
@@ -95,7 +131,10 @@ try {
   assistantCount = await page.locator(".message.assistant").count();
   assert(userCount === 2, "Reload did not recover two user turns from server memory");
   assert(assistantCount === 2, "Reload did not recover two assistant turns from server memory");
-  assert(await page.locator("#contextProfile").inputValue() === "minimal", "Context profile did not survive server-history reload");
+  assert(
+    await page.locator("#contextProfile").inputValue() === "minimal",
+    "Context profile did not survive server-history reload",
+  );
 
   await page.getByRole("button", { name: "Delete conversation" }).click();
   await waitForActivity("Conversation deleted from the server");
@@ -112,11 +151,18 @@ try {
   await page.fill("#humanDecisionReason", "Release evidence is insufficient in the browser canary.");
   await page.getByRole("button", { name: "Apply human decision" }).click();
   await waitForActivity("Authoritative human decision applied");
-  const completedStatus = await page.locator("#statusPanel").textContent();
-  card = await page.locator("#energyPanel").textContent();
-  assert(completedStatus?.includes("completed"), "Human-gated graph did not complete");
-  assert(completedStatus?.includes("Human decisionreject"), "Human reject authority was not rendered");
-  assert(card?.includes("Decisionreject"), "Rejected Energy Card was not rendered");
+  assert(
+    await panelRowValue("statusPanel", "Graph status") === "completed",
+    "Human-gated graph did not complete",
+  );
+  assert(
+    await panelRowValue("statusPanel", "Human decision") === "reject",
+    "Human reject authority was not rendered",
+  );
+  assert(
+    await panelRowValue("energyPanel", "Decision") === "reject",
+    "Rejected Energy Card was not rendered",
+  );
 
   await page.screenshot({ path: screenshotPath, fullPage: true });
   assert(consoleErrors.length === 0, `Browser console errors: ${consoleErrors.join(" | ")}`);
