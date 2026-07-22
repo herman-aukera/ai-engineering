@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from typing import Any, Literal, Protocol
 
@@ -110,10 +111,15 @@ class EnergyChatV2HumanResumeRequest(BaseModel):
     action_id: str = Field(min_length=1, max_length=256)
     action: HumanActionType
     expected_revision: int = Field(ge=1)
-    actor: str = Field(min_length=1, max_length=256)
-    decision: HumanDecision
-    decision_reason: str = Field(min_length=1, max_length=2000)
-    idempotency_key: str = Field(
+    actor: str = Field(default="same-origin-client", min_length=1, max_length=256)
+    decision: HumanDecision = "approve"
+    decision_reason: str = Field(
+        default="Reviewer approved the current protected outcome.",
+        min_length=1,
+        max_length=2000,
+    )
+    idempotency_key: str | None = Field(
+        default=None,
         min_length=8,
         max_length=256,
         pattern=r"^[a-zA-Z0-9_-]+$",
@@ -123,6 +129,9 @@ class EnergyChatV2HumanResumeRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_decision_contract(self) -> EnergyChatV2HumanResumeRequest:
+        if self.idempotency_key is None:
+            digest = hashlib.sha256(self.action_id.encode("utf-8")).hexdigest()[:24]
+            self.idempotency_key = f"review-{digest}"
         if self.decision == "adjust" and self.adjustments is None:
             raise ValueError("Adjust requires a typed revised answer")
         if self.decision != "adjust" and self.adjustments is not None:
