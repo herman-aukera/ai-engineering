@@ -90,14 +90,6 @@ jobs:
           cat /tmp/eachat-focused-regression.txt
           test "$STATUS" = "0"
 
-      - name: Upload focused evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eachat-final-repair-focused
-          path: /tmp/eachat-focused-regression.txt
-          if-no-files-found: warn
-
       - name: Prove fixed quality runner import and output
         working-directory: estimador-cag
         run: uv run python scripts/run_eachat_fixed_quality.py
@@ -105,16 +97,21 @@ jobs:
       - name: Verify diff hygiene
         run: git diff --check
 
-      - name: Commit only proven product repairs
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            estimador-cag/app/energy_chat/committee_orchestration.py \
-            estimador-cag/app/energy_chat/graph_checkpoint.py \
-            estimador-cag/scripts/run_eachat_fixed_quality.py \
-            estimador-cag/tests/test_energy_chat_api_v2.py \
+      - name: Export proven repaired files
+        uses: actions/upload-artifact@v4
+        with:
+          name: eachat-proven-repaired-files
+          path: |
+            estimador-cag/app/energy_chat/committee_orchestration.py
+            estimador-cag/app/energy_chat/graph_checkpoint.py
+            estimador-cag/scripts/run_eachat_fixed_quality.py
+            estimador-cag/tests/test_energy_chat_api_v2.py
             estimador-cag/tests/test_energy_chat_fixed_benchmark_routes.py
-          git diff --cached --check
-          git commit -m "eachat: fix(release): restore final deterministic gates"
-          git push origin HEAD:repair/eachat-foundation-and-release-evidence
+          if-no-files-found: error
+
+      - name: Export focused evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: eachat-final-repair-focused
+          path: /tmp/eachat-focused-regression.txt
+          if-no-files-found: error
