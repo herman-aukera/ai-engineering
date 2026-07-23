@@ -34,6 +34,11 @@ from app.generation.graph.state import (
 )
 from app.persistence.database import AsyncSessionLocal
 from app.persistence.repository import DocumentRepository
+from app.schemas.session14_supervision import (
+    SupervisorProposalDestination,
+    SupervisorRouteProposal,
+    SupervisorStateDigest,
+)
 from app.services.litellm_provider import LiteLLMProvider
 
 
@@ -165,6 +170,59 @@ def _structured_result(
         raise RuntimeError(
             "structured provider result failed validation"
         ) from exc
+
+
+@dataclass(frozen=True)
+class LiteLLMSupervisorRouteProposer:
+    """Propose one route from a sanitized digest and closed candidate set."""
+
+    provider: StructuredCompletionProvider
+    tier: TierName = "flash"
+
+    async def propose_route(
+        self,
+        *,
+        digest: SupervisorStateDigest,
+        candidates: Sequence[SupervisorProposalDestination],
+    ) -> SupervisorRouteProposal:
+        candidate_list = list(dict.fromkeys(candidates))
+        if not candidate_list:
+            raise ValueError("supervisor route candidates must not be empty")
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Route a software-estimation supervisor to exactly one "
+                    "candidate. Do not perform estimation, call tools, invent "
+                    "state, or request transcript content. Choose only from "
+                    "candidate_agents and explain the routing reason briefly."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "state_digest": digest.model_dump(mode="json"),
+                        "candidate_agents": candidate_list,
+                    },
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
+            },
+        ]
+        completion = await asyncio.to_thread(
+            self.provider.complete_structured_messages,
+            messages=messages,
+            tier=self.tier,
+            response_model=SupervisorRouteProposal,
+            max_tokens=300,
+        )
+        result = _structured_result(
+            completion,
+            response_model=SupervisorRouteProposal,
+        )
+        return SupervisorRouteProposal.model_validate(result)
 
 
 @dataclass(frozen=True)
@@ -450,6 +508,10 @@ def build_graph_node_dependencies(
                 search_service_context_factory
                 or open_semantic_search_service
             )
+        ),
+        supervisor_route_proposer=LiteLLMSupervisorRouteProposer(
+            provider=resolved_provider,
+            tier=resolved_tier,
         ),
         search_k=search_k,
     )

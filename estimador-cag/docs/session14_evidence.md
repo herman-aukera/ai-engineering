@@ -4,9 +4,9 @@
 
 | Evidence | Maturity | Result |
 | --- | --- | --- |
-| Typed contracts and routing tests | L1 local | Passed in teacher-alignment patch built from `ae5805e` |
+| Hybrid typed route proposal | L1 local | Provider-neutral port, guarded production adapter, deterministic fallback, and replay-safe provenance; focused suite `59 passed` |
 | Exact teacher edge-case fixture | L1 local | Git blob `53b0a4625464fb5f4759972fa30a356972260986`; public API pause/resume test passed |
-| Full deterministic suite | L1 local | `887 passed, 11 skipped` |
+| Full deterministic suite | L1 local | `899 passed, 11 skipped` |
 | PostgreSQL pause/reopen/resume | L3 integration | `1 passed` |
 | Current remote CI | L2 remote | Pending teacher-alignment commit and push |
 | Hosted pause/resume trace | L3 hosted | Pending manual Logfire capture |
@@ -73,8 +73,7 @@ Trace:  PENDING_REAL_LOGFIRE_CAPTURE
 
 ## Claim boundary
 
-After hybrid supervisor routing, remote CI, and hosted trace capture, the
-evidence may support this claim:
+After remote CI and hosted trace capture, the evidence may support this claim:
 
 > Session 14 reorganizes estimation as a manually implemented hybrid
 > supervisor/workers LangGraph with typed state, least-privilege specialists,

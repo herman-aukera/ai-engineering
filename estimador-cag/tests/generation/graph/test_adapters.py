@@ -10,10 +10,12 @@ from pydantic import BaseModel
 from app.generation.graph.adapters import (
     LiteLLMComponentClassifier,
     LiteLLMRequirementExtractor,
+    LiteLLMSupervisorRouteProposer,
     PgVectorBudgetSearcher,
     build_graph_node_dependencies,
 )
 from app.generation.graph.state import ComponentItem
+from app.schemas.session14_supervision import SupervisorStateDigest
 
 
 class FakeStructuredProvider:
@@ -100,6 +102,52 @@ class FakeSearchContextFactory:
                 self.exit_count += 1
 
         return context()
+
+
+@pytest.mark.asyncio
+async def test_supervisor_route_proposer_uses_only_digest_and_candidates() -> None:
+    provider = FakeStructuredProvider(
+        [
+            {
+                "next_agent": "budget_searcher",
+                "reason": "Requirements exist; retrieve historical evidence.",
+            }
+        ]
+    )
+    adapter = LiteLLMSupervisorRouteProposer(
+        provider=provider,
+        tier="flash",
+    )
+    digest = SupervisorStateDigest(
+        requirements_count=3,
+        requirements_extraction_completed=True,
+        budget_match_count=0,
+        budget_search_completed=False,
+        estimate_ready=False,
+        validation_ready=False,
+        confidence=None,
+        review_required=False,
+        routing_steps=1,
+        status="pending",
+    )
+
+    proposal = await adapter.propose_route(
+        digest=digest,
+        candidates=("budget_searcher",),
+    )
+
+    assert proposal.next_agent == "budget_searcher"
+    call = provider.calls[0]
+    assert call["tier"] == "flash"
+    assert call["max_tokens"] == 300
+    assert call["response_model"].__name__ == (
+        "SupervisorRouteProposal"
+    )
+    messages = call["messages"]
+    assert isinstance(messages, list)
+    assert "budget_searcher" in messages[1]["content"]
+    assert "requirements_count" in messages[1]["content"]
+    assert "transcript" not in messages[1]["content"]
 
 
 @pytest.mark.asyncio
@@ -412,5 +460,9 @@ def test_dependency_factory_wires_concrete_adapters() -> None:
     assert isinstance(
         dependencies.budget_searcher,
         PgVectorBudgetSearcher,
+    )
+    assert isinstance(
+        dependencies.supervisor_route_proposer,
+        LiteLLMSupervisorRouteProposer,
     )
     assert dependencies.search_k == 7

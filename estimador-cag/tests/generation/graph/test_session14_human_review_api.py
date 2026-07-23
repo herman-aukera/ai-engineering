@@ -356,6 +356,18 @@ def test_pause_and_resume_emit_complete_sanitized_session14_spans() -> None:
         "missing_validation",
         "human_review_required",
     ]
+    supervisor_sources = [
+        record.attributes["route_source"]
+        for record in node_spans
+        if record.attributes.get("node_name") == "supervisor"
+    ]
+    assert supervisor_sources == ["deterministic_policy"] * 5
+    assert all(
+        record.attributes["fallback_reason"]
+        == "proposer_unavailable"
+        for record in node_spans
+        if record.attributes.get("node_name") == "supervisor"
+    )
 
     human_gate_spans = [
         record

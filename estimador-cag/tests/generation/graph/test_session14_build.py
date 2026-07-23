@@ -15,8 +15,12 @@ from app.generation.graph.fakes import (
     FakeBudgetSearcher,
     FakeComponentClassifier,
     FakeRequirementExtractor,
+    FakeSupervisorRouteProposer,
 )
-from app.generation.graph.ports import GraphNodeDependencies
+from app.generation.graph.ports import (
+    GraphNodeDependencies,
+    SupervisorRouteProposer,
+)
 from app.generation.graph.review_state import (
     Session14EstimationGraphState,
 )
@@ -83,7 +87,9 @@ MATCHES_BY_COMPONENT = {
 }
 
 
-def _dependencies() -> tuple[
+def _dependencies(
+    route_proposer: SupervisorRouteProposer | None = None,
+) -> tuple[
     GraphNodeDependencies,
     FakeRequirementExtractor,
     FakeComponentClassifier,
@@ -97,6 +103,7 @@ def _dependencies() -> tuple[
         requirement_extractor=extractor,
         component_classifier=classifier,
         budget_searcher=searcher,
+        supervisor_route_proposer=route_proposer,
         search_k=5,
     )
 
@@ -339,3 +346,47 @@ async def test_session14_graph_runs_reliable_path_end_to_end() -> None:
             "k": 5,
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_session14_graph_accepts_model_owned_routes_end_to_end() -> None:
+    proposer = FakeSupervisorRouteProposer(
+        [
+            "requirements_extractor",
+            "budget_searcher",
+            "estimate_generator",
+            "coherence_validator",
+            "finalize",
+        ]
+    )
+    dependencies, _, _, _ = _dependencies(proposer)
+    _, graph = _build_graph(dependencies)
+
+    result = await graph.ainvoke(_initial_state())
+
+    assert result["status"] == "validated"
+    assert [
+        event["route_source"]
+        for event in result["route_events"]
+    ] == ["model"] * 5
+    assert [
+        event["proposed_agent"]
+        for event in result["route_events"]
+    ] == [
+        "requirements_extractor",
+        "budget_searcher",
+        "estimate_generator",
+        "coherence_validator",
+        "finalize",
+    ]
+    assert [
+        call["candidates"]
+        for call in proposer.calls
+    ] == [
+        ["requirements_extractor"],
+        ["budget_searcher"],
+        ["estimate_generator"],
+        ["coherence_validator"],
+        ["finalize", "human_review_gate"],
+    ]
+    assert "CLIENT-SECRET" not in str(proposer.calls)

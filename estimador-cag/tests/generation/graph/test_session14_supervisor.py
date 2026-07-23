@@ -6,8 +6,14 @@ from importlib import import_module
 import pytest
 from langgraph.types import Command
 
+from app.generation.graph.ports import SupervisorRouteProposer
 from app.generation.graph.review_state import (
     Session14EstimationGraphState,
+)
+from app.schemas.session14_supervision import (
+    SupervisorProposalDestination,
+    SupervisorRouteProposal,
+    SupervisorStateDigest,
 )
 from app.services import session14_privileges
 
@@ -46,6 +52,8 @@ def _state(
 
 async def _run_supervisor(
     state: Session14EstimationGraphState,
+    *,
+    route_proposer: SupervisorRouteProposer | None = None,
 ) -> Command:
     try:
         module = import_module(
@@ -64,13 +72,46 @@ async def _run_supervisor(
     )
     assert callable(builder)
 
-    node = builder()
+    node = builder(route_proposer=route_proposer)
     assert callable(node)
 
     command = await node(state)
 
     assert isinstance(command, Command)
     return command
+
+
+class FakeRouteProposer:
+    def __init__(
+        self,
+        next_agent: SupervisorProposalDestination,
+        *,
+        reason: str = "The proposed specialist can make progress.",
+        error: Exception | None = None,
+    ) -> None:
+        self.next_agent = next_agent
+        self.reason = reason
+        self.error = error
+        self.calls: list[
+            tuple[
+                SupervisorStateDigest,
+                tuple[SupervisorProposalDestination, ...],
+            ]
+        ] = []
+
+    async def propose_route(
+        self,
+        *,
+        digest: SupervisorStateDigest,
+        candidates: tuple[SupervisorProposalDestination, ...],
+    ) -> SupervisorRouteProposal:
+        self.calls.append((digest, tuple(candidates)))
+        if self.error is not None:
+            raise self.error
+        return SupervisorRouteProposal(
+            next_agent=self.next_agent,
+            reason=self.reason,
+        )
 
 
 def _command_update(
@@ -117,6 +158,10 @@ async def test_supervisor_returns_command_for_first_safe_route(
         "reason": (
             "Requirements extraction has not completed."
         ),
+        "route_source": "deterministic_policy",
+        "proposed_agent": None,
+        "valid_candidates": ["requirements_extractor"],
+        "fallback_reason": "proposer_unavailable",
     }
 
     assert command.goto == "requirements_extractor"
@@ -179,6 +224,10 @@ async def test_supervisor_routes_generated_estimate_to_validation() -> None:
             "reason": (
                 "The estimate has not been validated."
             ),
+            "route_source": "deterministic_policy",
+            "proposed_agent": None,
+            "valid_candidates": ["coherence_validator"],
+            "fallback_reason": "proposer_unavailable",
         }
     ]
 
@@ -250,6 +299,10 @@ async def test_supervisor_hop_budget_preempts_more_specialist_work() -> None:
             "reason": (
                 "The supervisor routing budget is exhausted."
             ),
+            "route_source": "budget_limit",
+            "proposed_agent": None,
+            "valid_candidates": ["human_review_gate"],
+            "fallback_reason": "routing_budget_exhausted",
         }
     ]
 
@@ -265,3 +318,137 @@ async def test_supervisor_command_is_stable_for_identical_replay() -> None:
     assert first.goto == second.goto
     assert first.update == second.update
     assert state == before
+
+
+@pytest.mark.asyncio
+async def test_supervisor_accepts_legal_typed_model_proposal() -> None:
+    proposer = FakeRouteProposer(
+        "requirements_extractor",
+        reason="Requirements are the first missing dependency.",
+    )
+
+    command = await _run_supervisor(
+        _state(),
+        route_proposer=proposer,
+    )
+    update = _command_update(command)
+    route_event = update["route_events"][0]
+
+    assert command.goto == "requirements_extractor"
+    assert route_event["route_source"] == "model"
+    assert route_event["proposed_agent"] == (
+        "requirements_extractor"
+    )
+    assert route_event["valid_candidates"] == [
+        "requirements_extractor"
+    ]
+    assert route_event["fallback_reason"] is None
+    assert route_event["reason"] == (
+        "Requirements are the first missing dependency."
+    )
+    assert proposer.calls[0][1] == ("requirements_extractor",)
+
+
+@pytest.mark.asyncio
+async def test_supervisor_overrides_illegal_model_proposal() -> None:
+    proposer = FakeRouteProposer(
+        "finalize",
+        reason="Finish immediately.",
+    )
+
+    command = await _run_supervisor(
+        _state(),
+        route_proposer=proposer,
+    )
+    update = _command_update(command)
+    route_event = update["route_events"][0]
+
+    assert command.goto == "requirements_extractor"
+    assert route_event["route_source"] == "deterministic_fallback"
+    assert route_event["proposed_agent"] == "finalize"
+    assert route_event["valid_candidates"] == [
+        "requirements_extractor"
+    ]
+    assert route_event["fallback_reason"] == "illegal_proposal"
+    assert route_event["reason_code"] == "missing_requirements"
+
+
+@pytest.mark.asyncio
+async def test_supervisor_falls_back_when_model_proposal_fails() -> None:
+    proposer = FakeRouteProposer(
+        "requirements_extractor",
+        error=RuntimeError("provider unavailable: CLIENT-SECRET"),
+    )
+
+    command = await _run_supervisor(
+        _state(),
+        route_proposer=proposer,
+    )
+    update = _command_update(command)
+    route_event = update["route_events"][0]
+
+    assert command.goto == "requirements_extractor"
+    assert route_event["route_source"] == "deterministic_fallback"
+    assert route_event["proposed_agent"] is None
+    assert route_event["fallback_reason"] == "proposal_failed"
+    assert "CLIENT-SECRET" not in str(route_event)
+
+
+@pytest.mark.asyncio
+async def test_supervisor_budget_limit_skips_model_proposer() -> None:
+    proposer = FakeRouteProposer("requirements_extractor")
+
+    command = await _run_supervisor(
+        _state(
+            routing_steps=3,
+            max_routing_steps=3,
+        ),
+        route_proposer=proposer,
+    )
+    update = _command_update(command)
+    route_event = update["route_events"][0]
+
+    assert command.goto == "human_review_gate"
+    assert route_event["route_source"] == "budget_limit"
+    assert route_event["fallback_reason"] == (
+        "routing_budget_exhausted"
+    )
+    assert proposer.calls == []
+
+
+@pytest.mark.asyncio
+async def test_clean_terminal_state_exposes_two_safe_model_choices() -> None:
+    proposer = FakeRouteProposer(
+        "human_review_gate",
+        reason="Run the deterministic review assessment before exit.",
+    )
+    state = _state(
+        requirements_extraction_completed=True,
+        budget_search_completed=True,
+        component_estimates=[
+            {
+                "component_id": "component-1",
+            }
+        ],
+        validation={
+            "is_coherent": True,
+            "review_required": False,
+            "status": "validated",
+        },
+        status="validated",
+        routing_steps=4,
+    )
+
+    command = await _run_supervisor(
+        state,
+        route_proposer=proposer,
+    )
+    update = _command_update(command)
+    route_event = update["route_events"][0]
+
+    assert command.goto == "human_review_gate"
+    assert route_event["reason_code"] == "model_route_accepted"
+    assert route_event["valid_candidates"] == [
+        "finalize",
+        "human_review_gate",
+    ]

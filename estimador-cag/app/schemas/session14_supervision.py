@@ -15,6 +15,29 @@ SupervisorDestination = Literal[
     "__end__",
 ]
 
+SupervisorProposalDestination = Literal[
+    "requirements_extractor",
+    "budget_searcher",
+    "estimate_generator",
+    "coherence_validator",
+    "human_review_gate",
+    "finalize",
+]
+
+SupervisorRouteSource = Literal[
+    "model",
+    "deterministic_fallback",
+    "deterministic_policy",
+    "budget_limit",
+]
+
+SupervisorFallbackReason = Literal[
+    "proposer_unavailable",
+    "proposal_failed",
+    "illegal_proposal",
+    "routing_budget_exhausted",
+]
+
 RouteReasonCode = Literal[
     "missing_requirements",
     "missing_budget_evidence",
@@ -38,6 +61,13 @@ class SupervisorDecision(StrictSession14Model):
 
     next_agent: SupervisorDestination
     reason_code: RouteReasonCode
+    reason: str = Field(min_length=1, max_length=240)
+
+
+class SupervisorRouteProposal(StrictSession14Model):
+    """One model-owned route proposal with no execution authority."""
+
+    next_agent: SupervisorProposalDestination
     reason: str = Field(min_length=1, max_length=240)
 
 

@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.schemas.session14_supervision import (
     SupervisorDecision,
+    SupervisorRouteProposal,
     build_supervisor_digest,
 )
 
@@ -31,6 +32,28 @@ def test_supervisor_decision_rejects_unknown_routes_and_extra_authority() -> Non
             next_agent="budget_searcher",
             reason_code="missing_budget_evidence",
             reason="Historical evidence is missing.",
+            tool="search_budgets",
+        )
+
+
+def test_supervisor_route_proposal_has_choice_but_no_tool_authority() -> None:
+    proposal = SupervisorRouteProposal(
+        next_agent="budget_searcher",
+        reason="Historical evidence is the next missing dependency.",
+    )
+
+    assert proposal.next_agent == "budget_searcher"
+
+    with pytest.raises(ValidationError):
+        SupervisorRouteProposal(
+            next_agent="send_estimate_email",
+            reason="Send the result.",
+        )
+
+    with pytest.raises(ValidationError):
+        SupervisorRouteProposal(
+            next_agent="budget_searcher",
+            reason="Search historical evidence.",
             tool="search_budgets",
         )
 

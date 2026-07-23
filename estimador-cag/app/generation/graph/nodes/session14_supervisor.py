@@ -1,4 +1,4 @@
-"""Deterministic Session 14 supervisor with explicit LangGraph routing."""
+"""Hybrid Session 14 supervisor with guarded model-owned routing."""
 
 from __future__ import annotations
 
@@ -6,18 +6,24 @@ from collections.abc import Awaitable, Callable
 
 from langgraph.types import Command
 
+from app.generation.graph.ports import SupervisorRouteProposer
 from app.generation.graph.review_state import (
     Session14EstimationGraphState,
     SupervisorRouteEvent,
 )
-from app.schemas.session14_supervision import SupervisorDestination, build_supervisor_digest
+from app.schemas.session14_supervision import (
+    SupervisorDestination,
+    build_supervisor_digest,
+)
 from app.services.session14_human_review import (
     DEFAULT_SESSION14_CONFIDENCE_THRESHOLD,
     assess_session14_human_review,
 )
 from app.services.session14_supervision import (
     MAX_ROUTING_STEPS,
-    choose_deterministic_route,
+    accept_supervisor_proposal,
+    deterministic_supervisor_route,
+    legal_supervisor_destinations,
 )
 
 Session14SupervisorNode = Callable[
@@ -76,11 +82,12 @@ def _max_routing_steps(
 
 def build_supervisor_node(
     *,
+    route_proposer: SupervisorRouteProposer | None = None,
     confidence_threshold: float = (
         DEFAULT_SESSION14_CONFIDENCE_THRESHOLD
     ),
 ) -> Session14SupervisorNode:
-    """Build the tool-free deterministic Session 14 supervisor."""
+    """Build the tool-free hybrid Session 14 supervisor."""
 
     async def supervisor(
         state: Session14EstimationGraphState,
@@ -88,14 +95,49 @@ def build_supervisor_node(
         estimation_id = _estimation_id(state)
         routing_steps = _routing_steps(state)
         digest = build_supervisor_digest(state)
+        max_routing_steps = _max_routing_steps(state)
 
-        decision = choose_deterministic_route(
-            digest,
-            max_routing_steps=_max_routing_steps(state),
-            confidence_threshold=confidence_threshold,
-        )
+        if routing_steps >= max_routing_steps:
+            guarded_route = deterministic_supervisor_route(
+                digest,
+                max_routing_steps=max_routing_steps,
+                confidence_threshold=confidence_threshold,
+                fallback_reason="routing_budget_exhausted",
+            )
+        elif route_proposer is None:
+            guarded_route = deterministic_supervisor_route(
+                digest,
+                max_routing_steps=max_routing_steps,
+                confidence_threshold=confidence_threshold,
+            )
+        else:
+            candidates = legal_supervisor_destinations(
+                digest,
+                max_routing_steps=max_routing_steps,
+                confidence_threshold=confidence_threshold,
+            )
+            try:
+                proposal = await route_proposer.propose_route(
+                    digest=digest,
+                    candidates=candidates,
+                )
+            except Exception:
+                guarded_route = deterministic_supervisor_route(
+                    digest,
+                    max_routing_steps=max_routing_steps,
+                    confidence_threshold=confidence_threshold,
+                    fallback_reason="proposal_failed",
+                )
+            else:
+                guarded_route = accept_supervisor_proposal(
+                    proposal,
+                    digest,
+                    max_routing_steps=max_routing_steps,
+                    confidence_threshold=confidence_threshold,
+                )
 
         sequence = routing_steps + 1
+        decision = guarded_route.decision
         route_event = SupervisorRouteEvent(
             route_event_id=(
                 f"{estimation_id}:supervisor-route:{sequence}"
@@ -104,6 +146,12 @@ def build_supervisor_node(
             next_agent=decision.next_agent,
             reason_code=decision.reason_code,
             reason=decision.reason,
+            route_source=guarded_route.route_source,
+            proposed_agent=guarded_route.proposed_agent,
+            valid_candidates=list(
+                guarded_route.candidate_agents
+            ),
+            fallback_reason=guarded_route.fallback_reason,
         )
 
         update = Session14EstimationGraphState(

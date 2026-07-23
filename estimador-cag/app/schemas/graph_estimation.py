@@ -13,6 +13,11 @@ from app.schemas.session14_human_review import (
     Session14HumanReviewReasonCode,
     Session14HumanReviewStatus,
 )
+from app.schemas.session14_supervision import (
+    SupervisorFallbackReason,
+    SupervisorProposalDestination,
+    SupervisorRouteSource,
+)
 
 
 class StrictPayload(BaseModel):
@@ -113,6 +118,14 @@ class SupervisorRouteEventPayload(StrictPayload):
     next_agent: str = Field(min_length=1)
     reason_code: str = Field(min_length=1)
     reason: str = Field(min_length=1)
+    route_source: SupervisorRouteSource = "deterministic_policy"
+    proposed_agent: SupervisorProposalDestination | None = None
+    valid_candidates: list[
+        SupervisorProposalDestination
+    ] = Field(default_factory=list)
+    fallback_reason: SupervisorFallbackReason | None = (
+        "proposer_unavailable"
+    )
 
 
 class AgentContributionPayload(StrictPayload):

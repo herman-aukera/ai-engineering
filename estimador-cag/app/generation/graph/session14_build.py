@@ -136,6 +136,9 @@ def build_session14_estimation_graph(
             graph_name=SESSION14_GRAPH_NAME,
             node_name="supervisor",
             node=build_supervisor_node(
+                route_proposer=(
+                    dependencies.supervisor_route_proposer
+                ),
                 confidence_threshold=confidence_threshold,
             ),
             tracer=tracer,

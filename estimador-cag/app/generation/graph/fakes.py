@@ -15,6 +15,11 @@ from app.generation.graph.state import (
     ComponentItem,
     RequirementItem,
 )
+from app.schemas.session14_supervision import (
+    SupervisorProposalDestination,
+    SupervisorRouteProposal,
+    SupervisorStateDigest,
+)
 
 
 class FakeRequirementExtractor:
@@ -77,3 +82,33 @@ class FakeBudgetSearcher:
         )
         matches = self._matches_by_component_id.get(component_id, [])
         return deepcopy(matches[:k])
+
+
+class FakeSupervisorRouteProposer:
+    """Return configured typed proposals and record sanitized routing inputs."""
+
+    def __init__(
+        self,
+        destinations: Sequence[SupervisorProposalDestination],
+    ) -> None:
+        self._destinations = list(destinations)
+        self.calls: list[dict[str, object]] = []
+
+    async def propose_route(
+        self,
+        *,
+        digest: SupervisorStateDigest,
+        candidates: Sequence[SupervisorProposalDestination],
+    ) -> SupervisorRouteProposal:
+        self.calls.append(
+            {
+                "digest": digest.model_dump(mode="json"),
+                "candidates": list(candidates),
+            }
+        )
+        if not self._destinations:
+            raise RuntimeError("no fake supervisor proposal remains")
+        return SupervisorRouteProposal(
+            next_agent=self._destinations.pop(0),
+            reason="Configured deterministic fake route proposal.",
+        )

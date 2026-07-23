@@ -17,6 +17,11 @@ from app.generation.graph.state import (
     ComponentItem,
     RequirementItem,
 )
+from app.schemas.session14_supervision import (
+    SupervisorProposalDestination,
+    SupervisorRouteProposal,
+    SupervisorStateDigest,
+)
 
 
 @runtime_checkable
@@ -54,6 +59,19 @@ class BudgetSearcher(Protocol):
         k: int,
     ) -> list[BudgetMatch]:
         """Return checkpoint-safe matches for one graph component."""
+
+
+@runtime_checkable
+class SupervisorRouteProposer(Protocol):
+    """Provider-neutral boundary for one constrained routing proposal."""
+
+    async def propose_route(
+        self,
+        *,
+        digest: SupervisorStateDigest,
+        candidates: Sequence[SupervisorProposalDestination],
+    ) -> SupervisorRouteProposal:
+        """Choose one candidate without reading raw transcript or graph state."""
 
 
 @dataclass(frozen=True)
@@ -100,6 +118,7 @@ class GraphNodeDependencies:
     estimation_policy: EstimationPolicy = field(
         default_factory=EstimationPolicy
     )
+    supervisor_route_proposer: SupervisorRouteProposer | None = None
 
     def __post_init__(self) -> None:
         if self.search_k <= 0:

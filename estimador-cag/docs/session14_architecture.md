@@ -27,26 +27,35 @@ The supervisor is implemented directly with `StateGraph` and typed
 reliability policy, authoritative arithmetic, and human-review enforcement.
 The graph does not use `create_supervisor` or a hidden routing abstraction.
 
-### Current routing boundary
+### Hybrid routing boundary
 
-At this checkpoint the supervisor uses a deterministic dependency ladder for
-every route. That is a safe fallback and keeps CI network-free, but it is not
-yet the complete agentic routing boundary described by the Session 14 lesson:
-a typed model proposal must own a real runtime choice, while Python validates
-the proposal and retains final authority over prerequisites, budgets,
-privileges, arithmetic, and mandatory human review.
+The composition root injects a provider-neutral `SupervisorRouteProposer`.
+The production adapter asks the configured structured LiteLLM tier for a
+`SupervisorRouteProposal`; deterministic tests inject a fake or omit the port.
+The model receives only:
 
-The next supervisor slice must therefore add:
+- a bounded `SupervisorStateDigest`;
+- the destinations Python has declared legal for that state.
 
-- a provider-neutral typed route-proposal port;
-- a compact state digest and closed set of valid candidates;
-- legality validation and deterministic fallback;
-- route source, proposed route, valid candidates, and fallback reason in the
-  replay-safe route event and telemetry span;
-- deterministic fake-proposer tests for accepted, invalid, failed, and
-  budget-exhausted proposals.
+It never receives the transcript, business tools, provider credentials, raw
+graph state, or execution authority. Python validates the typed proposal again
+before returning `Command(goto=...)`. An illegal proposal, provider failure, or
+missing proposer falls back to the deterministic dependency policy. The hop
+budget preempts the model entirely.
 
-It must not call a model merely to restate a single predetermined next step.
+Each replay-safe route event and node span records:
+
+- `route_source`: `model`, `deterministic_fallback`,
+  `deterministic_policy`, or `budget_limit`;
+- the proposed destination, when one exists;
+- the closed set of valid candidates;
+- a bounded fallback reason code, never provider error text.
+
+Most dependency stages intentionally expose one safe candidate. A clean,
+validated terminal state exposes two safe graph paths—direct finalization or
+the deterministic review gate, which rechecks the policy and falls through
+without pausing. This gives the router a real runtime path choice without
+allowing it to skip prerequisites or mandatory review.
 
 ## Shared-state contract
 
@@ -95,9 +104,9 @@ records route decisions, specialist contributions, pause, and resume.
 
 ## Claim boundary
 
-This architecture proves a cooperative command-driven workers graph and
-durable human control. It does not yet prove model-owned supervisor routing,
-and therefore Mandatory Level 1 remains partial until the hybrid proposal
-slice is implemented and traced. It also does not claim that multi-agent
-orchestration is universally better than a linear graph, that provider routing
-is calibrated, or that this coursework system is production-ready.
+This architecture proves a cooperative hybrid supervisor/workers graph with
+guarded model proposals, replay-visible deterministic fallbacks, and durable
+human control. Hosted evidence must still show the production adapter in the
+ORBITA lifecycle. It does not claim that multi-agent orchestration is
+universally better than a linear graph, that provider routing is calibrated,
+or that this coursework system is production-ready.

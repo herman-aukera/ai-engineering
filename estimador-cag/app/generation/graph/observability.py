@@ -174,6 +174,35 @@ def _record_session14_command_attributes(
     ):
         span.set_attribute("routing_steps", routing_steps)
 
+    route_events = update.get("route_events")
+    if isinstance(route_events, list) and route_events:
+        latest_route = route_events[-1]
+        if isinstance(latest_route, Mapping):
+            for attribute_name in (
+                "route_source",
+                "proposed_agent",
+                "fallback_reason",
+            ):
+                value = latest_route.get(attribute_name)
+                if isinstance(value, str) and value.strip():
+                    span.set_attribute(
+                        attribute_name,
+                        value.strip(),
+                    )
+
+            valid_candidates = latest_route.get(
+                "valid_candidates"
+            )
+            if isinstance(valid_candidates, list):
+                span.set_attribute(
+                    "valid_candidates",
+                    [
+                        value
+                        for value in valid_candidates
+                        if isinstance(value, str)
+                    ],
+                )
+
     actions = update.get("human_review_actions")
     if isinstance(actions, list) and actions:
         action = actions[-1]

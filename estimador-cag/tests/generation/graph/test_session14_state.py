@@ -177,7 +177,26 @@ def test_identical_route_event_replay_is_idempotent_and_ordered() -> None:
         "estimate-14:supervisor-route:1",
         "estimate-14:supervisor-route:2",
     ]
+    assert merged[0]["route_source"] == "deterministic_policy"
+    assert merged[0]["proposed_agent"] is None
+    assert merged[0]["valid_candidates"] == []
+    assert merged[0]["fallback_reason"] == "proposer_unavailable"
     assert current == [later]
+
+
+def test_route_event_reducer_preserves_model_provenance() -> None:
+    reducer = _route_event_reducer()
+    event = {
+        **_route_event(),
+        "route_source": "model",
+        "proposed_agent": "requirements_extractor",
+        "valid_candidates": ["requirements_extractor"],
+        "fallback_reason": None,
+    }
+
+    merged = reducer([], [event])
+
+    assert merged == [event]
 
 
 def test_conflicting_route_event_id_fails_closed_without_mutation() -> None:

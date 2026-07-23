@@ -44,6 +44,8 @@ Expected evidence:
 - `status` is `awaiting_human_review`;
 - `revision` is `1`;
 - `thread_id` is stable;
+- route events identify model proposals and any guarded fallback without raw
+  model output;
 - the interrupt lists `approve`, `adjust`, and `reject`;
 - the interrupt contains no transcript, provider payload, credential, or DSN.
 
@@ -90,6 +92,11 @@ estimation ID. The paused request and resumed request appear as sanitized
 `session14.graph.run` root spans, with `session14.graph.node` children. Confirm
 that both roots share the same thread ID, the first root reports
 `execution_status=awaiting_human_review`, and the second reports
-`execution_mode=human_review_resume`. Share the filtered Logfire view containing
+`execution_mode=human_review_resume`. Expand the supervisor node spans and
+confirm `route_source`, `proposed_agent`, `valid_candidates`, and any
+`fallback_reason`. At least one route should have `route_source=model`; an
+illegal or failed proposal may safely show `deterministic_fallback`, while the
+hop limit must show `budget_limit`. Share the filtered Logfire view containing
 both roots, then copy its URL into `session14_evidence.md` and the delivery
-email. Never paste credentials or the transcript into evidence.
+email. Never paste credentials, provider errors, raw model output, or the
+transcript into evidence.

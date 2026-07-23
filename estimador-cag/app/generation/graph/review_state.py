@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, Literal, NotRequired, TypedDict
 
 from app.generation.graph.state import (
     EstimationGraphState,
@@ -18,6 +18,9 @@ from app.schemas.session14_human_review import (
 from app.schemas.session14_supervision import (
     RouteReasonCode,
     SupervisorDestination,
+    SupervisorFallbackReason,
+    SupervisorProposalDestination,
+    SupervisorRouteSource,
 )
 
 StructureReviewStatus = Literal[
@@ -94,6 +97,16 @@ class SupervisorRouteEvent(TypedDict):
     next_agent: SupervisorDestination
     reason_code: RouteReasonCode
     reason: str
+    route_source: NotRequired[SupervisorRouteSource]
+    proposed_agent: NotRequired[
+        SupervisorProposalDestination | None
+    ]
+    valid_candidates: NotRequired[
+        list[SupervisorProposalDestination]
+    ]
+    fallback_reason: NotRequired[
+        SupervisorFallbackReason | None
+    ]
 
 
 def merge_session14_human_review_actions(
@@ -192,6 +205,18 @@ def merge_supervisor_route_events(
             next_agent=route_event["next_agent"],
             reason_code=route_event["reason_code"],
             reason=route_event["reason"],
+            route_source=route_event.get(
+                "route_source",
+                "deterministic_policy",
+            ),
+            proposed_agent=route_event.get("proposed_agent"),
+            valid_candidates=list(
+                route_event.get("valid_candidates", [])
+            ),
+            fallback_reason=route_event.get(
+                "fallback_reason",
+                "proposer_unavailable",
+            ),
         )
         existing = by_id.get(route_event_id)
 

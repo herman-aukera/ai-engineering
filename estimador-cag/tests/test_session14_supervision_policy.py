@@ -3,12 +3,16 @@ from __future__ import annotations
 import pytest
 
 from app.schemas.session14_supervision import (
+    SupervisorRouteProposal,
     SupervisorStateDigest,
     build_supervisor_digest,
 )
 from app.services.session14_supervision import (
     MAX_ROUTING_STEPS,
+    accept_supervisor_proposal,
     choose_deterministic_route,
+    deterministic_supervisor_route,
+    legal_supervisor_destinations,
 )
 
 
@@ -156,6 +160,7 @@ def test_route_selection_does_not_mutate_the_digest() -> None:
 
     assert digest.model_dump() == before
 
+
 def test_generated_component_estimates_route_to_coherence_validator() -> None:
     digest = build_supervisor_digest(
         {
@@ -187,3 +192,62 @@ def test_generated_component_estimates_route_to_coherence_validator() -> None:
     assert digest.estimate_ready is True
     assert decision.next_agent == "coherence_validator"
     assert decision.reason_code == "missing_validation"
+
+
+def test_guard_accepts_only_state_legal_model_proposal() -> None:
+    digest = _digest(
+        requirements_count=2,
+        requirements_extraction_completed=True,
+    )
+
+    accepted = accept_supervisor_proposal(
+        SupervisorRouteProposal(
+            next_agent="budget_searcher",
+            reason="Historical evidence is the next missing input.",
+        ),
+        digest,
+    )
+    overridden = accept_supervisor_proposal(
+        SupervisorRouteProposal(
+            next_agent="finalize",
+            reason="Finish now.",
+        ),
+        digest,
+    )
+
+    assert accepted.route_source == "model"
+    assert accepted.decision.next_agent == "budget_searcher"
+    assert accepted.candidate_agents == ("budget_searcher",)
+    assert accepted.fallback_reason is None
+
+    assert overridden.route_source == "deterministic_fallback"
+    assert overridden.proposed_agent == "finalize"
+    assert overridden.decision.next_agent == "budget_searcher"
+    assert overridden.fallback_reason == "illegal_proposal"
+
+
+def test_clean_terminal_state_has_two_safe_destinations() -> None:
+    digest = _digest(
+        requirements_extraction_completed=True,
+        budget_search_completed=True,
+        estimate_ready=True,
+        validation_ready=True,
+        status="validated",
+    )
+
+    assert legal_supervisor_destinations(digest) == (
+        "finalize",
+        "human_review_gate",
+    )
+
+
+def test_budget_limit_has_explicit_non_model_provenance() -> None:
+    route = deterministic_supervisor_route(
+        _digest(routing_steps=MAX_ROUTING_STEPS),
+        fallback_reason="routing_budget_exhausted",
+    )
+
+    assert route.route_source == "budget_limit"
+    assert route.decision.next_agent == "human_review_gate"
+    assert route.proposed_agent is None
+    assert route.fallback_reason == "routing_budget_exhausted"

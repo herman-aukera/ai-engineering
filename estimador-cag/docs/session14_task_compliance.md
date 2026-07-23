@@ -4,7 +4,7 @@
 
 | Teacher requirement | Status | Implementation or evidence |
 | --- | --- | --- |
-| Hand-built supervisor | Partial | `app/generation/graph/nodes/session14_supervisor.py` is explicit and safe, but currently selects every route deterministically; the typed model-proposal seam is still missing |
+| Hand-built supervisor | Complete locally | Explicit `StateGraph` supervisor with typed model proposal, Python legality guards, hop budget, deterministic fallback, and `Command(goto=...)` |
 | `StateGraph` plus visible `Command` routing | Complete | `app/generation/graph/session14_build.py` and route-event tests |
 | Typed state extended from Session 13 | Complete | `app/generation/graph/review_state.py` |
 | Accumulator reducer | Complete | Replay-safe route and contribution reducers |
@@ -30,20 +30,19 @@ not an implementation source to copy wholesale.
 | Reference idea | Decision in this project |
 | --- | --- |
 | ORBITA edge transcript | Preserve the course fixture exactly and execute it through this project's API, PostgreSQL, revision/idempotency, and Logfire path |
-| Model route proposal | Adapt through a provider-neutral typed port with Python-owned legality and fallback; not complete at this checkpoint |
+| Model route proposal | Adapted through a provider-neutral typed port; production uses the inherited structured LiteLLM provider while tests use deterministic fakes |
 | Minimum privilege | Keep the immutable server-owned registry and fail-closed pre-execution check already implemented |
 | Level 3 action audit | Next Plus quick win: enrich replay-safe contributions with sanitized action metadata instead of copying the teacher's state layout |
 | Competition and stronger sandbox | Keep deferred until Mandatory Levels 1 and 2 are honestly complete and evidenced |
 
-## Teacher-alignment validation
+## Hybrid-router validation
 
 ```text
 Branch: session-14/pre-work
-Base commit: ae5805e9ba0e02e995de2a8d2e7cec4abcc09440
+Base commit: 6d7d56267dfdb5a7d1a615d44f099e7875e148a4
 Exact teacher fixture blob: 53b0a4625464fb5f4759972fa30a356972260986
-Focused edge-case API test: 1 passed
-Session 14 human-review API file: 6 passed
-Full deterministic suite: 887 passed, 11 skipped
+Focused hybrid supervisor/adapter/state/API suite: 59 passed
+Full deterministic suite: 899 passed, 11 skipped
 Ruff: passed
 Python compilation: passed
 ```
@@ -56,15 +55,16 @@ repeat that lifecycle with the exact ORBITA transcript.
 ## Delivery gates
 
 - [x] Teacher branch exists and is accessible.
-- [ ] Level 1 hybrid supervisor routing is complete.
+- [x] Level 1 hybrid supervisor routing is complete locally.
 - [x] Level 2 persistent human review is implemented.
 - [x] Deterministic full suite is green locally.
 - [x] Real PostgreSQL pause/reopen/resume is green locally.
 - [x] Public endpoint contracts are covered.
 - [x] S7 documentation/evidence commit pushed at `c2b7a32`.
 - [x] Session 14 node/resume observability pushed at `ae5805e`.
-- [ ] Teacher-alignment patch committed and pushed.
-- [ ] Remote CI green for the final alignment commit.
+- [x] Teacher alignment committed and pushed at `6d7d562`.
+- [ ] Hybrid-router slice committed and pushed.
+- [ ] Remote CI green for the final hybrid-router commit.
 - [ ] Hosted pause/resume trace inspected and URL recorded.
 - [ ] Branch URL and trace URL emailed to `lia@lidr.co`.
 
