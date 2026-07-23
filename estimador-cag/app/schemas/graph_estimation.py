@@ -134,6 +134,30 @@ class AgentContributionPayload(StrictPayload):
     sequence: int = Field(ge=1)
     summary: str = Field(min_length=1)
     state_delta_keys: list[str]
+    action: str = Field(
+        default="legacy_specialist_action",
+        min_length=1,
+    )
+    tool_name: Literal[
+        "search_budgets",
+        "calculate_estimate",
+        "validate_estimate",
+    ] | None = None
+    privilege_decision: Literal[
+        "allowed",
+        "not_applicable",
+        "denied",
+    ] = "not_applicable"
+    execution_status: Literal[
+        "succeeded",
+        "denied",
+        "failed",
+    ] = "succeeded"
+    validated_input_shape: dict[str, str] = Field(
+        default_factory=dict
+    )
+    result_ref: str | None = None
+    duration_ms: int = Field(default=0, ge=0)
 
 
 class Session14EstimateSummaryPayload(StrictPayload):

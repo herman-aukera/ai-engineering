@@ -10,6 +10,7 @@
 | Accumulator reducer | Complete | Replay-safe route and contribution reducers |
 | Pure partial specialist updates | Complete | `app/generation/graph/nodes/session14_workers.py` |
 | Least-privilege tool access | Complete | `app/services/session14_privileges.py` and privilege tests |
+| Level 3 action/privilege audit | Complete locally | `app/services/session14_action_audit.py`, enriched replay-safe contributions, strict public payload, structured denial/failure events, and Logfire node attributes |
 | Existing transcript-to-estimate contract | Complete | `POST /api/v1/estimate/graph` |
 | Configurable low-confidence trigger | Complete | Session 14 supervision and review policies |
 | Outside-range trigger | Complete | Session 14 human-review policy tests |
@@ -32,25 +33,28 @@ not an implementation source to copy wholesale.
 | ORBITA edge transcript | Preserve the course fixture exactly and execute it through this project's API, PostgreSQL, revision/idempotency, and Logfire path |
 | Model route proposal | Adapted through a provider-neutral typed port; production uses the inherited structured LiteLLM provider while tests use deterministic fakes |
 | Minimum privilege | Keep the immutable server-owned registry and fail-closed pre-execution check already implemented |
-| Level 3 action audit | Next Plus quick win: enrich replay-safe contributions with sanitized action metadata instead of copying the teacher's state layout |
+| Level 3 action audit | Implemented by enriching this project's conflict-detecting contribution reducer with sanitized action, privilege, input-shape, result-reference, status, and duration metadata |
 | Competition and stronger sandbox | Keep deferred until Mandatory Levels 1 and 2 are honestly complete and evidenced |
 
 ## Hybrid-router validation
 
 ```text
 Branch: session-14/pre-work
-Base commit: 6d7d56267dfdb5a7d1a615d44f099e7875e148a4
+Hybrid supervisor commit: cf321b57e29a116e0e66fdfddb40bd68df2fd272
+Level 3 action-audit base: cf321b57e29a116e0e66fdfddb40bd68df2fd272
 Exact teacher fixture blob: 53b0a4625464fb5f4759972fa30a356972260986
 Focused hybrid supervisor/adapter/state/API suite: 59 passed
-Full deterministic suite: 899 passed, 11 skipped
+Focused Level 3 action-audit/state/worker/API/trace suite: 54 passed
+Full deterministic suite: 906 passed, 11 skipped
 Ruff: passed
 Python compilation: passed
 ```
 
-The existing PostgreSQL proof remains the `1 passed` run captured before this
-fixture-only alignment patch. It performs three connection lifecycles: pause,
-reopen and resume, then reopen and reread. The next live evidence run must
-repeat that lifecycle with the exact ORBITA transcript.
+The guarded apply/commit gate repeats the real PostgreSQL integration after
+the Level 3 changes. It performs three connection lifecycles: pause, reopen and
+resume, then reopen and reread. The commit must not be created unless that
+post-audit run reports `1 passed`; the final hosted journey must then repeat
+the lifecycle with the exact ORBITA transcript.
 
 ## Delivery gates
 
@@ -63,11 +67,13 @@ repeat that lifecycle with the exact ORBITA transcript.
 - [x] S7 documentation/evidence commit pushed at `c2b7a32`.
 - [x] Session 14 node/resume observability pushed at `ae5805e`.
 - [x] Teacher alignment committed and pushed at `6d7d562`.
-- [ ] Hybrid-router slice committed and pushed.
-- [ ] Remote CI green for the final hybrid-router commit.
+- [x] Hybrid-router slice committed and pushed at `cf321b5`.
+- [x] Optional Level 3 action audit complete locally.
+- [ ] Remote CI green for the final action-audit commit.
 - [ ] Hosted pause/resume trace inspected and URL recorded.
 - [ ] Branch URL and trace URL emailed to `lia@lidr.co`.
 
 Optional competition and provider/context experiments remain outside the
-mandatory delivery. The structured Level 3 action audit is the first safe
-Plus slice after the hybrid supervisor is green.
+mandatory delivery. The structured Level 3 action audit is complete locally;
+competition, stronger sandboxing, provider/context selection, and broader HITL
+cases remain separate Plus slices.

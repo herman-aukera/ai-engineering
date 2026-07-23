@@ -6,10 +6,14 @@ from collections.abc import Awaitable, Callable, Mapping
 from copy import deepcopy
 
 from app.generation.graph.review_state import (
-    AgentContribution,
     Session14EstimationGraphState,
 )
 from app.generation.graph.state import ComponentEstimate, ComponentItem
+from app.services.session14_action_audit import (
+    begin_agent_action,
+    complete_agent_action,
+    record_agent_action_failure,
+)
 from app.services.session14_privileges import assert_tool_allowed
 
 Session14WorkerOperation = Callable[
@@ -87,58 +91,55 @@ def build_budget_searcher_agent(
         state: Session14EstimationGraphState,
     ) -> Session14EstimationGraphState:
         components = _required_components(state)
-
-        assert_tool_allowed(
-            "budget_searcher",
-            "search_budgets",
+        sequence = _routing_sequence(state)
+        tool_state = _budget_tool_state(
+            state,
+            components=components,
+        )
+        action = begin_agent_action(
+            estimation_id=_estimation_id(state),
+            agent_id="budget_searcher",
+            sequence=sequence,
+            action="search_budgets",
+            tool_name="search_budgets",
+            validated_input=tool_state,
+            authorize=assert_tool_allowed,
         )
 
-        raw_update = await search_budgets(
-            _budget_tool_state(
-                state,
-                components=components,
-            )
-        )
+        try:
+            raw_update = await search_budgets(tool_state)
 
-        if not isinstance(raw_update, Mapping):
-            raise ValueError(
-                "search_budgets must return a partial state mapping"
+            if not isinstance(raw_update, Mapping):
+                raise ValueError(
+                    "search_budgets must return a partial state mapping"
+                )
+
+            update = Session14EstimationGraphState(
+                **deepcopy(dict(raw_update))
             )
 
-        update = Session14EstimationGraphState(
-            **deepcopy(dict(raw_update))
-        )
-        matches = update.get("budget_matches")
+            matches = update.get("budget_matches")
 
-        if not isinstance(matches, list):
-            raise ValueError(
-                "search_budgets update must contain budget_matches"
-            )
+            if not isinstance(matches, list):
+                raise ValueError(
+                    "search_budgets update must contain budget_matches"
+                )
+        except Exception as exc:
+            record_agent_action_failure(action, exc)
+            raise
 
         update["budget_search_completed"] = True
 
-        sequence = _routing_sequence(state)
         match_count = len(matches)
         match_word = "match" if match_count == 1 else "matches"
-        state_delta_keys = sorted(
-            {
-                *update.keys(),
-                "agent_contributions",
-            }
+        summary = (
+            f"Budget search completed with "
+            f"{match_count} {match_word}."
         )
-
-        contribution = AgentContribution(
-            contribution_id=(
-                f"{_estimation_id(state)}:"
-                f"budget_searcher:{sequence}"
-            ),
-            agent_id="budget_searcher",
-            sequence=sequence,
-            summary=(
-                f"Budget search completed with "
-                f"{match_count} {match_word}."
-            ),
-            state_delta_keys=state_delta_keys,
+        contribution = complete_agent_action(
+            action,
+            summary=summary,
+            state_delta_keys=list(update.keys()),
         )
         update["agent_contributions"] = [contribution]
 
@@ -247,10 +248,25 @@ def build_requirements_extractor_agent(
                 state["transcript"]
             )
 
-        extraction_update = _copy_worker_update(
-            await extract_requirements(extraction_state),
-            operation="extract_requirements",
+        sequence = _routing_sequence(state)
+        action = begin_agent_action(
+            estimation_id=_estimation_id(state),
+            agent_id="requirements_extractor",
+            sequence=sequence,
+            action="extract_and_classify_requirements",
+            tool_name=None,
+            validated_input=extraction_state,
         )
+
+        try:
+            extraction_update = _copy_worker_update(
+                await extract_requirements(extraction_state),
+                operation="extract_requirements",
+            )
+        except Exception as exc:
+            record_agent_action_failure(action, exc)
+            raise
+
         requirements = extraction_update.get("requirements")
 
         if not isinstance(requirements, list):
@@ -277,10 +293,15 @@ def build_requirements_extractor_agent(
                     operation="classify_components",
                 ),
             )
-            classification_update = _copy_worker_update(
-                await classify_components(classification_state),
-                operation="classify_components",
-            )
+            try:
+                classification_update = _copy_worker_update(
+                    await classify_components(classification_state),
+                    operation="classify_components",
+                )
+            except Exception as exc:
+                record_agent_action_failure(action, exc)
+                raise
+
             components = classification_update.get("components")
 
             if not isinstance(components, list):
@@ -320,21 +341,10 @@ def build_requirements_extractor_agent(
                     "component classification produced no usable components."
                 )
 
-        sequence = _routing_sequence(state)
-        contribution = AgentContribution(
-            contribution_id=(
-                f"{_estimation_id(state)}:"
-                f"requirements_extractor:{sequence}"
-            ),
-            agent_id="requirements_extractor",
-            sequence=sequence,
+        contribution = complete_agent_action(
+            action,
             summary=summary,
-            state_delta_keys=sorted(
-                {
-                    *update.keys(),
-                    "agent_contributions",
-                }
-            ),
+            state_delta_keys=list(update.keys()),
         )
         update["agent_contributions"] = [contribution]
 
@@ -384,51 +394,51 @@ def build_estimate_generator_agent(
                 "estimate_generator requires a completed budget search"
             )
 
-        assert_tool_allowed(
-            "estimate_generator",
-            "calculate_estimate",
+        sequence = _routing_sequence(state)
+        tool_state = _estimate_tool_state(
+            state,
+            components=components,
+        )
+        action = begin_agent_action(
+            estimation_id=_estimation_id(state),
+            agent_id="estimate_generator",
+            sequence=sequence,
+            action="calculate_estimate",
+            tool_name="calculate_estimate",
+            validated_input=tool_state,
+            authorize=assert_tool_allowed,
         )
 
-        update = _copy_worker_update(
-            await calculate_estimate(
-                _estimate_tool_state(
-                    state,
-                    components=components,
-                )
-            ),
-            operation="calculate_estimate",
-        )
-        component_estimates = update.get("component_estimates")
-
-        if not isinstance(component_estimates, list):
-            raise ValueError(
-                "calculate_estimate update must contain "
+        try:
+            update = _copy_worker_update(
+                await calculate_estimate(tool_state),
+                operation="calculate_estimate",
+            )
+            component_estimates = update.get(
                 "component_estimates"
             )
 
-        sequence = _routing_sequence(state)
+            if not isinstance(component_estimates, list):
+                raise ValueError(
+                    "calculate_estimate update must contain "
+                    "component_estimates"
+                )
+        except Exception as exc:
+            record_agent_action_failure(action, exc)
+            raise
+
         estimate_count = len(component_estimates)
         estimate_word = (
             "estimate" if estimate_count == 1 else "estimates"
         )
 
-        contribution = AgentContribution(
-            contribution_id=(
-                f"{_estimation_id(state)}:"
-                f"estimate_generator:{sequence}"
-            ),
-            agent_id="estimate_generator",
-            sequence=sequence,
+        contribution = complete_agent_action(
+            action,
             summary=(
                 f"Generated {estimate_count} "
                 f"component {estimate_word}."
             ),
-            state_delta_keys=sorted(
-                {
-                    *update.keys(),
-                    "agent_contributions",
-                }
-            ),
+            state_delta_keys=list(update.keys()),
         )
         update["agent_contributions"] = [contribution]
 
@@ -493,41 +503,50 @@ def build_coherence_validator_agent(
                 "coherence_validator requires component estimates"
             )
 
-        assert_tool_allowed(
-            "coherence_validator",
-            "validate_estimate",
+        sequence = _routing_sequence(state)
+        tool_state = _validation_tool_state(
+            state,
+            component_estimates=component_estimates,
+        )
+        action = begin_agent_action(
+            estimation_id=_estimation_id(state),
+            agent_id="coherence_validator",
+            sequence=sequence,
+            action="validate_estimate",
+            tool_name="validate_estimate",
+            validated_input=tool_state,
+            authorize=assert_tool_allowed,
         )
 
-        update = _copy_worker_update(
-            await validate_estimate(
-                _validation_tool_state(
-                    state,
-                    component_estimates=component_estimates,
+        try:
+            update = _copy_worker_update(
+                await validate_estimate(tool_state),
+                operation="validate_estimate",
+            )
+
+            if not isinstance(update.get("estimate"), Mapping):
+                raise ValueError(
+                    "validate_estimate update must contain estimate"
                 )
-            ),
-            operation="validate_estimate",
-        )
 
-        if not isinstance(update.get("estimate"), Mapping):
-            raise ValueError(
-                "validate_estimate update must contain estimate"
-            )
+            status = update.get("status")
+            if not isinstance(status, str) or status not in {
+                "validated",
+                "needs_review",
+            }:
+                raise ValueError(
+                    "validate_estimate update must contain a valid status"
+                )
 
-        status = update.get("status")
-        if not isinstance(status, str) or status not in {
-            "validated",
-            "needs_review",
-        }:
-            raise ValueError(
-                "validate_estimate update must contain a valid status"
-            )
-
-        review_required = update.get("review_required")
-        if not isinstance(review_required, bool):
-            raise ValueError(
-                "validate_estimate update must contain "
-                "boolean review_required"
-            )
+            review_required = update.get("review_required")
+            if not isinstance(review_required, bool):
+                raise ValueError(
+                    "validate_estimate update must contain "
+                    "boolean review_required"
+                )
+        except Exception as exc:
+            record_agent_action_failure(action, exc)
+            raise
 
         update["validation"] = {
             "is_coherent": (
@@ -537,23 +556,12 @@ def build_coherence_validator_agent(
             "status": status,
         }
 
-        sequence = _routing_sequence(state)
-        contribution = AgentContribution(
-            contribution_id=(
-                f"{_estimation_id(state)}:"
-                f"coherence_validator:{sequence}"
-            ),
-            agent_id="coherence_validator",
-            sequence=sequence,
+        contribution = complete_agent_action(
+            action,
             summary=(
                 f"Validation completed with status {status}."
             ),
-            state_delta_keys=sorted(
-                {
-                    *update.keys(),
-                    "agent_contributions",
-                }
-            ),
+            state_delta_keys=list(update.keys()),
         )
         update["agent_contributions"] = [contribution]
 

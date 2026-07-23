@@ -77,8 +77,24 @@ async def test_budget_searcher_marks_completed_empty_search_without_leaking_stat
                 "budget_matches",
                 "budget_search_completed",
             ],
+            "action": "search_budgets",
+            "tool_name": "search_budgets",
+            "privilege_decision": "allowed",
+            "execution_status": "succeeded",
+            "validated_input_shape": {
+                "budget_matches": "list",
+                "components": "list",
+                "execution_metadata": "mapping",
+            },
+            "result_ref": (
+                "checkpoint:estimate-14:budget_searcher:2"
+            ),
+            "duration_ms": update["agent_contributions"][0][
+                "duration_ms"
+            ],
         }
     ]
+    assert update["agent_contributions"][0]["duration_ms"] >= 0
     assert "CLIENT-SECRET" not in str(update["agent_contributions"])
 
 
@@ -326,8 +342,24 @@ async def test_requirements_extractor_composes_inherited_nodes_with_minimum_cont
                 "review_required",
                 "trace_events",
             ],
+            "action": "extract_and_classify_requirements",
+            "tool_name": None,
+            "privilege_decision": "not_applicable",
+            "execution_status": "succeeded",
+            "validated_input_shape": {
+                "execution_metadata": "mapping",
+                "transcript": "string",
+            },
+            "result_ref": (
+                "checkpoint:estimate-14:"
+                "requirements_extractor:1"
+            ),
+            "duration_ms": update["agent_contributions"][0][
+                "duration_ms"
+            ],
         }
     ]
+    assert update["agent_contributions"][0]["duration_ms"] >= 0
     assert "CLIENT-SECRET" not in str(
         update["agent_contributions"]
     )
@@ -425,8 +457,24 @@ async def test_requirements_extractor_stops_before_classification_on_failure() -
                 "review_required",
                 "trace_events",
             ],
+            "action": "extract_and_classify_requirements",
+            "tool_name": None,
+            "privilege_decision": "not_applicable",
+            "execution_status": "succeeded",
+            "validated_input_shape": {
+                "execution_metadata": "mapping",
+                "transcript": "string",
+            },
+            "result_ref": (
+                "checkpoint:estimate-14:"
+                "requirements_extractor:1"
+            ),
+            "duration_ms": update["agent_contributions"][0][
+                "duration_ms"
+            ],
         }
     ]
+    assert update["agent_contributions"][0]["duration_ms"] >= 0
 
 
 @pytest.mark.asyncio
@@ -692,8 +740,24 @@ async def test_estimate_generator_uses_authorized_minimum_context(
                 "execution_metadata",
                 "trace_events",
             ],
+            "action": "calculate_estimate",
+            "tool_name": "calculate_estimate",
+            "privilege_decision": "allowed",
+            "execution_status": "succeeded",
+            "validated_input_shape": {
+                "budget_matches": "list",
+                "components": "list",
+                "execution_metadata": "mapping",
+            },
+            "result_ref": (
+                "checkpoint:estimate-14:estimate_generator:3"
+            ),
+            "duration_ms": update["agent_contributions"][0][
+                "duration_ms"
+            ],
         }
     ]
+    assert update["agent_contributions"][0]["duration_ms"] >= 0
     assert "CLIENT-SECRET" not in str(
         update["agent_contributions"]
     )
@@ -866,8 +930,24 @@ async def test_estimate_generator_preserves_real_python_arithmetic(
                 "execution_metadata",
                 "trace_events",
             ],
+            "action": "calculate_estimate",
+            "tool_name": "calculate_estimate",
+            "privilege_decision": "allowed",
+            "execution_status": "succeeded",
+            "validated_input_shape": {
+                "budget_matches": "list",
+                "components": "list",
+                "execution_metadata": "mapping",
+            },
+            "result_ref": (
+                "checkpoint:estimate-14:estimate_generator:3"
+            ),
+            "duration_ms": update["agent_contributions"][0][
+                "duration_ms"
+            ],
         }
     ]
+    assert update["agent_contributions"][0]["duration_ms"] >= 0
 def _state_for_validation() -> Session14EstimationGraphState:
     state = _state_for_estimate()
     state["component_estimates"] = [
@@ -1021,8 +1101,24 @@ async def test_coherence_validator_uses_authorized_minimum_context(
                 "trace_events",
                 "validation",
             ],
+            "action": "validate_estimate",
+            "tool_name": "validate_estimate",
+            "privilege_decision": "allowed",
+            "execution_status": "succeeded",
+            "validated_input_shape": {
+                "component_estimates": "list",
+                "errors": "list",
+                "review_required": "boolean",
+            },
+            "result_ref": (
+                "checkpoint:estimate-14:coherence_validator:4"
+            ),
+            "duration_ms": update["agent_contributions"][0][
+                "duration_ms"
+            ],
         }
     ]
+    assert update["agent_contributions"][0]["duration_ms"] >= 0
     assert "CLIENT-SECRET" not in str(
         update["agent_contributions"]
     )
@@ -1186,5 +1282,22 @@ async def test_coherence_validator_preserves_real_mismatch_detection() -> None:
                 "trace_events",
                 "validation",
             ],
+            "action": "validate_estimate",
+            "tool_name": "validate_estimate",
+            "privilege_decision": "allowed",
+            "execution_status": "succeeded",
+            "validated_input_shape": {
+                "component_estimates": "list",
+                "errors": "list",
+                "estimate": "mapping",
+                "review_required": "boolean",
+            },
+            "result_ref": (
+                "checkpoint:estimate-14:coherence_validator:4"
+            ),
+            "duration_ms": update["agent_contributions"][0][
+                "duration_ms"
+            ],
         }
     ]
+    assert update["agent_contributions"][0]["duration_ms"] >= 0

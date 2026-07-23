@@ -238,4 +238,49 @@ def test_existing_graph_endpoint_runs_session14_and_exposes_routes() -> None:
         "estimate_generator",
         "coherence_validator",
     ]
+    assert [
+        contribution["action"]
+        for contribution in payload["agent_contributions"]
+    ] == [
+        "extract_and_classify_requirements",
+        "search_budgets",
+        "calculate_estimate",
+        "validate_estimate",
+    ]
+    assert [
+        contribution["tool_name"]
+        for contribution in payload["agent_contributions"]
+    ] == [
+        None,
+        "search_budgets",
+        "calculate_estimate",
+        "validate_estimate",
+    ]
+    assert [
+        contribution["privilege_decision"]
+        for contribution in payload["agent_contributions"]
+    ] == [
+        "not_applicable",
+        "allowed",
+        "allowed",
+        "allowed",
+    ]
+    assert all(
+        contribution["execution_status"] == "succeeded"
+        for contribution in payload["agent_contributions"]
+    )
+    assert all(
+        contribution["duration_ms"] >= 0
+        for contribution in payload["agent_contributions"]
+    )
+    assert all(
+        contribution["result_ref"].startswith("checkpoint:")
+        for contribution in payload["agent_contributions"]
+    )
+    assert payload["agent_contributions"][0][
+        "validated_input_shape"
+    ] == {
+        "execution_metadata": "mapping",
+        "transcript": "string",
+    }
     assert "transcript" not in payload

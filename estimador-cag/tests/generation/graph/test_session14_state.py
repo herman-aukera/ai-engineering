@@ -17,6 +17,7 @@ def _contribution(
     contribution_id: str = "contribution-1",
     sequence: int = 1,
     summary: str = "Extracted atomic requirements.",
+    duration_ms: int = 3,
 ) -> AgentContribution:
     return AgentContribution(
         contribution_id=contribution_id,
@@ -24,6 +25,16 @@ def _contribution(
         sequence=sequence,
         summary=summary,
         state_delta_keys=["requirements"],
+        action="extract_and_classify_requirements",
+        tool_name=None,
+        privilege_decision="not_applicable",
+        execution_status="succeeded",
+        validated_input_shape={
+            "execution_metadata": "mapping",
+            "transcript": "string",
+        },
+        result_ref=f"checkpoint:{contribution_id}",
+        duration_ms=duration_ms,
     )
 
 
@@ -66,6 +77,15 @@ def test_identical_contribution_replay_is_idempotent() -> None:
 
     assert merged == [contribution]
     assert current == [contribution]
+
+
+def test_replayed_duration_variation_preserves_first_observation() -> None:
+    original = _contribution(duration_ms=3)
+    replay = _contribution(duration_ms=7)
+
+    merged = merge_agent_contributions([original], [replay])
+
+    assert merged == [original]
 
 
 def test_contributions_have_deterministic_sequence_and_id_order() -> None:

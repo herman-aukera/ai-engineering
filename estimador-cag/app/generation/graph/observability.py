@@ -214,6 +214,49 @@ def _record_session14_command_attributes(
                     action_name.strip(),
                 )
 
+    contributions = update.get("agent_contributions")
+    if isinstance(contributions, list) and contributions:
+        contribution = contributions[-1]
+        if isinstance(contribution, Mapping):
+            for attribute_name in (
+                "agent_id",
+                "action",
+                "tool_name",
+                "privilege_decision",
+                "execution_status",
+                "result_ref",
+            ):
+                value = contribution.get(attribute_name)
+                if isinstance(value, str) and value.strip():
+                    span.set_attribute(
+                        f"action_audit.{attribute_name}",
+                        value.strip(),
+                    )
+
+            duration_ms = contribution.get("duration_ms")
+            if (
+                isinstance(duration_ms, int)
+                and not isinstance(duration_ms, bool)
+                and duration_ms >= 0
+            ):
+                span.set_attribute(
+                    "action_audit.duration_ms",
+                    duration_ms,
+                )
+
+            input_shape = contribution.get(
+                "validated_input_shape"
+            )
+            if isinstance(input_shape, Mapping):
+                span.set_attribute(
+                    "action_audit.validated_input_keys",
+                    sorted(
+                        key
+                        for key in input_shape
+                        if isinstance(key, str)
+                    ),
+                )
+
 
 def instrument_graph_node(
     *,

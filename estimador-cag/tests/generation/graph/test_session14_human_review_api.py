@@ -369,6 +369,60 @@ def test_pause_and_resume_emit_complete_sanitized_session14_spans() -> None:
         if record.attributes.get("node_name") == "supervisor"
     )
 
+    worker_spans = [
+        record
+        for record in node_spans
+        if record.attributes.get("node_name")
+        in {
+            "requirements_extractor",
+            "budget_searcher",
+            "estimate_generator",
+            "coherence_validator",
+        }
+    ]
+    assert [
+        record.attributes["action_audit.action"]
+        for record in worker_spans
+    ] == [
+        "extract_and_classify_requirements",
+        "search_budgets",
+        "calculate_estimate",
+        "validate_estimate",
+    ]
+    assert [
+        record.attributes.get("action_audit.tool_name")
+        for record in worker_spans
+    ] == [
+        None,
+        "search_budgets",
+        "calculate_estimate",
+        "validate_estimate",
+    ]
+    assert [
+        record.attributes["action_audit.privilege_decision"]
+        for record in worker_spans
+    ] == [
+        "not_applicable",
+        "allowed",
+        "allowed",
+        "allowed",
+    ]
+    assert all(
+        record.attributes["action_audit.execution_status"]
+        == "succeeded"
+        for record in worker_spans
+    )
+    assert all(
+        record.attributes["action_audit.duration_ms"] >= 0
+        for record in worker_spans
+    )
+    assert worker_spans[0].attributes[
+        "action_audit.validated_input_keys"
+    ] == [
+        "execution_metadata",
+        "transcript",
+    ]
+
     human_gate_spans = [
         record
         for record in node_spans

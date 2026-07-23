@@ -70,6 +70,31 @@ allowing it to skip prerequisites or mandatory review.
 Runtime clients, database connections, checkpointers, secrets, prompts, and
 hidden reasoning are excluded from graph state.
 
+### Level 3 action audit
+
+Each specialist contribution is also a structured action-audit envelope. It
+records:
+
+- the stable contribution ID, agent, sequence, and action;
+- the authorized business tool, or `null` for tool-free model work;
+- `allowed`, `not_applicable`, or `denied` privilege provenance;
+- `succeeded`, `denied`, or `failed` execution status;
+- validated input **shape** as key-to-type metadata, never values;
+- a stable checkpoint result reference and measured duration;
+- the sanitized summary and state-delta keys already used by Session 14.
+
+The authorization check runs before the operation. A denial emits the same
+sanitized schema to structured logs and never reaches the worker operation. A
+failed action reveals only the exception class, not its message. Successful
+records persist through the replay-safe reducer and appear in the public
+response. An identical replay may have a different measured duration; the
+reducer preserves the first observation while still rejecting conflicts in
+every semantic field.
+
+Legacy checkpoints that predate Level 3 receive conservative defaults at the
+public contract boundary. Raw arguments are forbidden by the strict response
+schema.
+
 ## Agents and authority
 
 | Agent | Business-tool privilege | Responsibility |
@@ -100,13 +125,17 @@ keys make exact retries safe and reject conflicting reuse.
 `AsyncPostgresSaver` persists the pause. A stable thread ID derived from the
 estimation ID reconnects a later request to the same checkpoint. Root graph
 spans and node spans use sanitized attributes; the domain trace separately
-records route decisions, specialist contributions, pause, and resume.
+records route decisions, specialist contributions, pause, and resume. Worker
+node spans project the safe action, tool, privilege decision, execution status,
+validated input keys, result reference, and duration without summaries or
+input values.
 
 ## Claim boundary
 
 This architecture proves a cooperative hybrid supervisor/workers graph with
 guarded model proposals, replay-visible deterministic fallbacks, and durable
-human control. Hosted evidence must still show the production adapter in the
-ORBITA lifecycle. It does not claim that multi-agent orchestration is
+human control. It also proves the local Level 3 privilege/action-audit contract.
+Hosted evidence must still show the production adapter and these action fields
+in the ORBITA lifecycle. It does not claim that multi-agent orchestration is
 universally better than a linear graph, that provider routing is calibrated,
 or that this coursework system is production-ready.

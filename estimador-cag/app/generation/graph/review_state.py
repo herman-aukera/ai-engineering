@@ -88,6 +88,24 @@ class AgentContribution(TypedDict):
     sequence: int
     summary: str
     state_delta_keys: list[str]
+    action: NotRequired[str]
+    tool_name: NotRequired[
+        Literal[
+            "search_budgets",
+            "calculate_estimate",
+            "validate_estimate",
+        ]
+        | None
+    ]
+    privilege_decision: NotRequired[
+        Literal["allowed", "not_applicable", "denied"]
+    ]
+    execution_status: NotRequired[
+        Literal["succeeded", "denied", "failed"]
+    ]
+    validated_input_shape: NotRequired[dict[str, str]]
+    result_ref: NotRequired[str | None]
+    duration_ms: NotRequired[int]
 
 class SupervisorRouteEvent(TypedDict):
     """One replay-safe, sanitized supervisor routing decision."""
@@ -167,13 +185,44 @@ def merge_agent_contributions(
             sequence=contribution["sequence"],
             summary=contribution["summary"],
             state_delta_keys=list(contribution["state_delta_keys"]),
+            action=contribution.get(
+                "action",
+                "legacy_specialist_action",
+            ),
+            tool_name=contribution.get("tool_name"),
+            privilege_decision=contribution.get(
+                "privilege_decision",
+                "not_applicable",
+            ),
+            execution_status=contribution.get(
+                "execution_status",
+                "succeeded",
+            ),
+            validated_input_shape=dict(
+                contribution.get("validated_input_shape", {})
+            ),
+            result_ref=contribution.get("result_ref"),
+            duration_ms=contribution.get("duration_ms", 0),
         )
         existing = by_id.get(contribution_id)
 
-        if existing is not None and existing != candidate:
-            raise ValueError(
-                f"conflicting contribution_id: {contribution_id}"
-            )
+        if existing is not None:
+            existing_semantics = {
+                key: value
+                for key, value in existing.items()
+                if key != "duration_ms"
+            }
+            candidate_semantics = {
+                key: value
+                for key, value in candidate.items()
+                if key != "duration_ms"
+            }
+
+            if existing_semantics != candidate_semantics:
+                raise ValueError(
+                    f"conflicting contribution_id: {contribution_id}"
+                )
+            continue
 
         by_id[contribution_id] = candidate
 

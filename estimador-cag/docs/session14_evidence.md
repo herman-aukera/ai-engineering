@@ -5,10 +5,11 @@
 | Evidence | Maturity | Result |
 | --- | --- | --- |
 | Hybrid typed route proposal | L1 local | Provider-neutral port, guarded production adapter, deterministic fallback, and replay-safe provenance; focused suite `59 passed` |
+| Level 3 action audit | L1 local | Pre-execution privilege decision, sanitized success/denial/failure envelope, replay-safe duration handling, public payload, and node-span projection; focused suite `54 passed` |
 | Exact teacher edge-case fixture | L1 local | Git blob `53b0a4625464fb5f4759972fa30a356972260986`; public API pause/resume test passed |
-| Full deterministic suite | L1 local | `899 passed, 11 skipped` |
+| Full deterministic suite | L1 local | `906 passed, 11 skipped` |
 | PostgreSQL pause/reopen/resume | L3 integration | `1 passed` |
-| Current remote CI | L2 remote | Pending teacher-alignment commit and push |
+| Final remote CI | L2 remote | Must be captured after the action-audit commit; pushed base `cf321b57e29a116e0e66fdfddb40bd68df2fd272` exposed no status contexts at audit time |
 | Hosted pause/resume trace | L3 hosted | Pending manual Logfire capture |
 
 ## PostgreSQL proof
@@ -60,9 +61,10 @@ not a substitute for the teacher-required trace URL.
 ## Sanitization
 
 Committed and hosted evidence may contain stable IDs, reason codes, counts,
-statuses, route names, revision numbers, and durations. It must not contain
-the transcript, prompts, raw model output, hidden reasoning, keys, tokens,
-database URLs, or environment values.
+statuses, route names, revision numbers, sanitized input-shape keys, result
+references, and durations. It must not contain the transcript, tool arguments,
+input values, prompts, raw model output, exception messages, hidden reasoning,
+keys, tokens, database URLs, or environment values.
 
 ## Delivery links
 
@@ -78,7 +80,8 @@ After remote CI and hosted trace capture, the evidence may support this claim:
 > Session 14 reorganizes estimation as a manually implemented hybrid
 > supervisor/workers LangGraph with typed state, least-privilege specialists,
 > guarded model route proposals, visible deterministic fallbacks, persistent
-> human review, same-thread resume, and a traced pause/resume run.
+> human review, same-thread resume, a sanitized Level 3 action audit, and a
+> traced pause/resume run.
 
 It does not establish production SLOs, superior estimation quality, or
 universal benefit from multi-agent architecture.

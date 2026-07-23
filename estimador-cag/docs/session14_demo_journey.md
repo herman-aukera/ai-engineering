@@ -46,6 +46,9 @@ Expected evidence:
 - `thread_id` is stable;
 - route events identify model proposals and any guarded fallback without raw
   model output;
+- specialist contributions expose action, authorized tool, privilege decision,
+  execution status, validated input shape, checkpoint result reference, and
+  duration without input values;
 - the interrupt lists `approve`, `adjust`, and `reject`;
 - the interrupt contains no transcript, provider payload, credential, or DSN.
 
@@ -97,6 +100,9 @@ confirm `route_source`, `proposed_agent`, `valid_candidates`, and any
 `fallback_reason`. At least one route should have `route_source=model`; an
 illegal or failed proposal may safely show `deterministic_fallback`, while the
 hop limit must show `budget_limit`. Share the filtered Logfire view containing
-both roots, then copy its URL into `session14_evidence.md` and the delivery
-email. Never paste credentials, provider errors, raw model output, or the
-transcript into evidence.
+both roots. Expand each specialist span and verify its `action_audit.*`
+attributes, including `privilege_decision`, `execution_status`,
+`validated_input_keys`, `result_ref`, and `duration_ms`. Then copy the view URL
+into `session14_evidence.md` and the delivery email. Never paste credentials,
+provider errors, exception messages, raw tool arguments, raw model output, or
+the transcript into evidence.
