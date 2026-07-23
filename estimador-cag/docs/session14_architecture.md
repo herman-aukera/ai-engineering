@@ -27,6 +27,27 @@ The supervisor is implemented directly with `StateGraph` and typed
 reliability policy, authoritative arithmetic, and human-review enforcement.
 The graph does not use `create_supervisor` or a hidden routing abstraction.
 
+### Current routing boundary
+
+At this checkpoint the supervisor uses a deterministic dependency ladder for
+every route. That is a safe fallback and keeps CI network-free, but it is not
+yet the complete agentic routing boundary described by the Session 14 lesson:
+a typed model proposal must own a real runtime choice, while Python validates
+the proposal and retains final authority over prerequisites, budgets,
+privileges, arithmetic, and mandatory human review.
+
+The next supervisor slice must therefore add:
+
+- a provider-neutral typed route-proposal port;
+- a compact state digest and closed set of valid candidates;
+- legality validation and deterministic fallback;
+- route source, proposed route, valid candidates, and fallback reason in the
+  replay-safe route event and telemetry span;
+- deterministic fake-proposer tests for accepted, invalid, failed, and
+  budget-exhausted proposals.
+
+It must not call a model merely to restate a single predetermined next step.
+
 ## Shared-state contract
 
 `Session14EstimationGraphState` extends the Session 13 state with:
@@ -74,7 +95,9 @@ records route decisions, specialist contributions, pause, and resume.
 
 ## Claim boundary
 
-This architecture proves the required cooperative supervisor/workers pattern
-and durable human control. It does not claim that multi-agent orchestration is
-universally better than a linear graph, that provider routing is calibrated,
-or that this coursework system is production-ready.
+This architecture proves a cooperative command-driven workers graph and
+durable human control. It does not yet prove model-owned supervisor routing,
+and therefore Mandatory Level 1 remains partial until the hybrid proposal
+slice is implemented and traced. It also does not claim that multi-agent
+orchestration is universally better than a linear graph, that provider routing
+is calibrated, or that this coursework system is production-ready.

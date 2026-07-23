@@ -4,10 +4,11 @@
 
 | Evidence | Maturity | Result |
 | --- | --- | --- |
-| Typed contracts and routing tests | L1 local | Passed at `9de934e` |
-| Full deterministic suite | L1 local | `885 passed, 11 skipped` |
+| Typed contracts and routing tests | L1 local | Passed in teacher-alignment patch built from `ae5805e` |
+| Exact teacher edge-case fixture | L1 local | Git blob `53b0a4625464fb5f4759972fa30a356972260986`; public API pause/resume test passed |
+| Full deterministic suite | L1 local | `887 passed, 11 skipped` |
 | PostgreSQL pause/reopen/resume | L3 integration | `1 passed` |
-| S7 remote CI | L2 remote | Pending final S7 push |
+| Current remote CI | L2 remote | Pending teacher-alignment commit and push |
 | Hosted pause/resume trace | L3 hosted | Pending manual Logfire capture |
 
 ## PostgreSQL proof
@@ -29,6 +30,22 @@ it with fresh run-specific evidence by setting
 `SESSION14_POSTGRES_EVIDENCE_PATH` during execution. The current artifact
 deliberately omits the random estimation ID because the captured command
 output did not expose it.
+
+## Teacher edge-case source
+
+The required ORBITA transcript is committed at
+`exercises/session-14/sample_transcript_edge_case.txt`. Its Git blob matches
+the official `LIDR-academy/ai-engineering` `session_14` reference:
+
+```text
+53b0a4625464fb5f4759972fa30a356972260986
+```
+
+The local acceptance test sends that exact file through the public graph API,
+asserts the checkpoint-backed review pause, approves revision `1`, and
+verifies same-thread completion at revision `2`. The separate PostgreSQL test
+proves persistence across checkpointer lifetimes; the hosted proof must combine
+both properties with this exact fixture.
 
 ## Hosted trace
 
@@ -56,11 +73,13 @@ Trace:  PENDING_REAL_LOGFIRE_CAPTURE
 
 ## Claim boundary
 
-After remote CI and hosted trace capture, the evidence supports this claim:
+After hybrid supervisor routing, remote CI, and hosted trace capture, the
+evidence may support this claim:
 
-> Session 14 reorganizes estimation as a manually supervised multi-agent
-> LangGraph with typed state, least-privilege specialists, visible routing,
-> persistent human review, same-thread resume, and a traced pause/resume run.
+> Session 14 reorganizes estimation as a manually implemented hybrid
+> supervisor/workers LangGraph with typed state, least-privilege specialists,
+> guarded model route proposals, visible deterministic fallbacks, persistent
+> human review, same-thread resume, and a traced pause/resume run.
 
 It does not establish production SLOs, superior estimation quality, or
 universal benefit from multi-agent architecture.

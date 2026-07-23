@@ -16,16 +16,27 @@ edge transcript
 
 ## Start the edge case
 
-Use a stable UUID and the teacher edge transcript (or an equivalent request
-with insufficient historical evidence):
+Use a stable UUID and the exact teacher edge transcript committed at
+`exercises/session-14/sample_transcript_edge_case.txt`:
 
 ```bash
+cd /workspaces/ai-engineering/estimador-cag
+
+SESSION14_ESTIMATION_ID="f5317c82-05ad-4df5-bf43-f9b286f70e82"
+SESSION14_TRANSCRIPT_PATH="exercises/session-14/sample_transcript_edge_case.txt"
+SESSION14_START_REQUEST="/tmp/session14-edge-start-request.json"
+
+jq -n \
+  --arg estimation_id "$SESSION14_ESTIMATION_ID" \
+  --rawfile transcript "$SESSION14_TRANSCRIPT_PATH" \
+  '{
+    estimation_id: $estimation_id,
+    transcript: $transcript
+  }' >"$SESSION14_START_REQUEST"
+
 curl -sS -X POST http://127.0.0.1:8000/api/v1/estimate/graph \
   -H 'Content-Type: application/json' \
-  -d '{
-    "estimation_id": "f5317c82-05ad-4df5-bf43-f9b286f70e82",
-    "transcript": "Build secure authentication with a persistent, auditable human review decision."
-  }'
+  --data-binary "@$SESSION14_START_REQUEST"
 ```
 
 Expected evidence:
@@ -44,7 +55,7 @@ automated close/reopen proof.
 
 ```bash
 curl -sS -X POST \
-  http://127.0.0.1:8000/api/v1/estimate/graph/f5317c82-05ad-4df5-bf43-f9b286f70e82/resume \
+  "http://127.0.0.1:8000/api/v1/estimate/graph/$SESSION14_ESTIMATION_ID/resume" \
   -H 'Content-Type: application/json' \
   -d '{
     "action": "approve",

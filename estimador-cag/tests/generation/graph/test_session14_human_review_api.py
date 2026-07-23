@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import FastAPI
@@ -39,6 +40,12 @@ ESTIMATION_ID = UUID("f5317c82-05ad-4df5-bf43-f9b286f70e82")
 TRANSCRIPT = (
     "Build JWT authentication with auditable access control "
     "and a reviewer-visible estimation decision."
+)
+TEACHER_EDGE_CASE_PATH = (
+    Path(__file__).parents[3]
+    / "exercises"
+    / "session-14"
+    / "sample_transcript_edge_case.txt"
 )
 
 
@@ -173,11 +180,15 @@ def _client(
     return TestClient(app)
 
 
-def _start(client: TestClient) -> dict[str, object]:
+def _start(
+    client: TestClient,
+    *,
+    transcript: str = TRANSCRIPT,
+) -> dict[str, object]:
     response = client.post(
         "/api/v1/estimate/graph",
         json={
-            "transcript": TRANSCRIPT,
+            "transcript": transcript,
             "estimation_id": str(ESTIMATION_ID),
         },
     )
@@ -238,6 +249,42 @@ def test_low_confidence_pauses_and_approve_resumes_same_thread() -> None:
         "session14_human_review_paused",
         "session14_human_review_approve",
     ]
+
+
+def test_teacher_edge_case_pauses_and_resumes_same_thread() -> None:
+    transcript = TEACHER_EDGE_CASE_PATH.read_text(encoding="utf-8")
+
+    assert 'Proyecto "ORBITA"' in transcript
+    assert "QKD" in transcript
+    assert "cuatrocientos mil eventos por segundo" in transcript
+    assert "HSM certificado FIPS 140-2" in transcript
+
+    client = _client()
+    paused = _start(client, transcript=transcript)
+
+    assert paused["status"] == "awaiting_human_review"
+    assert paused["human_review_status"] == "awaiting_human_review"
+    assert paused["revision"] == 1
+    assert paused["thread_id"] == f"estimate:{ESTIMATION_ID}"
+    assert paused["human_review_reason_codes"] == ["low_confidence"]
+    assert transcript not in str(paused["human_review"])
+
+    completed = _resume(
+        client,
+        {
+            "action": "approve",
+            "expected_revision": paused["revision"],
+            "actor": "session14-edge-case-test",
+            "idempotency_key": "teacher-edge-case-approve-001",
+        },
+    )
+
+    assert completed.status_code == 200
+    payload = completed.json()
+    assert payload["status"] == "validated"
+    assert payload["thread_id"] == paused["thread_id"]
+    assert payload["revision"] == 2
+    assert payload["human_review_status"] == "approved"
 
 
 def test_pause_and_resume_emit_complete_sanitized_session14_spans() -> None:
