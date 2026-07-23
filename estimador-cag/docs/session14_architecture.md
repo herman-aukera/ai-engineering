@@ -130,6 +130,11 @@ node spans project the safe action, tool, privilege decision, execution status,
 validated input keys, result reference, and duration without summaries or
 input values.
 
+FastAPI shutdown closes the graph/checkpointer resources and then requests a
+bounded supported Logfire `force_flush`. This prevents an immediate graceful
+restart from retaining only the pending-span copies emitted when a span opened.
+It does not change graph, interrupt, checkpoint, or resume semantics.
+
 ## Claim boundary
 
 This architecture proves a cooperative hybrid supervisor/workers graph with

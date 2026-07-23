@@ -1,26 +1,45 @@
 # Estimador CAG
 
-## Current Session 13 status
+## Current Session 14 status
 
 Current branch:
 
 ```text
-gg-session-13/pre-work
+session-14/pre-work
 ```
 
 Teacher-facing branch:
 
 ```text
-session-13/pre-work
+session-14/pre-work
 ```
 
 Current focus:
 
-> Replace the Session 12 hand-written agent loop with a typed, persistent, and
-> observable LangGraph workflow while preserving the existing external
-> estimation contract.
+> Complete the hand-built supervisor and least-privilege specialists, then
+> prove persistent human review and finalized sanitized pause/resume telemetry
+> while preserving the existing external estimation contract.
 
-## Mandatory graph
+Current local validation after the bounded Logfire shutdown-flush repair:
+
+```text
+908 passed, 11 skipped
+Ruff passed
+Python compilation passed
+PostgreSQL pause/reopen/resume passed
+```
+
+The exact-SHA CI for the starting checkpoint `49cab6d8423e383c765df619ba42fb169bb01eee`
+passed in Actions run `29995480121`. Fresh hosted evidence is not yet complete:
+provider and Logfire credentials are unavailable in the current runtime, and
+the required genuine human decision has not been collected.
+
+Inherited Session 13 references retained for historical contracts:
+`gg-session-13/pre-work` (development) and `session-13/pre-work`
+(teacher-facing).
+Historical compatibility marker: `Current Session 13 status`.
+
+## Inherited Session 13 graph
 
 ```text
 START

@@ -20,7 +20,7 @@
 | Resume endpoint | Complete | `POST /api/v1/estimate/graph/{estimation_id}/resume` |
 | Approve / adjust / reject | Complete | API and policy tests |
 | Same-thread continuation | Complete | PostgreSQL close/reopen/resume proof |
-| Complete pause/resume trace | Complete locally; hosted link pending | Sanitized artifact plus Logfire capture procedure |
+| Complete pause/resume trace | Complete locally; fresh hosted proof blocked | Local recording tracer proves every pause/resume span exits; shutdown now requests a bounded Logfire flush; fresh credentialed capture still required |
 | Teacher edge-case fixture | Complete locally | `exercises/session-14/sample_transcript_edge_case.txt` plus public API pause/resume acceptance test |
 
 ## Teacher-reference alignment
@@ -45,7 +45,7 @@ Level 3 action-audit base: cf321b57e29a116e0e66fdfddb40bd68df2fd272
 Exact teacher fixture blob: 53b0a4625464fb5f4759972fa30a356972260986
 Focused hybrid supervisor/adapter/state/API suite: 59 passed
 Focused Level 3 action-audit/state/worker/API/trace suite: 54 passed
-Full deterministic suite: 906 passed, 11 skipped
+Full deterministic suite: 908 passed, 11 skipped
 Ruff: passed
 Python compilation: passed
 ```
@@ -69,7 +69,8 @@ the lifecycle with the exact ORBITA transcript.
 - [x] Teacher alignment committed and pushed at `6d7d562`.
 - [x] Hybrid-router slice committed and pushed at `cf321b5`.
 - [x] Optional Level 3 action audit complete locally.
-- [ ] Remote CI green for the final action-audit commit.
+- [x] Remote CI green for action-audit checkpoint `49cab6d` (run `29995480121`).
+- [ ] Remote CI green for the final observability-repair head.
 - [ ] Hosted pause/resume trace inspected and URL recorded.
 - [ ] Branch URL and trace URL emailed to `lia@lidr.co`.
 

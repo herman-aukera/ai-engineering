@@ -7,10 +7,22 @@
 | Hybrid typed route proposal | L1 local | Provider-neutral port, guarded production adapter, deterministic fallback, and replay-safe provenance; focused suite `59 passed` |
 | Level 3 action audit | L1 local | Pre-execution privilege decision, sanitized success/denial/failure envelope, replay-safe duration handling, public payload, and node-span projection; focused suite `54 passed` |
 | Exact teacher edge-case fixture | L1 local | Git blob `53b0a4625464fb5f4759972fa30a356972260986`; public API pause/resume test passed |
-| Full deterministic suite | L1 local | `906 passed, 11 skipped` |
+| Full deterministic suite | L1 local | `908 passed, 11 skipped`; Ruff and Python compilation passed |
 | PostgreSQL pause/reopen/resume | L3 integration | `1 passed` |
-| Final remote CI | L2 remote | Must be captured after the action-audit commit; pushed base `cf321b57e29a116e0e66fdfddb40bd68df2fd272` exposed no status contexts at audit time |
-| Hosted pause/resume trace | L3 hosted | Pending manual Logfire capture |
+| Action-audit checkpoint CI | L2 remote | Run `29995480121` passed for exact SHA `49cab6d8423e383c765df619ba42fb169bb01eee` |
+| Final repair-head CI | Not yet remote proven | Capture after the observability repair is pushed |
+| Hosted pause/resume trace | L3 hosted | Historical resume finalized and public; historical pause root remained pending; fresh credentialed capture blocked in the current runtime |
+
+## Pending pause-root diagnosis
+
+The local recording tracer proves that the Session 14 pause root and
+human-review node context managers exit when `GraphInterrupt` is raised. The
+historical hosted records nevertheless retain `<ongoing?>` copies for those two
+spans, while the resume root is a finalized `kind=span` with a 23.7 ms duration.
+The earlier procedure restarted the API immediately and the application had no
+explicit Logfire flush at shutdown. The bounded lifecycle repair now closes
+graph resources and then invokes the SDK's supported `force_flush` operation.
+Fresh hosted evidence is required to prove the export boundary end to end.
 
 ## PostgreSQL proof
 
@@ -51,12 +63,15 @@ both properties with this exact fixture.
 ## Hosted trace
 
 ```text
-Hosted trace URL: PENDING_REAL_LOGFIRE_CAPTURE
+Historical finalized resume trace: https://logfire-eu.pydantic.dev/public-trace/f0067a79-72a8-44e7-8182-3801e7b00d40?spanId=c2cf5f6eb51ccbcd
+Fresh pause trace: BLOCKED_MISSING_LOGFIRE_AND_PROVIDER_CREDENTIALS
+Fresh resume trace: BLOCKED_PENDING_HUMAN_DECISION_AND_CREDENTIALS
 ```
 
-This placeholder must be replaced only with the URL copied from the actual
-hosted pause/resume execution. A local test result or invented identifier is
-not a substitute for the teacher-required trace URL.
+The historical link proves only the finalized automated-approval resume root.
+It does not prove a finalized pause root or a genuine human decision. Replace
+the blocked markers only after the fresh credentialed lifecycle is inspected
+and shared.
 
 ## Sanitization
 
@@ -70,7 +85,8 @@ keys, tokens, database URLs, or environment values.
 
 ```text
 Branch: https://github.com/herman-aukera/ai-engineering/tree/session-14/pre-work
-Trace:  PENDING_REAL_LOGFIRE_CAPTURE
+Historical resume trace: https://logfire-eu.pydantic.dev/public-trace/f0067a79-72a8-44e7-8182-3801e7b00d40?spanId=c2cf5f6eb51ccbcd
+Fresh pause/resume traces: blocked pending credentialed human-run evidence
 ```
 
 ## Claim boundary

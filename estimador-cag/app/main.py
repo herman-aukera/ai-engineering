@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.embedding_pipeline.router import router as embedding_router
+from app.generation.graph.observability import flush_logfire_graph_traces
 from app.generation.graph.reviewed_runtime import (
     open_reviewed_graph_estimation_service,
 )
@@ -72,6 +73,13 @@ async def lifespan(app: FastAPI):
         app.state.reviewed_graph_estimation_service = None
         app.state.graph_estimation_service = None
         await stack.aclose()
+        try:
+            flushed = flush_logfire_graph_traces()
+        except Exception:
+            logger.exception("graph_trace_flush_failed")
+        else:
+            if not flushed:
+                logger.warning("graph_trace_flush_timed_out")
 
 
 install_litellm_request_timeout()

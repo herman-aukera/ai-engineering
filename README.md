@@ -5,15 +5,34 @@ This repository contains the LIDR AI Engineering coursework.
 ## Current submission
 
 - Active project: `estimador-cag/`
-- Current branch: `gg-session-13/pre-work`
-- Teacher-facing branch: `session-13/pre-work`
-- Deliverable: **Session 13 — agent orchestration with LangGraph**
+- Current branch: `session-14/pre-work`
+- Teacher-facing branch: `session-14/pre-work`
+- Deliverable: **Session 14 — supervised specialists and persistent human review**
 
 Teacher-facing branch:
 
-https://github.com/herman-aukera/ai-engineering/tree/session-13/pre-work
+https://github.com/herman-aukera/ai-engineering/tree/session-14/pre-work
 
-## What Session 13 delivers
+## Current Session 14 status
+
+The hand-built supervisor, least-privilege specialists, guarded model route
+proposals, persistent approve/adjust/reject review, revision/idempotency guards,
+and sanitized Level 3 action audit are implemented. Local validation at the
+observability-repair worktree passed `908 passed, 11 skipped`, Ruff, Python
+compilation, and the real PostgreSQL three-lifecycle restart test.
+
+Fresh hosted pause/resume evidence remains blocked until a runtime with the
+configured provider and Logfire credentials is available and a human chooses
+the resume action. The historical resume trace is public, but its paired pause
+root was not finalized. Session 13 material below is retained as historical
+architecture inherited by Session 14.
+
+Inherited Session 13 references retained for coursework continuity:
+`gg-session-13/pre-work` (development) and `session-13/pre-work`
+(teacher-facing).
+Historical deliverable label: **Session 13 — agent orchestration with LangGraph**.
+
+## Historical Session 13 delivery
 
 The Session 12 hand-written estimation loop has been re-expressed as an
 explicit LangGraph workflow inside the AI service:

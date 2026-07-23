@@ -95,6 +95,15 @@ def get_logfire_graph_tracer() -> LogfireGraphTracer:
     return LogfireGraphTracer()
 
 
+def flush_logfire_graph_traces(
+    *,
+    timeout_millis: int = 5_000,
+) -> bool:
+    """Flush completed graph spans before the application process exits."""
+
+    return logfire.force_flush(timeout_millis=timeout_millis)
+
+
 GraphNode = Callable[
     [EstimationGraphState],
     Awaitable[EstimationGraphState],

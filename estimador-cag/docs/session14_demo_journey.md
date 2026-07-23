@@ -56,6 +56,11 @@ Stop the API process after the paused response and start it again against the
 same PostgreSQL database. This is the human-visible equivalent of the
 automated close/reopen proof.
 
+Use a graceful application shutdown and confirm the shutdown log does not
+contain `graph_trace_flush_timed_out` before restarting. The application asks
+Logfire to flush after graph resources close; do not kill the process or
+restart immediately from an unverified disposable runner.
+
 ## Resume the original thread
 
 ```bash
