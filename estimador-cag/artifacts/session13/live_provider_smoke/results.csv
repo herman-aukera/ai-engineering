@@ -1,0 +1,19 @@
+scenario,attachment_size_kb,repeat,fact_to_remember,turn_index,session_id,enriched_transcript_chars,attachments_total_chars,messages_in_window,anchors_count,summary_chars,tokens_in,tokens_out,cost_usd,latency_ms,cache_hit_kind,last_resolved_tier,latency_budget_passed,cost_budget_passed,memory_drift_passed,memory_drift_score
+growing,0,1,project name: Nimbus Portal,1,1ccbd26f-a3c7-4b32-bfcc-892cb59bf88c,96,0,3,0,0,1700,1146,0.00172,12202,none,flash,False,True,False,0.0
+growing,0,1,scope includes multi tenant workspaces,2,1ccbd26f-a3c7-4b32-bfcc-892cb59bf88c,83,0,5,0,0,2160,967,0.001647,9961,none,flash,False,True,False,0.0
+growing,20,1,project name: Nimbus Portal,1,4b382378-4c55-41d2-aa92-cd51acc4c203,8200,19290,3,0,0,3562,1177,0.002256,10883,none,flash,False,True,False,0.0
+growing,20,1,scope includes multi tenant workspaces,2,4b382378-4c55-41d2-aa92-cd51acc4c203,83,0,5,0,0,2000,874,0.001501,9455,none,flash,False,True,False,0.0
+growing,100,1,project name: Nimbus Portal,1,b42b6922-8c28-4eb8-95f7-291289daeec2,8202,95040,3,0,0,3483,1215,0.002277,10469,none,flash,False,True,False,0.0
+growing,100,1,scope includes multi tenant workspaces,2,b42b6922-8c28-4eb8-95f7-291289daeec2,83,0,5,0,0,2149,964,0.001641,8875,none,flash,False,True,False,0.0
+pivot,0,1,project name: Aurora Field,1,1acb8d6d-bf31-46eb-bb82-446118473ed7,77,0,3,0,0,1693,1180,0.001755,12298,none,flash,False,True,False,0.0
+pivot,0,1,stack includes FastAPI,2,1acb8d6d-bf31-46eb-bb82-446118473ed7,67,0,5,0,0,2408,1008,0.001759,7071,none,flash,False,True,False,0.0
+pivot,20,1,project name: Aurora Field,1,0de8f434-ac25-4187-b894-d35fd23f0b55,8181,19290,3,0,0,3555,971,0.002028,9662,none,flash,False,True,False,0.0
+pivot,20,1,stack includes FastAPI,2,0de8f434-ac25-4187-b894-d35fd23f0b55,67,0,5,0,0,2305,924,0.001639,6424,none,flash,False,True,False,0.0
+pivot,100,1,project name: Aurora Field,1,e969044d-77c5-4444-9217-df119ed1d236,8183,95040,3,0,0,3476,951,0.001985,8881,none,flash,False,True,False,0.0
+pivot,100,1,stack includes FastAPI,2,e969044d-77c5-4444-9217-df119ed1d236,67,0,5,0,0,2382,1066,0.001816,9646,none,flash,False,True,False,0.0
+contradiction,0,1,project name: Boreal Ledger,1,78db9b2d-64f3-4680-923e-7daa52fc4836,64,0,3,0,0,1692,1045,0.001606,9277,none,flash,False,True,False,0.0
+contradiction,0,1,scope includes invoice intake,2,78db9b2d-64f3-4680-923e-7daa52fc4836,74,0,5,0,0,2418,1341,0.002128,12595,none,flash,False,True,False,0.0
+contradiction,20,1,project name: Boreal Ledger,1,0e0610ee-d37a-4755-a399-ace5253663ac,8168,19290,3,0,0,3554,879,0.001926,8071,none,flash,False,True,False,0.0
+contradiction,20,1,scope includes invoice intake,2,0e0610ee-d37a-4755-a399-ace5253663ac,74,0,5,0,0,2300,1997,0.002818,19703,none,flash,False,True,False,0.0
+contradiction,100,1,project name: Boreal Ledger,1,c92ef59e-a90c-41d3-8e2c-db4bb2b5d8b0,8170,95040,3,0,0,3475,1928,0.006134,44457,none,pro,False,True,False,0.0
+contradiction,100,1,scope includes invoice intake,2,c92ef59e-a90c-41d3-8e2c-db4bb2b5d8b0,74,0,5,0,0,2705,1355,0.002221,12457,none,flash,False,True,False,0.0

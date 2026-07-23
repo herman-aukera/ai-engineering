@@ -12,7 +12,15 @@ import time
 from typing import Annotated, Literal
 
 import structlog
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from pydantic import ValidationError
 
 from app.config import settings
@@ -29,7 +37,12 @@ from app.services.attachments import (
     extract_upload_text,
     format_attachments_for_prompt,
 )
+from app.services.graph_rollout import prepare_session_estimation_rollout
 from app.services.llm_service import estimate_product
+from app.services.session_estimation_bridge import (
+    GraphBackendExecutionError,
+    GraphBackendUnavailableError,
+)
 from app.services.sessions import global_session_store
 
 router = APIRouter(tags=["sessions"])
@@ -48,7 +61,6 @@ def _assistant_content_for_model_history(result: dict) -> str:
         return json.dumps(structured_result, ensure_ascii=False)
 
     return str(result.get("text") or "")
-
 
 
 def _fake_structured_result(
@@ -140,6 +152,7 @@ def _fake_estimate_product(
         "cost_usd": meta["cost_usd"],
         "semantic_cache_mode": "off",
         "semantic_candidate_found": False,
+        "estimation_backend": "stress_fake",
     }
 
 
@@ -207,6 +220,8 @@ def read_session(session_id: str) -> dict:
 @router.post("/sessions/{session_id}/estimate")
 async def estimate_session(
     session_id: str,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
     transcript: Annotated[str, Form(min_length=20)],
     project_type: Annotated[ProjectType, Form()] = ProjectType.WEB_SAAS,
     detail_level: Annotated[DetailLevel, Form()] = DetailLevel.MEDIUM,
@@ -262,14 +277,31 @@ async def estimate_session(
                 conversation_history=conversation_history,
             )
         else:
-            result = estimate_product(
-                request,
+            rollout = await prepare_session_estimation_rollout(
+                rollout_mode=settings.graph_rollout_mode,
+                configured_backend=settings.estimation_backend,
+                legacy_estimator=estimate_product,
+                graph_service=getattr(
+                    http_request.app.state,
+                    "graph_estimation_service",
+                    None,
+                ),
+                request=request,
+                transcript=transcript,
                 tier=tier,
                 prompt_version=prompt_version,
                 project_metadata=session.project_metadata,
                 attachments_text=attachments_text,
                 conversation_history=conversation_history,
+                session_id=session.session_id,
             )
+            result = rollout.result
+            if rollout.shadow_operation is not None:
+                background_tasks.add_task(rollout.shadow_operation)
+    except GraphBackendUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except GraphBackendExecutionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except TimeoutError as exc:
         raise HTTPException(status_code=502, detail=f"Provider timed out: {exc}") from exc
     except RuntimeError as exc:

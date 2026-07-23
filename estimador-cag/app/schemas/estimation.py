@@ -125,6 +125,83 @@ class ReferenceProject(BaseModel):
     estimated_hours: int | None = Field(default=None, ge=1, le=10000)
     notes: str | None = Field(default=None, max_length=800)
 
+class SourceReference(BaseModel):
+    """
+    Verifiable source reference for a generated estimate line.
+
+    The chunk_id must be one of the retrieved chunks that was actually passed
+    to the model. The evidence should be a verbatim span or figure from that
+    chunk, not a paraphrase.
+    """
+
+    chunk_id: str = Field(min_length=1, max_length=200)
+    document_id: str = Field(min_length=1, max_length=200)
+    evidence: str = Field(min_length=1, max_length=1000)
+
+
+class EstimateLineItem(BaseModel):
+    """
+    One auditable estimate line with its grounding decision.
+
+    grounded=True means the line is supported by retrieved context.
+    grounded=False means the model did not have enough evidence and must not
+    invent effort.
+    """
+
+    component: str = Field(min_length=2, max_length=160)
+    hours: float | None = Field(default=None, ge=0, le=10000)
+    rationale: str = Field(min_length=5, max_length=1000)
+    grounded: bool
+    sources: list[SourceReference] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_grounding_contract(self) -> "EstimateLineItem":
+        if self.grounded and not self.sources:
+            raise ValueError("grounded lines must include at least one source")
+
+        if not self.grounded and self.sources:
+            raise ValueError("ungrounded lines must not include sources")
+
+        if not self.grounded and self.hours is not None:
+            raise ValueError("ungrounded lines must not include hours")
+
+        return self
+
+LineCitationStatus = Literal["grounded", "dangling", "insufficient"]
+
+
+class LineCitation(BaseModel):
+    """
+    Verification status for one generated estimate line.
+
+    This is deterministic audit data produced after generation, not model prose.
+    """
+
+    component: str
+    status: LineCitationStatus
+    cited_chunk_ids: list[str] = Field(default_factory=list)
+    dangling_chunk_ids: list[str] = Field(default_factory=list)
+
+
+class CitationReport(BaseModel):
+    """
+    Deterministic citation audit for generated estimate lines.
+
+    A dangling citation means the model cited a chunk_id that was not present
+    in the retrieved context passed to generation.
+    """
+
+    total_lines: int = Field(ge=0)
+    grounded_lines: int = Field(ge=0)
+    dangling_lines: int = Field(ge=0)
+    insufficient_lines: int = Field(ge=0)
+    verified_citations: int = Field(ge=0)
+    dangling_citations: list[str] = Field(default_factory=list)
+    lines: list[LineCitation] = Field(default_factory=list)
+
+    @property
+    def has_dangling(self) -> bool:
+        return self.dangling_lines > 0 or bool(self.dangling_citations)
 
 class EstimationRequest(BaseModel):
     """Typed estimation request used by the Session 04 product form."""
@@ -175,6 +252,7 @@ class EstimationResult(BaseModel):
     total_cost_eur: int = Field(ge=0, le=10_000_000)
     confidence_pct: int = Field(ge=0, le=100)
     phases: list[Phase] = Field(min_length=1)
+    line_items: list[EstimateLineItem] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
     recommendations: list[str] = Field(default_factory=list)

@@ -1,23 +1,42 @@
 from pathlib import Path
 
-README = Path("README.md").read_text(encoding="utf-8")
+HISTORY = Path("docs/HISTORICAL_SESSIONS.md")
 
 
-def test_readme_documents_session05_memory_and_attachment_flow():
-    assert "Session 05" in README
-    assert "POST /sessions" in README
-    assert "POST /sessions/{session_id}/estimate" in README
-    assert "project_metadata" in README
-    assert "ConversationHistory" in README
-    assert "sliding window" in README.lower()
-    assert "multipart/form-data" in README
-    assert "pypdf" in README
-    assert "python-docx" in README
+def _history() -> str:
+    return HISTORY.read_text(encoding="utf-8")
 
 
-def test_readme_documents_streamlit_session05_usage():
-    assert "New conversation" in README
-    assert "Project metadata" in README
-    assert "PDF" in README
-    assert "DOCX" in README
-    assert "ESTIMADOR_BACKEND_URL" in README
+def test_historical_doc_preserves_session05_memory_and_attachment_flow() -> None:
+    text = _history()
+
+    required = [
+        "Session 05",
+        "POST /sessions",
+        "POST /sessions/{session_id}/estimate",
+        "multipart/form-data",
+        "PDF",
+        "DOCX",
+        "ConversationHistory",
+        "ProjectMetadata",
+        "SessionStore",
+        "sliding window",
+        "project_metadata",
+    ]
+
+    for item in required:
+        assert item in text
+
+
+def test_historical_doc_preserves_streamlit_session05_usage() -> None:
+    text = _history()
+
+    required = [
+        "New conversation",
+        "session_id",
+        "sidebar",
+        "Project metadata",
+    ]
+
+    for item in required:
+        assert item in text

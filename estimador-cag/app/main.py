@@ -6,6 +6,8 @@ WHY IT EXISTS: Composition root pattern: all wiring happens in one place
 DEPENDS ON: app.routers.estimations, app.middleware.logging
 """
 
+import logging
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -13,14 +15,75 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.embedding_pipeline.router import router as embedding_router
+from app.generation.graph.reviewed_runtime import (
+    open_reviewed_graph_estimation_service,
+)
+from app.generation.graph.runtime import open_graph_estimation_service
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
+from app.routers.graph_estimations import router as graph_estimations_router
+from app.routers.graph_rollout import router as graph_rollout_router
+from app.routers.readiness import router as readiness_router
+from app.routers.reviewed_graph_estimations import (
+    router as reviewed_graph_estimations_router,
+)
+from app.routers.search import router as search_router
 from app.routers.sessions import router as sessions_router
+from app.routers.v2_estimations import router as v2_estimations_router
+from app.services.litellm_timeout import install_litellm_request_timeout
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Own graph runtimes without taking down unrelated routes."""
+
+    stack = AsyncExitStack()
+    app.state.graph_estimation_service = None
+    app.state.reviewed_graph_estimation_service = None
+    app.state.graph_runtime_error = None
+    app.state.reviewed_graph_runtime_error = None
+
+    try:
+        try:
+            service = await stack.enter_async_context(
+                open_graph_estimation_service()
+            )
+        except Exception as exc:
+            app.state.graph_runtime_error = type(exc).__name__
+            logger.exception(
+                "graph_estimation_runtime_initialization_failed"
+            )
+        else:
+            app.state.graph_estimation_service = service
+
+        try:
+            reviewed_service = await stack.enter_async_context(
+                open_reviewed_graph_estimation_service()
+            )
+        except Exception as exc:
+            app.state.reviewed_graph_runtime_error = type(exc).__name__
+            logger.exception(
+                "reviewed_graph_estimation_runtime_initialization_failed"
+            )
+        else:
+            app.state.reviewed_graph_estimation_service = reviewed_service
+
+        yield
+    finally:
+        app.state.reviewed_graph_estimation_service = None
+        app.state.graph_estimation_service = None
+        await stack.aclose()
+
+
+install_litellm_request_timeout()
 
 app = FastAPI(
     title="LIDR Estimador CAG",
     description="Context-Augmented Generation (CAG) estimator",
     version="0.3.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -36,8 +99,14 @@ setup_logging(app)
 
 # Transport layer
 app.include_router(estimations_router)
+app.include_router(graph_estimations_router)
+app.include_router(graph_rollout_router)
+app.include_router(reviewed_graph_estimations_router)
+app.include_router(v2_estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
+app.include_router(search_router, tags=["search"])
+app.include_router(readiness_router)
 
 
 @app.get("/health", tags=["health"])
@@ -54,27 +123,42 @@ def metrics():
     """
     return get_last_metrics()
 
-DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "sse_demo.html"
+
+SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
+SSE_SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
+SSE_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "sse_demo.html"
 
 
 @app.get("/demo", include_in_schema=False)
 def browser_demo() -> FileResponse:
     """
     LAYER: presentation helper
-    RESPONSIBILITY: Serve the browser SSE demo from the FastAPI app.
-    WHY IT EXISTS: Keeps the browser demo on the same origin as the API, which avoids
-    Codespaces CORS and mixed-content issues while giving nontechnical users one clean URL.
+    RESPONSIBILITY: Serve the Session 08 pgvector search demo from FastAPI.
+    WHY IT EXISTS: Gives reviewers one safe browser path that exercises
+                   /embeddings/ingest and /search instead of the older LLM estimate demo.
+    DEPENDS_ON: docs/session08_search_demo.html
+    """
+    return FileResponse(SESSION08_DEMO_HTML_PATH)
+
+
+@app.get("/sse-demo", include_in_schema=False)
+def sse_demo() -> FileResponse:
+    """
+    LAYER: presentation helper
+    RESPONSIBILITY: Keep the older synchronous-vs-SSE demo available explicitly.
+    WHY IT EXISTS: Preserves Session 03 demonstration material without making it
+                   the default Session 08 browser path.
     DEPENDS_ON: docs/sse_demo.html
     """
-    return FileResponse(DEMO_HTML_PATH)
+    return FileResponse(SSE_DEMO_HTML_PATH)
+
 
 @app.get("/", include_in_schema=False)
 def root_demo() -> FileResponse:
     """
     LAYER: presentation helper
-    RESPONSIBILITY: Serve the browser demo from the root URL.
-    WHY IT EXISTS: Gives nontechnical testers one obvious URL when they open
-    the forwarded FastAPI port in Codespaces.
-    DEPENDS_ON: docs/sse_demo.html
+    RESPONSIBILITY: Serve the Session 08 search demo from the root URL.
+    WHY IT EXISTS: Gives nontechnical testers one obvious URL for the current deliverable.
+    DEPENDS_ON: docs/session08_search_demo.html
     """
-    return FileResponse(DEMO_HTML_PATH)
+    return FileResponse(SESSION08_DEMO_HTML_PATH)

@@ -1,0 +1,76 @@
+{
+  "chat_judge_model": "gpt-4o-mini",
+  "embedding_model": "text-embedding-3-small",
+  "judge_provider": "openai",
+  "metrics": [
+    "faithfulness",
+    "answer_relevancy",
+    "context_precision",
+    "context_recall"
+  ],
+  "mode": "live",
+  "official_baseline": true,
+  "records": [
+    {
+      "answer": "Component AUTH-001 (OAuth 2.0 authentication backend) is estimated at 120 hours. The estimate is grounded in source BUD-2024-014::AUTH-001: Implementation of OAuth 2.0 authorization code and refresh token flows with JWT-based session management, multi-tenant token isolation, and rate limiting per client.",
+      "answer_relevancy": 0.272522500383983,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0,
+      "contexts": [
+        "[BUD-2024-014::AUTH-001] AUTH-001 (OAuth 2.0 authentication backend). Evidence: Implementation of OAuth 2.0 authorization code and refresh token flows with JWT-based session management, multi-tenant token isolation, and rate limiting per client. Estimated hours: 120. Complexity: high. Tech stack: ruby_on_rails, postgresql, redis."
+      ],
+      "faithfulness": 1.0,
+      "ground_truth": "AUTH-001 (OAuth 2.0 authentication backend) is supported by source BUD-2024-014 / BUD-2024-014::AUTH-001. It is estimated at 120 hours, complexity high, with stack ruby_on_rails, postgresql, redis. Evidence: Implementation of OAuth 2.0 authorization code and refresh token flows with JWT-based session management, multi-tenant token isolation, and rate limiting per client.",
+      "question": "OAuth JWT authentication token banking authorization flow"
+    },
+    {
+      "answer": "Component AUDIT-001 (Regulatory audit logging) is estimated at 80 hours. The estimate is grounded in source BUD-2024-014::AUDIT-001: Immutable audit trail for authentication, consent changes, account access, and sensitive banking operations.",
+      "answer_relevancy": 0.32204795174785233,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0,
+      "contexts": [
+        "[BUD-2024-014::AUDIT-001] AUDIT-001 (Regulatory audit logging). Evidence: Immutable audit trail for authentication, consent changes, account access, and sensitive banking operations. Estimated hours: 80. Complexity: medium. Tech stack: ruby_on_rails, postgresql."
+      ],
+      "faithfulness": 1.0,
+      "ground_truth": "AUDIT-001 (Regulatory audit logging) is supported by source BUD-2024-014 / BUD-2024-014::AUDIT-001. It is estimated at 80 hours, complexity medium, with stack ruby_on_rails, postgresql. Evidence: Immutable audit trail for authentication, consent changes, account access, and sensitive banking operations.",
+      "question": "immutable audit logging consent changes sensitive banking operations"
+    },
+    {
+      "answer": "Component CHECKOUT-001 (Checkout orchestration API) is estimated at 140 hours. The estimate is grounded in source BUD-2024-021::CHECKOUT-001: Backend service coordinating cart validation, payment authorization, discount rules, and order creation for marketplace purchases.",
+      "answer_relevancy": 0.2819632615478946,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0,
+      "contexts": [
+        "[BUD-2024-021::CHECKOUT-001] CHECKOUT-001 (Checkout orchestration API). Evidence: Backend service coordinating cart validation, payment authorization, discount rules, and order creation for marketplace purchases. Estimated hours: 140. Complexity: high. Tech stack: python_fastapi, postgresql, redis."
+      ],
+      "faithfulness": 1.0,
+      "ground_truth": "CHECKOUT-001 (Checkout orchestration API) is supported by source BUD-2024-021 / BUD-2024-021::CHECKOUT-001. It is estimated at 140 hours, complexity high, with stack python_fastapi, postgresql, redis. Evidence: Backend service coordinating cart validation, payment authorization, discount rules, and order creation for marketplace purchases.",
+      "question": "checkout orchestration payment authorization discount rules order creation"
+    },
+    {
+      "answer": "Component INV-001 (Inventory synchronization worker) is estimated at 90 hours. The estimate is grounded in source BUD-2024-021::INV-001: Scheduled worker that synchronizes merchant stock levels, detects conflicts, and emits inventory update events.",
+      "answer_relevancy": 0.24342048764770766,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0,
+      "contexts": [
+        "[BUD-2024-021::INV-001] INV-001 (Inventory synchronization worker). Evidence: Scheduled worker that synchronizes merchant stock levels, detects conflicts, and emits inventory update events. Estimated hours: 90. Complexity: medium. Tech stack: python_fastapi, postgresql, celery."
+      ],
+      "faithfulness": 1.0,
+      "ground_truth": "INV-001 (Inventory synchronization worker) is supported by source BUD-2024-021 / BUD-2024-021::INV-001. It is estimated at 90 hours, complexity medium, with stack python_fastapi, postgresql, celery. Evidence: Scheduled worker that synchronizes merchant stock levels, detects conflicts, and emits inventory update events.",
+      "question": "inventory synchronization worker merchant stock levels scheduled conflicts events"
+    },
+    {
+      "answer": "Component DOCS-001 (Clinical document upload) is estimated at 110 hours. The estimate is grounded in source BUD-2025-003::DOCS-001: Secure upload flow for referral documents and lab results with file type validation and metadata extraction.",
+      "answer_relevancy": 0.4876739330014777,
+      "context_precision": 0.9999999999,
+      "context_recall": 1.0,
+      "contexts": [
+        "[BUD-2025-003::DOCS-001] DOCS-001 (Clinical document upload). Evidence: Secure upload flow for referral documents and lab results with file type validation and metadata extraction. Estimated hours: 110. Complexity: medium. Tech stack: java_spring_boot, postgresql, s3."
+      ],
+      "faithfulness": 1.0,
+      "ground_truth": "DOCS-001 (Clinical document upload) is supported by source BUD-2025-003 / BUD-2025-003::DOCS-001. It is estimated at 110 hours, complexity medium, with stack java_spring_boot, postgresql, s3. Evidence: Secure upload flow for referral documents and lab results with file type validation and metadata extraction.",
+      "question": "clinical document upload referral lab results secure file validation metadata"
+    }
+  ],
+  "sample_count": 5
+}

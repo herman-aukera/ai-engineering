@@ -19,6 +19,8 @@ import streamlit as st
 
 DEFAULT_BACKEND_URL = "http://localhost:8000"
 ESTIMATE_PATH = "/api/v1/estimate"
+SEARCH_PATH = "/search"
+SEARCH_METRICS_PATH = "/search/metrics"
 SESSION_CREATE_PATH = "/sessions"
 SESSION_ESTIMATE_PATH_TEMPLATE = "/sessions/{session_id}/estimate"
 BACKEND_CONNECT_TIMEOUT_SECONDS = 10
@@ -63,6 +65,61 @@ def build_estimate_url() -> str:
     """Build the FastAPI estimate endpoint URL used by the product form."""
 
     return f"{get_backend_url()}{ESTIMATE_PATH}"
+
+
+
+def build_search_url() -> str:
+    """Build the FastAPI Session 10 retrieval search endpoint URL."""
+
+    return f"{get_backend_url()}{SEARCH_PATH}"
+
+
+def build_search_metrics_url() -> str:
+    """Build the FastAPI retrieval search metrics endpoint URL."""
+
+    return f"{get_backend_url()}{SEARCH_METRICS_PATH}"
+
+
+def _compact_optional_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Drop empty optional values before sending a backend request."""
+
+    compacted: dict[str, Any] = {}
+    for key, value in payload.items():
+        if value is None:
+            continue
+
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped:
+                compacted[key] = stripped
+            continue
+
+        compacted[key] = value
+
+    return compacted
+
+
+def post_search_request(payload: dict[str, Any]) -> dict[str, Any]:
+    """Send a Session 10 retrieval search request to the backend."""
+
+    response = requests.post(
+        build_search_url(),
+        json=_compact_optional_payload(payload),
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def get_search_metrics() -> dict[str, Any]:
+    """Fetch the in-memory retrieval search metrics dashboard."""
+
+    response = requests.get(
+        build_search_metrics_url(),
+        timeout=(BACKEND_CONNECT_TIMEOUT_SECONDS, BACKEND_READ_TIMEOUT_SECONDS),
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 def post_estimation_request(payload: dict[str, Any], prompt_version: str = "v1") -> dict[str, Any]:
@@ -373,6 +430,178 @@ def render_structured_estimate(result: dict[str, Any]) -> None:
     render_cache_and_prompt_metadata(result)
 
 
+
+def render_search_result_card(result: dict[str, Any], rank: int) -> None:
+    """Render one retrieval search result."""
+
+    distance = result.get("distance")
+    distance_label = f"{distance:.4f}" if isinstance(distance, (int, float)) else "unknown"
+    chunk_type = result.get("chunk_type", "unknown")
+    content = result.get("content", "")
+
+    st.markdown(f"#### {rank}. {chunk_type}")
+
+    metric_distance, metric_chunk, metric_document = st.columns(3)
+
+    with metric_distance:
+        st.metric("distance", distance_label)
+
+    with metric_chunk:
+        st.metric("chunk_type", chunk_type)
+
+    with metric_document:
+        st.metric("document_id", result.get("document_id", "unknown"))
+
+    st.write(content)
+
+    with st.expander("metadata"):
+        st.json(result.get("metadata") or {})
+
+
+def render_search_metrics_dashboard(metrics: dict[str, Any] | None) -> None:
+    """Render the in-memory search metrics snapshot returned by /search/metrics."""
+
+    if not metrics:
+        st.caption("No search metrics loaded yet. Run a search or click Refresh search metrics.")
+        return
+
+    total = metrics.get("total_searches_recorded", 0)
+    success_count = metrics.get("success_count", 0)
+    failure_count = metrics.get("failure_count", 0)
+    last_search = metrics.get("last_search") or {}
+
+    metric_total, metric_success, metric_failure, metric_last_count = st.columns(4)
+
+    with metric_total:
+        st.metric("recorded searches", total)
+
+    with metric_success:
+        st.metric("successes", success_count)
+
+    with metric_failure:
+        st.metric("failures", failure_count)
+
+    with metric_last_count:
+        st.metric("last result count", last_search.get("result_count", "unknown"))
+
+    if last_search:
+        st.markdown("#### Last search")
+        st.json(last_search)
+
+    history = metrics.get("history") or []
+    if history:
+        st.markdown("#### Recent search history")
+        st.dataframe(history[-10:], use_container_width=True, hide_index=True)
+    else:
+        st.caption("No search history returned yet.")
+
+
+def render_session10_search_panel() -> None:
+    """Render the Session 10 retrieval search UI backed by /search."""
+
+    st.markdown("## Session 10 retrieval search")
+    st.caption(
+        "Search historical budgets using the Session 10 retrieval stack. "
+        "Vector mode preserves the pgvector baseline; hybrid mode adds lexical search and RRF fusion."
+    )
+
+    with st.form("session10_retrieval_search_form"):
+        query = st.text_input(
+            "Search historical budgets",
+            value="REST API development with JWT authentication for financial sector",
+        )
+
+        col_mode, col_k, col_recall = st.columns(3)
+
+        with col_mode:
+            search_mode_label = st.selectbox(
+                "search_mode",
+                options=["Vector only", "Hybrid RRF"],
+                index=1,
+                help="Vector only uses the pgvector baseline. Hybrid RRF fuses vector and lexical retrieval.",
+            )
+            search_mode = "hybrid" if search_mode_label == "Hybrid RRF" else "vector"
+
+        with col_k:
+            k = st.number_input("k", min_value=1, max_value=20, value=5, step=1)
+
+        with col_recall:
+            recall_k = st.number_input(
+                "recall_k",
+                min_value=1,
+                max_value=100,
+                value=8,
+                step=1,
+                help="Internal candidate pool used by hybrid and reranking measurements.",
+            )
+
+        col_sector, col_country, col_stack, col_scope = st.columns(4)
+
+        with col_sector:
+            client_sector = st.text_input("client_sector", placeholder="finance")
+
+        with col_country:
+            client_country = st.text_input("client_country", placeholder="ES")
+
+        with col_stack:
+            tech_stack = st.text_input("tech_stack", placeholder="python")
+
+        with col_scope:
+            scope = st.text_input("scope", placeholder="backend")
+
+        submitted = st.form_submit_button("Run semantic search", type="primary")
+
+    if submitted:
+        payload = {
+            "query": query,
+            "k": int(k),
+            "search_mode": search_mode,
+            "recall_k": int(recall_k),
+            "client_sector": client_sector,
+            "client_country": client_country,
+            "tech_stack": tech_stack,
+            "scope": scope,
+        }
+
+        with st.spinner("Searching pgvector chunks..."):
+            try:
+                search_result = post_search_request(payload)
+            except requests.HTTPError as exc:
+                response_text = exc.response.text if exc.response is not None else str(exc)
+                st.error(f"Search backend returned an error: {response_text}")
+                return
+            except requests.RequestException as exc:
+                st.error(f"Could not reach search backend: {exc}")
+                return
+
+        result_count = len(search_result.get("results") or [])
+        search_time_ms = search_result.get("search_time_ms", "unknown")
+        st.success(
+            f"Returned {result_count} results in {search_time_ms} ms "
+            f"using {search_mode} search with recall_k={int(recall_k)}."
+        )
+
+        try:
+            st.session_state["last_search_metrics"] = get_search_metrics()
+        except requests.RequestException as exc:
+            st.warning(f"Search succeeded, but metrics refresh failed: {exc}")
+
+        with st.expander("filters_applied", expanded=True):
+            st.json(search_result.get("filters_applied") or {})
+
+        for index, result in enumerate(search_result.get("results") or [], start=1):
+            render_search_result_card(result, index)
+
+    with st.expander("Search metrics dashboard", expanded=True):
+        if st.button("Refresh search metrics"):
+            try:
+                st.session_state["last_search_metrics"] = get_search_metrics()
+            except requests.RequestException as exc:
+                st.error(f"Could not load search metrics dashboard: {exc}")
+
+        render_search_metrics_dashboard(st.session_state.get("last_search_metrics"))
+
+
 def main() -> None:
     """Render the Session 05 conversational memory plus attachments product UI."""
 
@@ -385,8 +614,11 @@ def main() -> None:
     st.title("AI Software Estimator")
     st.caption(
         "Session 05 product interface with conversational memory, local attachment extraction, "
-        "typed controls, and structured estimates."
+        "typed controls, structured estimates, and Session 10 retrieval search."
     )
+
+    render_session10_search_panel()
+    st.divider()
 
     session_error: str | None = None
     try:

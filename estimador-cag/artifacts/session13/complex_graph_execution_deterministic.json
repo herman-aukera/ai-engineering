@@ -1,0 +1,850 @@
+{
+  "execution": {
+    "persistence_backend": "in_memory",
+    "provider_backend": "deterministic_fakes",
+    "telemetry_backend": "recording_tracer",
+    "telemetry_exported": false,
+    "uses_live_postgres": false,
+    "uses_live_provider": false,
+    "uses_remote_logfire": false
+  },
+  "execution_evidence": {
+    "classifier_call_count": 1,
+    "domain_node_order": [
+      "extract_requirements",
+      "classify_components",
+      "search_budgets",
+      "generate_estimate",
+      "validate_and_consolidate"
+    ],
+    "extractor_call_count": 1,
+    "node_span_count": 5,
+    "root_span_count": 1,
+    "search_call_count": 5,
+    "searched_component_ids": [
+      "CMP-001",
+      "CMP-002",
+      "CMP-003",
+      "CMP-004",
+      "CMP-005"
+    ],
+    "telemetry_node_order": [
+      "extract_requirements",
+      "classify_components",
+      "search_budgets",
+      "generate_estimate",
+      "validate_and_consolidate"
+    ]
+  },
+  "result": {
+    "budget_matches": [
+      {
+        "budget_id": "BUD-CMP-001-01",
+        "component_id": "CMP-001",
+        "distance": 0.05,
+        "recorded_hours": 36.0,
+        "reference_component_id": "REF-CMP-001-01",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.952381,
+        "source_chunk_id": "CHK-CMP-001-01",
+        "source_document_id": "DOC-CMP-001-01"
+      },
+      {
+        "budget_id": "BUD-CMP-001-02",
+        "component_id": "CMP-001",
+        "distance": 0.1,
+        "recorded_hours": 40.0,
+        "reference_component_id": "REF-CMP-001-02",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.909091,
+        "source_chunk_id": "CHK-CMP-001-02",
+        "source_document_id": "DOC-CMP-001-02"
+      },
+      {
+        "budget_id": "BUD-CMP-001-03",
+        "component_id": "CMP-001",
+        "distance": 0.15,
+        "recorded_hours": 44.0,
+        "reference_component_id": "REF-CMP-001-03",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.869565,
+        "source_chunk_id": "CHK-CMP-001-03",
+        "source_document_id": "DOC-CMP-001-03"
+      },
+      {
+        "budget_id": "BUD-CMP-002-01",
+        "component_id": "CMP-002",
+        "distance": 0.05,
+        "recorded_hours": 20.0,
+        "reference_component_id": "REF-CMP-002-01",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.952381,
+        "source_chunk_id": "CHK-CMP-002-01",
+        "source_document_id": "DOC-CMP-002-01"
+      },
+      {
+        "budget_id": "BUD-CMP-002-02",
+        "component_id": "CMP-002",
+        "distance": 0.1,
+        "recorded_hours": 24.0,
+        "reference_component_id": "REF-CMP-002-02",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.909091,
+        "source_chunk_id": "CHK-CMP-002-02",
+        "source_document_id": "DOC-CMP-002-02"
+      },
+      {
+        "budget_id": "BUD-CMP-002-03",
+        "component_id": "CMP-002",
+        "distance": 0.15,
+        "recorded_hours": 28.0,
+        "reference_component_id": "REF-CMP-002-03",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.869565,
+        "source_chunk_id": "CHK-CMP-002-03",
+        "source_document_id": "DOC-CMP-002-03"
+      },
+      {
+        "budget_id": "BUD-CMP-003-01",
+        "component_id": "CMP-003",
+        "distance": 0.05,
+        "recorded_hours": 48.0,
+        "reference_component_id": "REF-CMP-003-01",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.952381,
+        "source_chunk_id": "CHK-CMP-003-01",
+        "source_document_id": "DOC-CMP-003-01"
+      },
+      {
+        "budget_id": "BUD-CMP-003-02",
+        "component_id": "CMP-003",
+        "distance": 0.1,
+        "recorded_hours": 56.0,
+        "reference_component_id": "REF-CMP-003-02",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.909091,
+        "source_chunk_id": "CHK-CMP-003-02",
+        "source_document_id": "DOC-CMP-003-02"
+      },
+      {
+        "budget_id": "BUD-CMP-003-03",
+        "component_id": "CMP-003",
+        "distance": 0.15,
+        "recorded_hours": 64.0,
+        "reference_component_id": "REF-CMP-003-03",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.869565,
+        "source_chunk_id": "CHK-CMP-003-03",
+        "source_document_id": "DOC-CMP-003-03"
+      },
+      {
+        "budget_id": "BUD-CMP-004-01",
+        "component_id": "CMP-004",
+        "distance": 0.05,
+        "recorded_hours": 28.0,
+        "reference_component_id": "REF-CMP-004-01",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.952381,
+        "source_chunk_id": "CHK-CMP-004-01",
+        "source_document_id": "DOC-CMP-004-01"
+      },
+      {
+        "budget_id": "BUD-CMP-004-02",
+        "component_id": "CMP-004",
+        "distance": 0.1,
+        "recorded_hours": 32.0,
+        "reference_component_id": "REF-CMP-004-02",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.909091,
+        "source_chunk_id": "CHK-CMP-004-02",
+        "source_document_id": "DOC-CMP-004-02"
+      },
+      {
+        "budget_id": "BUD-CMP-004-03",
+        "component_id": "CMP-004",
+        "distance": 0.15,
+        "recorded_hours": 36.0,
+        "reference_component_id": "REF-CMP-004-03",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.869565,
+        "source_chunk_id": "CHK-CMP-004-03",
+        "source_document_id": "DOC-CMP-004-03"
+      },
+      {
+        "budget_id": "BUD-CMP-005-01",
+        "component_id": "CMP-005",
+        "distance": 0.05,
+        "recorded_hours": 14.0,
+        "reference_component_id": "REF-CMP-005-01",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.952381,
+        "source_chunk_id": "CHK-CMP-005-01",
+        "source_document_id": "DOC-CMP-005-01"
+      },
+      {
+        "budget_id": "BUD-CMP-005-02",
+        "component_id": "CMP-005",
+        "distance": 0.1,
+        "recorded_hours": 16.0,
+        "reference_component_id": "REF-CMP-005-02",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.909091,
+        "source_chunk_id": "CHK-CMP-005-02",
+        "source_document_id": "DOC-CMP-005-02"
+      },
+      {
+        "budget_id": "BUD-CMP-005-03",
+        "component_id": "CMP-005",
+        "distance": 0.15,
+        "recorded_hours": 18.0,
+        "reference_component_id": "REF-CMP-005-03",
+        "retrieval_method": "deterministic_fixture",
+        "score": 0.869565,
+        "source_chunk_id": "CHK-CMP-005-03",
+        "source_document_id": "DOC-CMP-005-03"
+      }
+    ],
+    "component_estimates": [
+      {
+        "component_id": "CMP-001",
+        "confidence": 0.9,
+        "derivation_method": "median_recorded_hours",
+        "dispersion": 0.2,
+        "grounding_status": "grounded",
+        "hours": 40.0,
+        "name": "JWT authentication and RBAC",
+        "reference_budget_ids": [
+          "BUD-CMP-001-01",
+          "BUD-CMP-001-02",
+          "BUD-CMP-001-03"
+        ],
+        "reference_component_ids": [
+          "REF-CMP-001-01",
+          "REF-CMP-001-02",
+          "REF-CMP-001-03"
+        ],
+        "review_reasons": [],
+        "source_hours": [
+          36.0,
+          40.0,
+          44.0
+        ],
+        "source_range_high": 44.0,
+        "source_range_low": 36.0
+      },
+      {
+        "component_id": "CMP-002",
+        "confidence": 0.83,
+        "derivation_method": "median_recorded_hours",
+        "dispersion": 0.3333,
+        "grounding_status": "grounded",
+        "hours": 24.0,
+        "name": "Audit logging",
+        "reference_budget_ids": [
+          "BUD-CMP-002-01",
+          "BUD-CMP-002-02",
+          "BUD-CMP-002-03"
+        ],
+        "reference_component_ids": [
+          "REF-CMP-002-01",
+          "REF-CMP-002-02",
+          "REF-CMP-002-03"
+        ],
+        "review_reasons": [],
+        "source_hours": [
+          20.0,
+          24.0,
+          28.0
+        ],
+        "source_range_high": 28.0,
+        "source_range_low": 20.0
+      },
+      {
+        "component_id": "CMP-003",
+        "confidence": 0.86,
+        "derivation_method": "median_recorded_hours",
+        "dispersion": 0.2857,
+        "grounding_status": "grounded",
+        "hours": 56.0,
+        "name": "Administrative dashboard",
+        "reference_budget_ids": [
+          "BUD-CMP-003-01",
+          "BUD-CMP-003-02",
+          "BUD-CMP-003-03"
+        ],
+        "reference_component_ids": [
+          "REF-CMP-003-01",
+          "REF-CMP-003-02",
+          "REF-CMP-003-03"
+        ],
+        "review_reasons": [],
+        "source_hours": [
+          48.0,
+          56.0,
+          64.0
+        ],
+        "source_range_high": 64.0,
+        "source_range_low": 48.0
+      },
+      {
+        "component_id": "CMP-004",
+        "confidence": 0.88,
+        "derivation_method": "median_recorded_hours",
+        "dispersion": 0.25,
+        "grounding_status": "grounded",
+        "hours": 32.0,
+        "name": "CSV reconciliation import",
+        "reference_budget_ids": [
+          "BUD-CMP-004-01",
+          "BUD-CMP-004-02",
+          "BUD-CMP-004-03"
+        ],
+        "reference_component_ids": [
+          "REF-CMP-004-01",
+          "REF-CMP-004-02",
+          "REF-CMP-004-03"
+        ],
+        "review_reasons": [],
+        "source_hours": [
+          28.0,
+          32.0,
+          36.0
+        ],
+        "source_range_high": 36.0,
+        "source_range_low": 28.0
+      },
+      {
+        "component_id": "CMP-005",
+        "confidence": 0.88,
+        "derivation_method": "median_recorded_hours",
+        "dispersion": 0.25,
+        "grounding_status": "grounded",
+        "hours": 16.0,
+        "name": "Deployment documentation and handoff",
+        "reference_budget_ids": [
+          "BUD-CMP-005-01",
+          "BUD-CMP-005-02",
+          "BUD-CMP-005-03"
+        ],
+        "reference_component_ids": [
+          "REF-CMP-005-01",
+          "REF-CMP-005-02",
+          "REF-CMP-005-03"
+        ],
+        "review_reasons": [],
+        "source_hours": [
+          14.0,
+          16.0,
+          18.0
+        ],
+        "source_range_high": 18.0,
+        "source_range_low": 14.0
+      }
+    ],
+    "components": [
+      {
+        "category": "backend",
+        "component_id": "CMP-001",
+        "name": "JWT authentication and RBAC",
+        "requirement_ids": [
+          "REQ-001"
+        ]
+      },
+      {
+        "category": "backend",
+        "component_id": "CMP-002",
+        "name": "Audit logging",
+        "requirement_ids": [
+          "REQ-002"
+        ]
+      },
+      {
+        "category": "frontend",
+        "component_id": "CMP-003",
+        "name": "Administrative dashboard",
+        "requirement_ids": [
+          "REQ-003"
+        ]
+      },
+      {
+        "category": "data",
+        "component_id": "CMP-004",
+        "name": "CSV reconciliation import",
+        "requirement_ids": [
+          "REQ-004"
+        ]
+      },
+      {
+        "category": "delivery",
+        "component_id": "CMP-005",
+        "name": "Deployment documentation and handoff",
+        "requirement_ids": [
+          "REQ-005"
+        ]
+      }
+    ],
+    "errors": [],
+    "estimate": {
+      "components": [
+        {
+          "component_id": "CMP-001",
+          "confidence": 0.9,
+          "derivation_method": "median_recorded_hours",
+          "dispersion": 0.2,
+          "grounding_status": "grounded",
+          "hours": 40.0,
+          "name": "JWT authentication and RBAC",
+          "reference_budget_ids": [
+            "BUD-CMP-001-01",
+            "BUD-CMP-001-02",
+            "BUD-CMP-001-03"
+          ],
+          "reference_component_ids": [
+            "REF-CMP-001-01",
+            "REF-CMP-001-02",
+            "REF-CMP-001-03"
+          ],
+          "review_reasons": [],
+          "source_hours": [
+            36.0,
+            40.0,
+            44.0
+          ],
+          "source_range_high": 44.0,
+          "source_range_low": 36.0
+        },
+        {
+          "component_id": "CMP-002",
+          "confidence": 0.83,
+          "derivation_method": "median_recorded_hours",
+          "dispersion": 0.3333,
+          "grounding_status": "grounded",
+          "hours": 24.0,
+          "name": "Audit logging",
+          "reference_budget_ids": [
+            "BUD-CMP-002-01",
+            "BUD-CMP-002-02",
+            "BUD-CMP-002-03"
+          ],
+          "reference_component_ids": [
+            "REF-CMP-002-01",
+            "REF-CMP-002-02",
+            "REF-CMP-002-03"
+          ],
+          "review_reasons": [],
+          "source_hours": [
+            20.0,
+            24.0,
+            28.0
+          ],
+          "source_range_high": 28.0,
+          "source_range_low": 20.0
+        },
+        {
+          "component_id": "CMP-003",
+          "confidence": 0.86,
+          "derivation_method": "median_recorded_hours",
+          "dispersion": 0.2857,
+          "grounding_status": "grounded",
+          "hours": 56.0,
+          "name": "Administrative dashboard",
+          "reference_budget_ids": [
+            "BUD-CMP-003-01",
+            "BUD-CMP-003-02",
+            "BUD-CMP-003-03"
+          ],
+          "reference_component_ids": [
+            "REF-CMP-003-01",
+            "REF-CMP-003-02",
+            "REF-CMP-003-03"
+          ],
+          "review_reasons": [],
+          "source_hours": [
+            48.0,
+            56.0,
+            64.0
+          ],
+          "source_range_high": 64.0,
+          "source_range_low": 48.0
+        },
+        {
+          "component_id": "CMP-004",
+          "confidence": 0.88,
+          "derivation_method": "median_recorded_hours",
+          "dispersion": 0.25,
+          "grounding_status": "grounded",
+          "hours": 32.0,
+          "name": "CSV reconciliation import",
+          "reference_budget_ids": [
+            "BUD-CMP-004-01",
+            "BUD-CMP-004-02",
+            "BUD-CMP-004-03"
+          ],
+          "reference_component_ids": [
+            "REF-CMP-004-01",
+            "REF-CMP-004-02",
+            "REF-CMP-004-03"
+          ],
+          "review_reasons": [],
+          "source_hours": [
+            28.0,
+            32.0,
+            36.0
+          ],
+          "source_range_high": 36.0,
+          "source_range_low": 28.0
+        },
+        {
+          "component_id": "CMP-005",
+          "confidence": 0.88,
+          "derivation_method": "median_recorded_hours",
+          "dispersion": 0.25,
+          "grounding_status": "grounded",
+          "hours": 16.0,
+          "name": "Deployment documentation and handoff",
+          "reference_budget_ids": [
+            "BUD-CMP-005-01",
+            "BUD-CMP-005-02",
+            "BUD-CMP-005-03"
+          ],
+          "reference_component_ids": [
+            "REF-CMP-005-01",
+            "REF-CMP-005-02",
+            "REF-CMP-005-03"
+          ],
+          "review_reasons": [],
+          "source_hours": [
+            14.0,
+            16.0,
+            18.0
+          ],
+          "source_range_high": 18.0,
+          "source_range_low": 14.0
+        }
+      ],
+      "contingency_hours": 0.0,
+      "currency": "EUR",
+      "subtotal_hours": 168.0,
+      "total_cost_eur": null,
+      "total_hours": 168.0
+    },
+    "estimation_id": "00000000-0000-4000-8000-000000000013",
+    "execution_metadata": {
+      "budget_match_count": 15,
+      "component_count": 5,
+      "component_estimate_count": 5,
+      "requirement_count": 5
+    },
+    "requirements": [
+      {
+        "requirement_id": "REQ-001",
+        "text": "Provide JWT authentication with role-based access for administrators and analysts."
+      },
+      {
+        "requirement_id": "REQ-002",
+        "text": "Record auditable logs for sensitive actions and data exports."
+      },
+      {
+        "requirement_id": "REQ-003",
+        "text": "Provide an administrative dashboard for uploaded records and failed validations."
+      },
+      {
+        "requirement_id": "REQ-004",
+        "text": "Import monthly reconciliation files in CSV format."
+      },
+      {
+        "requirement_id": "REQ-005",
+        "text": "Provide basic deployment documentation and handoff notes."
+      }
+    ],
+    "review_required": false,
+    "status": "validated",
+    "thread_id": "estimate:00000000-0000-4000-8000-000000000013",
+    "trace_events": [
+      {
+        "event_type": "requirements_extracted",
+        "evidence_refs": [
+          "REQ-001",
+          "REQ-002",
+          "REQ-003",
+          "REQ-004",
+          "REQ-005"
+        ],
+        "node": "extract_requirements",
+        "state_delta_keys": [
+          "requirements",
+          "execution_metadata",
+          "trace_events"
+        ],
+        "summary": "Extracted 5 structured requirements."
+      },
+      {
+        "event_type": "components_classified",
+        "evidence_refs": [
+          "CMP-001",
+          "CMP-002",
+          "CMP-003",
+          "CMP-004",
+          "CMP-005",
+          "REQ-001",
+          "REQ-002",
+          "REQ-003",
+          "REQ-004",
+          "REQ-005"
+        ],
+        "node": "classify_components",
+        "state_delta_keys": [
+          "components",
+          "execution_metadata",
+          "trace_events"
+        ],
+        "summary": "Classified 5 implementation components."
+      },
+      {
+        "event_type": "budget_matches_retrieved",
+        "evidence_refs": [
+          "CMP-001",
+          "CMP-002",
+          "CMP-003",
+          "CMP-004",
+          "CMP-005",
+          "BUD-CMP-001-01",
+          "BUD-CMP-001-02",
+          "BUD-CMP-001-03",
+          "BUD-CMP-002-01",
+          "BUD-CMP-002-02",
+          "BUD-CMP-002-03",
+          "BUD-CMP-003-01",
+          "BUD-CMP-003-02",
+          "BUD-CMP-003-03",
+          "BUD-CMP-004-01",
+          "BUD-CMP-004-02",
+          "BUD-CMP-004-03",
+          "BUD-CMP-005-01",
+          "BUD-CMP-005-02",
+          "BUD-CMP-005-03",
+          "DOC-CMP-001-01:CHK-CMP-001-01",
+          "DOC-CMP-001-02:CHK-CMP-001-02",
+          "DOC-CMP-001-03:CHK-CMP-001-03",
+          "DOC-CMP-002-01:CHK-CMP-002-01",
+          "DOC-CMP-002-02:CHK-CMP-002-02",
+          "DOC-CMP-002-03:CHK-CMP-002-03",
+          "DOC-CMP-003-01:CHK-CMP-003-01",
+          "DOC-CMP-003-02:CHK-CMP-003-02",
+          "DOC-CMP-003-03:CHK-CMP-003-03",
+          "DOC-CMP-004-01:CHK-CMP-004-01",
+          "DOC-CMP-004-02:CHK-CMP-004-02",
+          "DOC-CMP-004-03:CHK-CMP-004-03",
+          "DOC-CMP-005-01:CHK-CMP-005-01",
+          "DOC-CMP-005-02:CHK-CMP-005-02",
+          "DOC-CMP-005-03:CHK-CMP-005-03"
+        ],
+        "node": "search_budgets",
+        "state_delta_keys": [
+          "budget_matches",
+          "execution_metadata",
+          "trace_events"
+        ],
+        "summary": "Retrieved 15 budget matches for 5 components."
+      },
+      {
+        "event_type": "component_estimates_generated",
+        "evidence_refs": [
+          "CMP-001",
+          "CMP-002",
+          "CMP-003",
+          "CMP-004",
+          "CMP-005",
+          "BUD-CMP-001-01",
+          "BUD-CMP-001-02",
+          "BUD-CMP-001-03",
+          "BUD-CMP-002-01",
+          "BUD-CMP-002-02",
+          "BUD-CMP-002-03",
+          "BUD-CMP-003-01",
+          "BUD-CMP-003-02",
+          "BUD-CMP-003-03",
+          "BUD-CMP-004-01",
+          "BUD-CMP-004-02",
+          "BUD-CMP-004-03",
+          "BUD-CMP-005-01",
+          "BUD-CMP-005-02",
+          "BUD-CMP-005-03"
+        ],
+        "node": "generate_estimate",
+        "state_delta_keys": [
+          "component_estimates",
+          "execution_metadata",
+          "trace_events"
+        ],
+        "summary": "Generated 5 grounded component estimates."
+      },
+      {
+        "event_type": "estimate_validated",
+        "evidence_refs": [
+          "CMP-001",
+          "CMP-002",
+          "CMP-003",
+          "CMP-004",
+          "CMP-005",
+          "BUD-CMP-001-01",
+          "BUD-CMP-001-02",
+          "BUD-CMP-001-03",
+          "BUD-CMP-002-01",
+          "BUD-CMP-002-02",
+          "BUD-CMP-002-03",
+          "BUD-CMP-003-01",
+          "BUD-CMP-003-02",
+          "BUD-CMP-003-03",
+          "BUD-CMP-004-01",
+          "BUD-CMP-004-02",
+          "BUD-CMP-004-03",
+          "BUD-CMP-005-01",
+          "BUD-CMP-005-02",
+          "BUD-CMP-005-03"
+        ],
+        "node": "validate_and_consolidate",
+        "state_delta_keys": [
+          "estimate",
+          "status",
+          "review_required",
+          "trace_events"
+        ],
+        "summary": "Validated 5 grounded component estimates totaling 168.0 hours."
+      }
+    ]
+  },
+  "scenario_id": "sample_transcript_complex",
+  "schema_version": "session13.complex_graph_evidence.v1",
+  "source": {
+    "character_count": 518,
+    "path": "evals/session12_agentic/sample_transcript_complex.txt",
+    "sha256": "3de68d5c8344a5da28725e406b46a32f2c3716c6bfbefc919699188985726a92"
+  },
+  "telemetry_trace": [
+    {
+      "attributes": {
+        "budget_match_count": 15,
+        "component_count": 5,
+        "error_count": 0,
+        "estimation_id": "00000000-0000-4000-8000-000000000013",
+        "execution_mode": "new",
+        "graph_name": "session13_estimation_graph",
+        "graph_version": "session13.v1",
+        "requirement_count": 5,
+        "review_required": false,
+        "terminal_status": "validated",
+        "thread_id": "estimate:00000000-0000-4000-8000-000000000013",
+        "total_hours": 168.0,
+        "trace_event_count": 5
+      },
+      "exception_type": null,
+      "exited": true,
+      "name": "session13.graph.run",
+      "parent_id": null,
+      "record_id": 1
+    },
+    {
+      "attributes": {
+        "error_count": 0,
+        "estimation_id": "00000000-0000-4000-8000-000000000013",
+        "graph_name": "session13_estimation_graph",
+        "graph_version": "session13.v1",
+        "node_name": "extract_requirements",
+        "state_delta_keys": [
+          "execution_metadata",
+          "requirements",
+          "trace_events"
+        ],
+        "trace_event_count": 1
+      },
+      "exception_type": null,
+      "exited": true,
+      "name": "session13.graph.node",
+      "parent_id": 1,
+      "record_id": 2
+    },
+    {
+      "attributes": {
+        "error_count": 0,
+        "estimation_id": "00000000-0000-4000-8000-000000000013",
+        "graph_name": "session13_estimation_graph",
+        "graph_version": "session13.v1",
+        "node_name": "classify_components",
+        "state_delta_keys": [
+          "components",
+          "execution_metadata",
+          "trace_events"
+        ],
+        "trace_event_count": 1
+      },
+      "exception_type": null,
+      "exited": true,
+      "name": "session13.graph.node",
+      "parent_id": 1,
+      "record_id": 3
+    },
+    {
+      "attributes": {
+        "error_count": 0,
+        "estimation_id": "00000000-0000-4000-8000-000000000013",
+        "graph_name": "session13_estimation_graph",
+        "graph_version": "session13.v1",
+        "node_name": "search_budgets",
+        "state_delta_keys": [
+          "budget_matches",
+          "execution_metadata",
+          "trace_events"
+        ],
+        "trace_event_count": 1
+      },
+      "exception_type": null,
+      "exited": true,
+      "name": "session13.graph.node",
+      "parent_id": 1,
+      "record_id": 4
+    },
+    {
+      "attributes": {
+        "error_count": 0,
+        "estimation_id": "00000000-0000-4000-8000-000000000013",
+        "graph_name": "session13_estimation_graph",
+        "graph_version": "session13.v1",
+        "node_name": "generate_estimate",
+        "state_delta_keys": [
+          "component_estimates",
+          "execution_metadata",
+          "trace_events"
+        ],
+        "trace_event_count": 1
+      },
+      "exception_type": null,
+      "exited": true,
+      "name": "session13.graph.node",
+      "parent_id": 1,
+      "record_id": 5
+    },
+    {
+      "attributes": {
+        "error_count": 0,
+        "estimation_id": "00000000-0000-4000-8000-000000000013",
+        "graph_name": "session13_estimation_graph",
+        "graph_version": "session13.v1",
+        "node_name": "validate_and_consolidate",
+        "state_delta_keys": [
+          "estimate",
+          "review_required",
+          "status",
+          "trace_events"
+        ],
+        "status": "validated",
+        "trace_event_count": 1
+      },
+      "exception_type": null,
+      "exited": true,
+      "name": "session13.graph.node",
+      "parent_id": 1,
+      "record_id": 6
+    }
+  ]
+}

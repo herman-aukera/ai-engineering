@@ -1,668 +1,292 @@
-# LIDR AI Engineering: Estimador CAG
+# Estimador CAG
 
-## Session 07: Embedding pipeline pre-exercise
-
-Current working branch:
-
-    gg-session-07-pre-exercise
-
-Official delivery alias branch to create at the end:
-
-    session-07/pre-exercise
-
-This branch adds the minimum embedding and structural chunking pipeline for the Session 07 pre-exercise. The goal is to turn normalized historical budget JSON into structural chunks, generate OpenAI embeddings in memory, expose them through FastAPI, and provide a CLI sanity helper for comparing two texts.
-
-This is intentionally not a RAG implementation yet.
-
-### What embeddings are
-
-An embedding is a numeric vector that represents the meaning of a text. Texts with similar meaning tend to produce vectors that are close to each other. The CLI compares two vectors with cosine similarity, which measures whether they point in a similar direction.
-
-### Why one component equals one chunk
-
-For these historical budgets, a budget component is the smallest useful semantic unit. A component such as “OAuth 2.0 authentication backend” becomes more meaningful when the chunk includes parent context such as project summary, sector, country, year, main technology, and total estimated hours.
-
-Embedding the entire budget JSON as one vector would blur together unrelated components, metadata, estimates, dependencies, and implementation details. That produces a noisy vector that is harder to reuse later for retrieval.
-
-### Scope boundaries
-
-Included:
-
-    app/embedding_pipeline/schemas.py
-    app/embedding_pipeline/chunker.py
-    app/embedding_pipeline/embedder.py
-    app/embedding_pipeline/router.py
-    scripts/compare.py
-    data/budgets_sample.json
-
-Not included yet:
-
-    vector database
-    pgvector persistence
-    retrieval endpoint
-    semantic search
-    recursive chunking
-    semantic chunking
-    hierarchical chunking
-    late chunking
-    Contextual Retrieval implementation
-    LLM-generated chunk enrichment
-    UI changes
-
-Contextual Retrieval is relevant conceptually because parent context helps chunks stand alone, but this task only implements deterministic contextual headers from the existing budget fields. It does not call an LLM to enrich chunks.
-
-### Configure OpenAI
-
-Set the key in your local environment or Codespaces secret. Do not paste the value into README or terminal logs that will be committed.
-
-Example, without showing the value:
-
-    export OPENAI_API_KEY
-
-Do not commit `.env`, real API keys, screenshots with secrets, or copied terminal output containing secrets.
-
-Normal tests do not call OpenAI. They use fake clients and can run with:
-
-    OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
-
-### Start FastAPI
-
-From the project directory:
-
-    cd /workspaces/ai-engineering/estimador-cag
-    uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-Health check:
-
-    curl http://localhost:8000/health
-
-Open Swagger UI:
-
-    http://localhost:8000/docs
-
-The Session 07 endpoint appears as:
-
-    POST /embeddings/ingest
-
-### Invoke POST /embeddings/ingest
-
-Example using the committed sample data:
-
-    cd /workspaces/ai-engineering/estimador-cag
-    curl -s -X POST "http://localhost:8000/embeddings/ingest" \
-      -H "Content-Type: application/json" \
-      --data-binary @<(python - <<'PY'
-    import json
-    from pathlib import Path
-
-    budgets = json.loads(Path("data/budgets_sample.json").read_text(encoding="utf-8"))
-    print(json.dumps({"budgets": budgets}))
-    PY
-    )
-
-The response contains vectorized chunks and stats:
-
-    chunks: list of embedded structural chunks
-    stats.total_budgets
-    stats.total_chunks
-    stats.total_tokens
-    stats.estimated_cost_usd
-    stats.model
-
-### Run compare.py locally
-
-    cd /workspaces/ai-engineering/estimador-cag
-    uv run python scripts/compare.py \
-      --text-a "OAuth 2.0 authentication backend for fintech" \
-      --text-b "JWT-based authorization service for banking app"
-
-Expected output shape:
-
-    Text A: OAuth 2.0 authentication backend for fintech
-    Text B: JWT-based authorization service for banking app
-    Cosine similarity: 0.xxxx
-
-### Run compare.py in Docker if the service name is known
-
-    Docker service name was not documented here because no known service name was detected. Use the local uv command below, or inspect docker-compose.yml before adding a container command.
-
-### Run the three-pair sanity check
-
-After configuring a real `OPENAI_API_KEY`, run these commands and record the three values in `app/embedding_pipeline/SANITY_CHECK.md`:
-
-    uv run python scripts/compare.py --text-a "OAuth 2.0 authentication backend with JWT tokens for fintech mobile app" --text-b "Authorization service using JSON Web Tokens for a banking application"
-
-    uv run python scripts/compare.py --text-a "OAuth 2.0 authentication backend with JWT tokens for fintech mobile app" --text-b "Database migration from MySQL to PostgreSQL with zero downtime"
-
-    uv run python scripts/compare.py --text-a "Backend services" --text-b "API development"
-
-The sanity file is committed in a later slice because it must contain real live embedding results. It is only a smoke sanity check, not a formal retrieval evaluation.
-
-### Run validation gates
-
-    cd /workspaces/ai-engineering/estimador-cag
-    uv run ruff check --fix app evals tests scripts
-    uv run ruff check app evals tests scripts
-    uv run python -m py_compile $(find app tests scripts -name '*.py' -type f 2>/dev/null)
-    OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
-
----
-
-
-
-## Codespaces startup modes
-
-The default Codespaces startup mode is now API only:
-
-    ESTIMADOR_START_MODE=api
-
-That starts Redis and FastAPI, which is enough for Session 07 work:
-
-    /docs
-    POST /embeddings/ingest
-    scripts/compare.py
-
-Manual startup commands from the repository root:
-
-    bash .devcontainer/start-estimador-services.sh none
-    bash .devcontainer/start-estimador-services.sh redis
-    bash .devcontainer/start-estimador-services.sh api
-    bash .devcontainer/start-estimador-services.sh ui
-
-Modes:
-
-    none   Starts nothing and prints help.
-    redis  Starts Redis only.
-    api    Starts Redis and FastAPI.
-    ui     Starts Redis, FastAPI, and Streamlit.
-    all    Alias for ui.
-
-Use `ui` when revisiting older sessions that require the Streamlit human interface. Streamlit is no longer auto previewed on every Codespaces start.
-
-
-## Current branch: Session 06 CAG stress test baseline
+## Current Session 13 status
 
 Current branch:
 
 ```text
-gg-pre-session-06-cag-stress-test
+gg-session-13/pre-work
 ```
 
-This branch adds the Session 06 stress test baseline for the existing CAG system.
-
-Required deliverables:
+Teacher-facing branch:
 
 ```text
-evals/stress/REPORT.md
-evals/stress/results.csv
+session-13/pre-work
 ```
 
-The committed stress output contains 900 deterministic rows:
+Current focus:
+
+> Replace the Session 12 hand-written agent loop with a typed, persistent, and
+> observable LangGraph workflow while preserving the existing external
+> estimation contract.
+
+## Mandatory graph
 
 ```text
-3 scenarios × 5 attachment sizes × 3 repeats × 20 turns = 900 rows
+START
+  -> extract_requirements
+  -> classify_components
+  -> search_budgets
+  -> generate_estimate
+  -> validate_and_consolidate
+  -> END
 ```
 
-A bounded live provider smoke was also validated locally with DeepSeek:
+The mandatory path remains sequential. Parallel fan-out, advanced recovery, and
+human intervention are deliberately deferred to the Plus roadmap.
+
+## Public API integration
+
+The graph is exposed through the additive endpoint:
 
 ```text
-3 scenarios × 5 attachment sizes × 3 repeats × 2 turns = 90 rows
+POST /api/v1/estimate/graph
 ```
 
-The goal of this session is measurement, not RAG implementation. The stress runner measures latency, token use, cost, cache behavior, attachment impact, and memory drift so the CAG baseline can be compared against RAG in the next step.
+The existing estimation endpoint and Streamlit path were not silently replaced
+during the mandatory milestone. This preserves rollback and allows
+compatibility to be proven before broader migration.
 
-Session 06 additions:
+The graph endpoint receives a transcript and returns a structured estimate with
+a terminal status. Graph internals are not leaked into the business-backend
+contract.
+
+## Shared state
+
+`app/generation/graph/state.py` defines checkpoint-safe typed state containing:
+
+- transcript and estimation identity;
+- structured requirements;
+- classified components;
+- provenance-rich budget matches;
+- deterministic component estimates;
+- consolidated estimate and status;
+- structured issues;
+- domain trace events;
+- sanitized provider metadata;
+- execution metadata.
+
+Reducer-backed fields include:
+
+- `budget_matches`;
+- `errors`;
+- `trace_events`.
+
+Nodes return partial updates. Reducer-backed nodes return only newly generated
+entries, not the complete accumulated list.
+
+## Node responsibilities
+
+| Node | Responsibility |
+| --- | --- |
+| `extract_requirements` | Convert the transcript into atomic structured requirements |
+| `classify_components` | Group requirements into implementation components |
+| `search_budgets` | Retrieve reference evidence sequentially per component |
+| `generate_estimate` | Calculate hours and totals deterministically in Python |
+| `validate_and_consolidate` | Apply invariants and set terminal status |
+
+Model and retrieval access is hidden behind injected ports. Deterministic fakes
+are used in normal CI; concrete adapters are used at runtime.
+
+## Persistence
+
+The graph uses `AsyncPostgresSaver` with the existing project PostgreSQL
+database.
+
+Application lifecycle responsibilities are:
+
+1. Open the checkpointer during FastAPI lifespan.
+2. Run checkpointer setup.
+3. Compile the graph with the saver.
+4. Invoke with a stable storage-safe thread identifier.
+5. Close resources during shutdown.
+
+The implementation includes close/reopen/reread evidence proving that state can
+be recovered without executing completed nodes again.
+
+## Execution semantics
+
+- New execution: starts a new thread.
+- Resume: continues only an incomplete thread.
+- Completed duplicate: returns the existing terminal result idempotently.
+- Replay: requires an explicit checkpoint identity.
+- Recalculation: uses a new thread.
+
+These semantics prevent accumulator reducers from appending historical values a
+second time.
+
+## Observability
+
+Logfire is used for hosted telemetry.
+
+Each execution produces:
+
+- one root span named `session13.graph.run`;
+- five child spans named `session13.graph.node`;
+- sanitized identifiers, counts, status, and totals;
+- no transcript, prompt, provider response, API token, or database DSN.
+
+The domain trace stored in graph state is separate from telemetry spans and
+operational logs.
+
+Final trace identifier:
 
 ```text
-evals/stress/scenarios.py
-evals/stress/metrics.py
-evals/stress/run.py
-evals/stress/fixtures/build_pdfs.py
-evals/stress/results.csv
-evals/stress/REPORT.md
+019f66df5be5e9f5db11c167f81b79dd
 ```
 
-Validation:
+Logfire project:
+
+https://logfire-eu.pydantic.dev/herman-aukera/starter-project
+
+## Evidence files
 
 ```text
-GitHub Actions CI green
-232 local pytest tests passed
-ruff clean
-py_compile clean
+artifacts/session13/complex_graph_execution_deterministic.json
+artifacts/session13/postgres_persistence_proof.json
+artifacts/session13/live_postgres_logfire_trace_summary.json
+artifacts/session13/live_provider_smoke/REPORT.md
+artifacts/session13/live_provider_smoke/metadata.json
+artifacts/session13/live_provider_smoke/results.csv
 ```
 
-Historical notes for Sessions 04 and 05 remain below. Some branch names and runtime proof sections in the historical notes refer to the older branch where that work was originally introduced.
-
----
-
-## Historical architecture notes from Sessions 04 and 05
-
-Architecture: FastAPI, Streamlit, typed product estimation, structured JSON output, Redis exact cache, semantic cache shadow mode, LiteLLM provider routing, DeepSeek and Kimi fallback, input/output guardrails.
-
-## Session 04 Live Plus
-
-This branch turns the estimator into a production-shaped product estimation workflow.
-
-The user-facing path is no longer a free chat. Streamlit sends a typed product request to FastAPI. The backend renders versioned prompts, calls the LLM through LiteLLM, validates structured JSON with Pydantic, normalizes deterministic totals, applies guardrails, stores only valid results in Redis exact cache, records semantic cache shadow metadata, and returns fields that the UI can render directly.
-
-## What this branch includes
-
-Core product interface:
-
-* Streamlit typed product form with project description, project type, detail level, output format, prompt version, and optional reference projects.
-* FastAPI typed `EstimationRequest`.
-* Versioned Jinja2 prompt templates.
-* Separate system and user messages sent to the provider.
-* Structured `EstimationResult` returned as primary data.
-* Compatibility markdown text returned for older consumers.
-
-Structured output and validation:
-
-* Structured JSON output for typed product estimates.
-* JSON only structured system prompt.
-* Pydantic validation for request and response contracts.
-* Deterministic aggregate normalization:
-  * `total_cost_eur` is computed from phase costs.
-  * `total_duration_weeks` is computed from phase durations.
-* Output guardrails block invalid structured estimates before cache storage.
-
-Provider fallback ladder:
-
-* DeepSeek flash → DeepSeek pro → Kimi 2.5 backup → Kimi 2.6 backup_pro
-* Kimi remains configured as fallback because DeepSeek can fail under provider load.
-* All structured provider output is locally parsed and validated.
-* Kimi is treated as useful but less reliable for structured JSON.
-
-Cache and observability:
-
-* Exact Redis cache runs before semantic cache.
-* Exact cache is deterministic and can serve responses.
-* Semantic cache shadow mode observes candidate matches only.
-* Semantic cache does not serve responses in this branch.
-* Exact cache hits skip semantic lookup.
-* Invalid output is never stored in exact cache or semantic shadow cache.
-* API responses expose:
-  * `requested_tier`
-  * `served_tier`
-  * `fallback_used`
-  * `semantic_cache_mode`
-  * `semantic_candidate_found`
-
-Guardrails:
-
-* Input guardrails block prompt injection and sensitive data before typed service execution.
-* Output guardrails block unsafe or invalid structured results before cache storage.
-
-## Project layout
-
-    estimador-cag/
-      app/
-        main.py
-        config.py
-        routers/
-          estimations.py
-        schemas/
-          estimation.py
-        guardrails/
-          input.py
-          output.py
-        services/
-          llm_service.py
-          litellm_provider.py
-          cache.py
-          semantic_cache.py
-          costs.py
-          conversation.py
-        prompts/
-          loader.py
-          estimation/
-            v1/
-              system.j2
-              user.j2
-              examples.j2
-            v2/
-              system.j2
-              user.j2
-              examples.j2
-      streamlit_app.py
-      tests/
-      docker-compose.yml
-      pyproject.toml
-
-## API endpoints
-
-    GET  /health
-    GET  /metrics
-    POST /api/v1/estimate
-    POST /api/v1/estimate/stream
+The auxiliary live-provider smoke completed operationally, but its historical
+Session 06 latency and memory-drift thresholds did not pass. That result is
+preserved honestly and is not treated as a mandatory Session 13 acceptance
+gate.
 
-Main typed product endpoint:
+The Session 13 Plus credentialed runtime gate is independent of that historical
+stress suite. GitHub Actions run `29526996872` completed bounded DeepSeek and
+Kimi turns and requested a remote Logfire flush. The sanitized evidence and
+claim boundary are documented in
+`docs/session13_plus_live_runtime_evidence.md`.
 
-    POST /api/v1/estimate?prompt_version=v2
+## Deterministic validation
 
-The legacy transcription request and streaming endpoint are still present to preserve the stable Session 03 backend while the product interface evolves.
+```zsh
+cd /workspaces/ai-engineering/estimador-cag
 
-## Typed request contract
+uv run ruff check app scripts tests evals
 
-The Session 04 typed request uses:
+find app scripts tests evals -name '*.py' -type f -print0 |
+  xargs -0 uv run python -m py_compile
 
-    description: string, 20 to 2000 characters
-    project_type: web_saas, internal_tool, automation, data_ai, mobile_app
-    detail_level: summary, medium, detailed
-    output_format: narrative, phases_table
-    reference_projects: optional list
+OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
+```
 
-Example payload:
+## Session 13 documentation
 
-    {
-      "description": "Build a B2B onboarding SaaS with account approval, role based admin review, email notifications, audit logs, and an operations reporting dashboard for managers.",
-      "project_type": "web_saas",
-      "detail_level": "medium",
-      "output_format": "phases_table"
-    }
+- `docs/session13_task13_compliance.md`
+- `docs/session13_plus_roadmap.md`
+- `docs/session13_presentation_guide_es.md`
 
-Expected response includes:
+### Session 13 Plus control room
 
-    {
-      "prompt_version": "v2",
-      "result": {
-        "summary": "...",
-        "total_duration_weeks": 20,
-        "total_cost_eur": 200000,
-        "confidence_pct": 80,
-        "phases": []
-      },
-      "text": "## Product estimate...",
-      "cached": true,
-      "cache_backend": "redis",
-      "model": "deepseek-v4-flash",
-      "provider": "deepseek",
-      "tier": "flash",
-      "requested_tier": "flash",
-      "served_tier": "flash",
-      "fallback_used": false,
-      "semantic_cache_mode": "shadow",
-      "semantic_candidate_found": false
-    }
+```zsh
+uv run streamlit run app/ui/review_control_room.py
+uv run python -m evals.session13_plus_parallel_retrieval_benchmark
+uv run python -m evals.session13_plus_evaluation_matrix
+```
 
-## Prompt templates
+For a keyless local API/UI journey using the production reviewed router, service
+and graph with deterministic adapters:
 
-Prompt files:
+```zsh
+uv run uvicorn scripts.session13_plus_demo_api:app --port 8001
+ESTIMADOR_BACKEND_URL=http://localhost:8001 \
+  uv run streamlit run app/ui/review_control_room.py
+```
 
-    app/prompts/loader.py
-    app/prompts/estimation/v1/system.j2
-    app/prompts/estimation/v1/user.j2
-    app/prompts/estimation/v1/examples.j2
-    app/prompts/estimation/v2/system.j2
-    app/prompts/estimation/v2/user.j2
-    app/prompts/estimation/v2/examples.j2
+This demo uses an in-memory saver and is not a substitute for the separate real
+PostgreSQL restart proof.
 
-The loader function is:
+The reviewed API requires the PostgreSQL-backed application runtime. Sequential
+retrieval remains the default rollback; opt into the measured Plus fan-out with
+`GRAPH_RETRIEVAL_MODE=parallel`. See
+`docs/session13_plus_teacher_superiority_matrix.md` for evidence and limitations.
 
-    render_estimation_prompt(request, version="v1") -> tuple[str, str]
+## Historical Session 12 agentic work
 
-Jinja2 is configured with:
+The Session 12 — hand-written agent loop is preserved from branch
+`gg-session-12/pre-work`.
 
-    StrictUndefined
-    trim_blocks=True
-    lstrip_blocks=True
+Session 12 agentic handoff:
 
-## Start Redis
+- `docs/session12_agentic_handoff.md`
+- `docs/session12_task12_compliance.md`
 
-Redis is used by the exact response cache.
+## Historical Session 10 retrieval background
 
-    cd /workspaces/ai-engineering
-    docker compose up -d redis
-    docker compose ps redis
-    docker compose exec -T redis redis-cli ping
-    cd estimador-cag
+The historical retrieval stack remains available:
 
-Expected:
+| Layer | Files |
+| --- | --- |
+| Fusion | `app/embedding_pipeline/fusion.py` |
+| Reranking | `app/embedding_pipeline/reranker.py` |
+| Search API | `POST /search` |
+| Evaluation | `evals/session10_retrieval/` |
 
-    PONG
+Historical A/B/C/D matrix:
 
-## Start FastAPI
+| Config | Search | Reranking |
+| --- | --- | --- |
+| A | Vector | No |
+| B | Hybrid | No |
+| C | Vector | Yes |
+| D | Hybrid | Yes |
 
-    cd /workspaces/ai-engineering/estimador-cag
-    uv sync --extra dev
-    uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+Historical runner:
 
-Health check:
+```zsh
+uv run python -m evals.session10_retrieval.run   --output evals/session10_retrieval/results.json   --report evals/session10_retrieval/REPORT.md   --k 5   --recall-k 8
+```
 
-    curl http://localhost:8000/health
+The report distinguished `result budget precision@5` from
+`unique budget precision@5`. The corpus has only four budgets, eight component
+chunks, and seven clean queries plus challenge cases, so the result does not
+prove hybrid retrieval or reranking superiority.
 
-Metrics check:
+Historical provider policy: prefer DeepSeek first and use Kimi only as fallback
+or comparison.
 
-    curl http://localhost:8000/metrics
+Historical notes remain indexed in `docs/HISTORICAL_SESSIONS.md`.
 
-## Typed estimate curl
+## Current Plus/V3 provider, context, and multi-agent addendum
 
-    cd /workspaces/ai-engineering/estimador-cag
+The active incubator branch is `gg-session-13/plus`. The verified deterministic V3 foundation before this documentation update was `0700b9bf396ed8a59c1e9a250f7a5ffad65c4278`.
 
-    cat > /tmp/estimate_payload.json <<'JSON'
-    {
-      "description": "Build a B2B onboarding SaaS with account approval, role based admin review, email notifications, audit logs, and an operations reporting dashboard for managers.",
-      "project_type": "web_saas",
-      "detail_level": "medium",
-      "output_format": "phases_table"
-    }
-    JSON
+Canonical architecture entry points:
 
-    curl -sS -X POST 'http://localhost:8000/api/v1/estimate?prompt_version=v2' \
-      -H 'Content-Type: application/json' \
-      --data-binary @/tmp/estimate_payload.json
-
-Check for:
-
-    result.summary
-    result.phases
-    cached
-    cache_backend
-    provider
-    tier
-    requested_tier
-    served_tier
-    fallback_used
-    semantic_cache_mode
-    semantic_candidate_found
-
-## Start Streamlit
+- `docs/session13_plus_v3_foundation.md`
+- `docs/energy_aware_model_context_and_multiagent_policy.md`
+- `CLAUDE.md`
 
-In another terminal:
-
-    cd /workspaces/ai-engineering/estimador-cag
-    uv run streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0
-
-When running in Codespaces, open the forwarded Streamlit port 8501.
+User-facing policy:
 
-If the frontend needs a non default backend URL:
+```text
+Provider: Auto | DeepSeek | Kimi | OpenAI
+Reasoning: minimal | medium | max
+Context detail: minimal | medium | max
+```
 
-    export ESTIMADOR_BACKEND_URL="https://your-forwarded-fastapi-url"
-    uv run streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0
+Defaults:
 
-## Codespaces port visibility
+```text
+provider = DeepSeek
+reasoning = medium
+context detail = medium
+```
 
-After Codespaces starts, open the PORTS tab.
+Current documented capability families:
 
-Check:
+- DeepSeek V4 Flash and V4 Pro;
+- Kimi K3, K2.7 Code, and K2.6;
+- GPT-5.6 Luna, Terra, and Sol.
 
-* 8000 FastAPI backend
-* 8501 Streamlit UI
+Kimi K3 is documented as a max-capability candidate with a 1M-token context and native multimodality. Launch effort is `max`; low/high modes must not be assumed until capability discovery confirms them. Mid-session switching requires a clean checkpoint and normalized compacted handoff.
 
-If either port is Private and browser access returns 401, 402, tunnel auth, or 502:
+The provider table is a policy prior, not proof that one model is universally superior. Runtime selection requires a versioned capability registry, reachability checks, contract verification, and matched product calibration.
 
-1. Right click the port.
-2. Select Port Visibility.
-3. Choose Public.
-4. Reload the browser page.
+Context compaction preserves hard constraints, decisions, evidence references, current state, unresolved issues, budgets, branch/SHA, checkpoint/revision, last green tests/CI, next action, rollback, and claim boundaries. Summaries remain derived projections rather than authoritative records.
 
-Terminal option:
-
-    gh codespace ports visibility 8000:public 8501:public -c "$CODESPACE_NAME"
-
-## Streamlit human test path
-
-1. Start Redis.
-2. Start FastAPI on port 8000.
-3. Start Streamlit on port 8501.
-4. Open Streamlit.
-5. Fill the product form.
-6. Select prompt version `v2` for the final demo.
-7. Submit.
-8. Confirm summary, metrics, phase table, assumptions, risks, and recommendations render.
-9. Confirm prompt version and cache info render.
-10. Confirm request payload is visible in the expander.
-
-## Focused Session 04 tests
-
-    uv run pytest \
-      tests/test_session04_estimation_schema.py \
-      tests/test_prompt_estimation_v1.py \
-      tests/test_session04_backend_product_endpoint.py \
-      tests/test_session04_provider_messages.py \
-      tests/test_session04_llm_service_product.py \
-      tests/test_session04_structured_provider.py \
-      tests/test_session04_structured_schema.py \
-      tests/test_session04_structured_endpoint.py \
-      tests/test_session04_input_guardrails.py \
-      tests/test_session04_output_guardrails.py \
-      tests/test_session04_semantic_cache.py \
-      tests/test_session04_semantic_cache_integration.py \
-      tests/test_session04_streamlit_product_form.py \
-      tests/test_session04_streamlit_structured_rendering.py \
-      tests/test_streamlit_backend_client.py \
-      -v
-
-## Full regression gate
-
-    uv run ruff check app/ tests/ streamlit_app.py --fix
-    uv run ruff check app/ tests/ streamlit_app.py
-    uv run pytest tests/ -v
-    uv run python -m py_compile \
-      app/main.py \
-      app/config.py \
-      app/services/llm_service.py \
-      app/services/cache.py \
-      app/services/semantic_cache.py \
-      app/services/costs.py \
-      app/services/conversation.py \
-      app/services/litellm_provider.py \
-      app/middleware/logging.py \
-      app/routers/estimations.py \
-      app/schemas/estimation.py \
-      app/prompts/loader.py \
-      streamlit_app.py
-
-## Runtime proof from live plus branch
-
-Final runtime smoke confirmed:
-
-* FastAPI `/health` returns ok.
-* Typed estimate endpoint returns structured JSON.
-* Redis exact cache metadata appears in API response.
-* Fallback metadata appears in API response.
-* Semantic cache shadow metadata appears in API response.
-* Streamlit renders product form, summary, metrics, phases, assumptions, risks, recommendations, compatibility text, prompt version, cache info, and request payload.
-
-## Known limitations
-
-* Semantic cache is shadow only and does not serve responses.
-* Semantic cache uses deterministic local embeddings for plumbing, not production embeddings.
-* Semantic cache is process local in this branch, not Redis Stack or vector database backed.
-* Kimi fallback remains configured but is less reliable for strict structured JSON than DeepSeek.
-* The legacy transcription and streaming endpoints remain for compatibility.
-
-## Session 05 conversational memory and attachments
-
-Session 05 upgrades the estimator from a one request one estimate workflow into a session aware product interface.
-
-### Backend endpoints
-
-The backend now exposes:
-
-POST /sessions
-
-POST /sessions/{session_id}/estimate
-
-POST /sessions creates a volatile in process conversation and returns a UUID v4 session_id.
-
-POST /sessions/{session_id}/estimate accepts multipart/form-data with:
-
-transcript: latest client conversation turn
-attachments: optional repeated PDF or DOCX files
-project_type: typed project category
-detail_level: typed detail level
-output_format: typed output format
-prompt_version: v1 or v2
-tier: starting model tier
-
-### Memory model
-
-The implementation separates raw history from durable project facts:
-
-ConversationHistory
-ProjectMetadata
-SessionStore
-
-ConversationHistory keeps a sliding window of recent user and assistant turns. The default is six retained turns. This is intentionally process local for the pre session exercise. It disappears on restart, deploy, or multi worker reshuffle.
-
-project_metadata is stored separately from raw messages and injected into the system prompt on each turn. It currently captures facts such as:
-
-project_name
-assumed_team_size
-mentioned_technologies
-agreed_scope
-open_questions
-attachments_seen
-
-The extractor uses deterministic heuristics because this phase prioritizes speed, cost control, and testability over a second LLM extraction call.
-
-### Attachment path chosen
-
-This project uses local text extraction instead of provider specific multimodal file APIs.
-
-Chosen path:
-
-PDF extraction: pypdf
-DOCX extraction: python-docx
-
-Why this path:
-
-Provider independent
-Works with the existing LiteLLM structured path
-Easy to test without external APIs
-Prepares the project for later chunking or RAG work
-
-Extracted attachment text is added to the prompt with clear delimiters:
-
---- attachment: filename.pdf ---
-...
---- end attachment: filename.pdf ---
-
-### Streamlit usage
-
-Start the backend and Streamlit app:
-
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-uv run streamlit run streamlit_app.py --server.port 8501
-
-When running outside localhost, set:
-
-export ESTIMADOR_BACKEND_URL="https://your-forwarded-backend-url"
-
-The Streamlit UI now creates a backend session automatically, stores the session_id in st.session_state, and sends estimates through the session endpoint.
-
-Use New conversation to reset the session.
-
-The sidebar shows Project metadata so the memory state can be inspected during demos and class review.
-
-The form supports:
-
-Transcript text area
-PDF uploads
-DOCX uploads
-typed project controls
-prompt version selector
-model tier selector
-structured estimate rendering
+Session 14 must be implemented on a separate `session-14/pre-work` branch created from the current verified Plus head. Its mandatory supervisor uses explicit `StateGraph` + `Command`, least-privilege specialists, persistent `interrupt()` human review, and same-thread approve/adjust/reject resume. Provider selectors and context-compaction runtime remain additive follow-up slices.

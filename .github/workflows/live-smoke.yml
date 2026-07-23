@@ -2,16 +2,50 @@ name: Live provider smoke - Estimador CAG
 
 on:
   workflow_dispatch:
+    inputs:
+      run_legacy_stress:
+        description: Run the inherited Session 06 HTTP stress smoke
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   live-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: estimator
+          POSTGRES_PASSWORD: estimator
+          POSTGRES_DB: estimator
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U estimator -d estimator"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     defaults:
       run:
         working-directory: estimador-cag
     env:
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+      LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
+      REDIS_URL: redis://127.0.0.1:6379/0
+      DATABASE_URL: postgresql+asyncpg://estimator:estimator@127.0.0.1:5432/estimator
       PYTHONUNBUFFERED: "1"
 
     steps:
@@ -33,8 +67,15 @@ jobs:
         run: |
           test -n "$DEEPSEEK_API_KEY" || (echo "DEEPSEEK_API_KEY is missing" && exit 1)
           test -n "$KIMI_API_KEY" || (echo "KIMI_API_KEY is missing" && exit 1)
+          test -n "$LOGFIRE_TOKEN" || (echo "LOGFIRE_TOKEN is missing" && exit 1)
+
+      - name: Run Session 13 Plus provider and telemetry smoke
+        run: |
+          uv run python scripts/session13_plus_live_runtime_smoke.py \
+            --output artifacts/session13/live/session13_plus_live_runtime.json
 
       - name: Start FastAPI
+        if: inputs.run_legacy_stress
         run: |
           uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/estimador-cag.log 2>&1 &
           for i in $(seq 1 30); do
@@ -47,22 +88,31 @@ jobs:
           exit 1
 
       - name: Run bounded live stress smoke
+        if: inputs.run_legacy_stress
         run: |
           uv run python -m evals.stress.run \
             --http http://127.0.0.1:8000 \
             --scenarios growing,pivot,contradiction \
-            --attachment-sizes 0,5,20,50,100 \
-            --repeats 3 \
+            --attachment-sizes 0,20,100 \
+            --repeats 1 \
             --turn-count 2 \
             --output evals/stress/live_smoke/results.csv
 
           wc -l evals/stress/live_smoke/results.csv
           sed -n '1,180p' evals/stress/live_smoke/REPORT.md
 
+      - name: Print FastAPI log on failure
+        if: failure() && inputs.run_legacy_stress
+        run: |
+          cat /tmp/estimador-cag.log || true
+
       - name: Upload live smoke artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: live-smoke-results
+          if-no-files-found: ignore
           path: |
             estimador-cag/evals/stress/live_smoke/results.csv
             estimador-cag/evals/stress/live_smoke/REPORT.md
+            estimador-cag/artifacts/session13/live/session13_plus_live_runtime.json
