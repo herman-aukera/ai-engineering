@@ -60,10 +60,15 @@ jobs:
           fi
 
   session14-hosted-evidence:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/session-14/pre-work'
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/session-14/pre-work'
     needs: test-estimador-cag
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -97,6 +102,8 @@ jobs:
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v4
+        with:
+          ref: session-14/pre-work
 
       - name: Detect hosted evidence secret
         id: evidence-secret
@@ -106,32 +113,123 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "SESSION14_LOGFIRE_TOKEN is not configured; hosted evidence capture skipped."
+            echo "SESSION14_LOGFIRE_TOKEN is not configured."
           fi
 
       - name: Install uv
-        if: steps.evidence-secret.outputs.enabled == 'true'
+        if: >-
+          needs.test-estimador-cag.result == 'success' &&
+          steps.evidence-secret.outputs.enabled == 'true'
         uses: astral-sh/setup-uv@v5
 
       - name: Set up Python
-        if: steps.evidence-secret.outputs.enabled == 'true'
+        if: >-
+          needs.test-estimador-cag.result == 'success' &&
+          steps.evidence-secret.outputs.enabled == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        if: steps.evidence-secret.outputs.enabled == 'true'
+        if: >-
+          needs.test-estimador-cag.result == 'success' &&
+          steps.evidence-secret.outputs.enabled == 'true'
         run: uv sync --frozen --extra dev
 
       - name: Capture hosted ORBITA pause and resume trace
-        if: steps.evidence-secret.outputs.enabled == 'true'
+        id: capture
+        if: >-
+          needs.test-estimador-cag.result == 'success' &&
+          steps.evidence-secret.outputs.enabled == 'true'
+        continue-on-error: true
         run: uv run python scripts/session14_hosted_evidence.py
 
+      - name: Record hosted evidence result in branch
+        if: always()
+        working-directory: .
+        env:
+          TEST_RESULT: ${{ needs.test-estimador-cag.result }}
+          SECRET_ENABLED: ${{ steps.evidence-secret.outputs.enabled }}
+          CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
+          SOURCE_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+          WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence_path = Path("estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json")
+          status_path = Path("estimador-cag/artifacts/session14/hosted_evidence_status.json")
+          evidence = None
+          if evidence_path.exists():
+              evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+          test_result = os.getenv("TEST_RESULT") or "unknown"
+          secret_enabled = os.getenv("SECRET_ENABLED") == "true"
+          capture_outcome = os.getenv("CAPTURE_OUTCOME") or "not_run"
+          complete = (
+              test_result == "success"
+              and secret_enabled
+              and capture_outcome == "success"
+              and isinstance(evidence, dict)
+          )
+          payload = {
+              "schema_version": "session14.hosted_evidence_status.v1",
+              "source_sha": os.getenv("SOURCE_SHA"),
+              "workflow_run_id": os.getenv("WORKFLOW_RUN_ID"),
+              "workflow_run_attempt": os.getenv("WORKFLOW_RUN_ATTEMPT"),
+              "test_result": test_result,
+              "secret_configured": secret_enabled,
+              "capture_outcome": capture_outcome,
+              "evidence_complete": complete,
+              "trace_id": evidence.get("trace_id") if isinstance(evidence, dict) else None,
+              "root_span_id": evidence.get("root_span_id") if isinstance(evidence, dict) else None,
+              "thread_id": evidence.get("thread_id") if isinstance(evidence, dict) else None,
+              "pause_status": evidence.get("pause_status") if isinstance(evidence, dict) else None,
+              "resume_status": evidence.get("resume_status") if isinstance(evidence, dict) else None,
+              "public_trace_url": evidence.get("public_trace_url") if isinstance(evidence, dict) else None,
+          }
+          status_path.parent.mkdir(parents=True, exist_ok=True)
+          status_path.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add estimador-cag/artifacts/session14/hosted_evidence_status.json
+          if [ -f estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json ]; then
+            git add estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json
+          fi
+          if git diff --cached --quiet; then
+            echo "Hosted evidence status is already current."
+          else
+            git commit -m "session14: evidence(hosted): record ORBITA capture"
+            git push origin HEAD:session-14/pre-work
+          fi
+
       - name: Upload sanitized hosted evidence
-        if: steps.evidence-secret.outputs.enabled == 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: session14-hosted-pause-resume-${{ github.sha }}
-          path: estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json
+          path: |
+            estimador-cag/artifacts/session14/hosted_evidence_status.json
+            estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Enforce hosted evidence gate
+        if: always()
+        working-directory: .
+        env:
+          TEST_RESULT: ${{ needs.test-estimador-cag.result }}
+          SECRET_ENABLED: ${{ steps.evidence-secret.outputs.enabled }}
+          CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
+        run: |
+          test "$TEST_RESULT" = "success"
+          test "$SECRET_ENABLED" = "true"
+          test "$CAPTURE_OUTCOME" = "success"
