@@ -53,6 +53,7 @@ jobs:
         id: deterministic-tests
         continue-on-error: true
         run: |
+          set -o pipefail
           mkdir -p artifacts/session14
           uv run pytest -q -m "not live_provider" --tb=short 2>&1 | tee artifacts/session14/ci_test_output.txt
 
