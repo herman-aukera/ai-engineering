@@ -13,6 +13,8 @@ on:
 jobs:
   test-estimador-cag:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: estimador-cag
@@ -48,9 +50,55 @@ jobs:
         run: uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null)
 
       - name: Deterministic tests
-        run: uv run pytest -q -m "not live_provider"
+        id: deterministic-tests
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/session14
+          uv run pytest -q -m "not live_provider" --tb=short 2>&1 | tee artifacts/session14/ci_test_output.txt
+
+      - name: Record deterministic CI result
+        if: always()
+        working-directory: .
+        env:
+          TEST_OUTCOME: ${{ steps.deterministic-tests.outcome }}
+          SOURCE_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output_path = Path("estimador-cag/artifacts/session14/ci_test_output.txt")
+          summary_path = Path("estimador-cag/artifacts/session14/ci_test_status.json")
+          output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+          lines = output.splitlines()
+          payload = {
+              "schema_version": "session14.ci_test_status.v1",
+              "source_sha": os.getenv("SOURCE_SHA"),
+              "workflow_run_id": os.getenv("WORKFLOW_RUN_ID"),
+              "outcome": os.getenv("TEST_OUTCOME") or "not_run",
+              "tail": lines[-240:],
+          }
+          summary_path.parent.mkdir(parents=True, exist_ok=True)
+          summary_path.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add estimador-cag/artifacts/session14/ci_test_status.json
+          if git diff --cached --quiet; then
+            echo "Deterministic CI status is already current."
+          else
+            git commit -m "session14: evidence(ci): record deterministic test result"
+            git push origin HEAD:session-14/pre-work
+          fi
 
       - name: Diff and secret gates
+        if: steps.deterministic-tests.outcome == 'success'
         working-directory: .
         run: |
           git diff --check
@@ -58,6 +106,13 @@ jobs:
             echo "Potential secret in tracked files"
             false
           fi
+
+      - name: Enforce deterministic test gate
+        if: always()
+        working-directory: .
+        env:
+          TEST_OUTCOME: ${{ steps.deterministic-tests.outcome }}
+        run: test "$TEST_OUTCOME" = "success"
 
   session14-hosted-evidence:
     if: >-
