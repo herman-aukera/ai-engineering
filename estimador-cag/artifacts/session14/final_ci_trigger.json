@@ -1,6 +1,6 @@
 {
-  "schema_version": "session14.final_ci_trigger.v7",
-  "purpose": "Trigger remote validation and hosted ORBITA pause/resume evidence after configuring the Logfire secret.",
+  "schema_version": "session14.final_ci_trigger.v8",
+  "purpose": "Trigger remote validation and rate-limit-aware hosted ORBITA pause/resume evidence.",
   "implementation_source_sha": "f6d91b9f881726f08bd6c59ff46290bcdc6525a2",
   "expected_workflow": "CI - Estimador CAG",
   "expected_jobs": [
@@ -10,5 +10,5 @@
   "implementation_changed": false,
   "secret_name": "SESSION14_LOGFIRE_TOKEN",
   "secret_committed": false,
-  "trigger_reason": "credential_available"
+  "trigger_reason": "rate_limit_retry_enabled"
 }
