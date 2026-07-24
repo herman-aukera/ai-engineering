@@ -201,7 +201,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts/session14
-          uv run python scripts/session14_hosted_evidence.py 2>&1 | tee artifacts/session14/hosted_capture_output.txt
+          uv run python -m scripts.session14_hosted_evidence 2>&1 | tee artifacts/session14/hosted_capture_output.txt
 
       - name: Record hosted evidence result in branch
         if: always()
