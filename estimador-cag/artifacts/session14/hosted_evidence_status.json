@@ -1,0 +1,16 @@
+{
+  "capture_outcome": "skipped",
+  "evidence_complete": false,
+  "pause_status": null,
+  "public_trace_url": null,
+  "resume_status": null,
+  "root_span_id": null,
+  "schema_version": "session14.hosted_evidence_status.v1",
+  "secret_configured": true,
+  "source_sha": "daf1aa78d531c1baf16aeb61fbd4143c6f52700b",
+  "test_result": "failure",
+  "thread_id": null,
+  "trace_id": null,
+  "workflow_run_attempt": "1",
+  "workflow_run_id": "30119159663"
+}
