@@ -123,3 +123,16 @@ The deterministic historical runner is:
 cd /workspaces/ai-engineering/estimador-cag
 uv run python -m evals.session10_retrieval.run   --output evals/session10_retrieval/results.json   --report evals/session10_retrieval/REPORT.md   --k 5   --recall-k 8
 ```
+
+### Historical interpretation boundary
+
+The Session 10 artifacts are wiring and smoke evidence, not proof that hybrid
+search or reranking improves quality in production. The evaluation distinguishes
+result budget precision@5 from unique budget precision@5 so duplicated matches
+do not inflate the interpretation.
+
+### Provider policy and security
+
+For live-provider experiments, prefer DeepSeek first and use Kimi only as
+fallback or comparison. Do not commit `.env`, real API keys, provider tokens,
+database credentials, or other secrets.
