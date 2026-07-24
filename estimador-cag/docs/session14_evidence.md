@@ -10,19 +10,37 @@
 | Full deterministic suite | L1 local | `908 passed, 11 skipped`; Ruff and Python compilation passed |
 | PostgreSQL pause/reopen/resume | L3 integration | `1 passed` |
 | Action-audit checkpoint CI | L2 remote | Run `29995480121` passed for exact SHA `49cab6d8423e383c765df619ba42fb169bb01eee` |
-| Final repair-head CI | Not yet remote proven | Capture after the observability repair is pushed |
-| Hosted pause/resume trace | L3 hosted | Historical resume finalized and public; historical pause root remained pending; fresh credentialed capture blocked in the current runtime |
+| Secure hosted evidence workflow | Prepared | `scripts/session14_hosted_evidence.py` plus the `session14-hosted-evidence` CI job; requires GitHub secret `SESSION14_LOGFIRE_TOKEN` |
+| Fresh hosted pause/resume trace | Pending credentialed run | Workflow captures one parent trace containing pause, PostgreSQL close/reopen, endpoint resume, terminal reread, and hosted API verification |
 
-## Pending pause-root diagnosis
+## Secure hosted evidence capture
 
-The local recording tracer proves that the Session 14 pause root and
-human-review node context managers exit when `GraphInterrupt` is raised. The
-historical hosted records nevertheless retain `<ongoing?>` copies for those two
-spans, while the resume root is a finalized `kind=span` with a 23.7 ms duration.
-The earlier procedure restarted the API immediately and the application had no
-explicit Logfire flush at shutdown. The bounded lifecycle repair now closes
-graph resources and then invokes the SDK's supported `force_flush` operation.
-Fresh hosted evidence is required to prove the export boundary end to end.
+The hosted capture never commits credentials. Create a short-lived Logfire API
+key with only **Send telemetry** and **Read**, then save it as the GitHub Actions
+repository secret `SESSION14_LOGFIRE_TOKEN`.
+
+On the next push to `session-14/pre-work`, the `session14-hosted-evidence` job:
+
+1. starts PostgreSQL;
+2. reads the exact ORBITA fixture;
+3. executes the graph through `POST /api/v1/estimate/graph`;
+4. verifies `awaiting_human_review` at revision `1`;
+5. closes the checkpointer;
+6. reopens PostgreSQL persistence and resumes through the public endpoint with
+   an approval decision;
+7. verifies the same thread reaches `validated` at revision `2`;
+8. reopens persistence a third time and verifies the terminal response is
+   unchanged;
+9. force-flushes Logfire;
+10. queries the hosted trace and verifies that both
+    `awaiting_human_review` and `completed` spans exist;
+11. uploads only the sanitized trace IDs and lifecycle results as a workflow
+    artifact.
+
+The capture uses a parent span named `session14.evidence.journey`, so pause and
+resume appear inside one trace rather than as unrelated roots. After the job
+succeeds, search Logfire for the artifact's `trace_id`, select the parent span,
+and use **Private → Create** to produce the public link required by the teacher.
 
 ## PostgreSQL proof
 
@@ -57,21 +75,19 @@ the official `LIDR-academy/ai-engineering` `session_14` reference:
 The local acceptance test sends that exact file through the public graph API,
 asserts the checkpoint-backed review pause, approves revision `1`, and
 verifies same-thread completion at revision `2`. The separate PostgreSQL test
-proves persistence across checkpointer lifetimes; the hosted proof must combine
-both properties with this exact fixture.
+proves persistence across checkpointer lifetimes; the secure hosted capture
+combines both properties with this exact fixture.
 
-## Hosted trace
+## Historical hosted trace
 
 ```text
 Historical finalized resume trace: https://logfire-eu.pydantic.dev/public-trace/f0067a79-72a8-44e7-8182-3801e7b00d40?spanId=c2cf5f6eb51ccbcd
-Fresh pause trace: BLOCKED_MISSING_LOGFIRE_AND_PROVIDER_CREDENTIALS
-Fresh resume trace: BLOCKED_PENDING_HUMAN_DECISION_AND_CREDENTIALS
 ```
 
 The historical link proves only the finalized automated-approval resume root.
 It does not prove a finalized pause root or a genuine human decision. Replace
-the blocked markers only after the fresh credentialed lifecycle is inspected
-and shared.
+it in the delivery email after the secure hosted evidence workflow succeeds
+and the resulting parent trace is shared publicly.
 
 ## Sanitization
 
@@ -86,7 +102,7 @@ keys, tokens, database URLs, or environment values.
 ```text
 Branch: https://github.com/herman-aukera/ai-engineering/tree/session-14/pre-work
 Historical resume trace: https://logfire-eu.pydantic.dev/public-trace/f0067a79-72a8-44e7-8182-3801e7b00d40?spanId=c2cf5f6eb51ccbcd
-Fresh pause/resume traces: blocked pending credentialed human-run evidence
+Fresh parent pause/resume trace: pending secure credentialed workflow
 ```
 
 ## Claim boundary
