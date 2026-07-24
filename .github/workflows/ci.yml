@@ -39,13 +39,99 @@ jobs:
 
       - name: Ruff
         run: |
-          TARGETS="app tests"
+          TARGETS="app tests scripts"
           test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
           test -d evals && TARGETS="$TARGETS evals"
           uv run ruff check $TARGETS
 
       - name: Compile Python
-        run: uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
+        run: uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null)
 
-      - name: Tests
-        run: uv run pytest -q
+      - name: Deterministic tests
+        run: uv run pytest -q -m "not live_provider"
+
+      - name: Diff and secret gates
+        working-directory: .
+        run: |
+          git diff --check
+          if git grep -n -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- . ':!*.lock'; then
+            echo "Potential secret in tracked files"
+            false
+          fi
+
+  session14-hosted-evidence:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/session-14/pre-work'
+    needs: test-estimador-cag
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: lidr
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lidr"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      LOGFIRE_TOKEN: ${{ secrets.SESSION14_LOGFIRE_TOKEN }}
+      LOGFIRE_SEND_TO_LOGFIRE: "true"
+      LOGFIRE_SERVICE_NAME: estimador-cag
+      LOGFIRE_ENVIRONMENT: session14-delivery-evidence
+      LOGFIRE_QUERY_BASE_URL: https://logfire-eu.pydantic.dev
+      SESSION14_POSTGRES_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/lidr
+      SESSION14_HOSTED_EVIDENCE_PATH: artifacts/session14/hosted_pause_resume_evidence.json
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+
+      - name: Detect hosted evidence secret
+        id: evidence-secret
+        shell: bash
+        run: |
+          if [ -n "$LOGFIRE_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "SESSION14_LOGFIRE_TOKEN is not configured; hosted evidence capture skipped."
+          fi
+
+      - name: Install uv
+        if: steps.evidence-secret.outputs.enabled == 'true'
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        if: steps.evidence-secret.outputs.enabled == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        if: steps.evidence-secret.outputs.enabled == 'true'
+        run: uv sync --frozen --extra dev
+
+      - name: Capture hosted ORBITA pause and resume trace
+        if: steps.evidence-secret.outputs.enabled == 'true'
+        run: uv run python scripts/session14_hosted_evidence.py
+
+      - name: Upload sanitized hosted evidence
+        if: steps.evidence-secret.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: session14-hosted-pause-resume-${{ github.sha }}
+          path: estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json
+          if-no-files-found: error
+          retention-days: 30
