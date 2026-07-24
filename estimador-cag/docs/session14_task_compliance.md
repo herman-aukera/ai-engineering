@@ -20,7 +20,7 @@
 | Resume endpoint | Complete | `POST /api/v1/estimate/graph/{estimation_id}/resume` |
 | Approve / adjust / reject | Complete | API and policy tests |
 | Same-thread continuation | Complete | PostgreSQL close/reopen/resume proof |
-| Complete pause/resume trace | Complete locally; fresh hosted proof blocked | Local recording tracer proves every pause/resume span exits; shutdown now requests a bounded Logfire flush; fresh credentialed capture still required |
+| Complete pause/resume trace | Capture workflow prepared | `scripts/session14_hosted_evidence.py` creates one parent hosted journey with three PostgreSQL lifecycles and endpoint pause/resume; credentialed run and public share URL remain pending |
 | Teacher edge-case fixture | Complete locally | `exercises/session-14/sample_transcript_edge_case.txt` plus public API pause/resume acceptance test |
 
 ## Teacher-reference alignment
@@ -40,8 +40,8 @@ not an implementation source to copy wholesale.
 
 ```text
 Branch: session-14/pre-work
-Hybrid supervisor commit: cf321b57e29a116e0e66fdfddb40bd68df2fd272
-Level 3 action-audit base: cf321b57e29a116e0e66fdfddb40bd68df2fd272
+Implementation repair base: f6d91b9f881726f08bd6c59ff46290bcdc6525a2
+Secure hosted evidence workflow: prepared on the teacher-facing branch
 Exact teacher fixture blob: 53b0a4625464fb5f4759972fa30a356972260986
 Focused hybrid supervisor/adapter/state/API suite: 59 passed
 Focused Level 3 action-audit/state/worker/API/trace suite: 54 passed
@@ -50,11 +50,10 @@ Ruff: passed
 Python compilation: passed
 ```
 
-The guarded apply/commit gate repeats the real PostgreSQL integration after
-the Level 3 changes. It performs three connection lifecycles: pause, reopen and
-resume, then reopen and reread. The commit must not be created unless that
-post-audit run reports `1 passed`; the final hosted journey must then repeat
-the lifecycle with the exact ORBITA transcript.
+The guarded evidence workflow repeats the real PostgreSQL lifecycle with the
+exact ORBITA transcript. It performs three connection lifecycles: pause,
+reopen and endpoint resume, then reopen and reread. The workflow uses one
+parent Logfire span so the complete journey can be shared as one trace.
 
 ## Delivery gates
 
@@ -70,9 +69,11 @@ the lifecycle with the exact ORBITA transcript.
 - [x] Hybrid-router slice committed and pushed at `cf321b5`.
 - [x] Optional Level 3 action audit complete locally.
 - [x] Remote CI green for action-audit checkpoint `49cab6d` (run `29995480121`).
-- [ ] Remote CI green for the final observability-repair head.
-- [ ] Hosted pause/resume trace inspected and URL recorded.
-- [ ] Branch URL and trace URL emailed to `lia@lidr.co`.
+- [x] Secure hosted ORBITA capture script and CI job committed.
+- [ ] Repository secret `SESSION14_LOGFIRE_TOKEN` configured with a fresh short-lived key.
+- [ ] Credentialed hosted capture job green for the final branch head.
+- [ ] Parent pause/resume trace shared publicly and URL recorded.
+- [ ] Branch URL and fresh public trace URL emailed to `lia@lidr.co`.
 
 Optional competition and provider/context experiments remain outside the
 mandatory delivery. The structured Level 3 action audit is complete locally;
