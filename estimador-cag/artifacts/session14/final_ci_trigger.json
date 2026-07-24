@@ -1,8 +1,14 @@
 {
-  "schema_version": "session14.final_ci_trigger.v1",
-  "purpose": "Trigger remote GitHub Actions validation after the observability lifecycle repair.",
+  "schema_version": "session14.final_ci_trigger.v2",
+  "purpose": "Trigger remote validation and prepare hosted ORBITA pause/resume evidence.",
   "implementation_source_sha": "f6d91b9f881726f08bd6c59ff46290bcdc6525a2",
+  "evidence_workflow_sha": "86879a2b08065934a71a67fcf724f84349573b7a",
   "expected_workflow": "CI - Estimador CAG",
-  "expected_job": "test-estimador-cag",
-  "implementation_changed": false
+  "expected_jobs": [
+    "test-estimador-cag",
+    "session14-hosted-evidence"
+  ],
+  "implementation_changed": false,
+  "secret_name": "SESSION14_LOGFIRE_TOKEN",
+  "secret_committed": false
 }
