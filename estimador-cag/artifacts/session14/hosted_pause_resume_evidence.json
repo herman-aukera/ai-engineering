@@ -1,0 +1,22 @@
+{
+  "checkpoint_lifecycles": 3,
+  "estimation_id": "b9ada470-2862-466d-b530-8c32af0534b9",
+  "evidence_run_id": "1914077b-8e59-4b44-a6de-c754838787ba",
+  "fixture_git_blob": "53b0a4625464fb5f4759972fa30a356972260986",
+  "fixture_name": "sample_transcript_edge_case.txt",
+  "hosted_span_count": 16,
+  "human_review_status": "approved",
+  "pause_status": "awaiting_human_review",
+  "public_trace_status": "create_in_logfire_ui_from_trace_id",
+  "public_trace_url": null,
+  "resume_status": "validated",
+  "revision_after": 2,
+  "revision_before": 1,
+  "root_span_id": "f8432e8d1b59a5e8",
+  "same_thread_resume": true,
+  "schema_version": "session14.hosted_pause_resume.v1",
+  "source_sha": "28a206c8299b8fb39e72f95a5ef5dcee6b895f1f",
+  "terminal_reread_equal": true,
+  "thread_id": "estimate:b9ada470-2862-466d-b530-8c32af0534b9",
+  "trace_id": "019f95964da637d4c6d02524b13e588f"
+}
