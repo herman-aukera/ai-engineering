@@ -1,7 +1,7 @@
 {
   "outcome": "success",
   "schema_version": "session14.ci_test_status.v1",
-  "source_sha": "f48c2746f7ca0e48a4e3f341836bbe160929c97a",
+  "source_sha": "64c62736bed6aa649ec44d91562ee456622395a0",
   "tail": [
     "........................................................................ [  7%]",
     "........................................................................ [ 15%]",
@@ -10,25 +10,13 @@
     "........................................................................ [ 39%]",
     "........................................................................ [ 47%]",
     "................................................sssssss................. [ 54%]",
-    "............................FF.......................................... [ 62%]",
+    "........................................................................ [ 62%]",
     "....s................................................................... [ 70%]",
     "........................................................................ [ 78%]",
     "........................................................................ [ 86%]",
     "........................................................................ [ 94%]",
     ".......................................................                  [100%]",
-    "=================================== FAILURES ===================================",
-    "_________ test_root_readme_documents_bounded_historical_interpretation _________",
-    "tests/test_session08_root_readme_contract.py:45: in test_root_readme_documents_bounded_historical_interpretation",
-    "    assert \"wiring and smoke evidence\" in text",
-    "E   AssertionError: assert 'wiring and smoke evidence' in '# AI Engineering Coursework This repository contains the LIDR AI Engineering coursework. ## Current submission - Acti...un --output evals/session10_retrieval/results.json --report evals/session10_retrieval/REPORT.md --k 5 --recall-k 8 ```'",
-    "___________ test_root_readme_documents_provider_policy_and_security ____________",
-    "tests/test_session08_root_readme_contract.py:57: in test_root_readme_documents_provider_policy_and_security",
-    "    assert \"prefer DeepSeek first\" in text",
-    "E   AssertionError: assert 'prefer DeepSeek first' in '# AI Engineering Coursework This repository contains the LIDR AI Engineering coursework. ## Current submission - Acti...un --output evals/session10_retrieval/results.json --report evals/session10_retrieval/REPORT.md --k 5 --recall-k 8 ```'",
-    "=========================== short test summary info ============================",
-    "FAILED tests/test_session08_root_readme_contract.py::test_root_readme_documents_bounded_historical_interpretation - AssertionError: assert 'wiring and smoke evidence' in '# AI Engineering Coursework This repository contains the LIDR AI Engineering coursework. ## Current submission - Acti...un --output evals/session10_retrieval/results.json --report evals/session10_retrieval/REPORT.md --k 5 --recall-k 8 ```'",
-    "FAILED tests/test_session08_root_readme_contract.py::test_root_readme_documents_provider_policy_and_security - AssertionError: assert 'prefer DeepSeek first' in '# AI Engineering Coursework This repository contains the LIDR AI Engineering coursework. ## Current submission - Acti...un --output evals/session10_retrieval/results.json --report evals/session10_retrieval/REPORT.md --k 5 --recall-k 8 ```'",
-    "2 failed, 906 passed, 11 skipped in 25.52s"
+    "908 passed, 11 skipped in 25.11s"
   ],
-  "workflow_run_id": "30119442970"
+  "workflow_run_id": "30119583630"
 }
