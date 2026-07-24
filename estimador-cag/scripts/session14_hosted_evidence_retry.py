@@ -1,9 +1,10 @@
-"""Rate-limit-aware runner for the hosted Session 14 evidence capture."""
+"""Current Logfire query API runner for hosted Session 14 evidence."""
 
 from __future__ import annotations
 
 import asyncio
 import os
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
@@ -17,7 +18,7 @@ def _retry_delay(response: httpx.Response, attempt: int) -> float:
             return min(max(float(raw_retry_after), 1.0), 60.0)
         except ValueError:
             pass
-    return min(5.0 * (attempt + 1), 30.0)
+    return min(3.0 * (attempt + 1), 30.0)
 
 
 async def _query_hosted_trace(
@@ -47,18 +48,20 @@ async def _query_hosted_trace(
         "Authorization": f"Bearer {api_key}",
         "Accept": "application/json",
     }
-    params = {
+    body = {
         "sql": sql,
-        "row_oriented": "true",
-        "limit": "500",
+        "min_timestamp": (
+            datetime.now(tz=UTC) - timedelta(hours=2)
+        ).isoformat(),
+        "limit": 500,
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         for attempt in range(20):
-            response = await client.get(
-                f"{base_url}/v1/query",
+            response = await client.post(
+                f"{base_url}/v2/query",
                 headers=headers,
-                params=params,
+                json=body,
             )
             if response.status_code == 429:
                 await asyncio.sleep(_retry_delay(response, attempt))
@@ -67,10 +70,10 @@ async def _query_hosted_trace(
             rows = evidence._rows_from_query_payload(response.json())
             if rows:
                 return rows
-            await asyncio.sleep(min(3.0 + attempt * 2.0, 20.0))
+            await asyncio.sleep(min(2.0 + attempt * 2.0, 15.0))
 
     raise RuntimeError(
-        "Hosted trace remained unavailable after rate-limit-aware retries"
+        "Hosted trace remained unavailable after current-API retries"
     )
 
 
