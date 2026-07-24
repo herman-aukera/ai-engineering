@@ -198,7 +198,10 @@ jobs:
           needs.test-estimador-cag.result == 'success' &&
           steps.evidence-secret.outputs.enabled == 'true'
         continue-on-error: true
-        run: uv run python scripts/session14_hosted_evidence.py
+        run: |
+          set -o pipefail
+          mkdir -p artifacts/session14
+          uv run python scripts/session14_hosted_evidence.py 2>&1 | tee artifacts/session14/hosted_capture_output.txt
 
       - name: Record hosted evidence result in branch
         if: always()
@@ -217,10 +220,17 @@ jobs:
           from pathlib import Path
 
           evidence_path = Path("estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json")
+          output_path = Path("estimador-cag/artifacts/session14/hosted_capture_output.txt")
           status_path = Path("estimador-cag/artifacts/session14/hosted_evidence_status.json")
           evidence = None
           if evidence_path.exists():
               evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+          output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+          token = os.getenv("LOGFIRE_TOKEN", "")
+          if token:
+              output = output.replace(token, "[REDACTED]")
+          output = output.replace("Authorization: Bearer ", "Authorization: Bearer [REDACTED]")
 
           test_result = os.getenv("TEST_RESULT") or "unknown"
           secret_enabled = os.getenv("SECRET_ENABLED") == "true"
@@ -246,6 +256,7 @@ jobs:
               "pause_status": evidence.get("pause_status") if isinstance(evidence, dict) else None,
               "resume_status": evidence.get("resume_status") if isinstance(evidence, dict) else None,
               "public_trace_url": evidence.get("public_trace_url") if isinstance(evidence, dict) else None,
+              "tail": output.splitlines()[-180:],
           }
           status_path.parent.mkdir(parents=True, exist_ok=True)
           status_path.write_text(
