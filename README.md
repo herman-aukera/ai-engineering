@@ -21,11 +21,16 @@ and sanitized Level 3 action audit are implemented. Local validation at the
 observability-repair worktree passed `908 passed, 11 skipped`, Ruff, Python
 compilation, and the real PostgreSQL three-lifecycle restart test.
 
-Fresh hosted pause/resume evidence remains blocked until a runtime with the
-configured provider and Logfire credentials is available and a human chooses
-the resume action. The historical resume trace is public, but its paired pause
-root was not finalized. Session 13 material below is retained as historical
-architecture inherited by Session 14.
+A secure hosted evidence workflow now exists for the exact ORBITA teacher
+fixture. It creates one parent Logfire journey containing the pause, PostgreSQL
+close/reopen, same-thread resume through the public endpoint, terminal reread,
+and sanitized hosted verification. The workflow reads
+`SESSION14_LOGFIRE_TOKEN` only from GitHub Actions secrets and never commits or
+uploads the credential. A fresh public share URL must be created from the
+captured trace after the credentialed workflow succeeds.
+
+Session 13 material below is retained as historical architecture inherited by
+Session 14.
 
 Inherited Session 13 references retained for coursework continuity:
 `gg-session-13/pre-work` (development) and `session-13/pre-work`
@@ -118,47 +123,3 @@ The deterministic historical runner is:
 cd /workspaces/ai-engineering/estimador-cag
 uv run python -m evals.session10_retrieval.run   --output evals/session10_retrieval/results.json   --report evals/session10_retrieval/REPORT.md   --k 5   --recall-k 8
 ```
-
-Historical outputs:
-
-```text
-evals/session10_retrieval/results.json
-evals/session10_retrieval/REPORT.md
-```
-
-The historical report distinguishes `result budget precision@5` from
-`unique budget precision@5`. The small corpus provided wiring and smoke
-evidence; it was not proof that hybrid search or reranking improves quality in
-production.
-
-Historical provider policy: prefer DeepSeek first and use Kimi only as fallback
-or comparison.
-
-Security policy: Do not commit `.env`, real API keys, copied credentials, or
-credential-bearing connection strings.
-
-## Current Plus/V3 architecture addendum
-
-The active incubator branch is `gg-session-13/plus`. Its verified deterministic V3 foundation before the provider/context documentation update was `0700b9bf396ed8a59c1e9a250f7a5ffad65c4278`.
-
-The current architecture now documents:
-
-- provider selector: `Auto | DeepSeek | Kimi | OpenAI`;
-- default provider: DeepSeek;
-- reasoning intent: `minimal | medium | max`;
-- context detail: `minimal | medium | max`;
-- DeepSeek V4 Flash/Pro;
-- Kimi K3/K2.7 Code/K2.6;
-- GPT-5.6 Luna/Terra/Sol;
-- versioned capability discovery;
-- context compaction and rotten-context prevention;
-- Session 14 manual-supervisor and persistent-HITL direction;
-- EACODE, EACHAT, and evidence-gated EACORE boundaries.
-
-Entry points:
-
-- `estimador-cag/docs/energy_aware_model_context_and_multiagent_policy.md`
-- `estimador-cag/docs/session13_plus_v3_foundation.md`
-- `estimador-cag/CLAUDE.md`
-
-These additions are documentation and architecture requirements. They do not claim that provider selectors, Kimi K3/GPT-5.6 runtime adapters, context compaction, or Session 14 multi-agent execution are already implemented.
