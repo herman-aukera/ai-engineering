@@ -1,8 +1,8 @@
 {
-  "schema_version": "session14.final_ci_trigger.v2",
+  "schema_version": "session14.final_ci_trigger.v3",
   "purpose": "Trigger remote validation and prepare hosted ORBITA pause/resume evidence.",
   "implementation_source_sha": "f6d91b9f881726f08bd6c59ff46290bcdc6525a2",
-  "evidence_workflow_sha": "86879a2b08065934a71a67fcf724f84349573b7a",
+  "hosted_capture_head": "ace663890458292ca3aa8cf380591ed675a602be",
   "expected_workflow": "CI - Estimador CAG",
   "expected_jobs": [
     "test-estimador-cag",
