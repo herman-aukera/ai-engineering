@@ -1,5 +1,5 @@
 {
-  "capture_outcome": "failure",
+  "capture_outcome": "skipped",
   "evidence_complete": false,
   "pause_status": null,
   "public_trace_url": null,
@@ -7,10 +7,10 @@
   "root_span_id": null,
   "schema_version": "session14.hosted_evidence_status.v1",
   "secret_configured": true,
-  "source_sha": "64c62736bed6aa649ec44d91562ee456622395a0",
-  "test_result": "success",
+  "source_sha": "83f13ada1d6cdcd649c60f72e70ec78b981057f0",
+  "test_result": "failure",
   "thread_id": null,
   "trace_id": null,
   "workflow_run_attempt": "1",
-  "workflow_run_id": "30119583630"
+  "workflow_run_id": "30119636521"
 }
