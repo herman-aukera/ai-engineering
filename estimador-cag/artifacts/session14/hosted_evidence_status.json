@@ -1,5 +1,5 @@
 {
-  "capture_outcome": "skipped",
+  "capture_outcome": "failure",
   "evidence_complete": false,
   "pause_status": null,
   "public_trace_url": null,
@@ -7,10 +7,16 @@
   "root_span_id": null,
   "schema_version": "session14.hosted_evidence_status.v1",
   "secret_configured": true,
-  "source_sha": "83f13ada1d6cdcd649c60f72e70ec78b981057f0",
-  "test_result": "failure",
+  "source_sha": "fe079495f8c3a5f922f6154c46d2549b468c878c",
+  "tail": [
+    "Traceback (most recent call last):",
+    "  File \"/home/runner/work/ai-engineering/ai-engineering/estimador-cag/scripts/session14_hosted_evidence.py\", line 18, in <module>",
+    "    from app.generation.graph.fakes import (",
+    "ModuleNotFoundError: No module named 'app'"
+  ],
+  "test_result": "success",
   "thread_id": null,
   "trace_id": null,
   "workflow_run_attempt": "1",
-  "workflow_run_id": "30119636521"
+  "workflow_run_id": "30119770497"
 }
