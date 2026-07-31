@@ -1,4 +1,4 @@
-"""Additive Session 14 Plus graph with provider and context integrity."""
+"""Additive Session 14 Plus graph with policy, context, and competition."""
 
 from __future__ import annotations
 
@@ -16,6 +16,9 @@ from app.generation.graph.nodes import (
     build_generate_estimate_node,
     build_search_budgets_node,
     build_validate_and_consolidate_node,
+)
+from app.generation.graph.nodes.session14_plus_competition import (
+    build_session14_plus_competition_node,
 )
 from app.generation.graph.nodes.session14_plus_policy import (
     build_session14_plus_policy_bootstrap_node,
@@ -46,6 +49,9 @@ from app.schemas.v3_routing import ExecutionProfileV3
 from app.services.session14_human_review import (
     DEFAULT_SESSION14_CONFIDENCE_THRESHOLD,
 )
+from app.services.session14_plus_competition import (
+    EstimateCompetitionPolicy,
+)
 
 SESSION14_PLUS_GRAPH_NAME = "session14_plus_estimation_graph"
 SESSION14_PLUS_NODE_NAMES = (
@@ -54,6 +60,7 @@ SESSION14_PLUS_NODE_NAMES = (
     "requirements_extractor",
     "budget_searcher",
     "estimate_generator",
+    "candidate_competition",
     "coherence_validator",
     "human_review_gate",
     "finalize",
@@ -80,6 +87,21 @@ def _return_to_supervisor(
     return return_to_supervisor
 
 
+def _return_to_candidate_competition(
+    worker: Session14WorkerOperation,
+) -> Callable[
+    [Session14PlusEstimationGraphState],
+    Awaitable[Command[Literal["candidate_competition"]]],
+]:
+    async def return_to_candidate_competition(
+        state: Session14PlusEstimationGraphState,
+    ) -> Command[Literal["candidate_competition"]]:
+        update = await worker(state)
+        return Command(goto="candidate_competition", update=update)
+
+    return return_to_candidate_competition
+
+
 async def _finalize(
     state: Session14PlusEstimationGraphState,
 ) -> Command[Literal[END]]:
@@ -104,6 +126,7 @@ def build_session14_plus_estimation_graph(
     confidence_threshold: float = DEFAULT_SESSION14_CONFIDENCE_THRESHOLD,
     execution_profile: ExecutionProfileV3 = "balanced",
     context_detail: ContextDetail = "medium",
+    competition_policy: EstimateCompetitionPolicy | None = None,
 ) -> CompiledStateGraph:
     """Compile the Plus graph without modifying the submitted Session 14 graph."""
 
@@ -173,7 +196,18 @@ def build_session14_plus_estimation_graph(
         instrument_session14_command_node(
             graph_name=SESSION14_PLUS_GRAPH_NAME,
             node_name="estimate_generator",
-            node=_return_to_supervisor(estimate_generator),
+            node=_return_to_candidate_competition(estimate_generator),
+            tracer=tracer,
+        ),
+    )
+    builder.add_node(
+        "candidate_competition",
+        instrument_session14_command_node(
+            graph_name=SESSION14_PLUS_GRAPH_NAME,
+            node_name="candidate_competition",
+            node=build_session14_plus_competition_node(
+                policy=competition_policy
+            ),
             tracer=tracer,
         ),
     )

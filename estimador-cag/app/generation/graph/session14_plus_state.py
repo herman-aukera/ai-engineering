@@ -55,7 +55,7 @@ class Session14PlusEstimationGraphState(
     Session14EstimationGraphState,
     total=False,
 ):
-    """Session 14 state extended with provider and context integrity evidence."""
+    """Session 14 state extended with policy, context, and competition evidence."""
 
     plus_policy_version: str
     plus_execution_profile: Literal[
@@ -74,6 +74,11 @@ class Session14PlusEstimationGraphState(
         list[Session14PlusCompactionEventPayload],
         merge_session14_plus_compaction_events,
     ]
+    plus_competition_enabled: bool
+    plus_competition_completed: bool
+    plus_competition_policy_version: str
+    plus_competition_candidates: list[dict[str, object]]
+    plus_competition_assessment: dict[str, object]
 
 
 def new_session14_plus_estimation_graph_state(
@@ -102,5 +107,10 @@ def new_session14_plus_estimation_graph_state(
         plus_context_source_revision=0,
         plus_compacted_context={},
         plus_context_compaction_events=[],
+        plus_competition_enabled=True,
+        plus_competition_completed=False,
+        plus_competition_policy_version="",
+        plus_competition_candidates=[],
+        plus_competition_assessment={},
     )
     return state
