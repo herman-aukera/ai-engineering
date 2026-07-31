@@ -190,13 +190,13 @@ async def test_plus_graph_runs_end_to_end_without_changing_mandatory_graph() -> 
         ),
     )
 
-    async def unused_human_gate(_state):
+    async def review_gate_fallthrough(_state):
         return Command(goto="finalize", update={})
 
     graph = build_session14_plus_estimation_graph(
         dependencies,
         capability_registry=_capability_registry(),
-        human_review_gate=unused_human_gate,
+        human_review_gate=review_gate_fallthrough,
         repository_state=_repository_state(),
     )
     state = new_session14_plus_estimation_graph_state(
@@ -207,8 +207,13 @@ async def test_plus_graph_runs_end_to_end_without_changing_mandatory_graph() -> 
     result = await graph.ainvoke(state)
 
     assert set(SESSION14_PLUS_NODE_NAMES).issubset(graph.get_graph().nodes)
-    assert result["status"] == "validated"
+    assert result["status"] == "needs_review"
+    assert result["review_required"] is True
     assert result["current_agent"] == "finalize"
+    assert result["plus_competition_completed"] is True
+    assert result["plus_competition_assessment"]["disposition"] == (
+        "accept_synthesized"
+    )
     assert result["plus_authorized_capabilities"]["proposal"] == (
         "cap:deepseek:flash"
     )
