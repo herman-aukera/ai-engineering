@@ -1,0 +1,30 @@
+{
+  "authorized_capabilities": {
+    "complexity": "cap:deepseek:flash",
+    "proposal": "cap:deepseek:flash",
+    "recovery": "cap:python:recovery",
+    "reliability": "cap:deepseek:flash",
+    "structure": "cap:deepseek:flash"
+  },
+  "checkpoint_lifecycles": 3,
+  "competition_candidate_count": 4,
+  "competition_disposition": "accept_synthesized",
+  "competition_energy_snapshot_id": "energy:4c75985e1ded619a7e925ddd",
+  "context_fingerprint_after": "bd17d193b6b08215caa7116693a4f368e07c8c321e0ca0c945ae16c1bab12335",
+  "context_fingerprint_before": "4cdefc2cd4e150574b8237ecabbcffd6026fce26300348d7da6775a00540ea81",
+  "context_revision_after": 7,
+  "context_revision_before": 6,
+  "estimation_id": "a4ea60cf-6c61-42e9-bbd8-b8fdbc363302",
+  "fixture_name": "sample_transcript_edge_case.txt",
+  "pause_execution_status": "awaiting_human_review",
+  "pause_human_review_status": "awaiting_human_review",
+  "resume_execution_status": "completed",
+  "resume_human_review_status": "approved",
+  "revision_after": 2,
+  "revision_before": 1,
+  "same_thread_resume": true,
+  "schema_version": "session14.plus.postgres-evidence.v1",
+  "source_sha": "f3e75a2f6d739220ac7d8121b585b10b922d02c7",
+  "terminal_reread_equal": true,
+  "thread_id": "estimate:a4ea60cf-6c61-42e9-bbd8-b8fdbc363302"
+}

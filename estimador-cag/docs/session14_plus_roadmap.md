@@ -3,66 +3,127 @@
 **Working mode:** LIDR coursework + additive portfolio hardening  
 **Protected academic branch:** `session-14/pre-work`  
 **Plus branch:** `gg-session-14/plus`  
-**Plus source head:** `286ed83f3a1133af88a51c9abb88726e4c072261`
+**Draft PR:** `#19`  
+**Plus base checkpoint:** `286ed83f3a1133af88a51c9abb88726e4c072261`  
+**Validated Plus technical checkpoint:** `c6f82e4dcdf15af3039d34dcca5e441e4eaeb89c`
 
 ## Decision
 
-Session 14 mandatory delivery is frozen. Plus work continues on a separate branch and must not rewrite, merge into, or weaken the submitted branch.
+Session 14 mandatory delivery remains frozen. Plus work is separate, additive, draft, and unmerged.
 
-The Plus sequence is:
+## Completed Plus v1 core
 
-1. **Provider and context integrity**
-   - strict model capability registry;
-   - lifecycle-gated route authorization;
-   - deterministic context detail (`minimal`, `medium`, `max`);
-   - sanitized compacted handoffs;
-   - stable fingerprints;
-   - stale-context rejection;
-   - replay-safe compaction audit.
-2. **Graph integration**
-   - compact at checkpoint/provider-switch boundaries;
-   - preserve authoritative checkpoint and evidence references;
-   - expose compaction events without prompts, transcript, hidden reasoning, credentials, or raw provider output.
-3. **Bounded competition**
-   - conservative and aggressive estimate candidates;
-   - deterministic divergence measurement;
-   - synthesizer with Python-owned arithmetic;
-   - human review for material disagreement;
-   - strict cost, latency, route, and tool budgets.
-4. **Provider calibration**
-   - capability discovery before enablement;
-   - matched DeepSeek/Kimi/OpenAI benchmark;
-   - no provider-superiority claim without product evidence.
-5. **Product evidence**
-   - API/UI selector only after contracts are green;
-   - PostgreSQL replay proof;
-   - hosted traces;
-   - rollback and adverse-case evaluation.
+### 14P-1 — provider and context integrity ✅
 
-## Slice 14P-1 acceptance contract
+- strict capability registry;
+- lifecycle-gated enablement;
+- fail-closed primary-route validation;
+- deterministic `minimal | medium | max` context detail;
+- sensitive-field and secret-like value rejection;
+- stable fingerprints;
+- stale-context rejection;
+- replay-safe compaction events.
 
-This first slice is intentionally provider-neutral and deterministic.
+### 14P-2 — graph integration ✅
 
-Required:
+- separate `session14_plus_estimation_graph`;
+- server-owned policy bootstrap;
+- authorized V3 route plan;
+- context refresh on supervisor decisions;
+- academic graph and API left unchanged;
+- additive rollback to `session-14/pre-work`.
 
-- documented models are not executable merely because they appear in configuration;
-- an enabled route must be contract verified or benchmark calibrated;
-- every primary route in a `ModelRoutingPlan` must resolve to an enabled capability;
-- unsupported output, reasoning effort, or tool requirements fail closed;
-- compacted context is a derived projection, not source of truth;
-- hard constraints, identity, checkpoint, evidence references, repository state, validation state, next action, rollback boundary, and claim boundary survive compaction;
-- transcript, prompts, raw provider output, hidden reasoning, DSNs, tokens, passwords, and secret-like values are rejected;
-- equivalent input produces a stable context fingerprint independently of creation time;
-- stale compacted context is rejected before resume/provider switching;
-- replayed compaction events deduplicate and conflicting IDs fail closed.
+### 14P-3 — bounded competition and Energy gate ✅
+
+- baseline, aggressive, conservative, and synthesized candidates;
+- Python-owned arithmetic and synthesis;
+- confidence-aware weighting;
+- deterministic divergence measurement;
+- V3 constraint-energy assessment;
+- hard missing-evidence/conflict escalation;
+- layered coherence validation retained.
+
+### 14P-4 — persisted lifecycle evidence ✅
+
+- context refresh after an authorized human decision;
+- real PostgreSQL pause, close, reopen, same-thread resume, close/reopen, terminal reread;
+- exact ORBITA fixture;
+- competition and capability evidence persisted;
+- remote CI and artifact evidence.
+
+Validation checkpoint:
+
+```text
+GitHub Actions run 30654656662
+Ruff passed
+Python compilation passed
+923 passed, 11 skipped
+Diff and secret gates passed
+session14-plus-postgres-evidence passed
+```
+
+Durable artifact:
+
+```text
+artifacts/session14_plus/postgres_pause_resume.json
+```
+
+## Next gate: Session 13 Plus ↔ Session 14 Plus audit
+
+No further architecture or product exposure should be implemented until the continuation audit decides:
+
+1. which reviewed V2 controls must remain separate;
+2. which V3 contracts are already reused correctly;
+3. which abstractions are duplicated or incompatible;
+4. whether a compatibility adapter or migration is justified;
+5. which graph becomes the next feature-flagged product path;
+6. which docs are canonical versus historical.
+
+Audit prompt:
+
+```text
+docs/session13_plus_session14_plus_audit_continuation_prompt.md
+```
+
+## Deferred product slices
+
+These are not part of the completed Plus v1 core:
+
+### Provider calibration
+
+- capability discovery before live enablement;
+- matched DeepSeek/Kimi/OpenAI evaluation;
+- fallback-route capability validation;
+- no provider-superiority claim without product evidence.
+
+### API/UI exposure
+
+- additive feature-flagged Plus composition root;
+- provider/reasoning/context selectors;
+- Control Room integration;
+- browser evidence;
+- explicit rollback to reviewed V2 and mandatory Session 14.
+
+### Model-generated competition
+
+- conservative/aggressive provider prompts;
+- matched accuracy/cost/latency evaluation;
+- adversarial disagreement cases;
+- human-review impact measurement;
+- enable only after deterministic baseline superiority or complementarity is proven.
 
 ## Claim boundary
 
-This slice proves strict contracts and deterministic policy. It does not claim:
+Supported:
 
-- live Kimi K3 or GPT-5.6 availability;
-- provider quality superiority;
-- graph-integrated context compaction;
-- lossless compaction;
-- competitive estimators;
-- production readiness.
+> Session 14 Plus v1 contains a separately versioned graph with capability-authorized routing, sanitized deterministic context projection, bounded Energy-Aware estimate competition, preserved human authority, and remote deterministic plus real-PostgreSQL lifecycle evidence.
+
+Blocked:
+
+- Plus is the current production graph;
+- context compaction is lossless;
+- competition improves estimate accuracy;
+- Kimi K3 or GPT-5.6 is operational;
+- any provider is universally superior;
+- Session 14 Plus is production-ready;
+- protected coursework branches have been merged or replaced.
