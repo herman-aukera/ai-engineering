@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from langgraph.types import Command
 
 from app.generation.graph.nodes.session14_plus_human_review import (
@@ -10,6 +11,7 @@ from app.generation.graph.session14_plus_state import (
 )
 
 
+@pytest.mark.asyncio
 async def test_context_aware_human_gate_refreshes_context_after_resume() -> None:
     async def approved_gate(_state):
         return Command(
