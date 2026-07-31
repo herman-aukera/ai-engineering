@@ -229,3 +229,63 @@ jobs:
         run: |
           test "$SECRET_ENABLED" = "true"
           test "$CAPTURE_OUTCOME" = "success"
+
+  session14-plus-postgres-evidence:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'gg-session-14/plus'
+    needs: test-estimador-cag
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: lidr
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lidr"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      SESSION14_PLUS_POSTGRES_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/lidr
+      SESSION14_PLUS_POSTGRES_EVIDENCE_PATH: artifacts/session14_plus/postgres_pause_resume.json
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout exact Plus branch head
+        uses: actions/checkout@v4
+        with:
+          ref: gg-session-14/plus
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Capture PostgreSQL pause and resume evidence
+        run: uv run python -m scripts.session14_plus_postgres_evidence
+
+      - name: Upload Session 14 Plus PostgreSQL evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: session14-plus-postgres-${{ github.event.pull_request.head.sha }}
+          path: estimador-cag/artifacts/session14_plus/postgres_pause_resume.json
+          if-no-files-found: error
+          retention-days: 30

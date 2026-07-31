@@ -20,6 +20,9 @@ from app.generation.graph.nodes import (
 from app.generation.graph.nodes.session14_plus_competition import (
     build_session14_plus_competition_node,
 )
+from app.generation.graph.nodes.session14_plus_human_review import (
+    build_context_aware_session14_plus_human_gate,
+)
 from app.generation.graph.nodes.session14_plus_policy import (
     build_session14_plus_policy_bootstrap_node,
     build_session14_plus_supervisor_node,
@@ -143,6 +146,13 @@ def build_session14_plus_estimation_graph(
     budget_searcher = build_budget_searcher_agent(search_budgets)
     estimate_generator = build_estimate_generator_agent(generate_estimate)
     coherence_validator = build_coherence_validator_agent(validate_estimate)
+    context_aware_human_gate = (
+        build_context_aware_session14_plus_human_gate(
+            human_review_gate,
+            default_context_detail=context_detail,
+            repository_state=repository_state,
+        )
+    )
 
     builder = StateGraph(Session14PlusEstimationGraphState)
     builder.add_node(
@@ -225,7 +235,7 @@ def build_session14_plus_estimation_graph(
         instrument_session14_command_node(
             graph_name=SESSION14_PLUS_GRAPH_NAME,
             node_name="human_review_gate",
-            node=human_review_gate,
+            node=context_aware_human_gate,
             tracer=tracer,
         ),
     )
