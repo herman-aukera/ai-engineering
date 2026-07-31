@@ -8,6 +8,14 @@ Branch:
 EACHAT
 ```
 
+Current evidence source:
+
+```text
+docs/energy_aware_chat_current_audit.md
+audit baseline: c08d35ec25f1dc666c52633b9a9abe94207a63ba
+final head: resolve with git rev-parse HEAD
+```
+
 Canonical final-project mirror:
 
 ```text

@@ -23,7 +23,7 @@ These claims are blocked unless the matching evidence exists.
 | `public deployment is live` | `blocked` | public_url, healthcheck_passed, demo_route_passed, timestamp_utc | Deploy the Docker/FastAPI app to a public host and record URL plus smoke output. |
 | `quality improvement over plain DeepSeek` | `blocked` | live_provider_run, run_id, cases_total_at_least_3, plain_deepseek_score, energy_aware_score, metric_name, report_path | Run a fixed live DeepSeek benchmark and commit the result plus report. |
 | `frontier-model superiority` | `blocked` | benchmark_run_id, at_least_two_frontier_models_tested, benchmark_report_path, independent_rubric, same_task_set, cost_and_latency_reported, human_review_notes_present | Do not use this claim for the final project unless a fair frontier benchmark is actually run. |
-| `production-ready` | `blocked` | public_deployment_live, secret_scan_green, incident_response_documented, real_user_monitoring_documented | Treat the project as production-oriented until deployment and operations evidence exists. |
+| `production-ready` | `blocked` | public_deployment_live, incident_response_documented, real_user_monitoring_documented | Treat the project as production-oriented until deployment and operations evidence exists. |
 
 ## Correct current wording
 

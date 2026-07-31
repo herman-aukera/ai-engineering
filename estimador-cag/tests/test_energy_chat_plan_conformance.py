@@ -43,6 +43,9 @@ def test_dedicated_energy_chat_ci_is_branch_scoped_and_unambiguous() -> None:
     assert "concurrency:" in DEDICATED_CI_WORKFLOW
     assert "cancel-in-progress: true" in DEDICATED_CI_WORKFLOW
     assert "fetch-depth: 0" in DEDICATED_CI_WORKFLOW
+    assert "EXPECTED_HEAD_SHA: ${{ github.sha }}" in DEDICATED_CI_WORKFLOW
+    assert "ref: ${{ env.EXPECTED_HEAD_SHA }}" in DEDICATED_CI_WORKFLOW
+    assert 'test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"' in DEDICATED_CI_WORKFLOW
     assert "bash scripts/validate_energy_chat.sh" in DEDICATED_CI_WORKFLOW
     assert "gg-energy-aware-code" not in DEDICATED_CI_WORKFLOW
 

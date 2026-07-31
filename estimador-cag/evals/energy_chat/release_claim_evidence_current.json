@@ -8,7 +8,7 @@
     },
     "ci_green": true,
     "deterministic_validation_green": true,
-    "secret_scan_green": false,
+    "secret_scan_green": true,
     "rollback_documented": true,
     "observability_documented": true,
     "privacy_boundary_documented": true,

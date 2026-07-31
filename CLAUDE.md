@@ -28,7 +28,7 @@ Do not modify `EACODE`, `gg-session-13/plus`, `main` or `finalproject-GGC` while
 
 ## Current task
 
-All 21 milestones implemented. CI green (366 focused / 624 full tests). Next actions are operational: credentialed provider smoke, live-DB integration, public deployment, security review, browser proof.
+All 21 implementation milestones are complete. The exact-head product path includes deterministic regression, PostgreSQL, browser, security/dependency, durable-memory, fixed-quality, and container-restart gates. Remaining work is external evidence: credentialed provider smoke, matched live quality comparison, public deployment, real-user telemetry, and a human release decision. See `estimador-cag/docs/energy_aware_chat_current_audit.md` for the current evidence boundary.
 
 ```text
 POST /energy-chat/v2/chat        — deterministic, owns execution profile, checkpointed
@@ -36,7 +36,7 @@ POST /energy-chat/v2/chat/live   — live bounded, owns execution profile, bound
 POST /energy-chat/v2/demo        — V2 browser demo (served by FastAPI)
 ```
 
-**Implemented capabilities:** graph-backed API, in-memory checkpointing with replay/resume, revision-guarded human gates, PostgreSQL checkpointer with live-DB integration tests, observability spans/metrics, evidence body hashing and citation validation, V2 browser demo, provider capability catalog (DeepSeek verified, Kimi/GPT-5.6 documented), context compaction policies, multi-agent budgets, quality evaluation framework, release audit with evidence-gated claim boundaries.
+**Implemented capabilities:** graph-backed API, application-lifetime and PostgreSQL checkpointing with authoritative replay/resume, revision-guarded human gates, durable encrypted conversation memory, observability spans/metrics, evidence body hashing and citation validation, XSS-safe V2 browser demo, provider capability catalog and bounded adapters, runtime context compaction, bounded committee/adaptive orchestration, fixed-corpus evaluation, container restart proof, and evidence-gated release claims.
 
 ## Model and selector policy
 

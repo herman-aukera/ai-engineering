@@ -20,16 +20,21 @@ jobs:
       run:
         working-directory: estimador-cag
     env:
+      EXPECTED_HEAD_SHA: ${{ github.sha }}
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
       OPENAI_API_KEY: test
       PYTHONUNBUFFERED: "1"
 
     steps:
-      - name: Checkout
+      - name: Checkout exact branch head
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5

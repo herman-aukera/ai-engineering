@@ -1,82 +1,38 @@
-# Energy Aware Chat pull request body draft
+# Energy Aware Chat final product-path completion
 
 ## Current source of truth
 
 ```text
 branch=EACHAT
-head=0df0e8e
-latest_ci=success
-workflow=CI - Estimator CAG
-run_id=27570100847
-energy_chat_validation_gate=success
-claim_status=measurement_only_no_quality_claim
+head=resolve from current PR head SHA
+audit_baseline=c08d35ec25f1dc666c52633b9a9abe94207a63ba
+exact_head_ci=required
+claim_status=release_claims_blocked_missing_evidence
+benchmark_claim=measurement_only_no_quality_claim
 ```
 
 ## Summary
 
-This branch keeps the Energy Aware Chat final project track inside `estimador-cag`.
+EACHAT has a deterministic graph-backed chat path plus a bounded live route; deterministic critics and energy decisions; bounded repair and six dispositions; Decision Ledger and Energy Card; honest pending responses; application and PostgreSQL checkpoint replay; isolated conversations; revision-guarded human resume; durable encrypted memory; integrated observability/evidence integrity; a safe browser UI; bounded provider/context/orchestration runtimes; fixed-corpus measurement; security/dependency gates; and a container restart canary.
 
-The current scope is a browser-testable, production-oriented MVP candidate with deterministic answer evaluation, Energy Card output, source requirement detection, evidence bundles, deterministic project-source RAG grounding, local agent orchestration, benchmark measurement artifacts, reviewer documentation, release snapshots, closeout proof, continuation guard, and exact CI proof.
+The consolidated reviewer source is `docs/energy_aware_chat_current_audit.md`. Historical milestone and direct-repair documents are background, not current defect lists.
 
-## Fast reviewer entry point
-
-Start here:
-
-```text
-docs/energy_aware_chat_reviewer_index.md
-```
-
-Useful reviewer docs:
-
-1. `docs/energy_aware_chat_examiner_quickstart.md`
-2. `docs/energy_aware_chat_evaluator_landing_page.md`
-3. `docs/energy_aware_chat_final_project_acceptance_matrix.md`
-4. `docs/energy_aware_chat_final_project_proof_packet.md`
-5. `docs/energy_aware_chat_closeout_pack.md`
-6. `docs/energy_aware_chat_unsupervised_continuation.md`
-7. `docs/energy_aware_chat_fixed_benchmark_report.md`
-
-## Validation commands
+## Validation
 
 ```bash
-cd /workspaces/ai-engineering
-
-git fetch origin
-git switch EACHAT
-git pull --ff-only
-
-git rev-parse --short HEAD
-git status --short
-
-cd estimador-cag
+cd /workspaces/ai-engineering/estimador-cag
 UV_HTTP_TIMEOUT=600 bash scripts/validate_energy_chat.sh
-```
 
-```bash
 cd /workspaces/ai-engineering
-
-bash estimador-cag/scripts/check_energy_chat_ci.sh
+bash estimador-cag/scripts/check_energy_chat_ci.sh EACHAT "$(git rev-parse HEAD)"
 ```
 
-## Claim boundaries
+Required exact-head workflows: `CI - Estimador CAG`, `Energy Aware Chat CI`, `EACHAT - Durable Memory`, `EACHAT - Fixed Quality`, and `EACHAT - Container Canary`.
 
-Benchmark wording is measurement only:
+## Claim boundary
 
-```text
-measurement_only_no_quality_claim
-```
+Allowed: CI-validated deterministic graph/API behavior, bounded provider routing, authoritative replay/resume, PostgreSQL and encrypted-memory integration evidence, browser journey, fixed-corpus measurement, security/dependency audit, and container restart proof.
 
-Allowed short description:
+Do not claim production readiness, public deployment, real-user telemetry, provider/model superiority, automatic-routing improvement, committee/adaptive superiority, context-rot prevention, live quality improvement, or vector database RAG grounding beyond committed evidence.
 
-```text
-Energy Aware Chat is a browser-testable, production-oriented MVP candidate on the EACHAT incubator branch.
-```
-
-Do not claim:
-
-1. production readiness,
-2. public deployment is live,
-3. quality improvement over plain DeepSeek,
-4. frontier-model superiority,
-5. live provider fallback proof without the manual live-provider smoke workflow,
-6. vector database RAG grounding beyond the committed deterministic project-source RAG grounding baseline.
+PR #5 remains open and unmerged. Its conflict with `main` requires a separate human-authorized integration decision.
