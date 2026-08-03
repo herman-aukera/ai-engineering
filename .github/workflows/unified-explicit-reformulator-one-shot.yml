@@ -1,0 +1,66 @@
+name: Unified explicit reformulator one-shot
+
+on:
+  push:
+    branches:
+      - gg-session-14/plus-consolidated
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout writable consolidation branch
+        uses: actions/checkout@v4
+        with:
+          ref: gg-session-14/plus-consolidated
+          fetch-depth: 0
+
+      - name: Install matching Ruff
+        uses: astral-sh/setup-uv@v5
+
+      - name: Bind unified reformulator explicitly
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("estimador-cag/app/generation/graph/unified_build.py")
+          text = path.read_text(encoding="utf-8")
+          old = "            node=build_reformulate_request_node(),\n"
+          new = (
+              "            node=build_reformulate_request_node(\n"
+              "                preserve_source_transcript=True\n"
+              "            ),\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit(
+                  f"expected one unified reformulator call, found {text.count(old)}"
+              )
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          Path(
+              ".github/workflows/unified-explicit-reformulator-one-shot.yml"
+          ).unlink()
+          PY
+
+      - name: Normalize patched module
+        run: |
+          uvx --from ruff==0.15.12 ruff check --fix \
+            estimador-cag/app/generation/graph/unified_build.py
+          uvx --from ruff==0.15.12 ruff format \
+            estimador-cag/app/generation/graph/unified_build.py
+          uvx --from ruff==0.15.12 ruff check \
+            estimador-cag/app/generation/graph/unified_build.py
+
+      - name: Commit explicit composition contract
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add estimador-cag/app/generation/graph/unified_build.py
+          git add .github/workflows/unified-explicit-reformulator-one-shot.yml
+          git commit -m "consolidation: bind unified reformulator explicitly"
+          git push origin HEAD:gg-session-14/plus-consolidated
+
+# trigger after workflow registration
