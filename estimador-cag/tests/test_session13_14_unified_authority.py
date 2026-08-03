@@ -5,6 +5,7 @@ from langgraph.types import Command
 
 from app.generation.graph.unified_build import (
     _human_gate_to_supervisor,
+    _phase_marker,
     _restore_source_transcript_node,
 )
 
@@ -54,6 +55,23 @@ async def test_structure_phase_restores_exact_source_transcript() -> None:
     assert update["trace_events"][0]["event_type"] == (
         "source_transcript_restored"
     )
+
+
+@pytest.mark.asyncio
+async def test_structure_completion_restores_parent_checkpoint_identity() -> None:
+    command = await _phase_marker(
+        flag="unified_structure_completed",
+        phase="structure",
+    )(
+        {
+            "transcript": "Canonical structure brief",
+            "pre_reformulation_transcript": "Original source request",
+        }
+    )
+
+    assert command.goto == "supervisor"
+    assert command.update["unified_structure_completed"] is True
+    assert command.update["transcript"] == "Original source request"
 
 
 @pytest.mark.asyncio
