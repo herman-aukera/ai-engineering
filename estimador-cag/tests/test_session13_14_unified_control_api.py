@@ -68,16 +68,21 @@ class FakeControlService:
 
     async def resume_human_review(self, *, estimation_id, decision):
         self.resume_action = decision.action
-        run = deepcopy(_control_run())
-        run.state.update(
+        paused = deepcopy(_control_run())
+        resumed_state = deepcopy(paused.state)
+        resumed_state.update(
             human_review_status="approved",
             human_review_revision=2,
             unified_phase="finalized",
             status="validated",
             review_required=False,
         )
-        run.execution_status = "completed"
-        return run
+        return GraphEstimationRun(
+            estimation_id=paused.estimation_id,
+            thread_id=paused.thread_id,
+            state=resumed_state,
+            execution_status="completed",
+        )
 
 
 def _client(service: FakeControlService) -> TestClient:
