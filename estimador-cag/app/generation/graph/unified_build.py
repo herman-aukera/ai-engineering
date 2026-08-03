@@ -31,11 +31,11 @@ from app.generation.graph.nodes.session14_plus_human_review import (
 from app.generation.graph.nodes.session14_workers import (
     build_coherence_validator_agent,
 )
-from app.generation.graph.nodes.unified_policy import (
-    build_unified_policy_bootstrap_node,
-)
 from app.generation.graph.nodes.unified_context_supervisor import (
     build_context_aware_unified_supervisor_node,
+)
+from app.generation.graph.nodes.unified_policy import (
+    build_unified_policy_bootstrap_node,
 )
 from app.generation.graph.observability import (
     NOOP_GRAPH_TRACER,
@@ -227,16 +227,15 @@ def _recovery_marker():
     return mark_recovery
 
 
-def _human_gate_to_proposal(base_gate):
+def _human_gate_to_supervisor(base_gate):
     async def run_gate(
         state: UnifiedEstimationGraphState,
-    ) -> Command[Literal["proposal", "finalize"]]:
+    ) -> Command[Literal["supervisor"]]:
         command = await base_gate(state)
         raw_update = command.update
         update = dict(raw_update) if isinstance(raw_update, Mapping) else {}
-        rejected = update.get("human_review_status") == "rejected"
         return Command(
-            goto="finalize" if rejected else "proposal",
+            goto="supervisor",
             update={**update, "unified_phase": "human_review"},
         )
 
@@ -299,9 +298,7 @@ def build_unified_estimation_graph(
     reliability_node = build_reliability_analyst_node()
     boss_action_node = build_boss_action_node()
     proposal_node = build_proposal_node()
-    coherence_agent = build_coherence_validator_agent(
-        build_validate_and_consolidate_node()
-    )
+    coherence_agent = build_coherence_validator_agent(build_validate_and_consolidate_node())
     context_aware_gate = build_context_aware_session14_plus_human_gate(
         human_review_gate,
         default_context_detail=context_detail,
@@ -328,9 +325,9 @@ def build_unified_estimation_graph(
         _instrument_command(
             node_name="supervisor",
             node=build_context_aware_unified_supervisor_node(
-    context_detail=context_detail,
-    repository_state=repository_state,
-),
+                context_detail=context_detail,
+                repository_state=repository_state,
+            ),
             tracer=tracer,
         ),
     )
@@ -362,9 +359,7 @@ def build_unified_estimation_graph(
         "candidate_competition",
         _instrument_command(
             node_name="candidate_competition",
-            node=build_session14_plus_competition_node(
-                policy=competition_policy
-            ),
+            node=build_session14_plus_competition_node(policy=competition_policy),
             tracer=tracer,
         ),
     )
@@ -425,7 +420,7 @@ def build_unified_estimation_graph(
         "human_review_gate",
         _instrument_command(
             node_name="human_review_gate",
-            node=_human_gate_to_proposal(context_aware_gate),
+            node=_human_gate_to_supervisor(context_aware_gate),
             tracer=tracer,
         ),
     )
