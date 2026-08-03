@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - gg-session-14/plus-consolidated
+  pull_request:
+    branches:
+      - gg-session-14/plus
+    types:
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
@@ -115,5 +121,3 @@ jobs:
           git add .github/workflows/unified-improvement-repair-one-shot.yml
           git commit -m "consolidation: restore supervisor authority and remove one-shot workflows"
           git push origin HEAD:gg-session-14/plus-consolidated
-
-# retrigger after workflow registration
