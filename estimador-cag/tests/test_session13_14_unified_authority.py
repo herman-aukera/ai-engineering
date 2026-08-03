@@ -3,7 +3,10 @@ from __future__ import annotations
 import pytest
 from langgraph.types import Command
 
-from app.generation.graph.unified_build import _human_gate_to_supervisor
+from app.generation.graph.unified_build import (
+    _human_gate_to_supervisor,
+    _restore_source_transcript_node,
+)
 
 
 @pytest.mark.asyncio
@@ -36,3 +39,26 @@ async def test_human_gate_cannot_bypass_unified_supervisor(
         "human_review_revision": 2,
         "unified_phase": "human_review",
     }
+
+
+@pytest.mark.asyncio
+async def test_structure_phase_restores_exact_source_transcript() -> None:
+    update = await _restore_source_transcript_node()(
+        {
+            "transcript": "Canonical structure brief",
+            "pre_reformulation_transcript": "Original source request",
+        }
+    )
+
+    assert update["transcript"] == "Original source request"
+    assert update["trace_events"][0]["event_type"] == (
+        "source_transcript_restored"
+    )
+
+
+@pytest.mark.asyncio
+async def test_structure_phase_rejects_missing_source_transcript() -> None:
+    with pytest.raises(ValueError, match="lost the source transcript"):
+        await _restore_source_transcript_node()(
+            {"transcript": "Canonical structure brief"}
+        )
