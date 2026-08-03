@@ -1,0 +1,427 @@
+name: Unified final handoff one-shot
+
+on:
+  push:
+    branches:
+      - gg-session-14/plus-consolidated
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  finalize-handoff:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      BRANCH: gg-session-14/plus-consolidated
+      TECHNICAL_SHA: ${{ github.event.before }}
+      PR_NUMBER: "21"
+    steps:
+      - name: Checkout writable consolidation branch
+        uses: actions/checkout@v4
+        with:
+          ref: gg-session-14/plus-consolidated
+          fetch-depth: 0
+
+      - name: Build exact-evidence handoff and README status
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          repository = os.environ["REPOSITORY"]
+          branch = os.environ["BRANCH"]
+          technical_sha = os.environ["TECHNICAL_SHA"]
+          token = os.environ["GH_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "User-Agent": "unified-final-handoff",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          def get_json(url: str) -> dict[str, object]:
+              request = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  return json.load(response)
+
+          runs = get_json(
+              "https://api.github.com/repos/"
+              f"{repository}/actions/runs?branch="
+              f"{urllib.parse.quote(branch)}&per_page=100"
+          )["workflow_runs"]
+          candidates = [
+              run
+              for run in runs
+              if run["name"] == "CI - Estimador CAG"
+              and run["head_sha"] == technical_sha
+              and run["conclusion"] == "success"
+          ]
+          if not candidates:
+              raise SystemExit(
+                  f"no successful exact technical CI for {technical_sha}"
+              )
+          run = max(candidates, key=lambda item: item["id"])
+          run_id = int(run["id"])
+          run_url = str(run["html_url"])
+
+          jobs = get_json(str(run["jobs_url"]))["jobs"]
+          job_map = {
+              str(job["name"]): str(job["conclusion"])
+              for job in jobs
+          }
+          required_jobs = {
+              "test-estimador-cag",
+              "unified-postgres-evidence",
+              "container-readiness",
+          }
+          if any(job_map.get(name) != "success" for name in required_jobs):
+              raise SystemExit(f"technical CI jobs are not green: {job_map}")
+
+          test_count = "full deterministic suite passed"
+          test_job = next(
+              job for job in jobs if job["name"] == "test-estimador-cag"
+          )
+          try:
+              logs_request = urllib.request.Request(
+                  "https://api.github.com/repos/"
+                  f"{repository}/actions/jobs/{test_job['id']}/logs",
+                  headers=headers,
+              )
+              with urllib.request.urlopen(
+                  logs_request,
+                  timeout=120,
+              ) as response:
+                  logs = response.read().decode("utf-8", errors="replace")
+              matches = re.findall(
+                  r"(\d+) passed(?:, (\d+) skipped)? in [0-9.]+s",
+                  logs,
+              )
+              if matches:
+                  passed, skipped = matches[-1]
+                  test_count = (
+                      f"{passed} passed, {skipped or '0'} skipped"
+                  )
+          except Exception:
+              pass
+
+          artifacts = get_json(
+              "https://api.github.com/repos/"
+              f"{repository}/actions/runs/{run_id}/artifacts"
+          )["artifacts"]
+          artifact_names = sorted(
+              str(item["name"])
+              for item in artifacts
+              if str(item["name"]).startswith(
+                  (
+                      "session13-14-unified-postgres-",
+                      "container-readiness-evidence-",
+                  )
+              )
+          )
+          if len(artifact_names) < 2:
+              raise SystemExit(
+                  f"required technical artifacts are missing: {artifact_names}"
+              )
+
+          source_s13 = "f87605cb8a8ee5ff2606c51e5490b6beb2ca7f7a"
+          source_s14 = "34011bcd9442130e09ab776d9072c0d53a2d93c2"
+          ancestry_merge = "6e0289cb1006fd3980fd59ceaf37e78f6a77bb5a"
+          public_trace = (
+              "https://logfire-eu.pydantic.dev/public-trace/"
+              "8cadbba1-e228-4881-85f0-94b5d053964d"
+              "?spanId=502588e17129e153"
+          )
+
+          artifact_lines = "\n".join(
+              f"- `{name}`" for name in artifact_names
+          )
+          handoff = f'''# Session 13 + 14 Plus — Unified Final Handoff
+
+## Executive verdict
+
+**Coherent with bounded, explicitly documented product-evaluation debt.**
+
+The writable consolidation branch contains the complete Session 13 Plus ancestry and the complete Session 14 Plus implementation, reconciled into one separately versioned canonical graph. The original coursework and Plus source branches remain unchanged, the pull request remains draft, and nothing has been merged into `main`.
+
+## Repository snapshot
+
+```text
+Repository: herman-aukera/ai-engineering
+Consolidation branch: gg-session-14/plus-consolidated
+Draft PR: #21
+Session 13 Plus source: {source_s13}
+Session 14 Plus source: {source_s14}
+Controlled Session 13 ancestry merge: {ancestry_merge}
+Validated technical checkpoint: {technical_sha}
+Technical CI run: {run_id}
+Technical CI URL: {run_url}
+```
+
+Validation:
+
+```text
+Ruff: passed
+Python compilation: passed
+Deterministic suite: {test_count}
+Diff gate: passed
+Tracked-secret gate: passed
+Unified PostgreSQL lifecycle: passed
+Production container readiness: passed
+```
+
+Artifacts:
+
+{artifact_lines}
+
+## Canonical graph
+
+```text
+session13_14_plus_unified_graph
+session13_14_plus.unified.v1
+```
+
+```text
+START
+→ calibrated policy bootstrap
+→ deterministic unified supervisor
+→ reformulation + semantic classification
+→ extraction + component classification
+→ optional editable structure review
+→ bounded parallel retrieval with sequential rollback
+→ deterministic Python estimate
+→ baseline/aggressive/conservative/synthesized competition
+→ constraint-Energy assessment
+→ reliability analyst
+→ typed Critic
+→ deterministic Boss recommendation
+→ bounded selective recovery when justified
+→ independent coherence validator
+→ persistent human approve/adjust/reject when required
+→ proposal
+→ finalization
+→ END
+```
+
+## Unified authority model
+
+```text
+Critics recommend.
+Boss policy recommends a bounded action.
+The unified supervisor owns every graph transition.
+Python owns arithmetic, hard constraints, Energy, privileges and budgets.
+Only the persisted human gate may approve, adjust or reject.
+```
+
+Every human decision returns to the supervisor. Approved or adjusted threads route to proposal; rejected threads route to stopped finalization. No Critic, Boss, provider or specialist can self-approve or modify privileges.
+
+## Session 13 Plus capabilities integrated
+
+- complete reviewed V2/V3 ancestry;
+- reformulation and semantic classification;
+- editable structure review;
+- bounded parallel retrieval and sequential rollback;
+- deterministic estimate generation and validation;
+- reliability analysis;
+- typed Critic findings;
+- deterministic Boss policy;
+- selective recovery and execution budgets;
+- provider circuits and readiness contracts;
+- proposal projection;
+- reviewed API and Control Room rollback path;
+- matched provider benchmark evidence;
+- C0–C5 routing and constraint-Energy foundations.
+
+## Session 14 Plus capabilities retained
+
+- manually controlled `StateGraph`/`Command` supervision principles;
+- replay-safe route and action ledgers;
+- least-privilege specialist audit;
+- persistent PostgreSQL `interrupt()` lifecycle;
+- approve, adjust and reject with revision and idempotency protection;
+- same-thread resume;
+- strict provider capability registry;
+- primary and fallback route authorization;
+- `minimal | medium | max` compact-context policy;
+- context refresh after every supervisor route and after human review;
+- stale-context and sensitive-content protection;
+- four immutable estimate candidates;
+- deterministic Energy-Aware synthesis and escalation.
+
+## Provider evidence and route policy
+
+The runtime does not enable a model merely because configuration names it. It consumes the sanitized Session 13 production benchmark snapshot and enables only exact routes with calibrated status, nonzero samples, zero failures and at least 95% schema/tool pass rates.
+
+The unified Moonshot route uses the actually benchmarked identifier `kimi-k3`; it does not invent an alias for the older `kimi-k2.6` documentation route. Primary and fallback routes are both checked for model identity, effort, tools and output ceiling. Output budgets are clamped to calibrated capabilities rather than expanded by assumption.
+
+## API and Control Room
+
+Additive routes:
+
+```text
+GET  /api/v1/estimate/graph/unified/readiness
+POST /api/v1/estimate/graph/unified
+POST /api/v1/estimate/graph/unified/{{estimation_id}}/resume
+POST /api/v1/estimate/graph/unified/control
+POST /api/v1/estimate/graph/unified/control/{{estimation_id}}/resume
+```
+
+Rollback routes remain:
+
+```text
+POST /api/v1/estimate/graph
+POST /api/v1/estimate/graph/reviewed/start
+```
+
+The unified Streamlit Control Room consumes only an allowlisted projection containing route, Critic/Boss, Energy, candidate, capability, context and review metadata. Transcript, prompts, hidden reasoning, raw provider output, credentials and DSNs are rejected.
+
+## Persistence evidence
+
+The exact ORBITA teacher fixture was executed through the unified graph with real PostgreSQL:
+
+```text
+start
+→ complete structure/estimation/competition/reliability/Critic/Boss/coherence
+→ human interrupt
+→ close checkpointer
+→ reopen
+→ approve expected revision on the same thread
+→ refresh context
+→ proposal/finalize
+→ close/reopen
+→ terminal reread equality
+```
+
+The evidence requires three checkpoint lifecycles, four competition candidates, an Energy snapshot, persisted Critic/Boss records, synchronized routing ledger, authorized primary/fallback capabilities, human revision `1 → 2`, changed context revision/fingerprint and terminal state equality.
+
+## Source evidence retained
+
+Mandatory Session 14 public trace:
+
+{public_trace}
+
+This remains evidence for the submitted Session 14 lifecycle and is not misrepresented as a hosted unified trace.
+
+## Remaining limitations
+
+Not claimed or not yet proven:
+
+- unified graph superiority over reviewed or supervised paths;
+- improved real-world estimate accuracy from candidate competition;
+- lossless context compaction;
+- current live reachability of every historically calibrated provider route;
+- automatic migration of old checkpoints;
+- authorization to retire rollback paths;
+- production promotion or merge into `main`.
+
+A matched product evaluation is still required before making the unified endpoint the default or enabling model-generated competing candidates.
+
+## Rollback
+
+1. Stop calling `/api/v1/estimate/graph/unified`.
+2. Use `/api/v1/estimate/graph` or `/api/v1/estimate/graph/reviewed/start`.
+3. Keep existing threads on their originating graph version.
+4. Revert consolidation commits only on `gg-session-14/plus-consolidated`.
+5. Never reinterpret historical checkpoints as unified checkpoints.
+
+## Claim boundary
+
+Supported:
+
+> The repository contains a separately versioned, additive graph that semantically consolidates the developed Session 13 Plus and Session 14 Plus work, with one deterministic supervisor, preserved human authority, evidence-backed provider routing, sanitized context integrity, deterministic Energy-Aware competition, a Control Room projection and real PostgreSQL/container evidence.
+
+Blocked:
+
+- universal provider superiority;
+- production readiness without deployment-specific evaluation;
+- lossless compaction;
+- unified-path superiority;
+- permission to merge protected branches.
+
+## Protection statement
+
+No protected Session 13, Session 14, Plus or `main` branch was modified or force-pushed. PR #21 remains draft and unmerged pending explicit authorization.
+'''
+
+          status_block = f'''<!-- UNIFIED_STATUS_START -->
+## Session 13 + 14 Plus unified candidate
+
+```text
+Branch: gg-session-14/plus-consolidated
+Draft PR: #21
+Canonical graph: session13_14_plus_unified_graph
+Graph version: session13_14_plus.unified.v1
+Validated technical checkpoint: {technical_sha}
+Technical CI run: {run_id}
+Deterministic suite: {test_count}
+```
+
+The candidate semantically consolidates the complete Session 13 Plus ancestry with Session 14 Plus supervision, persistent HITL, capability-authorized routing, compact-context integrity, deterministic Energy-Aware competition, additive API endpoints and a sanitized Control Room.
+
+Rollback paths remain available:
+
+```text
+/api/v1/estimate/graph
+/api/v1/estimate/graph/reviewed/start
+```
+
+Canonical documentation:
+
+- `estimador-cag/docs/session13_14_plus_unified_architecture.md`
+- `estimador-cag/docs/session13_14_plus_unified_migration_map.md`
+- `estimador-cag/docs/session13_14_plus_unified_api.md`
+- `estimador-cag/docs/session13_14_plus_unified_state_and_reducers.md`
+- `estimador-cag/docs/session13_14_plus_unified_evidence.md`
+- `estimador-cag/docs/session13_14_plus_unified_final_handoff.md`
+
+This branch is additive, draft and unmerged. It does not claim product superiority, lossless compaction or authorization to modify protected branches.
+<!-- UNIFIED_STATUS_END -->'''
+
+          project_block = status_block.replace(
+              "estimador-cag/docs/",
+              "docs/",
+          )
+
+          def replace_status(path: Path, block: str) -> None:
+              text = path.read_text(encoding="utf-8")
+              pattern = re.compile(
+                  r"<!-- UNIFIED_STATUS_START -->.*?<!-- UNIFIED_STATUS_END -->",
+                  flags=re.DOTALL,
+              )
+              if pattern.search(text):
+                  updated = pattern.sub(block, text, count=1)
+              else:
+                  updated = block + "\n\n" + text
+              path.write_text(updated, encoding="utf-8")
+
+          handoff_path = Path(
+              "estimador-cag/docs/session13_14_plus_unified_final_handoff.md"
+          )
+          handoff_path.write_text(handoff, encoding="utf-8")
+          replace_status(Path("README.md"), status_block)
+          replace_status(Path("estimador-cag/README.md"), project_block)
+          Path(
+              ".github/workflows/unified-final-handoff-one-shot.yml"
+          ).unlink()
+          PY
+
+      - name: Commit final handoff
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git add estimador-cag/README.md
+          git add estimador-cag/docs/session13_14_plus_unified_final_handoff.md
+          git add .github/workflows/unified-final-handoff-one-shot.yml
+          git commit -m "consolidation: finalize unified evidence and handoff"
+          git push origin HEAD:gg-session-14/plus-consolidated
