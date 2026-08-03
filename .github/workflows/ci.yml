@@ -91,8 +91,63 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  unified-postgres-evidence:
+    if: github.event_name == 'pull_request' && github.head_ref == 'gg-session-14/plus-consolidated'
+    needs: test-estimador-cag
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: lidr
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lidr"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      SESSION13_14_UNIFIED_POSTGRES_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/lidr
+      SESSION13_14_UNIFIED_POSTGRES_EVIDENCE_PATH: artifacts/session13_14_unified/postgres_pause_resume.json
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout exact unified head
+        uses: actions/checkout@v4
+        with:
+          ref: gg-session-14/plus-consolidated
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+      - name: Capture unified PostgreSQL lifecycle
+        run: uv run python -m scripts.session13_14_unified_postgres_evidence
+      - name: Upload unified lifecycle evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: session13-14-unified-postgres-${{ github.event.pull_request.head.sha }}
+          path: estimador-cag/artifacts/session13_14_unified/postgres_pause_resume.json
+          if-no-files-found: error
+          retention-days: 30
+
   container-readiness:
-    if: github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'gg-session-13/plus'
+    if: >-
+      github.event_name == 'pull_request' &&
+      ((github.base_ref == 'main' && github.head_ref == 'gg-session-13/plus') ||
+       github.head_ref == 'gg-session-14/plus-consolidated')
     needs: test-estimador-cag
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -142,10 +197,12 @@ jobs:
           ready=false
           health_code=000
           ready_code=000
+          unified_code=000
           for attempt in $(seq 1 40); do
             health_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/health.json --write-out '%{http_code}' http://127.0.0.1:8000/health || true)
             ready_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/ready.json --write-out '%{http_code}' http://127.0.0.1:8000/ready || true)
-            if [ "$health_code" = "200" ] && [ "$ready_code" = "200" ]; then
+            unified_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/unified-ready.json --write-out '%{http_code}' http://127.0.0.1:8000/api/v1/estimate/graph/unified/readiness || true)
+            if [ "$health_code" = "200" ] && [ "$ready_code" = "200" ] && [ "$unified_code" = "200" ]; then
               ready=true
               break
             fi
@@ -155,10 +212,12 @@ jobs:
           docker inspect estimador-cag --format '{{json .State}}' > /tmp/container-readiness/container-state.json || true
           printf '%s\n' "$health_code" > /tmp/container-readiness/health-status.txt
           printf '%s\n' "$ready_code" > /tmp/container-readiness/ready-status.txt
+          printf '%s\n' "$unified_code" > /tmp/container-readiness/unified-status.txt
           if [ "$ready" != "true" ]; then
             echo "Container failed readiness gate"
             cat /tmp/container-readiness/health.json 2>/dev/null || true
             cat /tmp/container-readiness/ready.json 2>/dev/null || true
+            cat /tmp/container-readiness/unified-ready.json 2>/dev/null || true
             false
           fi
       - name: Upload container readiness evidence
@@ -169,7 +228,7 @@ jobs:
           path: /tmp/container-readiness
           if-no-files-found: error
           retention-days: 14
-      - name: Verify sanitized readiness payload
+      - name: Verify sanitized readiness payloads
         run: |
           python - <<'PY'
           import json
@@ -183,4 +242,14 @@ jobs:
           assert 'container-smoke-provider' not in serialized
           assert 'database_url' not in serialized
           assert 'redis_url' not in serialized
+
+          unified = json.loads(
+              Path('/tmp/container-readiness/unified-ready.json').read_text()
+          )
+          serialized_unified = json.dumps(unified).lower()
+          assert unified['ready'] is True
+          assert unified['graph_name'] == 'session13_14_plus_unified_graph'
+          assert '/api/v1/estimate/graph' in unified['rollback_paths']
+          assert 'container-smoke-provider' not in serialized_unified
+          assert 'database_url' not in serialized_unified
           PY
