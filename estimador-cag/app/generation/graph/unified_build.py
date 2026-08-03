@@ -28,11 +28,11 @@ from app.generation.graph.nodes.session14_plus_competition import (
 from app.generation.graph.nodes.session14_plus_human_review import (
     build_context_aware_session14_plus_human_gate,
 )
-from app.generation.graph.nodes.session14_plus_policy import (
-    build_session14_plus_policy_bootstrap_node,
-)
 from app.generation.graph.nodes.session14_workers import (
     build_coherence_validator_agent,
+)
+from app.generation.graph.nodes.unified_policy import (
+    build_unified_policy_bootstrap_node,
 )
 from app.generation.graph.nodes.unified_supervisor import (
     build_unified_supervisor_node,
@@ -314,7 +314,7 @@ def build_unified_estimation_graph(
         instrument_graph_node(
             graph_name=UNIFIED_GRAPH_NAME,
             node_name="policy_bootstrap",
-            node=build_session14_plus_policy_bootstrap_node(
+            node=build_unified_policy_bootstrap_node(
                 capability_registry=capability_registry,
                 execution_profile=execution_profile,
                 context_detail=context_detail,
