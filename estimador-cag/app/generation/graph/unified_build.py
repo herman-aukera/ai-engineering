@@ -114,9 +114,7 @@ def _restore_source_transcript_node():
     ) -> UnifiedEstimationGraphState:
         source_transcript = state.get("pre_reformulation_transcript")
         if not isinstance(source_transcript, str) or not source_transcript.strip():
-            raise ValueError(
-                "unified structure phase lost the source transcript"
-            )
+            raise ValueError("unified structure phase lost the source transcript")
         return {
             "transcript": source_transcript,
             "trace_events": [
@@ -124,8 +122,7 @@ def _restore_source_transcript_node():
                     "event_type": "source_transcript_restored",
                     "node": "restore_source_transcript",
                     "summary": (
-                        "Restored the immutable source transcript after "
-                        "structure processing."
+                        "Restored the immutable source transcript after structure processing."
                     ),
                     "evidence_refs": [],
                     "state_delta_keys": ["transcript", "trace_events"],
@@ -156,7 +153,7 @@ def build_unified_structure_phase(
         instrument_reviewed_graph_node(
             graph_name=UNIFIED_STRUCTURE_PHASE_NAME,
             node_name="reformulate_request",
-            node=build_reformulate_request_node(),
+            node=build_reformulate_request_node(preserve_source_transcript=True),
             tracer=tracer,
         ),
     )
@@ -203,9 +200,7 @@ def _phase_marker(
             "unified_phase": phase,
         }
         if flag == "unified_structure_completed":
-            update.update(
-                await _restore_source_transcript_node()(state)
-            )
+            update.update(await _restore_source_transcript_node()(state))
         return Command(goto="supervisor", update=update)
 
     return mark_phase
@@ -346,9 +341,7 @@ def build_unified_estimation_graph(
     reliability_node = build_reliability_analyst_node()
     boss_action_node = build_boss_action_node()
     proposal_node = build_proposal_node()
-    coherence_agent = build_coherence_validator_agent(
-        build_validate_and_consolidate_node()
-    )
+    coherence_agent = build_coherence_validator_agent(build_validate_and_consolidate_node())
     context_aware_gate = build_context_aware_session14_plus_human_gate(
         human_review_gate,
         default_context_detail=context_detail,
@@ -409,9 +402,7 @@ def build_unified_estimation_graph(
         "candidate_competition",
         _instrument_command(
             node_name="candidate_competition",
-            node=build_session14_plus_competition_node(
-                policy=competition_policy
-            ),
+            node=build_session14_plus_competition_node(policy=competition_policy),
             tracer=tracer,
         ),
     )
