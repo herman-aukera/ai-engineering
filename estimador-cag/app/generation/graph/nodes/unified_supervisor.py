@@ -186,6 +186,7 @@ def build_unified_supervisor_node():
             unified_policy_version=_POLICY_VERSION,
             unified_phase=_PHASE_BY_DESTINATION[destination],
             unified_route_events=[event],
+            routing_steps=sequence,
         )
         if forced_review:
             update["review_required"] = True
