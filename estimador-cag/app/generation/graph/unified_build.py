@@ -106,6 +106,36 @@ def _instrument_command(
     )
 
 
+def _restore_source_transcript_node():
+    """Restore the immutable request after structure-local reformulation."""
+
+    async def restore_source_transcript(
+        state: UnifiedEstimationGraphState,
+    ) -> UnifiedEstimationGraphState:
+        source_transcript = state.get("pre_reformulation_transcript")
+        if not isinstance(source_transcript, str) or not source_transcript.strip():
+            raise ValueError(
+                "unified structure phase lost the source transcript"
+            )
+        return {
+            "transcript": source_transcript,
+            "trace_events": [
+                {
+                    "event_type": "source_transcript_restored",
+                    "node": "restore_source_transcript",
+                    "summary": (
+                        "Restored the immutable source transcript after "
+                        "structure processing."
+                    ),
+                    "evidence_refs": [],
+                    "state_delta_keys": ["transcript", "trace_events"],
+                }
+            ],
+        }
+
+    return restore_source_transcript
+
+
 def build_unified_structure_phase(
     dependencies: GraphNodeDependencies,
     *,
@@ -135,15 +165,28 @@ def build_unified_structure_phase(
         instrument_reviewed_graph_node(
             graph_name=UNIFIED_STRUCTURE_PHASE_NAME,
             node_name="semantic_classify",
-            node=build_semantic_classify_node(classifier=semantic_classifier),
+            node=build_semantic_classify_node(
+                classifier=semantic_classifier,
+                destination="structure_core",
+            ),
             tracer=tracer,
         ),
     )
     builder.add_node("structure_core", structure_core)
+    builder.add_node(
+        "restore_source_transcript",
+        instrument_reviewed_graph_node(
+            graph_name=UNIFIED_STRUCTURE_PHASE_NAME,
+            node_name="restore_source_transcript",
+            node=_restore_source_transcript_node(),
+            tracer=tracer,
+        ),
+    )
     builder.add_edge(START, "reformulate_request")
     builder.add_edge("reformulate_request", "semantic_classify")
     builder.add_edge("semantic_classify", "structure_core")
-    builder.add_edge("structure_core", END)
+    builder.add_edge("structure_core", "restore_source_transcript")
+    builder.add_edge("restore_source_transcript", END)
     return builder.compile(name=UNIFIED_STRUCTURE_PHASE_NAME)
 
 
@@ -298,7 +341,9 @@ def build_unified_estimation_graph(
     reliability_node = build_reliability_analyst_node()
     boss_action_node = build_boss_action_node()
     proposal_node = build_proposal_node()
-    coherence_agent = build_coherence_validator_agent(build_validate_and_consolidate_node())
+    coherence_agent = build_coherence_validator_agent(
+        build_validate_and_consolidate_node()
+    )
     context_aware_gate = build_context_aware_session14_plus_human_gate(
         human_review_gate,
         default_context_detail=context_detail,
@@ -359,7 +404,9 @@ def build_unified_estimation_graph(
         "candidate_competition",
         _instrument_command(
             node_name="candidate_competition",
-            node=build_session14_plus_competition_node(policy=competition_policy),
+            node=build_session14_plus_competition_node(
+                policy=competition_policy
+            ),
             tracer=tracer,
         ),
     )
