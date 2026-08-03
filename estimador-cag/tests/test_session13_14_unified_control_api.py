@@ -117,7 +117,7 @@ def test_control_resume_returns_refreshed_projection() -> None:
             "expected_revision": 1,
             "actor": "control-reviewer",
             "reason": None,
-            "adjustments": [],
+            "adjustments": None,
             "idempotency_key": "control-approval-001",
         },
     )
