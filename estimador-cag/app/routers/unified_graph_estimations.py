@@ -97,7 +97,7 @@ def unified_graph_readiness(request: Request) -> UnifiedRuntimeReadiness:
         ),
         rollback_paths=[
             "/api/v1/estimate/graph",
-            "/api/v1/reviewed/estimate/graph",
+            "/api/v1/estimate/graph/reviewed/start",
         ],
     )
 
