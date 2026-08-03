@@ -39,6 +39,17 @@ def _effective_transcript(state: ReviewedEstimationGraphState) -> str:
     return ""
 
 
+def _effective_destination(
+    state: ReviewedEstimationGraphState,
+    configured: SemanticDestination,
+) -> SemanticDestination:
+    """Preserve V2 routing while targeting the nested unified structure node."""
+
+    if state.get("unified_graph_version"):
+        return "structure_core"
+    return configured
+
+
 def _estimate_signals(transcript: str) -> ComplexitySignals:
     """Derive deterministic signals from the transcript for the complexity baseline."""
     lines = transcript.split("\n")
@@ -82,11 +93,11 @@ def build_semantic_classify_node(
     *,
     destination: SemanticDestination = "structure_phase",
 ) -> SemanticClassifyNode:
-    """Build semantic classification with an explicit caller-owned destination.
+    """Build semantic classification with a graph-compatible destination.
 
-    The default preserves the reviewed Session 13 Plus topology. The unified
-    graph injects ``structure_core`` so the node cannot write to an unknown
-    nested-graph channel.
+    The configured default preserves the reviewed Session 13 Plus topology.
+    Unified state resolves to ``structure_core`` so nested execution cannot
+    write to an unknown channel.
     """
 
     resolved = classifier if classifier is not None else FakeSemanticClassifier()
@@ -94,6 +105,7 @@ def build_semantic_classify_node(
     async def semantic_classify(
         state: ReviewedEstimationGraphState,
     ) -> Command:
+        next_node = _effective_destination(state, destination)
         transcript = _effective_transcript(state)
         if not transcript:
             return Command(
@@ -126,7 +138,7 @@ def build_semantic_classify_node(
                         }
                     ],
                 },
-                goto=destination,
+                goto=next_node,
             )
 
         semantic_assessment = resolved.classify(transcript)
@@ -178,7 +190,7 @@ def build_semantic_classify_node(
                     }
                 ],
             },
-            goto=destination,
+            goto=next_node,
         )
 
     return semantic_classify
