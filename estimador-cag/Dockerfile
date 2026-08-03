@@ -15,6 +15,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app ./app
 COPY docs ./docs
+COPY artifacts/provider-readiness/provider-benchmark-snapshot.json \
+    ./artifacts/provider-readiness/provider-benchmark-snapshot.json
 
 RUN addgroup --system app && adduser --system --ingroup app app \
     && chown -R app:app /app
