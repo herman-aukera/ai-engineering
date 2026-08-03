@@ -69,4 +69,4 @@ def test_unknown_model_without_catalogue_price_remains_unpriced() -> None:
         output_tokens=50,
     )
     assert cost is None
-    assert source == "unpriced"
+    assert source is None
