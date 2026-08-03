@@ -23,7 +23,10 @@ _SENSITIVE_KEY_PARTS = (
     "transcript",
 )
 _SECRET_PATTERN = re.compile(
-    r"(?:sk-[A-Za-z0-9_-]{20,}|pylf_[A-Za-z0-9_-]{20,}|BEGIN (?:RSA|OPENSSH|PRIVATE) KEY)"
+    r"(?:sk-[A-Za-z0-9_-]{20,}|pylf_[A-Za-z0-9_-]{20,}|"
+    r"Bearer [A-Za-z0-9._-]{20,}|"
+    r"BEGIN (?:RSA|OPENSSH|PRIVATE) KEY)",
+    flags=re.IGNORECASE,
 )
 SafeScalar = str | int | float | bool | None
 SafeValue = SafeScalar | list[object] | dict[str, object]
@@ -94,6 +97,19 @@ def _mapping(state: Mapping[str, object], key: str) -> dict[str, object]:
     return projected
 
 
+def _string_mapping(
+    state: Mapping[str, object],
+    key: str,
+) -> dict[str, str]:
+    projected = _mapping(state, key)
+    result: dict[str, str] = {}
+    for raw_key, value in projected.items():
+        if not isinstance(value, str):
+            raise ValueError(f"{key}.{raw_key} must be a string")
+        result[str(raw_key)] = value
+    return result
+
+
 def _mapping_list(
     state: Mapping[str, object],
     key: str,
@@ -119,14 +135,9 @@ def unified_control_projection_from_run(
 
     state = run.state
     context = _mapping(state, "plus_compacted_context")
-    authorized_raw = state.get("plus_authorized_capabilities")
-    authorized = (
-        {
-            str(key): str(value)
-            for key, value in authorized_raw.items()
-        }
-        if isinstance(authorized_raw, Mapping)
-        else {}
+    authorized = _string_mapping(
+        state,
+        "plus_authorized_capabilities",
     )
     evidence_refs = context.get("evidence_refs", [])
     if not isinstance(evidence_refs, list):
