@@ -60,7 +60,7 @@ async def test_unified_reformulation_preserves_request_identity() -> None:
     update = await build_reformulate_request_node()(
         {
             "transcript": source,
-            "unified_graph_version": "session13_14_plus.unified.v1",
+            "graph_version": "session13_14_plus.unified.v1",
             "project_context": {
                 "project_type": "backend",
                 "constraints": ["GDPR"],
@@ -73,6 +73,23 @@ async def test_unified_reformulation_preserves_request_identity() -> None:
     assert update["pre_reformulation_transcript"] == source
     assert update["reformulated_request"] != source
     assert f"Request: {source}" in update["reformulated_request"]
+
+
+@pytest.mark.asyncio
+async def test_reviewed_reformulation_retains_historical_working_brief() -> None:
+    source = "Build an auditable reporting API."
+
+    update = await build_reformulate_request_node()(
+        {
+            "transcript": source,
+            "graph_version": "session13.reviewed.v3",
+            "project_context": {},
+        }
+    )
+
+    assert update["transcript"] == update["reformulated_request"]
+    assert update["transcript"] != source
+    assert update["pre_reformulation_transcript"] == source
 
 
 class CapturingRequirementExtractor:
