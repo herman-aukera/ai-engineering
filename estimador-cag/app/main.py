@@ -1,9 +1,9 @@
 """
 LAYER: main (application entry point)
-RESPONSIBILITY: Bootstrap FastAPI, register routers, middleware, and graph runtimes.
-WHY IT EXISTS: Composition root pattern: all wiring happens in one place so the app is
-               predictable, observable, rollback-safe, and testable.
-DEPENDS_ON: app routers, graph runtimes, middleware logging
+RESPONSIBILITY: Bootstrap FastAPI, register routers, middleware, and health/metrics.
+WHY IT EXISTS: Composition root pattern: all wiring happens in one place
+               so the app is predictable and testable.
+DEPENDS ON: app.routers.estimations, app.middleware.logging
 """
 
 import logging
@@ -15,13 +15,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.embedding_pipeline.router import router as embedding_router
-from app.generation.graph.observability import flush_logfire_graph_traces
 from app.generation.graph.reviewed_runtime import (
     open_reviewed_graph_estimation_service,
 )
-from app.generation.graph.session14_runtime import (
-    open_session14_graph_estimation_service as open_graph_estimation_service,
-)
+from app.generation.graph.runtime import open_graph_estimation_service
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
 from app.routers.graph_estimations import router as graph_estimations_router
@@ -40,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Own mandatory/reviewed graph runtimes without taking down unrelated routes."""
+    """Own graph runtimes without taking down unrelated routes."""
 
     stack = AsyncExitStack()
     app.state.graph_estimation_service = None
@@ -55,7 +52,9 @@ async def lifespan(app: FastAPI):
             )
         except Exception as exc:
             app.state.graph_runtime_error = type(exc).__name__
-            logger.exception("graph_estimation_runtime_initialization_failed")
+            logger.exception(
+                "graph_estimation_runtime_initialization_failed"
+            )
         else:
             app.state.graph_estimation_service = service
 
@@ -76,13 +75,6 @@ async def lifespan(app: FastAPI):
         app.state.reviewed_graph_estimation_service = None
         app.state.graph_estimation_service = None
         await stack.aclose()
-        try:
-            flushed = flush_logfire_graph_traces()
-        except Exception:
-            logger.exception("graph_trace_flush_failed")
-        else:
-            if not flushed:
-                logger.warning("graph_trace_flush_timed_out")
 
 
 install_litellm_request_timeout()
@@ -99,11 +91,13 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
+# Wire observability middleware
 setup_logging(app)
 
+# Transport layer
 app.include_router(estimations_router)
 app.include_router(graph_estimations_router)
 app.include_router(graph_rollout_router)
@@ -117,42 +111,54 @@ app.include_router(readiness_router)
 
 @app.get("/health", tags=["health"])
 def health_check():
-    """Liveness endpoint for Codespaces, containers, and deployment probes."""
-
+    """Health endpoint for Codespaces port forwarding."""
     return {"status": "ok", "version": "0.3.0"}
 
 
 @app.get("/metrics", tags=["observability"])
 def metrics():
-    """Return sanitized metrics from the last LLM call."""
-
+    """
+    Runtime metrics from the last LLM call.
+    WHY: Session 3 observability requirement. Shows tokens, tier, latency.
+    """
     return get_last_metrics()
 
 
-SESSION08_DEMO_HTML_PATH = (
-    Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
-)
-SSE_DEMO_HTML_PATH = (
-    Path(__file__).resolve().parents[1] / "docs" / "sse_demo.html"
-)
+SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
+SSE_SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
+SSE_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "sse_demo.html"
 
 
 @app.get("/demo", include_in_schema=False)
 def browser_demo() -> FileResponse:
-    """Serve the Session 08 pgvector search demonstration."""
-
+    """
+    LAYER: presentation helper
+    RESPONSIBILITY: Serve the Session 08 pgvector search demo from FastAPI.
+    WHY IT EXISTS: Gives reviewers one safe browser path that exercises
+                   /embeddings/ingest and /search instead of the older LLM estimate demo.
+    DEPENDS_ON: docs/session08_search_demo.html
+    """
     return FileResponse(SESSION08_DEMO_HTML_PATH)
 
 
 @app.get("/sse-demo", include_in_schema=False)
 def sse_demo() -> FileResponse:
-    """Serve the historical synchronous-versus-SSE demonstration."""
-
+    """
+    LAYER: presentation helper
+    RESPONSIBILITY: Keep the older synchronous-vs-SSE demo available explicitly.
+    WHY IT EXISTS: Preserves Session 03 demonstration material without making it
+                   the default Session 08 browser path.
+    DEPENDS_ON: docs/sse_demo.html
+    """
     return FileResponse(SSE_DEMO_HTML_PATH)
 
 
 @app.get("/", include_in_schema=False)
 def root_demo() -> FileResponse:
-    """Serve the current browser demonstration from the root URL."""
-
+    """
+    LAYER: presentation helper
+    RESPONSIBILITY: Serve the Session 08 search demo from the root URL.
+    WHY IT EXISTS: Gives nontechnical testers one obvious URL for the current deliverable.
+    DEPENDS_ON: docs/session08_search_demo.html
+    """
     return FileResponse(SESSION08_DEMO_HTML_PATH)
