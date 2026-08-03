@@ -156,11 +156,10 @@ async def test_unified_supervisor_preserves_single_authority_sequence() -> None:
 
     state.update(command.update)
     state["unified_proposal_completed"] = True
+    previous_routing_steps = state["routing_steps"]
     command = await supervisor(state)
     assert command.goto == "finalize"
-    assert command.update["routing_steps"] == len(
-        state["unified_route_events"]
-    ) + 1
+    assert command.update["routing_steps"] == previous_routing_steps + 1
 
 
 @pytest.mark.asyncio
