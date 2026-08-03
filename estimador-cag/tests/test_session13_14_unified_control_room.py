@@ -142,7 +142,7 @@ def test_control_room_builds_exact_urls_and_decision_contract() -> None:
         "expected_revision": 1,
         "actor": "reviewer",
         "reason": None,
-        "adjustments": [],
+        "adjustments": None,
         "idempotency_key": "decision-1",
     }
 
