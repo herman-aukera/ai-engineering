@@ -1,291 +1,107 @@
-name: CI - Estimador CAG
+name: Session 13 + 14 Plus controlled merge
 
 on:
   push:
     branches:
-      - main
-      - "gg-**"
-      - "sesion-**"
-      - "session**"
-  pull_request:
+      - gg-session-14/plus-consolidated
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  test-estimador-cag:
+  controlled-merge:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: estimador-cag
-    env:
-      OPENAI_API_KEY: test
-      DEEPSEEK_API_KEY: test
-      KIMI_API_KEY: test
-      PYTHONUNBUFFERED: "1"
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: uv sync --frozen --extra dev
-
-      - name: Ruff
-        run: |
-          TARGETS="app tests scripts"
-          test -f streamlit_app.py && TARGETS="$TARGETS streamlit_app.py"
-          test -d evals && TARGETS="$TARGETS evals"
-          uv run ruff check $TARGETS
-
-      - name: Compile Python
-        run: uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null)
-
-      - name: Deterministic tests
-        run: uv run pytest -q -m "not live_provider"
-
-      - name: Diff and secret gates
-        working-directory: .
-        run: |
-          git diff --check
-          if git grep -n -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- . ':!*.lock'; then
-            echo "Potential secret in tracked files"
-            false
-          fi
-
-  session14-hosted-evidence:
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/session-14/pre-work'
-    needs: test-estimador-cag
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: write
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_DB: lidr
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d lidr"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    defaults:
-      run:
-        working-directory: estimador-cag
-    env:
-      LOGFIRE_TOKEN: ${{ secrets.SESSION14_LOGFIRE_TOKEN }}
-      LOGFIRE_SEND_TO_LOGFIRE: "true"
-      LOGFIRE_SERVICE_NAME: estimador-cag
-      LOGFIRE_ENVIRONMENT: session14-delivery-evidence
-      LOGFIRE_QUERY_BASE_URL: https://logfire-eu.pydantic.dev
-      SESSION14_POSTGRES_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/lidr
-      SESSION14_HOSTED_EVIDENCE_PATH: artifacts/session14/hosted_pause_resume_evidence.json
-      OPENAI_API_KEY: test
-      DEEPSEEK_API_KEY: test
-      KIMI_API_KEY: test
-      PYTHONUNBUFFERED: "1"
-
-    steps:
-      - name: Checkout exact branch head
+      - name: Checkout consolidation branch
         uses: actions/checkout@v4
         with:
-          ref: session-14/pre-work
+          ref: gg-session-14/plus-consolidated
+          fetch-depth: 0
 
-      - name: Detect hosted evidence secret
-        id: evidence-secret
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge Session 13 Plus and record conflicts
         shell: bash
         run: |
-          if [ -n "$LOGFIRE_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "SESSION14_LOGFIRE_TOKEN is not configured."
+          git fetch origin gg-session-13/plus
+
+          if git merge-base --is-ancestor origin/gg-session-13/plus HEAD; then
+            echo "Session 13 Plus is already an ancestor."
+            exit 0
           fi
 
-      - name: Install uv
-        if: steps.evidence-secret.outputs.enabled == 'true'
-        uses: astral-sh/setup-uv@v5
+          session14_sha="$(git rev-parse HEAD)"
+          session13_sha="$(git rev-parse origin/gg-session-13/plus)"
+          merge_base="$(git merge-base HEAD origin/gg-session-13/plus)"
 
-      - name: Set up Python
-        if: steps.evidence-secret.outputs.enabled == 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+          merge_rc=0
+          git merge --no-commit --no-ff origin/gg-session-13/plus || merge_rc=$?
 
-      - name: Install dependencies
-        if: steps.evidence-secret.outputs.enabled == 'true'
-        run: uv sync --frozen --extra dev
+          mkdir -p estimador-cag/artifacts/session13_14_consolidation
+          git diff --name-only --diff-filter=U | sort > /tmp/session13_14_conflicts.txt
 
-      - name: Capture hosted ORBITA pause and resume trace
-        id: capture
-        if: steps.evidence-secret.outputs.enabled == 'true'
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          mkdir -p artifacts/session14
-          uv run python -m scripts.session14_hosted_evidence_retry 2>&1 | tee artifacts/session14/hosted_capture_output.txt
-
-      - name: Record hosted evidence result in branch
-        if: always()
-        working-directory: .
-        env:
-          SECRET_ENABLED: ${{ steps.evidence-secret.outputs.enabled }}
-          CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
-          SOURCE_SHA: ${{ github.sha }}
-          WORKFLOW_RUN_ID: ${{ github.run_id }}
-          WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
-        run: |
+          SESSION14_SHA="$session14_sha" \
+          SESSION13_SHA="$session13_sha" \
+          MERGE_BASE="$merge_base" \
+          MERGE_RC="$merge_rc" \
           python - <<'PY'
           import json
           import os
           from pathlib import Path
 
-          evidence_path = Path("estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json")
-          output_path = Path("estimador-cag/artifacts/session14/hosted_capture_output.txt")
-          status_path = Path("estimador-cag/artifacts/session14/hosted_evidence_status.json")
-          evidence = None
-          if evidence_path.exists():
-              evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
-
-          output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
-          token = os.getenv("LOGFIRE_TOKEN", "")
-          if token:
-              output = output.replace(token, "[REDACTED]")
-          output = output.replace("Authorization: Bearer ", "Authorization: Bearer [REDACTED]")
-
-          secret_enabled = os.getenv("SECRET_ENABLED") == "true"
-          capture_outcome = os.getenv("CAPTURE_OUTCOME") or "not_run"
-          complete = (
-              secret_enabled
-              and capture_outcome == "success"
-              and isinstance(evidence, dict)
-          )
+          conflicts = [
+              line.strip()
+              for line in Path("/tmp/session13_14_conflicts.txt")
+              .read_text(encoding="utf-8")
+              .splitlines()
+              if line.strip()
+          ]
           payload = {
-              "schema_version": "session14.hosted_evidence_status.v1",
-              "source_sha": os.getenv("SOURCE_SHA"),
-              "workflow_run_id": os.getenv("WORKFLOW_RUN_ID"),
-              "workflow_run_attempt": os.getenv("WORKFLOW_RUN_ATTEMPT"),
-              "secret_configured": secret_enabled,
-              "capture_outcome": capture_outcome,
-              "evidence_complete": complete,
-              "trace_id": evidence.get("trace_id") if isinstance(evidence, dict) else None,
-              "root_span_id": evidence.get("root_span_id") if isinstance(evidence, dict) else None,
-              "thread_id": evidence.get("thread_id") if isinstance(evidence, dict) else None,
-              "pause_status": evidence.get("pause_status") if isinstance(evidence, dict) else None,
-              "resume_status": evidence.get("resume_status") if isinstance(evidence, dict) else None,
-              "public_trace_url": evidence.get("public_trace_url") if isinstance(evidence, dict) else None,
-              "tail": output.splitlines()[-180:],
+              "schema_version": "session13_14.semantic_merge.v1",
+              "session14_plus_source_sha": os.environ["SESSION14_SHA"],
+              "session13_plus_source_sha": os.environ["SESSION13_SHA"],
+              "merge_base_sha": os.environ["MERGE_BASE"],
+              "git_merge_return_code": int(os.environ["MERGE_RC"]),
+              "conflict_count": len(conflicts),
+              "conflicts": conflicts,
+              "initial_resolution_policy": (
+                  "retain Session 14 Plus for true conflicts when present; "
+                  "retain Session 13 Plus only when Session 14 has no path; "
+                  "audit and reconcile every listed conflict"
+              ),
           }
-          status_path.parent.mkdir(parents=True, exist_ok=True)
-          status_path.write_text(
+          Path(
+              "estimador-cag/artifacts/session13_14_consolidation/merge_manifest.json"
+          ).write_text(
               json.dumps(payload, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
           )
           PY
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add estimador-cag/artifacts/session14/hosted_evidence_status.json
-          if [ -f estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json ]; then
-            git add estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json
+          while IFS= read -r path; do
+            test -n "$path" || continue
+            if git cat-file -e ":2:$path" 2>/dev/null; then
+              git checkout --ours -- "$path"
+              git add "$path"
+            elif git cat-file -e ":3:$path" 2>/dev/null; then
+              git checkout --theirs -- "$path"
+              git add "$path"
+            else
+              git rm --ignore-unmatch "$path"
+            fi
+          done < /tmp/session13_14_conflicts.txt
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unresolved conflicts remain"
+            git diff --name-only --diff-filter=U
+            exit 1
           fi
-          if git diff --cached --quiet; then
-            echo "Hosted evidence status is already current."
-          else
-            git commit -m "session14: evidence(hosted): record ORBITA capture"
-            git push origin HEAD:session-14/pre-work
-          fi
 
-      - name: Upload sanitized hosted evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: session14-hosted-pause-resume-${{ github.sha }}
-          path: |
-            estimador-cag/artifacts/session14/hosted_evidence_status.json
-            estimador-cag/artifacts/session14/hosted_pause_resume_evidence.json
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Enforce hosted evidence gate
-        if: always()
-        working-directory: .
-        env:
-          SECRET_ENABLED: ${{ steps.evidence-secret.outputs.enabled }}
-          CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
-        run: |
-          test "$SECRET_ENABLED" = "true"
-          test "$CAPTURE_OUTCOME" = "success"
-
-  session14-plus-postgres-evidence:
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.head_ref == 'gg-session-14/plus'
-    needs: test-estimador-cag
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_DB: lidr
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d lidr"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    defaults:
-      run:
-        working-directory: estimador-cag
-    env:
-      SESSION14_PLUS_POSTGRES_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/lidr
-      SESSION14_PLUS_POSTGRES_EVIDENCE_PATH: artifacts/session14_plus/postgres_pause_resume.json
-      OPENAI_API_KEY: test
-      DEEPSEEK_API_KEY: test
-      KIMI_API_KEY: test
-      PYTHONUNBUFFERED: "1"
-
-    steps:
-      - name: Checkout exact Plus branch head
-        uses: actions/checkout@v4
-        with:
-          ref: gg-session-14/plus
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: uv sync --frozen --extra dev
-
-      - name: Capture PostgreSQL pause and resume evidence
-        run: uv run python -m scripts.session14_plus_postgres_evidence
-
-      - name: Upload Session 14 Plus PostgreSQL evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: session14-plus-postgres-${{ github.event.pull_request.head.sha }}
-          path: estimador-cag/artifacts/session14_plus/postgres_pause_resume.json
-          if-no-files-found: error
-          retention-days: 30
+          git add -A
+          git diff --cached --check
+          git commit -m "merge(session13-plus): import reviewed production capabilities"
+          git push origin HEAD:gg-session-14/plus-consolidated
