@@ -5,6 +5,11 @@ __pycache__
 .pytest_cache
 .ruff_cache
 artifacts
+!artifacts/
+artifacts/*
+!artifacts/provider-readiness/
+artifacts/provider-readiness/*
+!artifacts/provider-readiness/provider-benchmark-snapshot.json
 coverage.xml
 htmlcov
 *.pyc
