@@ -162,6 +162,21 @@ def _route(
     )
 
 
+def _next_sequence(state: UnifiedEstimationGraphState) -> int:
+    """Synchronize replay-safe route history with the legacy routing counter."""
+
+    legacy_sequence = _positive_int(state.get("routing_steps"), default=0)
+    event_sequence = max(
+        (
+            _positive_int(event.get("sequence"), default=0)
+            for event in state.get("unified_route_events", [])
+            if isinstance(event, Mapping)
+        ),
+        default=0,
+    )
+    return max(legacy_sequence, event_sequence) + 1
+
+
 def build_unified_supervisor_node():
     """Build the only route authority in the unified graph."""
 
@@ -169,8 +184,7 @@ def build_unified_supervisor_node():
         state: UnifiedEstimationGraphState,
     ) -> Command[UnifiedDestination]:
         destination, reason_code, summary, forced_review = _route(state)
-        existing_events = state.get("unified_route_events", [])
-        sequence = len(existing_events) + 1
+        sequence = _next_sequence(state)
         estimation_id = str(state.get("estimation_id", "unknown")).strip()
         event = UnifiedRouteEvent(
             event_id=(
