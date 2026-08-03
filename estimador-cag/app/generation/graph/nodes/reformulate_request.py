@@ -20,21 +20,53 @@ def build_reformulate_request_node() -> ReformulationNode:
         context = state.get("project_context", {})
         if not isinstance(context, Mapping):
             context = {}
-        transcript = str(context.get("transcript") or state.get("transcript") or "").strip()
-        original_transcript = str(state.get("transcript") or "").strip()
-        project_type = str(context.get("project_type") or "unspecified")
-        constraints = [str(value) for value in context.get("constraints", [])]
-        criteria = [str(value) for value in context.get("acceptance_criteria", [])]
+        transcript = str(
+            context.get("transcript") or state.get("transcript") or ""
+        ).strip()
+        original_transcript = str(
+            state.get("transcript") or ""
+        ).strip()
+        project_type = str(
+            context.get("project_type") or "unspecified"
+        )
+        constraints = [
+            str(value) for value in context.get("constraints", [])
+        ]
+        criteria = [
+            str(value)
+            for value in context.get("acceptance_criteria", [])
+        ]
         brief = "\n".join(
             (
                 f"Project type: {project_type}",
                 f"Request: {transcript}",
-                "Constraints: " + ("; ".join(constraints) if constraints else "none supplied"),
-                "Acceptance criteria: " + ("; ".join(criteria) if criteria else "none supplied"),
+                "Constraints: "
+                + (
+                    "; ".join(constraints)
+                    if constraints
+                    else "none supplied"
+                ),
+                "Acceptance criteria: "
+                + (
+                    "; ".join(criteria)
+                    if criteria
+                    else "none supplied"
+                ),
             )
         )
+
+        # The reviewed Session 13 graph retains its historical behavior: its
+        # working transcript becomes the canonical brief and rollback restores
+        # the original.  The consolidated graph has a stricter service-level
+        # identity contract, so it keeps the source transcript immutable and
+        # exposes the canonical brief through ``reformulated_request``.
+        unified_execution = bool(state.get("unified_graph_version"))
+        working_transcript = (
+            original_transcript if unified_execution else brief
+        )
+
         return {
-            "transcript": brief,
+            "transcript": working_transcript,
             "reformulated_request": brief,
             "pre_reformulation_transcript": original_transcript,
             "project_context": dict(context),
@@ -42,9 +74,17 @@ def build_reformulate_request_node() -> ReformulationNode:
                 {
                     "event_type": "request_reformulated",
                     "node": "reformulate_request",
-                    "summary": "Normalized project context into the canonical graph brief.",
+                    "summary": (
+                        "Normalized project context into the canonical "
+                        "graph brief."
+                    ),
                     "evidence_refs": [],
-                    "state_delta_keys": ["reformulated_request", "pre_reformulation_transcript", "trace_events"],
+                    "state_delta_keys": [
+                        "transcript",
+                        "reformulated_request",
+                        "pre_reformulation_transcript",
+                        "trace_events",
+                    ],
                 }
             ],
         }
@@ -76,9 +116,16 @@ def build_rollback_reformulation_node() -> ReformulationNode:
                     {
                         "event_type": "reformulation_rolled_back",
                         "node": "reformulate_request",
-                        "summary": "Restored the original pre-reformulation transcript.",
+                        "summary": (
+                            "Restored the original pre-reformulation "
+                            "transcript."
+                        ),
                         "evidence_refs": [],
-                        "state_delta_keys": ["transcript", "reformulated_request", "trace_events"],
+                        "state_delta_keys": [
+                            "transcript",
+                            "reformulated_request",
+                            "trace_events",
+                        ],
                     }
                 ],
             }
