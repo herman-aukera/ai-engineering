@@ -10,6 +10,8 @@ ReformulationNode = Callable[
     [ReviewedEstimationGraphState], Awaitable[ReviewedEstimationGraphState]
 ]
 
+_UNIFIED_GRAPH_VERSION_PREFIX = "session13_14_plus.unified."
+
 
 def build_reformulate_request_node(
     *,
@@ -18,11 +20,13 @@ def build_reformulate_request_node(
     """Create one stable, auditable brief without model-authored scope.
 
     The reviewed Session 13 graph historically uses the canonical brief as its
-    working ``transcript``.  The unified graph instead preserves the immutable
+    working ``transcript``. The unified graph instead preserves the immutable
     source request for its service identity contract and exposes the brief via
-    ``reformulated_request``.  The composition root selects that behavior
-    explicitly; the node never infers product mode from projected subgraph
-    state.
+    ``reformulated_request``.
+
+    Composition may request preservation explicitly. The version fallback uses
+    ``graph_version`` because it is part of the shared base state contract and
+    survives subgraph projection, unlike unified-only extension fields.
     """
 
     async def reformulate(
@@ -66,8 +70,13 @@ def build_reformulate_request_node(
             )
         )
 
+        graph_version = str(state.get("graph_version") or "")
+        preserve_identity = (
+            preserve_source_transcript
+            or graph_version.startswith(_UNIFIED_GRAPH_VERSION_PREFIX)
+        )
         working_transcript = (
-            original_transcript if preserve_source_transcript else brief
+            original_transcript if preserve_identity else brief
         )
 
         return {
@@ -101,7 +110,7 @@ def build_rollback_reformulation_node() -> ReformulationNode:
     """Build a node that restores the pre-reformulation transcript.
 
     When the state carries a ``pre_reformulation_transcript``, the original
-    transcript is restored and reformulation fields are cleared.  If the state
+    transcript is restored and reformulation fields are cleared. If the state
     was never reformulated, this is a no-op.
     """
 
