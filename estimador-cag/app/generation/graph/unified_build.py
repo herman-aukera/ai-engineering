@@ -196,12 +196,17 @@ def _phase_marker(
     phase: str,
 ):
     async def mark_phase(
-        _state: UnifiedEstimationGraphState,
+        state: UnifiedEstimationGraphState,
     ) -> Command[Literal["supervisor"]]:
-        return Command(
-            goto="supervisor",
-            update={flag: True, "unified_phase": phase},
-        )
+        update: UnifiedEstimationGraphState = {
+            flag: True,
+            "unified_phase": phase,
+        }
+        if flag == "unified_structure_completed":
+            update.update(
+                await _restore_source_transcript_node()(state)
+            )
+        return Command(goto="supervisor", update=update)
 
     return mark_phase
 
