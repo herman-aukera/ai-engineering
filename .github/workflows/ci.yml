@@ -25,8 +25,10 @@ jobs:
       KIMI_API_KEY: test
       PYTHONUNBUFFERED: "1"
     steps:
-      - name: Checkout
+      - name: Checkout exact validation ref
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Set up Python
@@ -49,7 +51,7 @@ jobs:
         working-directory: .
         run: |
           git diff --check
-          if git grep -n -E 'sk-[A-Za-z0-9_-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- . ':!*.lock'; then
+          if git grep -n -E 'sk-[A-Za-z0-9_-]{20,}|Bearer [A-Za-z0-9._-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- . ':!*.lock'; then
             echo "Potential secret in tracked files"
             false
           fi
@@ -73,6 +75,8 @@ jobs:
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Set up Python
@@ -86,7 +90,7 @@ jobs:
       - name: Upload sanitized provider evidence
         uses: actions/upload-artifact@v4
         with:
-          name: session13-plus-provider-readiness-${{ github.sha }}
+          name: session13-plus-provider-readiness-${{ github.event.pull_request.head.sha }}
           path: estimador-cag/artifacts/provider-readiness
           if-no-files-found: error
           retention-days: 30
@@ -124,7 +128,7 @@ jobs:
       - name: Checkout exact unified head
         uses: actions/checkout@v4
         with:
-          ref: gg-session-14/plus-consolidated
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Set up Python
@@ -134,7 +138,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --extra dev
       - name: Capture unified PostgreSQL lifecycle
-        run: uv run python -m scripts.session13_14_unified_postgres_evidence
+        run: GITHUB_SHA=${{ github.event.pull_request.head.sha }} uv run python -m scripts.session13_14_unified_postgres_evidence
       - name: Upload unified lifecycle evidence
         uses: actions/upload-artifact@v4
         with:
@@ -177,8 +181,10 @@ jobs:
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Build production image
-        run: docker build -t estimador-cag:${{ github.sha }} estimador-cag
+        run: docker build -t estimador-cag:${{ github.event.pull_request.head.sha }} estimador-cag
       - name: Run production image
         run: |
           docker run --detach --name estimador-cag \
@@ -190,7 +196,7 @@ jobs:
             --env OPENAI_API_KEY=dummy \
             --env GRAPH_RETRIEVAL_MODE=parallel \
             --env GRAPH_RETRIEVAL_MAX_CONCURRENCY=4 \
-            estimador-cag:${{ github.sha }}
+            estimador-cag:${{ github.event.pull_request.head.sha }}
       - name: Probe liveness and readiness
         run: |
           mkdir -p /tmp/container-readiness
@@ -224,7 +230,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: container-readiness-evidence-${{ github.sha }}
+          name: container-readiness-evidence-${{ github.event.pull_request.head.sha }}
           path: /tmp/container-readiness
           if-no-files-found: error
           retention-days: 14
