@@ -237,3 +237,5 @@ jobs:
           git add estimador-cag/tests/test_session13_14_unified_authority.py
           git commit -m "consolidation: repair reformulated identity and exact-head gates"
           git push origin HEAD:gg-session-14/plus-consolidated
+
+# trigger after registration
