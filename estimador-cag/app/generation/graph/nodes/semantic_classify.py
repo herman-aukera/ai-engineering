@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from typing import Literal
 
 from langgraph.types import Command
 
@@ -18,6 +19,7 @@ from app.services.v3_semantic_classifier import (
     arbitrate_classification,
 )
 
+SemanticDestination = Literal["structure_phase", "structure_core"]
 SemanticClassifyNode = Callable[
     [ReviewedEstimationGraphState],
     Awaitable[Command],
@@ -45,16 +47,31 @@ def _estimate_signals(transcript: str) -> ComplexitySignals:
         requirement_count=min(500, max(0, len(lines) // 2)),
         integration_count=min(100, transcript.lower().count("integrat")),
         non_functional_requirement_count=(
-            1 if any(word in transcript.lower() for word in ("secure", "security", "complian", "scale", "perform"))
+            1
+            if any(
+                word in transcript.lower()
+                for word in (
+                    "secure",
+                    "security",
+                    "complian",
+                    "scale",
+                    "perform",
+                )
+            )
             else 0
         ),
         ambiguous_requirement_count=(
-            1 if any(word in transcript.lower() for word in ("maybe", "perhaps", "might", "possibly"))
+            1
+            if any(
+                word in transcript.lower()
+                for word in ("maybe", "perhaps", "might", "possibly")
+            )
             else 0
         ),
         transcript_chars=char_count,
         compliance_or_security_critical=any(
-            word in transcript.lower() for word in ("complian", "security", "pci", "hipaa", "gdpr")
+            word in transcript.lower()
+            for word in ("complian", "security", "pci", "hipaa", "gdpr")
         ),
         data_migration_required="migrat" in transcript.lower(),
     )
@@ -62,12 +79,14 @@ def _estimate_signals(transcript: str) -> ComplexitySignals:
 
 def build_semantic_classify_node(
     classifier: SemanticClassifier | None = None,
+    *,
+    destination: SemanticDestination = "structure_phase",
 ) -> SemanticClassifyNode:
-    """Build a node that classifies complexity and stores assessments in state.
+    """Build semantic classification with an explicit caller-owned destination.
 
-    When no *classifier* is supplied the node uses :class:`FakeSemanticClassifier`
-    so deterministic CI never depends on a live model.  Pass a
-    :class:`LiveSemanticClassifier` instance for real LLM classification.
+    The default preserves the reviewed Session 13 Plus topology. The unified
+    graph injects ``structure_core`` so the node cannot write to an unknown
+    nested-graph channel.
     """
 
     resolved = classifier if classifier is not None else FakeSemanticClassifier()
@@ -83,7 +102,10 @@ def build_semantic_classify_node(
                     "errors": [
                         {
                             "code": "missing_transcript_for_classification",
-                            "message": "No transcript or reformulated request is available for semantic classification.",
+                            "message": (
+                                "No transcript or reformulated request is available "
+                                "for semantic classification."
+                            ),
                             "node": NODE_NAME,
                             "severity": "error",
                         }
@@ -92,33 +114,34 @@ def build_semantic_classify_node(
                         {
                             "event_type": "semantic_classification_failed",
                             "node": NODE_NAME,
-                            "summary": "Semantic classification could not start — no transcript.",
+                            "summary": (
+                                "Semantic classification could not start — no transcript."
+                            ),
                             "evidence_refs": [],
-                            "state_delta_keys": ["review_required", "errors", "trace_events"],
+                            "state_delta_keys": [
+                                "review_required",
+                                "errors",
+                                "trace_events",
+                            ],
                         }
                     ],
                 },
-                goto="structure_phase",
+                goto=destination,
             )
 
-        # 1. Semantic classifier (fake or live, depending on injection)
         semantic_assessment = resolved.classify(transcript)
         semantic_dict = semantic_assessment.model_dump(mode="json")
 
-        # 2. Deterministic baseline
         signals = _estimate_signals(transcript)
         deterministic = assess_complexity(signals, detected_languages=["en"])
         deterministic_dict = deterministic.model_dump(mode="json")
 
-        # 3. Arbitration
         arbitrated = arbitrate_classification(
             deterministic=deterministic,
             semantic=semantic_assessment,
         )
         arbitrated_dict = arbitrated.model_dump(mode="json")
 
-        # 4. Route plan uses explicit arbitration authority while retaining the
-        # deterministic assessment as the immutable score/dimension evidence.
         route_plan = build_model_routing_plan(
             deterministic,
             authoritative_level=arbitrated.arbitrated_level,
@@ -155,7 +178,7 @@ def build_semantic_classify_node(
                     }
                 ],
             },
-            goto="structure_phase",
+            goto=destination,
         )
 
     return semantic_classify
