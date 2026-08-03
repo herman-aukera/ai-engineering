@@ -23,6 +23,16 @@ from app.services.v3_complexity_router import build_model_routing_plan
 UNIFIED_ROUTING_POLICY_VERSION = "session13_14_plus.unified-routing.v1"
 UNIFIED_CALIBRATION_VERSION = "session13-plus-live-v1"
 
+_CALIBRATED_OUTPUT_LIMITS: dict[tuple[str, str], int] = {
+    ("deepseek", "deepseek-v4-flash"): 8_192,
+    ("deepseek", "deepseek-v4-pro"): 8_192,
+    ("moonshot", "kimi-k3"): 8_192,
+    ("openai", "gpt-5.6-luna"): 16_384,
+    ("openai", "gpt-5.6-terra"): 16_384,
+    ("openai", "gpt-5.6-sol"): 16_384,
+    ("python", "deterministic-recovery"): 0,
+}
+
 
 def _route_reference_id(
     *,
@@ -45,6 +55,20 @@ def _route_reference_id(
     return f"route:{digest}"
 
 
+def _output_limit(
+    *,
+    provider: str,
+    model: str,
+    requested: int,
+) -> int:
+    calibrated = _CALIBRATED_OUTPUT_LIMITS.get((provider, model))
+    if calibrated is None:
+        raise ValueError(
+            f"unrecognized calibrated output limit: {provider}/{model}"
+        )
+    return min(requested, calibrated)
+
+
 def _primary_route(route: ModelRoute) -> ModelRoute:
     provider = route.provider
     model = route.model
@@ -61,6 +85,11 @@ def _primary_route(route: ModelRoute) -> ModelRoute:
             "provider": provider,
             "model": model,
             "effort": effort,
+            "max_output_tokens": _output_limit(
+                provider=provider,
+                model=model,
+                requested=route.max_output_tokens,
+            ),
             "route_id": _route_reference_id(
                 stage=route.stage,
                 provider=provider,
@@ -73,6 +102,7 @@ def _primary_route(route: ModelRoute) -> ModelRoute:
                 *route.reason_codes,
                 f"unified-policy:{UNIFIED_ROUTING_POLICY_VERSION}",
                 f"calibration:{UNIFIED_CALIBRATION_VERSION}",
+                "output-limit:calibrated-clamp",
             ],
         }
     )
@@ -89,6 +119,11 @@ def _fallback_for(route: ModelRoute) -> dict[str, str] | None:
         provider = "moonshot"
         model = "kimi-k3"
         effort = "max" if route.effort == "max" else "high"
+    max_output_tokens = _output_limit(
+        provider=provider,
+        model=model,
+        requested=route.max_output_tokens,
+    )
     return {
         "kind": "fallback",
         "stage": route.stage,
@@ -102,7 +137,7 @@ def _fallback_for(route: ModelRoute) -> dict[str, str] | None:
         "provider": provider,
         "model": model,
         "effort": effort,
-        "max_output_tokens": str(route.max_output_tokens),
+        "max_output_tokens": str(max_output_tokens),
         "tool_call_limit": str(route.tool_call_limit),
     }
 
