@@ -13,11 +13,17 @@ from app.generation.graph.nodes.extract_requirements import (
 from app.generation.graph.nodes.reformulate_request import (
     build_reformulate_request_node,
 )
+from app.generation.graph.nodes.unified_supervisor import (
+    build_unified_supervisor_node,
+)
 from app.generation.graph.ports import GraphNodeDependencies
 from app.generation.graph.unified_build import (
     _human_gate_to_supervisor,
     _phase_marker,
     _restore_source_transcript_node,
+)
+from app.generation.graph.unified_state import (
+    new_unified_estimation_graph_state,
 )
 
 
@@ -51,6 +57,90 @@ async def test_human_gate_cannot_bypass_unified_supervisor(
         "human_review_revision": 2,
         "unified_phase": "human_review",
     }
+
+
+def _post_coherence_state(
+    *,
+    human_review_status: str,
+    proposal_completed: bool = False,
+):
+    state = new_unified_estimation_graph_state(
+        transcript="Build an auditable reporting API.",
+        estimation_id="EST-HUMAN-ROUTE-001",
+    )
+    state.update(
+        unified_structure_completed=True,
+        unified_estimation_completed=True,
+        plus_competition_completed=True,
+        unified_reliability_completed=True,
+        unified_review_policy_completed=True,
+        unified_boss_action_completed=True,
+        unified_coherence_completed=True,
+        unified_proposal_completed=proposal_completed,
+        boss_route="final_review",
+        status=(
+            "validated"
+            if human_review_status in {"approved", "adjusted"}
+            else "needs_review"
+        ),
+        review_required=human_review_status == "rejected",
+        human_review_status=human_review_status,
+        validation={
+            "is_coherent": True,
+            "status": (
+                "validated"
+                if human_review_status in {"approved", "adjusted"}
+                else "needs_review"
+            ),
+            "review_required": human_review_status == "rejected",
+        },
+    )
+    return state
+
+
+@pytest.mark.asyncio
+async def test_supervisor_finalizes_rejected_human_decision() -> None:
+    command = await build_unified_supervisor_node()(
+        _post_coherence_state(human_review_status="rejected")
+    )
+
+    assert command.goto == "finalize"
+    assert command.update["unified_route_events"][0]["reason_code"] == (
+        "human_review_rejected"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("human_status", ["approved", "adjusted"])
+async def test_supervisor_routes_authorized_human_decision_to_proposal(
+    human_status: str,
+) -> None:
+    command = await build_unified_supervisor_node()(
+        _post_coherence_state(human_review_status=human_status)
+    )
+
+    assert command.goto == "proposal"
+    assert command.update["unified_route_events"][0]["reason_code"] == (
+        "human_review_authorized_proposal"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("human_status", ["approved", "adjusted"])
+async def test_supervisor_finalizes_authorized_completed_proposal(
+    human_status: str,
+) -> None:
+    command = await build_unified_supervisor_node()(
+        _post_coherence_state(
+            human_review_status=human_status,
+            proposal_completed=True,
+        )
+    )
+
+    assert command.goto == "finalize"
+    assert command.update["unified_route_events"][0]["reason_code"] == (
+        "human_review_authorized_completion"
+    )
 
 
 @pytest.mark.asyncio
