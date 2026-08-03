@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from langgraph.types import Command
 
 from app.generation.graph.fakes import (
     FakeBudgetSearcher,
@@ -79,16 +80,40 @@ async def test_unified_graph_executes_every_canonical_policy_layer() -> None:
             }
         ),
     )
+    gate_calls: list[str] = []
 
-    async def unexpected_human_gate(_state):
-        raise AssertionError("high-confidence deterministic path must not pause")
+    async def authorized_human_gate(state):
+        gate_calls.append(str(state.get("status")))
+        return Command(
+            goto="finalize",
+            update={
+                "status": "validated",
+                "review_required": False,
+                "human_review_status": "approved",
+                "human_review_revision": 2,
+                "human_review_actions": [
+                    {
+                        "action_id": "e2e-approval-action",
+                        "idempotency_key": "e2e-approval-001",
+                        "action": "approve",
+                        "actor": "deterministic-e2e-reviewer",
+                        "reason": (
+                            "Authorize the synthesized candidate after the "
+                            "independent median validator requested review."
+                        ),
+                        "revision": 2,
+                        "adjustments": [],
+                    }
+                ],
+            },
+        )
 
     graph = build_unified_estimation_graph(
         dependencies,
         capability_registry=build_unified_capability_registry(
             load_benchmark_snapshot()
         ),
-        human_review_gate=unexpected_human_gate,
+        human_review_gate=authorized_human_gate,
         repository_state={
             "branch": "gg-session-14/plus-consolidated",
             "sha": "e2e-test",
@@ -104,13 +129,19 @@ async def test_unified_graph_executes_every_canonical_policy_layer() -> None:
 
     result = await graph.ainvoke(state)
 
+    assert gate_calls == ["needs_review"]
     assert result["unified_phase"] == "finalized"
     assert result["status"] == "validated"
     assert result["review_required"] is False
+    assert result["human_review_status"] == "approved"
+    assert result["human_review_revision"] == 2
     assert result["unified_structure_completed"] is True
     assert result["unified_estimation_completed"] is True
     assert result["plus_competition_completed"] is True
     assert len(result["plus_competition_candidates"]) == 4
+    assert result["plus_competition_assessment"]["disposition"] == (
+        "accept_synthesized"
+    )
     assert result["unified_reliability_completed"] is True
     assert result["unified_review_policy_completed"] is True
     assert result["unified_boss_action_completed"] is True
@@ -134,6 +165,7 @@ async def test_unified_graph_executes_every_canonical_policy_layer() -> None:
         "review_policy_phase",
         "boss_action",
         "coherence_validator",
+        "human_review_gate",
         "proposal",
         "finalize",
     ]
