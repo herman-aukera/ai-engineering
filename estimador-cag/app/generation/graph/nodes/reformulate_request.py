@@ -35,12 +35,22 @@ def build_reformulate_request_node(
         context = state.get("project_context", {})
         if not isinstance(context, Mapping):
             context = {}
-        transcript = str(
-            context.get("transcript") or state.get("transcript") or ""
-        ).strip()
-        original_transcript = str(
-            state.get("transcript") or ""
-        ).strip()
+
+        raw_state_transcript = state.get("transcript")
+        original_transcript = (
+            raw_state_transcript
+            if isinstance(raw_state_transcript, str)
+            else str(raw_state_transcript or "")
+        )
+        context_transcript = context.get("transcript")
+        canonical_source = (
+            context_transcript
+            if isinstance(context_transcript, str)
+            and context_transcript.strip()
+            else original_transcript
+        )
+        transcript = canonical_source.strip()
+
         project_type = str(
             context.get("project_type") or "unspecified"
         )
