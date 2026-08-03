@@ -131,6 +131,31 @@ def _route(
             boss_route == "stop",
         )
 
+    human_status = str(
+        state.get("human_review_status", "not_requested")
+    )
+    if human_status == "rejected":
+        return (
+            "finalize",
+            "human_review_rejected",
+            "The persisted human authority rejected the estimate; finalize the stopped lifecycle.",
+            False,
+        )
+    if human_status in {"approved", "adjusted"}:
+        if not state.get("unified_proposal_completed", False):
+            return (
+                "proposal",
+                "human_review_authorized_proposal",
+                "The persisted human decision authorized the proposal phase.",
+                False,
+            )
+        return (
+            "finalize",
+            "human_review_authorized_completion",
+            "The authorized proposal is complete; finalize the unified lifecycle.",
+            False,
+        )
+
     status = str(state.get("status", "pending"))
     review_required = bool(state.get("review_required", False))
     if (
