@@ -24,6 +24,10 @@ from app.services.graph_estimation import (
     GraphHumanReviewConflictError,
 )
 from app.services.graph_product_adapter import graph_response_from_run
+from app.services.unified_control_projection import (
+    UnifiedControlProjection,
+    unified_control_projection_from_run,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +71,27 @@ def get_unified_graph_estimation_service(
             detail="Unified estimation graph service is not available.",
         )
     return cast(GraphEstimationApplication, service)
+
+
+def _raise_resume_error(exc: Exception) -> None:
+    if isinstance(exc, GraphEstimationNotFoundError):
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if isinstance(
+        exc,
+        (GraphHumanReviewConflictError, StaleSession14HumanReviewError),
+    ):
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if isinstance(exc, IncompleteSession14AdjustmentError):
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if isinstance(exc, ValidationError):
+        raise HTTPException(
+            status_code=502,
+            detail="Unified human review produced an invalid response.",
+        ) from exc
+    raise HTTPException(
+        status_code=502,
+        detail="Failed to resume unified graph human review.",
+    ) from exc
 
 
 @router.get(
@@ -135,6 +160,38 @@ async def create_unified_graph_estimation(
 
 
 @router.post(
+    "/control",
+    response_model=UnifiedControlProjection,
+)
+async def create_unified_control_projection(
+    payload: GraphEstimationRequest,
+    service: GraphEstimationApplication = Depends(
+        get_unified_graph_estimation_service
+    ),
+) -> UnifiedControlProjection:
+    """Run the graph and return only allowlisted control-plane evidence."""
+
+    try:
+        run = await service.estimate(
+            transcript=payload.transcript,
+            estimation_id=payload.estimation_id,
+        )
+        return unified_control_projection_from_run(run)
+    except ValidationError as exc:
+        logger.exception("unified_control_projection_invalid")
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to produce a unified control projection.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("unified_control_execution_failed")
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to produce a unified control projection.",
+        ) from exc
+
+
+@router.post(
     "/{estimation_id}/resume",
     response_model=GraphEstimationResponse,
 )
@@ -153,24 +210,32 @@ async def resume_unified_graph_human_review(
             decision=payload,
         )
         return graph_response_from_run(run)
-    except GraphEstimationNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (
-        GraphHumanReviewConflictError,
-        StaleSession14HumanReviewError,
-    ) as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except IncompleteSession14AdjustmentError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except ValidationError as exc:
-        logger.exception("unified_graph_human_review_response_invalid")
-        raise HTTPException(
-            status_code=502,
-            detail="Unified human review produced an invalid response.",
-        ) from exc
     except Exception as exc:
         logger.exception("unified_graph_human_review_resume_failed")
-        raise HTTPException(
-            status_code=502,
-            detail="Failed to resume unified graph human review.",
-        ) from exc
+        _raise_resume_error(exc)
+        raise AssertionError("unreachable")
+
+
+@router.post(
+    "/control/{estimation_id}/resume",
+    response_model=UnifiedControlProjection,
+)
+async def resume_unified_control_projection(
+    estimation_id: UUID,
+    payload: GraphHumanReviewResumeRequest,
+    service: GraphEstimationApplication = Depends(
+        get_unified_graph_estimation_service
+    ),
+) -> UnifiedControlProjection:
+    """Resume and return the refreshed allowlisted Control Room projection."""
+
+    try:
+        run = await service.resume_human_review(
+            estimation_id=estimation_id,
+            decision=payload,
+        )
+        return unified_control_projection_from_run(run)
+    except Exception as exc:
+        logger.exception("unified_control_human_review_resume_failed")
+        _raise_resume_error(exc)
+        raise AssertionError("unreachable")
