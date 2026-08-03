@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 
+from app.schemas.session14_plus_policy import ModelCapabilityRegistry
 from app.schemas.v3_routing import (
     ComplexityAssessment,
     ExecutionProfileV3,
@@ -12,6 +13,10 @@ from app.schemas.v3_routing import (
     ModelRoutingPlan,
     ReasoningEffort,
     RoutingStage,
+)
+from app.services.session14_plus_policy import (
+    resolve_capability,
+    validate_routing_plan_capabilities,
 )
 from app.services.v3_complexity_router import build_model_routing_plan
 
@@ -47,7 +52,7 @@ def _primary_route(route: ModelRoute) -> ModelRoute:
 
     if provider == "moonshot":
         model = "kimi-k3"
-        effort = "high" if route.effort not in {"max"} else "max"
+        effort = "high" if route.effort != "max" else "max"
     elif provider == "deepseek" and model == "deepseek-v4-pro":
         effort = "max" if route.mode == "thinking" else "none"
 
@@ -150,3 +155,60 @@ def build_unified_model_routing_plan(
         routes_by_stage=routes,
         overrides=overrides,
     )
+
+
+def validate_unified_routing_plan_capabilities(
+    plan: ModelRoutingPlan,
+    registry: ModelCapabilityRegistry,
+) -> dict[str, str]:
+    """Authorize every primary and fallback route against exact capabilities."""
+
+    authorized = validate_routing_plan_capabilities(plan, registry)
+    fallback_ids = {
+        route_id
+        for route in plan.routes_by_stage.values()
+        for route_id in route.fallback_route_ids
+    }
+    fallback_overrides = {
+        item.get("route_id", ""): item
+        for item in plan.overrides
+        if item.get("kind") == "fallback"
+    }
+    if set(fallback_overrides) != fallback_ids:
+        raise ValueError(
+            "routing plan fallback IDs must match explicit fallback contracts"
+        )
+
+    for stage, route in plan.routes_by_stage.items():
+        for route_id in route.fallback_route_ids:
+            fallback = fallback_overrides[route_id]
+            if fallback.get("stage") != stage:
+                raise ValueError(f"fallback stage mismatch: {route_id}")
+            provider = fallback.get("provider", "")
+            model = fallback.get("model", "")
+            effort = fallback.get("effort", "")
+            record = resolve_capability(
+                registry,
+                provider=provider,
+                model=model,
+            )
+            if not record.enabled:
+                raise ValueError(
+                    f"fallback route is not enabled: {provider}/{model}"
+                )
+            max_output_tokens = int(fallback.get("max_output_tokens", "0"))
+            if max_output_tokens > record.max_output_tokens:
+                raise ValueError(
+                    f"fallback output exceeds capability: {provider}/{model}"
+                )
+            if effort not in record.reasoning_efforts:
+                raise ValueError(
+                    f"unsupported fallback effort: {provider}/{model}/{effort}"
+                )
+            tool_call_limit = int(fallback.get("tool_call_limit", "0"))
+            if tool_call_limit > 0 and not record.supports_tools:
+                raise ValueError(
+                    f"fallback requires unsupported tools: {provider}/{model}"
+                )
+            authorized[f"{stage}:fallback:{route_id}"] = record.record_id
+    return authorized
