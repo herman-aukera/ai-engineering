@@ -106,21 +106,25 @@ async def test_unified_supervisor_preserves_single_authority_sequence() -> None:
 
     command = await supervisor(state)
     assert command.goto == "structure_phase"
+    assert command.update["routing_steps"] == 1
 
     state.update(command.update)
     state["unified_structure_completed"] = True
     command = await supervisor(state)
     assert command.goto == "estimation_phase"
+    assert command.update["routing_steps"] == 2
 
     state.update(command.update)
     state["unified_estimation_completed"] = True
     command = await supervisor(state)
     assert command.goto == "candidate_competition"
+    assert command.update["routing_steps"] == 3
 
     state.update(command.update)
     state["plus_competition_completed"] = True
     command = await supervisor(state)
     assert command.goto == "reliability_analyst"
+    assert command.update["routing_steps"] == 4
 
     state.update(command.update)
     state["unified_reliability_completed"] = True
@@ -154,6 +158,9 @@ async def test_unified_supervisor_preserves_single_authority_sequence() -> None:
     state["unified_proposal_completed"] = True
     command = await supervisor(state)
     assert command.goto == "finalize"
+    assert command.update["routing_steps"] == len(
+        state["unified_route_events"]
+    ) + 1
 
 
 @pytest.mark.asyncio
@@ -179,6 +186,7 @@ async def test_recovery_budget_exhaustion_forces_human_authority() -> None:
     assert command.goto == "coherence_validator"
     assert command.update["review_required"] is True
     assert command.update["status"] == "needs_review"
+    assert command.update["routing_steps"] == 1
 
 
 def test_unified_graph_compiles_with_all_canonical_nodes() -> None:
