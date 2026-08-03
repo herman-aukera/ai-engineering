@@ -1,0 +1,209 @@
+name: Unified transcript lineage repair one-shot
+
+on:
+  push:
+    branches:
+      - gg-session-14/plus-consolidated
+  pull_request:
+    branches:
+      - gg-session-14/plus
+    types:
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout writable consolidation branch
+        uses: actions/checkout@v4
+        with:
+          ref: gg-session-14/plus-consolidated
+          fetch-depth: 0
+
+      - name: Install matching Ruff
+        uses: astral-sh/setup-uv@v5
+
+      - name: Repair transcript identity as strict lineage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          service = Path("estimador-cag/app/services/graph_estimation.py")
+          text = service.read_text(encoding="utf-8")
+
+          import_anchor = "from dataclasses import dataclass\n"
+          import_line = "from hashlib import sha256\n"
+          if import_line not in text:
+              if text.count(import_anchor) != 1:
+                  raise SystemExit("graph service import anchor missing")
+              text = text.replace(import_anchor, import_anchor + import_line, 1)
+
+          helper_anchor = "\ndef _validate_state_identity(\n"
+          helpers = '''
++
++def _text_fingerprint(value: object) -> str:
++    """Return a bounded diagnostic fingerprint without exposing text."""
++
++    if not isinstance(value, str):
++        return "missing"
++    return sha256(value.encode("utf-8")).hexdigest()[:12]
++
++
++def _reformulated_transcript_lineage_is_valid(
++    state: EstimationGraphState,
++    *,
++    source_transcript: str,
++) -> bool:
++    """Validate an intentional transcript rewrite against its source."""
++
++    persisted_source = state.get("pre_reformulation_transcript")
++    reformulated = state.get("reformulated_request")
++    working_transcript = state.get("transcript")
++    return (
++        persisted_source == source_transcript
++        and isinstance(reformulated, str)
++        and bool(reformulated.strip())
++        and working_transcript == reformulated
++    )
++'''.replace("\n+", "\n")
+          if "def _reformulated_transcript_lineage_is_valid" not in text:
+              if text.count(helper_anchor) != 1:
+                  raise SystemExit("state identity validator anchor missing")
+              text = text.replace(helper_anchor, helpers + helper_anchor, 1)
+
+          old = '''    if transcript is not None and state.get("transcript") != transcript:
++        raise GraphResultContractError(
++            "graph state transcript does not match the request"
++        )
++'''.replace("\n+", "\n")
+          new = '''    if transcript is not None and state.get("transcript") != transcript:
++        if not _reformulated_transcript_lineage_is_valid(
++            state,
++            source_transcript=transcript,
++        ):
++            raise GraphResultContractError(
++                "graph state transcript does not match request identity "
++                f"(request_fp={_text_fingerprint(transcript)}, "
++                f"state_fp={_text_fingerprint(state.get('transcript'))}, "
++                "source_fp="
++                f"{_text_fingerprint(state.get('pre_reformulation_transcript'))}, "
++                "reformulated_fp="
++                f"{_text_fingerprint(state.get('reformulated_request'))})"
++            )
++'''.replace("\n+", "\n")
+          if text.count(old) != 1:
+              raise SystemExit("raw transcript equality invariant missing")
+          service.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          tests = Path(
+              "estimador-cag/tests/test_session13_14_unified_authority.py"
+          )
+          text = tests.read_text(encoding="utf-8")
+          import_anchor = '''from app.generation.graph.unified_build import (
++    _human_gate_to_supervisor,
++    _phase_marker,
++    _restore_source_transcript_node,
++)
++'''.replace("\n+", "\n")
+          service_import = '''from app.services.graph_estimation import (
++    GraphResultContractError,
++    _validate_state_identity,
++)
++'''.replace("\n+", "\n")
+          if service_import not in text:
+              if text.count(import_anchor) != 1:
+                  raise SystemExit("authority test import anchor missing")
+              text = text.replace(
+                  import_anchor,
+                  import_anchor + service_import,
+                  1,
+              )
+
+          addition = '''
++
++def test_reformulated_transcript_lineage_preserves_request_identity() -> None:
++    _validate_state_identity(
++        {
++            "estimation_id": "EST-LINEAGE-1",
++            "graph_version": "session13_14_plus.unified.v1",
++            "transcript": "Canonical structure brief",
++            "reformulated_request": "Canonical structure brief",
++            "pre_reformulation_transcript": "Original source request",
++        },
++        estimation_id="EST-LINEAGE-1",
++        transcript="Original source request",
++        graph_version="session13_14_plus.unified.v1",
++    )
++
++
++@pytest.mark.parametrize(
++    "state_update",
++    [
++        {"pre_reformulation_transcript": "Different source"},
++        {"reformulated_request": "Different canonical brief"},
++        {"reformulated_request": None},
++        {"pre_reformulation_transcript": None},
++    ],
++)
++def test_reformulated_transcript_lineage_rejects_tampering(
++    state_update: dict[str, object],
++) -> None:
++    request = "Original source request"
++    state = {
++        "estimation_id": "EST-LINEAGE-2",
++        "graph_version": "session13_14_plus.unified.v1",
++        "transcript": "Canonical structure brief",
++        "reformulated_request": "Canonical structure brief",
++        "pre_reformulation_transcript": request,
++        **state_update,
++    }
++
++    with pytest.raises(GraphResultContractError) as captured:
++        _validate_state_identity(
++            state,
++            estimation_id="EST-LINEAGE-2",
++            transcript=request,
++            graph_version="session13_14_plus.unified.v1",
++        )
++
++    message = str(captured.value)
++    assert "request_fp=" in message
++    assert "state_fp=" in message
++    assert request not in message
++    assert "Canonical structure brief" not in message
++'''.replace("\n+", "\n")
+          if "test_reformulated_transcript_lineage_preserves_request_identity" not in text:
+              text = text.rstrip() + addition
+          tests.write_text(text, encoding="utf-8")
+
+          Path(
+              ".github/workflows/unified-lineage-repair-one-shot.yml"
+          ).unlink()
+          PY
+
+      - name: Normalize and verify repaired Python
+        run: |
+          uvx --from ruff==0.15.12 ruff check --fix \
+            estimador-cag/app/services/graph_estimation.py \
+            estimador-cag/tests/test_session13_14_unified_authority.py
+          uvx --from ruff==0.15.12 ruff format \
+            estimador-cag/app/services/graph_estimation.py \
+            estimador-cag/tests/test_session13_14_unified_authority.py
+          uvx --from ruff==0.15.12 ruff check \
+            estimador-cag/app/services/graph_estimation.py \
+            estimador-cag/tests/test_session13_14_unified_authority.py
+
+      - name: Commit strict lineage repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/unified-lineage-repair-one-shot.yml
+          git add estimador-cag/app/services/graph_estimation.py
+          git add estimador-cag/tests/test_session13_14_unified_authority.py
+          git commit -m "consolidation: validate reformulated transcript lineage"
+          git push origin HEAD:gg-session-14/plus-consolidated
