@@ -34,8 +34,8 @@ from app.generation.graph.nodes.session14_workers import (
 from app.generation.graph.nodes.unified_policy import (
     build_unified_policy_bootstrap_node,
 )
-from app.generation.graph.nodes.unified_supervisor import (
-    build_unified_supervisor_node,
+from app.generation.graph.nodes.unified_context_supervisor import (
+    build_context_aware_unified_supervisor_node,
 )
 from app.generation.graph.observability import (
     NOOP_GRAPH_TRACER,
@@ -327,7 +327,10 @@ def build_unified_estimation_graph(
         "supervisor",
         _instrument_command(
             node_name="supervisor",
-            node=build_unified_supervisor_node(),
+            node=build_context_aware_unified_supervisor_node(
+    context_detail=context_detail,
+    repository_state=repository_state,
+),
             tracer=tracer,
         ),
     )
