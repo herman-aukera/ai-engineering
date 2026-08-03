@@ -1,0 +1,109 @@
+name: Session 13 + 14 Plus controlled merge
+
+on:
+  push:
+    branches:
+      - gg-session-14/plus-consolidated
+    paths:
+      - .github/workflows/session13-14-semantic-merge.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  controlled-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout consolidation branch
+        uses: actions/checkout@v4
+        with:
+          ref: gg-session-14/plus-consolidated
+          fetch-depth: 0
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge Session 13 Plus and record conflicts
+        shell: bash
+        run: |
+          git fetch origin gg-session-13/plus
+
+          if git merge-base --is-ancestor origin/gg-session-13/plus HEAD; then
+            echo "Session 13 Plus is already an ancestor."
+            exit 0
+          fi
+
+          session14_sha="$(git rev-parse HEAD)"
+          session13_sha="$(git rev-parse origin/gg-session-13/plus)"
+          merge_base="$(git merge-base HEAD origin/gg-session-13/plus)"
+
+          merge_rc=0
+          git merge --no-commit --no-ff origin/gg-session-13/plus || merge_rc=$?
+
+          mkdir -p estimador-cag/artifacts/session13_14_consolidation
+          git diff --name-only --diff-filter=U | sort > /tmp/session13_14_conflicts.txt
+
+          SESSION14_SHA="$session14_sha" \
+          SESSION13_SHA="$session13_sha" \
+          MERGE_BASE="$merge_base" \
+          MERGE_RC="$merge_rc" \
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          conflict_file = Path("/tmp/session13_14_conflicts.txt")
+          conflicts = [
+              line.strip()
+              for line in conflict_file.read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          payload = {
+              "schema_version": "session13_14.semantic_merge.v1",
+              "session14_plus_source_sha": os.environ["SESSION14_SHA"],
+              "session13_plus_source_sha": os.environ["SESSION13_SHA"],
+              "merge_base_sha": os.environ["MERGE_BASE"],
+              "git_merge_return_code": int(os.environ["MERGE_RC"]),
+              "conflict_count": len(conflicts),
+              "conflicts": conflicts,
+              "initial_resolution_policy": (
+                  "retain Session 14 Plus version for true conflicts when present; "
+                  "retain Session 13 Plus only when no Session 14 version exists; "
+                  "audit and reconcile every listed conflict after the merge"
+              ),
+          }
+          output = Path(
+              "estimador-cag/artifacts/session13_14_consolidation/merge_manifest.json"
+          )
+          output.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          while IFS= read -r path; do
+            test -n "$path" || continue
+            if git cat-file -e ":2:$path" 2>/dev/null; then
+              git checkout --ours -- "$path"
+              git add "$path"
+            elif git cat-file -e ":3:$path" 2>/dev/null; then
+              git checkout --theirs -- "$path"
+              git add "$path"
+            else
+              git rm --ignore-unmatch "$path"
+            fi
+          done < /tmp/session13_14_conflicts.txt
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unresolved conflicts remain"
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+
+          git add -A
+          git diff --cached --check
+          git commit -m "merge(session13-plus): import reviewed production capabilities"
+          git push origin HEAD:gg-session-14/plus-consolidated
