@@ -1,11 +1,41 @@
 # AI Engineering Coursework
 
+## Session 13 + 14 Plus consolidation candidate
+
+The current additive consolidation candidate is:
+
+```text
+Branch: gg-session-14/plus-consolidated
+Pull request: #21
+Graph: session13_14_plus_unified_graph
+Graph version: session13_14_plus.unified.v1
+Status: audited, draft, open and unmerged
+```
+
+It semantically combines the completed Session 13 Plus reviewed/production architecture with the Session 14 Plus supervised, persistent-HITL, capability/context and Energy-aware architecture. It does not replace or rewrite either source branch.
+
+Primary entrypoints:
+
+- `estimador-cag/docs/session13_14_plus_unified_architecture.md`
+- `estimador-cag/docs/session13_14_plus_unified_evidence.md`
+- `estimador-cag/docs/session13_14_plus_unified_audit.md`
+- `estimador-cag/docs/session13_14_plus_unified_final_handoff.md`
+
+Claim boundary:
+
+- PR #21 is not merged;
+- supervised and reviewed rollback paths remain available;
+- live-provider reachability is not inferred from deterministic CI;
+- superiority, lossless context compaction and historical-checkpoint migration are not yet claimed.
+
+## Repository scope
+
 This repository contains the LIDR AI Engineering coursework.
 
-## Current submission
+## Current historical submission record
 
 - Active project: `estimador-cag/`
-- Current branch: `gg-session-13/pre-work`
+- Historical branch: `gg-session-13/pre-work`
 - Teacher-facing branch: `session-13/pre-work`
 - Deliverable: **Session 13 — agent orchestration with LangGraph**
 
@@ -60,9 +90,9 @@ The mandatory pre-session implementation includes:
 - Spanish presentation guide:
   `estimador-cag/docs/session13_presentation_guide_es.md`
 
-## Validation snapshot
+## Historical validation snapshot
 
-The latest implementation checkpoint passed:
+The historical implementation checkpoint recorded:
 
 ```text
 667 passed, 9 skipped
@@ -75,12 +105,13 @@ Remote CI passed
 Normal CI remains deterministic. Real-provider and hosted observability checks
 are manual and opt-in.
 
-## Scope boundary
+## Historical scope boundary
 
 Parallel retrieval with the LangGraph `Send` API, advanced retry/fallback
 policies, circuit breakers, `interrupt()`-based human review, and the full graph
-wizard UI are tracked as Session 13 Plus work. They are not claimed as part of
-the mandatory pre-session submission.
+wizard UI were originally tracked as Session 13 Plus work. The current
+consolidation documentation supersedes that historical planning statement for
+PR #21 without changing the mandatory submission record.
 
 ## Historical Session 10 retrieval work
 
@@ -118,11 +149,11 @@ or comparison.
 Security policy: Do not commit `.env`, real API keys, copied credentials, or
 credential-bearing connection strings.
 
-## Current Plus/V3 architecture addendum
+## Session 13 Plus/V3 architecture addendum
 
-The active incubator branch is `gg-session-13/plus`. Its verified deterministic V3 foundation before the provider/context documentation update was `0700b9bf396ed8a59c1e9a250f7a5ffad65c4278`.
+The Session 13 Plus source branch is `gg-session-13/plus`. Its verified deterministic V3 foundation before the provider/context documentation update was `0700b9bf396ed8a59c1e9a250f7a5ffad65c4278`.
 
-The current architecture now documents:
+The architecture documents:
 
 - provider selector: `Auto | DeepSeek | Kimi | OpenAI`;
 - default provider: DeepSeek;
@@ -136,14 +167,14 @@ The current architecture now documents:
 - Session 14 manual-supervisor and persistent-HITL direction;
 - EACODE, EACHAT, and evidence-gated EACORE boundaries.
 
-Entry points:
+Source entrypoints:
 
 - `estimador-cag/docs/energy_aware_model_context_and_multiagent_policy.md`
 - `estimador-cag/docs/session13_plus_v3_foundation.md`
 - `estimador-cag/CLAUDE.md`
 
-These additions are documentation and architecture requirements. They do not claim that provider selectors, Kimi K3/GPT-5.6 runtime adapters, context compaction, or Session 14 multi-agent execution are already implemented.
+Historical documentation statements must not be read as current provider reachability claims. The unified runtime uses the sanitized benchmark-backed capability registry and fails closed when required capabilities are absent.
 
 ## Session 13 Plus stabilization boundary
 
-The direct stabilization branch repairs the reviewed-service API contract, separates deterministic and live-provider CI, hardens the SSE activity projection, removes contradictory routing evidence, and labels provider selection as a capability-gated preview until live per-stage routing is proven. PR #10 remains draft and unmerged.
+The Session 13 Plus line repairs the reviewed-service API contract, separates deterministic and live-provider CI, hardens the SSE activity projection, removes contradictory routing evidence, and labels provider selection through evidence-backed capability gates. The consolidation branch imports that source line without modifying it.
