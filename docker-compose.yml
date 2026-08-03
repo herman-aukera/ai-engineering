@@ -1,6 +1,7 @@
 services:
   db:
-    image: ankane/pgvector:latest
+    image: pgvector/pgvector:0.8.0-pg16
+    profiles: ["dev", "demo"]
     restart: unless-stopped
     environment:
       POSTGRES_USER: dev
@@ -17,7 +18,8 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
+    profiles: ["dev", "demo"]
     container_name: lidr-estimador-redis
     restart: unless-stopped
     ports:
@@ -30,6 +32,47 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  api:
+    profiles: ["dev", "demo"]
+    build:
+      context: ./estimador-cag
+      dockerfile: Dockerfile
+    environment:
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://dev:dev@db:5432/lidr
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  runner:
+    profiles: ["demo"]
+    build:
+      context: ./estimador-cag
+      dockerfile: Dockerfile.runner
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  test:
+    profiles: ["test"]
+    build:
+      context: ./estimador-cag
+      dockerfile: Dockerfile
+    environment:
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+    command: ["pytest", "-q", "tests/test_energy_core_semantic_jury.py", "tests/test_energy_core_beta_demo.py", "tests/test_eacode_beta_api.py"]
 
 volumes:
   postgres-data:

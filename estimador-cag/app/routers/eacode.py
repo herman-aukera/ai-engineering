@@ -8,6 +8,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from energy_core.beta_demo import BetaDemoResult, BetaDemoRunner
+from energy_core.coding_agent import CodingProposal
 from energy_core.provider_registry import ProviderSelection
 from energy_core.provider_verified import (
     VerifiedCapabilityRegistry,
@@ -17,6 +19,8 @@ from energy_core.provider_verified import (
 router = APIRouter(prefix="/eacode", tags=["eacode"])
 _registry = VerifiedCapabilityRegistry()
 _selector = VerifiedProviderSelector(_registry)
+_demo_runner = BetaDemoRunner()
+_demo_runs: dict[str, BetaDemoResult] = {}
 
 
 class EACodeSelectRequest(BaseModel):
@@ -31,6 +35,35 @@ class EACodeSelectRequest(BaseModel):
     max_latency_ms: int | None = Field(default=None, ge=1)
     premium_reason: str | None = None
     entitled_surfaces: tuple[str, ...] = Field(default_factory=tuple)
+
+
+class EACodeDemoRequest(CodingProposal):
+    human_authorization: bool = False
+
+
+@router.post("/demo", response_model=BetaDemoResult)
+def run_beta_demo(request: EACodeDemoRequest) -> BetaDemoResult:
+    """Run the keyless deterministic beta journey and retain its inspection record."""
+
+    proposal = CodingProposal.model_validate(
+        request.model_dump(exclude={"human_authorization"})
+    )
+    result = _demo_runner.run(
+        proposal,
+        human_authorization=request.human_authorization,
+    )
+    _demo_runs[proposal.proposal_id] = result
+    return result
+
+
+@router.get("/demo/{proposal_id}", response_model=BetaDemoResult)
+def inspect_beta_demo(proposal_id: str) -> BetaDemoResult:
+    """Inspect the complete authority, repair, evidence, and rollback record."""
+
+    result = _demo_runs.get(proposal_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Demo run not found.")
+    return result
 
 
 @router.get("/status")

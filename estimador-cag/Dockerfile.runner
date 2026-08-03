@@ -1,0 +1,5 @@
+FROM python:3.11.13-slim-bookworm
+RUN useradd --create-home --uid 10002 runner
+WORKDIR /workspace
+USER runner
+CMD ["python", "-c", "print('EACODE isolated runner boundary ready; no Docker socket mounted.')"]
