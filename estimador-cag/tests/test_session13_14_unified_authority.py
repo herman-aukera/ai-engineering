@@ -76,6 +76,27 @@ async def test_unified_reformulation_preserves_request_identity() -> None:
 
 
 @pytest.mark.asyncio
+async def test_unified_reformulation_preserves_boundary_whitespace() -> None:
+    source = "\n  Build an auditable reporting API.  \n"
+
+    update = await build_reformulate_request_node(
+        preserve_source_transcript=True
+    )(
+        {
+            "transcript": source,
+            "graph_version": "session13_14_plus.unified.v1",
+            "project_context": {},
+        }
+    )
+
+    assert update["transcript"] == source
+    assert update["pre_reformulation_transcript"] == source
+    assert "Request: Build an auditable reporting API." in update[
+        "reformulated_request"
+    ]
+
+
+@pytest.mark.asyncio
 async def test_reviewed_reformulation_retains_historical_working_brief() -> None:
     source = "Build an auditable reporting API."
 
