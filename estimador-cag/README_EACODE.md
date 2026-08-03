@@ -4,6 +4,23 @@ Status: deterministic alpha control plane
 Canonical branch: `EACODE`  
 Authoritative checkpoint: `docs/eacode_release_checkpoint_2026-07-22.md`
 
+## Demo-ready beta work
+
+Spec 0011 adds a provider-neutral proposal boundary, explicit deterministic hard gates,
+typed independent semantic-judge results, jury disagreement, optional meta-judge evidence,
+and a deterministic action governor. The keyless demo repairs one fixture proposal, records
+human authorization for a protected simulated test action, captures sanitized evidence,
+reevaluates, and exposes the full timeline and rollback boundary at `POST /eacode/demo`,
+`GET /eacode/demo/{proposal_id}`, and `/eacode/ui`.
+
+Local identity contracts keep users separate from linked provider identities and use signed,
+expiring backend sessions. Google and Apple OIDC are configuration contracts only; live login
+is not claimed. The versioned golden set compares unchecked, hard-gate-only, single-judge, and
+jury-plus-governor modes across twelve deterministic cases.
+
+Docker `dev`, `test`, and `demo` profiles and GHCR build assets are present. Compose configuration
+is verified; container build/startup remains a separate gate where a Docker engine is available.
+
 ## Product
 
 EACODE is a provider-neutral supervision layer between coding agents, language models, repositories, and tools.

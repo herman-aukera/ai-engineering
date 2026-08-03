@@ -1,0 +1,7 @@
+{"evidence_id":"0011-e1","type":"focused_tests","status":"pass","summary":"Hybrid authority and demo journey: 7 tests passed."}
+{"evidence_id":"0011-e2","type":"api_tests","status":"pass","summary":"Beta API plus existing control-plane integration: 15 focused tests passed."}
+{"evidence_id":"0011-e3","type":"docker_config","status":"pass","summary":"Compose dev, test, and demo profile configuration rendered successfully."}
+{"evidence_id":"0011-e4","type":"docker_runtime","status":"missing","summary":"Docker Desktop Linux engine was unavailable; build and startup are not claimed."}
+{"evidence_id":"0011-e5","type":"browser","status":"pass","summary":"Real in-app browser loaded /eacode/ui, clicked the deterministic beta demo, and observed repair, authorization, execution evidence, rollback, and reevaluation."}
+{"evidence_id":"0011-e6","type":"identity_and_evaluation_tests","status":"pass","summary":"Identity and four-mode golden evaluation: 6 tests passed."}
+{"evidence_id":"0011-e7","type":"full_regression","status":"missing","summary":"Local full pytest and canonical full-gate commands each exceeded bounded execution time without a result; remote CI is required before readiness."}

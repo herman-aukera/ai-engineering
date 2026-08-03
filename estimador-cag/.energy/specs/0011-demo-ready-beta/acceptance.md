@@ -8,7 +8,7 @@ No item is accepted without direct evidence.
 - [x] One defective proposal is repaired in the demo fixture.
 - [x] Protected action requires human authorization in the deterministic demo contract.
 - [x] Simulated execution evidence is bounded and sanitized.
-- [~] API exposes the complete decision timeline and rollback boundary; UI remains.
+- [x] API/UI expose the complete decision timeline and rollback boundary.
 - [ ] Docker demo is reproducible without a Docker socket in the API.
-- [ ] Browser proof is separate from HTML tests.
+- [x] Browser proof is separate from HTML tests.
 - [ ] SSO, live provider, host process, and deployment claims remain manual gates.

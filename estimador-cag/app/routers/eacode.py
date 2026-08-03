@@ -180,6 +180,13 @@ def selector_ui() -> HTMLResponse:
   </form>
   <h2>Decision evidence</h2>
   <pre id="result">No route resolved yet.</pre>
+  <hr>
+  <h2>Governed coding journey</h2>
+  <p>Runs a keyless fixture through hard gates, an independent semantic jury, repair,
+     human authorization, simulated bounded execution, evidence, and reevaluation.</p>
+  <button id="beta-demo" type="button">Run deterministic beta demo</button>
+  <h3>Repair and authority timeline</h3>
+  <pre id="demo-result">No demo run yet.</pre>
   <script>
     document.getElementById('selector').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -195,6 +202,22 @@ def selector_ui() -> HTMLResponse:
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
       });
       document.getElementById('result').textContent = JSON.stringify(await response.json(), null, 2);
+    });
+    document.getElementById('beta-demo').addEventListener('click', async () => {
+      const response = await fetch('/eacode/demo', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          proposal_id: `browser-demo-${Date.now()}`,
+          objective: 'Add a safe health check',
+          spec_id: '0011-demo-ready-beta',
+          patch: "def health():\\n    return 'todo'\\n",
+          changed_files: ['app/health.py'],
+          proposed_commands: [['pytest', '-q', 'tests/test_health.py']],
+          human_authorization: true
+        })
+      });
+      document.getElementById('demo-result').textContent =
+        JSON.stringify(await response.json(), null, 2);
     });
   </script>
 </body>

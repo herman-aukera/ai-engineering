@@ -107,6 +107,15 @@ A real adapter is blocked until all of the following are implemented and tested:
 
 ## Claim boundary
 
+### Spec 0011 additions
+
+- Semantic judges and the optional meta-judge emit typed evidence but have no authorization field.
+- Deterministic hard failures remain vetoes; the action governor owns final disposition.
+- Coding proposals are inert data and cannot silently execute.
+- Demo execution is explicitly simulated and requires a separate human-authorization record.
+- Backend sessions are signed and expiring; OIDC configuration tests do not establish live SSO.
+- The API container receives no Docker socket, and the runner container is not claimed as a hostile-code sandbox.
+
 Current evidence supports:
 
 - deterministic command planning, denial, human-gate classification, dry-run/fake behavior, path controls, redaction, exact revision-guarded authorization, replay protection, persisted interrupt/resume, receipts, and graph reevaluation (Specs 0007, 0008);

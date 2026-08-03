@@ -1,0 +1,3 @@
+{"decision_id":"0011-d1","decision":"duplicate_temporarily","subject":"shared EACORE contracts","summary":"Keep beta authority contracts product-local until a second product proves equivalent semantics."}
+{"decision_id":"0011-d2","decision":"provider_neutral_proposal","subject":"coding agent","summary":"Use an inert typed proposal boundary; do not claim Aider or IDE integration without exercised evidence."}
+{"decision_id":"0011-d3","decision":"google_first","subject":"identity","summary":"Implement local identity and deterministic Google OIDC configuration first; retain Apple as a prerequisite-validated manual gate."}

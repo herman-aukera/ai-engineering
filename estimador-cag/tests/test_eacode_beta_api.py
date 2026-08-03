@@ -34,3 +34,11 @@ def test_beta_demo_exposes_inspectable_authority_timeline() -> None:
 
 def test_missing_demo_run_returns_404() -> None:
     assert client.get("/eacode/demo/unknown").status_code == 404
+
+
+def test_ui_exposes_beta_journey_separately_from_provider_selector() -> None:
+    response = client.get("/eacode/ui")
+    assert response.status_code == 200
+    assert 'id="beta-demo"' in response.text
+    assert "Run deterministic beta demo" in response.text
+    assert "Repair and authority timeline" in response.text
