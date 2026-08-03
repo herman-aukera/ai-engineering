@@ -118,6 +118,27 @@ def test_control_projection_rejects_sensitive_nested_fields() -> None:
         unified_control_projection_from_run(run)
 
 
+def test_control_projection_rejects_bearer_values() -> None:
+    run = _run()
+    run.state["critic_report"] = {
+        "verdict": "accept",
+        "summary": "Bearer " + ("x" * 32),
+    }
+
+    with pytest.raises(ValueError, match="secret-like value"):
+        unified_control_projection_from_run(run)
+
+
+def test_control_projection_validates_authorized_capabilities() -> None:
+    run = _run()
+    run.state["plus_authorized_capabilities"] = {
+        "proposal": "Bearer " + ("y" * 32)
+    }
+
+    with pytest.raises(ValueError, match="secret-like value"):
+        unified_control_projection_from_run(run)
+
+
 def test_control_room_builds_exact_urls_and_decision_contract() -> None:
     assert normalize_backend_url("http://localhost:8000/") == (
         "http://localhost:8000"
