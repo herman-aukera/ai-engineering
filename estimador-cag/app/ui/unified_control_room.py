@@ -65,7 +65,7 @@ def build_review_payload(
         "expected_revision": expected_revision,
         "actor": normalized_actor,
         "reason": normalized_reason,
-        "adjustments": adjustments or [],
+        "adjustments": adjustments if action == "adjust" else None,
         "idempotency_key": idempotency_key or f"control-{uuid4()}",
     }
 
