@@ -1,7 +1,8 @@
-"""Additional checkpoint-safe state used by the Session 13 Plus reviewed graph."""
+"""Checkpoint-safe state shared by reviewed and supervised graph variants."""
 
 from __future__ import annotations
 
+import operator
 from typing import Annotated, Literal, NotRequired, TypedDict
 
 from app.generation.graph.state import (
@@ -107,6 +108,7 @@ class AgentContribution(TypedDict):
     result_ref: NotRequired[str | None]
     duration_ms: NotRequired[int]
 
+
 class SupervisorRouteEvent(TypedDict):
     """One replay-safe, sanitized supervisor routing decision."""
 
@@ -134,12 +136,10 @@ def merge_session14_human_review_actions(
     """Deduplicate identical actions and reject idempotency-key conflicts."""
 
     by_key: dict[str, Session14HumanReviewActionRecord] = {}
-
     for action in [*current, *incoming]:
         idempotency_key = action["idempotency_key"].strip()
         if not idempotency_key:
             raise ValueError("idempotency_key must not be blank")
-
         candidate = Session14HumanReviewActionRecord(
             action_id=action["action_id"],
             idempotency_key=idempotency_key,
@@ -150,21 +150,14 @@ def merge_session14_human_review_actions(
             adjustments=[dict(item) for item in action["adjustments"]],
         )
         existing = by_key.get(idempotency_key)
-
         if existing is not None and existing != candidate:
-            raise ValueError(
-                f"conflicting idempotency_key: {idempotency_key}"
-            )
-
+            raise ValueError(f"conflicting idempotency_key: {idempotency_key}")
         by_key[idempotency_key] = candidate
-
     return sorted(
         by_key.values(),
-        key=lambda action: (
-            action["revision"],
-            action["action_id"],
-        ),
+        key=lambda action: (action["revision"], action["action_id"]),
     )
+
 
 def merge_agent_contributions(
     current: list[AgentContribution],
@@ -173,22 +166,17 @@ def merge_agent_contributions(
     """Merge identical replays once and reject conflicting identifier reuse."""
 
     by_id: dict[str, AgentContribution] = {}
-
     for contribution in [*current, *incoming]:
         contribution_id = contribution["contribution_id"].strip()
         if not contribution_id:
             raise ValueError("contribution_id must not be blank")
-
         candidate = AgentContribution(
             contribution_id=contribution_id,
             agent_id=contribution["agent_id"],
             sequence=contribution["sequence"],
             summary=contribution["summary"],
             state_delta_keys=list(contribution["state_delta_keys"]),
-            action=contribution.get(
-                "action",
-                "legacy_specialist_action",
-            ),
+            action=contribution.get("action", "legacy_specialist_action"),
             tool_name=contribution.get("tool_name"),
             privilege_decision=contribution.get(
                 "privilege_decision",
@@ -205,7 +193,6 @@ def merge_agent_contributions(
             duration_ms=contribution.get("duration_ms", 0),
         )
         existing = by_id.get(contribution_id)
-
         if existing is not None:
             existing_semantics = {
                 key: value
@@ -217,15 +204,12 @@ def merge_agent_contributions(
                 for key, value in candidate.items()
                 if key != "duration_ms"
             }
-
             if existing_semantics != candidate_semantics:
                 raise ValueError(
                     f"conflicting contribution_id: {contribution_id}"
                 )
             continue
-
         by_id[contribution_id] = candidate
-
     return sorted(
         by_id.values(),
         key=lambda contribution: (
@@ -234,6 +218,7 @@ def merge_agent_contributions(
         ),
     )
 
+
 def merge_supervisor_route_events(
     current: list[SupervisorRouteEvent],
     incoming: list[SupervisorRouteEvent],
@@ -241,13 +226,10 @@ def merge_supervisor_route_events(
     """Merge identical route replays and reject conflicting identifier reuse."""
 
     by_id: dict[str, SupervisorRouteEvent] = {}
-
     for route_event in [*current, *incoming]:
         route_event_id = route_event["route_event_id"].strip()
-
         if not route_event_id:
             raise ValueError("route_event_id must not be blank")
-
         candidate = SupervisorRouteEvent(
             route_event_id=route_event_id,
             sequence=route_event["sequence"],
@@ -259,23 +241,16 @@ def merge_supervisor_route_events(
                 "deterministic_policy",
             ),
             proposed_agent=route_event.get("proposed_agent"),
-            valid_candidates=list(
-                route_event.get("valid_candidates", [])
-            ),
+            valid_candidates=list(route_event.get("valid_candidates", [])),
             fallback_reason=route_event.get(
                 "fallback_reason",
                 "proposer_unavailable",
             ),
         )
         existing = by_id.get(route_event_id)
-
         if existing is not None and existing != candidate:
-            raise ValueError(
-                f"conflicting route_event_id: {route_event_id}"
-            )
-
+            raise ValueError(f"conflicting route_event_id: {route_event_id}")
         by_id[route_event_id] = candidate
-
     return sorted(
         by_id.values(),
         key=lambda route_event: (
@@ -286,11 +261,12 @@ def merge_supervisor_route_events(
 
 
 class ReviewedEstimationGraphState(EstimationGraphState, total=False):
-    """Plus state fields layered on the frozen mandatory graph contract."""
+    """Reviewed V2/V3 fields layered on the mandatory graph contract."""
 
     human_review_mode: HumanReviewMode
     project_context: dict[str, object]
     reformulated_request: str
+    pre_reformulation_transcript: str
     v2_profile: str
     v2_modules: list[dict[str, object]]
     structure_review_revision: int
@@ -322,13 +298,21 @@ class ReviewedEstimationGraphState(EstimationGraphState, total=False):
     scenario_id: str
     parent_estimation_id: str
     parent_checkpoint_id: str
+    semantic_assessment: dict[str, object]
+    v3_complexity: dict[str, object]
+    arbitrated_assessment: dict[str, object]
+    v3_route_plan: dict[str, object]
+    provider_selection: dict[str, object]
+    stage_route_events: Annotated[list[dict[str, object]], operator.add]
+    reliability_report: dict[str, object]
+    proposal: dict[str, object]
 
 
 class Session14EstimationGraphState(
     ReviewedEstimationGraphState,
     total=False,
 ):
-    """Supervisor state layered additively on the Session 13 Plus contract."""
+    """Supervisor state layered additively on the reviewed V2/V3 contract."""
 
     requirements_extraction_completed: bool
     budget_search_completed: bool
@@ -338,9 +322,7 @@ class Session14EstimationGraphState(
     historical_range_status: HistoricalRangeStatus
     human_review_revision: int
     human_review_status: Session14HumanReviewStatus
-    human_review_reason_codes: list[
-        Session14HumanReviewReasonCode
-    ]
+    human_review_reason_codes: list[Session14HumanReviewReasonCode]
     human_review_actions: Annotated[
         list[Session14HumanReviewActionRecord],
         merge_session14_human_review_actions,
@@ -367,7 +349,7 @@ def new_session14_estimation_graph_state(
     estimation_id: str,
     graph_version: str = "session14.v1",
 ) -> Session14EstimationGraphState:
-    """Build a fresh Session 14 state with independent accumulators."""
+    """Build a fresh supervised state with independent accumulators."""
 
     state = Session14EstimationGraphState(
         **new_estimation_graph_state(
