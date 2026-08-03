@@ -1,6 +1,6 @@
 """
 LAYER: config (settings & wiring)
-RESPONSIBILITY: Load environment variables, validate them via Pydantic, and define tier routing
+RESPONSIBILITY: Load environment variables, validate them via Pydantic, and define tier routing.
 WHY IT EXISTS: Prevents secret leakage into source code and centralizes environment-dependent
                configuration. Fails fast on startup if configuration is invalid.
 DEPENDS_ON: pydantic_settings (BaseSettings), openai (OpenAI client factory)
@@ -19,7 +19,7 @@ GraphRetrievalMode = Literal["sequential", "parallel"]
 
 
 class Settings(BaseSettings):
-    """Pydantic Settings validates env vars at import time. Fails fast on missing secrets."""
+    """Environment-backed application settings with fail-closed validation."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     graph_rollout_mode: GraphRolloutMode = "off"
     graph_retrieval_mode: GraphRetrievalMode = "sequential"
     graph_retrieval_max_concurrency: int = 4
+    session14_confidence_threshold: float = 0.65
 
     deepseek_api_key: str = "dummy"
     deepseek_model: str = "deepseek-v4-flash"
@@ -61,8 +62,8 @@ class Settings(BaseSettings):
     stress_fake_provider: bool = False
 
     @model_validator(mode="after")
-    def validate_api_keys(self):
-        """Require one configured provider unless deterministic fake mode is active."""
+    def validate_settings(self):
+        """Require a provider outside deterministic mode and validate hard bounds."""
         if (
             not self.stress_fake_provider
             and self.deepseek_api_key == "dummy"
@@ -70,11 +71,15 @@ class Settings(BaseSettings):
             and self.openai_api_key == "dummy"
         ):
             raise ValueError(
-                "At least one API key must be configured: "
-                "DEEPSEEK_API_KEY, KIMI_API_KEY, or OPENAI_API_KEY"
+                "At least one API key must be configured: DEEPSEEK_API_KEY, "
+                "KIMI_API_KEY, or OPENAI_API_KEY"
             )
         if self.graph_retrieval_max_concurrency <= 0:
             raise ValueError("GRAPH_RETRIEVAL_MAX_CONCURRENCY must be positive")
+        if not 0 <= self.session14_confidence_threshold <= 1:
+            raise ValueError(
+                "SESSION14_CONFIDENCE_THRESHOLD must be between zero and one"
+            )
         return self
 
     @property
@@ -87,23 +92,35 @@ settings = Settings()
 
 
 def get_model_config(tier: TierName | None = None) -> tuple[OpenAI, str]:
-    """Factory: returns an (OpenAI-compatible client, model_name) tuple."""
+    """Return an OpenAI-compatible client and model for a legacy tier."""
     tier = tier or settings.llm_tier
 
     if tier == "flash":
-        client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url)
+        client = OpenAI(
+            api_key=settings.deepseek_api_key,
+            base_url=settings.deepseek_base_url,
+        )
         return client, settings.deepseek_model
     if tier == "pro":
-        client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url)
+        client = OpenAI(
+            api_key=settings.deepseek_api_key,
+            base_url=settings.deepseek_base_url,
+        )
         return client, settings.deepseek_model_pro
     if tier == "backup":
         return (
-            OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url),
+            OpenAI(
+                api_key=settings.kimi_api_key,
+                base_url=settings.kimi_base_url,
+            ),
             settings.kimi_model,
         )
     if tier == "backup_pro":
         return (
-            OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url),
+            OpenAI(
+                api_key=settings.kimi_api_key,
+                base_url=settings.kimi_base_url,
+            ),
             settings.kimi_model_pro,
         )
     raise ValueError(f"Unknown tier: {tier}")
