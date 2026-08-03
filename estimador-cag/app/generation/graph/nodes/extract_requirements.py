@@ -29,6 +29,20 @@ def _execution_metadata(
     return metadata
 
 
+def _effective_transcript(state: EstimationGraphState) -> str:
+    """Prefer the canonical brief while retaining raw-input fallback."""
+
+    reformulated = state.get("reformulated_request")
+    if isinstance(reformulated, str) and reformulated.strip():
+        return reformulated.strip()
+
+    transcript = state.get("transcript")
+    if isinstance(transcript, str) and transcript.strip():
+        return transcript.strip()
+
+    return ""
+
+
 def _normalize_requirements(
     requirements: Sequence[RequirementItem],
 ) -> list[RequirementItem]:
@@ -115,13 +129,16 @@ def build_extract_requirements_node(
     async def extract_requirements(
         state: EstimationGraphState,
     ) -> EstimationGraphState:
-        transcript = state.get("transcript")
+        transcript = _effective_transcript(state)
 
-        if not isinstance(transcript, str) or not transcript.strip():
+        if not transcript:
             return _failure_update(
                 state,
                 code="missing_transcript",
-                message="The graph state does not contain a valid transcript.",
+                message=(
+                    "The graph state does not contain a valid transcript "
+                    "or canonical reformulated request."
+                ),
                 event_type="transcript_missing",
                 summary="Requirement extraction could not start.",
                 severity="error",
@@ -140,10 +157,13 @@ def build_extract_requirements_node(
                 state,
                 code="invalid_requirements",
                 message=(
-                    "Requirement extraction returned an invalid structured result."
+                    "Requirement extraction returned an invalid "
+                    "structured result."
                 ),
                 event_type="requirements_invalid",
-                summary="Requirement extraction failed structured validation.",
+                summary=(
+                    "Requirement extraction failed structured validation."
+                ),
                 severity="error",
             )
 
@@ -173,7 +193,8 @@ def build_extract_requirements_node(
                     "event_type": "requirements_extracted",
                     "node": "extract_requirements",
                     "summary": (
-                        f"Extracted {len(requirements)} structured requirements."
+                        f"Extracted {len(requirements)} structured "
+                        "requirements."
                     ),
                     "evidence_refs": requirement_ids,
                     "state_delta_keys": [
