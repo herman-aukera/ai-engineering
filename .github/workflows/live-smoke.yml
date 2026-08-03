@@ -1,118 +1,109 @@
-name: Live provider smoke - Estimador CAG
+name: Session 13 + 14 Plus controlled merge
 
 on:
+  push:
+    branches:
+      - gg-session-14/plus-consolidated
+    paths:
+      - .github/workflows/live-smoke.yml
   workflow_dispatch:
-    inputs:
-      run_legacy_stress:
-        description: Run the inherited Session 06 HTTP stress smoke
-        required: false
-        type: boolean
-        default: false
+
+permissions:
+  contents: write
 
 jobs:
-  live-smoke:
+  controlled-merge:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_USER: estimator
-          POSTGRES_PASSWORD: estimator
-          POSTGRES_DB: estimator
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U estimator -d estimator"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    defaults:
-      run:
-        working-directory: estimador-cag
-    env:
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
-      LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
-      REDIS_URL: redis://127.0.0.1:6379/0
-      DATABASE_URL: postgresql+asyncpg://estimator:estimator@127.0.0.1:5432/estimator
-      PYTHONUNBUFFERED: "1"
-
     steps:
-      - name: Checkout
+      - name: Checkout consolidation branch
         uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          ref: gg-session-14/plus-consolidated
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: uv sync --frozen --extra dev
-
-      - name: Verify live secrets exist
+      - name: Configure Git identity
         run: |
-          test -n "$DEEPSEEK_API_KEY" || (echo "DEEPSEEK_API_KEY is missing" && exit 1)
-          test -n "$KIMI_API_KEY" || (echo "KIMI_API_KEY is missing" && exit 1)
-          test -n "$LOGFIRE_TOKEN" || (echo "LOGFIRE_TOKEN is missing" && exit 1)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Run Session 13 Plus provider and telemetry smoke
+      - name: Merge Session 13 Plus and record conflicts
+        shell: bash
         run: |
-          uv run python scripts/session13_plus_live_runtime_smoke.py \
-            --output artifacts/session13/live/session13_plus_live_runtime.json
+          git fetch origin gg-session-13/plus
 
-      - name: Start FastAPI
-        if: inputs.run_legacy_stress
-        run: |
-          uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/estimador-cag.log 2>&1 &
-          for i in $(seq 1 30); do
-            if curl -sf -X POST http://127.0.0.1:8000/sessions >/dev/null 2>&1; then
-              exit 0
+          if git merge-base --is-ancestor origin/gg-session-13/plus HEAD; then
+            echo "Session 13 Plus is already an ancestor."
+            exit 0
+          fi
+
+          session14_sha="$(git rev-parse HEAD)"
+          session13_sha="$(git rev-parse origin/gg-session-13/plus)"
+          merge_base="$(git merge-base HEAD origin/gg-session-13/plus)"
+
+          merge_rc=0
+          git merge --no-commit --no-ff origin/gg-session-13/plus || merge_rc=$?
+
+          mkdir -p estimador-cag/artifacts/session13_14_consolidation
+          git diff --name-only --diff-filter=U | sort > /tmp/session13_14_conflicts.txt
+
+          SESSION14_SHA="$session14_sha" \
+          SESSION13_SHA="$session13_sha" \
+          MERGE_BASE="$merge_base" \
+          MERGE_RC="$merge_rc" \
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          conflict_file = Path("/tmp/session13_14_conflicts.txt")
+          conflicts = [
+              line.strip()
+              for line in conflict_file.read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          payload = {
+              "schema_version": "session13_14.semantic_merge.v1",
+              "session14_plus_source_sha": os.environ["SESSION14_SHA"],
+              "session13_plus_source_sha": os.environ["SESSION13_SHA"],
+              "merge_base_sha": os.environ["MERGE_BASE"],
+              "git_merge_return_code": int(os.environ["MERGE_RC"]),
+              "conflict_count": len(conflicts),
+              "conflicts": conflicts,
+              "initial_resolution_policy": (
+                  "retain Session 14 Plus version for true conflicts when present; "
+                  "retain Session 13 Plus only when no Session 14 version exists; "
+                  "audit and reconcile every listed conflict after the merge"
+              ),
+          }
+          output = Path(
+              "estimador-cag/artifacts/session13_14_consolidation/merge_manifest.json"
+          )
+          output.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          while IFS= read -r path; do
+            test -n "$path" || continue
+            if git cat-file -e ":2:$path" 2>/dev/null; then
+              git checkout --ours -- "$path"
+              git add "$path"
+            elif git cat-file -e ":3:$path" 2>/dev/null; then
+              git checkout --theirs -- "$path"
+              git add "$path"
+            else
+              git rm --ignore-unmatch "$path"
             fi
-            sleep 1
-          done
-          cat /tmp/estimador-cag.log
-          exit 1
+          done < /tmp/session13_14_conflicts.txt
 
-      - name: Run bounded live stress smoke
-        if: inputs.run_legacy_stress
-        run: |
-          uv run python -m evals.stress.run \
-            --http http://127.0.0.1:8000 \
-            --scenarios growing,pivot,contradiction \
-            --attachment-sizes 0,20,100 \
-            --repeats 1 \
-            --turn-count 2 \
-            --output evals/stress/live_smoke/results.csv
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unresolved conflicts remain"
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
 
-          wc -l evals/stress/live_smoke/results.csv
-          sed -n '1,180p' evals/stress/live_smoke/REPORT.md
-
-      - name: Print FastAPI log on failure
-        if: failure() && inputs.run_legacy_stress
-        run: |
-          cat /tmp/estimador-cag.log || true
-
-      - name: Upload live smoke artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: live-smoke-results
-          if-no-files-found: ignore
-          path: |
-            estimador-cag/evals/stress/live_smoke/results.csv
-            estimador-cag/evals/stress/live_smoke/REPORT.md
-            estimador-cag/artifacts/session13/live/session13_plus_live_runtime.json
+          git add -A
+          git diff --cached --check
+          git commit -m "merge(session13-plus): import reviewed production capabilities"
+          git push origin HEAD:gg-session-14/plus-consolidated
