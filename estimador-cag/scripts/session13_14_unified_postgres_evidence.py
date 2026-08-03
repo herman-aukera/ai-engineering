@@ -49,6 +49,13 @@ DEFAULT_ARTIFACT = (
     / "session13_14_unified"
     / "postgres_pause_resume.json"
 )
+_BOSS_ACTIONS = {
+    "accept",
+    "retry_selected",
+    "fallback_provider",
+    "human_review",
+    "reject",
+}
 
 
 def _required_environment(name: str) -> str:
@@ -163,6 +170,30 @@ def _require_mapping(state: dict[str, object], key: str) -> dict[str, object]:
     return value
 
 
+def _critic_evidence(
+    critic_report: dict[str, object],
+) -> tuple[str, list[object]]:
+    verdict = critic_report.get("verdict")
+    issues = critic_report.get("issues")
+    if not isinstance(verdict, str) or not verdict:
+        raise RuntimeError("Critic verdict is missing from unified state")
+    if not isinstance(issues, list):
+        raise RuntimeError("Critic issues are missing from unified state")
+    return verdict, issues
+
+
+def _boss_evidence(
+    boss_decision: dict[str, object],
+) -> tuple[str, list[object]]:
+    action = boss_decision.get("action")
+    issue_codes = boss_decision.get("issue_codes")
+    if action not in _BOSS_ACTIONS:
+        raise RuntimeError("Boss action is invalid or missing")
+    if not isinstance(issue_codes, list):
+        raise RuntimeError("Boss issue codes are missing from unified state")
+    return str(action), issue_codes
+
+
 async def capture() -> dict[str, object]:
     database_url = _required_environment(
         "SESSION13_14_UNIFIED_POSTGRES_DATABASE_URL"
@@ -182,6 +213,8 @@ async def capture() -> dict[str, object]:
 
     if paused.execution_status != "awaiting_human_review":
         raise RuntimeError("unified graph did not pause for human review")
+    if not paused.interrupts:
+        raise RuntimeError("unified graph paused without an interrupt payload")
     paused_state = paused.state
     if paused_state.get("unified_structure_completed") is not True:
         raise RuntimeError("unified structure phase did not complete")
@@ -206,6 +239,8 @@ async def capture() -> dict[str, object]:
     pause_context_revision = paused_state.get("plus_context_source_revision")
     critic_report = _require_mapping(paused_state, "critic_report")
     boss_decision = _require_mapping(paused_state, "boss_decision")
+    critic_verdict, critic_issues = _critic_evidence(critic_report)
+    boss_action, boss_issue_codes = _boss_evidence(boss_decision)
     competition = _require_mapping(
         paused_state,
         "plus_competition_assessment",
@@ -279,7 +314,7 @@ async def capture() -> dict[str, object]:
         raise RuntimeError("capability authorization evidence is incomplete")
 
     artifact = {
-        "schema_version": "session13_14.unified.postgres-evidence.v1",
+        "schema_version": "session13_14.unified.postgres-evidence.v2",
         "source_sha": source_sha,
         "fixture_name": TEACHER_FIXTURE.name,
         "estimation_id": str(estimation_id),
@@ -287,8 +322,11 @@ async def capture() -> dict[str, object]:
         "graph_name": UNIFIED_GRAPH_NAME,
         "graph_version": UNIFIED_GRAPH_VERSION,
         "pause_execution_status": paused.execution_status,
+        "pause_interrupt_count": len(paused.interrupts),
+        "pause_checkpoint_human_review_status": paused_state.get(
+            "human_review_status"
+        ),
         "resume_execution_status": resumed.execution_status,
-        "pause_human_review_status": paused_state.get("human_review_status"),
         "resume_human_review_status": resumed_state.get(
             "human_review_status"
         ),
@@ -300,9 +338,11 @@ async def capture() -> dict[str, object]:
         "unified_phase_after": resumed_state.get("unified_phase"),
         "unified_route_destinations": destinations,
         "routing_steps": resumed_state.get("routing_steps"),
-        "critic_finding_count": len(critic_report.get("findings", [])),
+        "critic_verdict": critic_verdict,
+        "critic_issue_count": len(critic_issues),
+        "boss_action": boss_action,
+        "boss_issue_code_count": len(boss_issue_codes),
         "boss_route": paused_state.get("boss_route"),
-        "boss_decision_id": boss_decision.get("decision_id"),
         "competition_candidate_count": len(
             resumed_state.get("plus_competition_candidates", [])
         ),
