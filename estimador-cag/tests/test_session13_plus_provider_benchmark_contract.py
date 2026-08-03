@@ -22,7 +22,7 @@ def test_error_sanitizer_removes_api_key_material() -> None:
     benchmark = _benchmark_module()
     code, detail = benchmark._sanitize_error(
         RuntimeError(
-            "Bad request Authorization: Bearer secret-provider-token-123456789 "
+            "Bad request Authorization: Bearer secret-provider-token-123456789 "  # test-secret-fixture
             "and sk-example12345 tool_choice invalid"
         )
     )
@@ -69,4 +69,4 @@ def test_unknown_model_without_catalogue_price_remains_unpriced() -> None:
         output_tokens=50,
     )
     assert cost is None
-    assert source is None
+    assert source == "unpriced"
