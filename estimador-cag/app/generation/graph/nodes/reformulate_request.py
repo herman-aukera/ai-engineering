@@ -11,8 +11,19 @@ ReformulationNode = Callable[
 ]
 
 
-def build_reformulate_request_node() -> ReformulationNode:
-    """Create one stable, auditable brief without model-authored scope."""
+def build_reformulate_request_node(
+    *,
+    preserve_source_transcript: bool = False,
+) -> ReformulationNode:
+    """Create one stable, auditable brief without model-authored scope.
+
+    The reviewed Session 13 graph historically uses the canonical brief as its
+    working ``transcript``.  The unified graph instead preserves the immutable
+    source request for its service identity contract and exposes the brief via
+    ``reformulated_request``.  The composition root selects that behavior
+    explicitly; the node never infers product mode from projected subgraph
+    state.
+    """
 
     async def reformulate(
         state: ReviewedEstimationGraphState,
@@ -55,14 +66,8 @@ def build_reformulate_request_node() -> ReformulationNode:
             )
         )
 
-        # The reviewed Session 13 graph retains its historical behavior: its
-        # working transcript becomes the canonical brief and rollback restores
-        # the original.  The consolidated graph has a stricter service-level
-        # identity contract, so it keeps the source transcript immutable and
-        # exposes the canonical brief through ``reformulated_request``.
-        unified_execution = bool(state.get("unified_graph_version"))
         working_transcript = (
-            original_transcript if unified_execution else brief
+            original_transcript if preserve_source_transcript else brief
         )
 
         return {
