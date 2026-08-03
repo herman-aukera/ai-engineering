@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from copy import deepcopy
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
