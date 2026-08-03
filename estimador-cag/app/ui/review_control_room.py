@@ -27,6 +27,7 @@ from app.ui.graph_inspector import (  # noqa: E402
     get_backend_url,
     render_graph_inspector,
 )
+from app.ui.provider_selector import render_provider_selector  # noqa: E402
 
 REVIEWED_START_PATH = "/api/v1/estimate/graph/reviewed/start"
 REVIEWED_EXECUTION_PATH = "/api/v1/estimate/graph/reviewed/{estimation_id}"
@@ -75,6 +76,9 @@ def start_reviewed_execution(
     transcript: str,
     human_review_mode: str,
     estimation_id: str | None = None,
+    provider: str | None = None,
+    reasoning: str | None = None,
+    context_detail: str | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "transcript": transcript.strip(),
@@ -83,6 +87,12 @@ def start_reviewed_execution(
     normalized_id = (estimation_id or "").strip()
     if normalized_id:
         payload["estimation_id"] = normalized_id
+    if provider:
+        payload["provider"] = provider
+    if reasoning:
+        payload["reasoning"] = reasoning
+    if context_detail:
+        payload["context_detail"] = context_detail
     response = requests.post(
         build_reviewed_start_url(),
         json=payload,
@@ -402,10 +412,14 @@ def _render_final_review_form(
 
 def _render_execution(response: dict[str, Any]) -> None:
     execution_status = response.get("execution_status", "unknown")
-    status_col, mode_col, revision_col, next_col = st.columns(4)
+    provider_sel_display = (response.get("state") or {}).get("provider_selection") or {}
+    status_col, mode_col, prov_col, next_col = st.columns(4)
     status_col.metric("Execution", execution_status)
     mode_col.metric("Review mode", response.get("human_review_mode", "unknown"))
-    revision_col.metric("Review revision", response.get("structure_review_revision", 0))
+    prov_col.metric(
+        "Provider",
+        f"{provider_sel_display.get('provider', 'deepseek')} · {provider_sel_display.get('reasoning', 'medium')}",
+    )
     next_nodes = response.get("next_nodes") or []
     next_col.metric("Pending nodes", len(next_nodes))
 
@@ -544,6 +558,10 @@ def main() -> None:
                 index=0,
             )
             optional_id = st.text_input("Stable estimation UUID (optional)")
+
+            st.divider()
+            provider_sel = render_provider_selector(key_prefix="reviewed_")
+
             submitted = st.form_submit_button("Start checkpointed workflow", type="primary")
 
         if submitted:
@@ -553,6 +571,9 @@ def main() -> None:
                         transcript=transcript,
                         human_review_mode=review_mode,
                         estimation_id=optional_id,
+                        provider=provider_sel.provider,
+                        reasoning=provider_sel.reasoning,
+                        context_detail=provider_sel.context_detail,
                     )
                 _store_response(response)
                 st.rerun()

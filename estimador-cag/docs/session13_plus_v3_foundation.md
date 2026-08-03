@@ -355,18 +355,25 @@ deterministic prerequisites and safety guards
 
 This is design/foundation superiority, not operational V3 superiority.
 
-## 8. Deliberately not implemented yet
+## 8. Implemented (post-S6, post-repair)
 
-This document does not claim:
+As of `d9f6674` (2026-07-20), the following are implemented and tested:
 
-- semantic LLM classifier;
-- transcript-to-signal extraction;
-- graph-state integration;
-- classifier-to-structure `Command` handover;
-- provider/model selector in API/UI;
+- ✅ semantic LLM classifier (provider-neutral contracts, deterministic fake, live adapter);
+- ✅ graph-state integration (4 TypedDict fields, classifier node);
+- ✅ classifier-to-structure `Command(update=..., goto=...)` handover;
+- ✅ deterministic/semantic arbitration (C5 lock, low-confidence gate, disagreement guard);
+- ✅ model registry (lifecycle validation, `ModelRegistry` service);
+- ✅ provider selector (registry-backed route resolution, fail-closed);
+- ✅ context compaction runtime (`minimal/medium/max`, source fingerprint, freshness);
+- ✅ deterministic reformulator rollback (idempotent, preserves project context);
+- ✅ capability probe (`probe_model_reachable`);
+- ✅ live DeepSeek smoke tests (gated behind `stress_fake_provider`).
+
+Still not implemented:
+
+- provider selector in API/UI (Streamlit control room);
 - operational Kimi K3 or GPT-5.6 calls;
-- capability probe/registry;
-- context compaction runtime;
 - native module-to-task generation;
 - task-level `Send`;
 - task-level recovery;
@@ -382,18 +389,14 @@ No V1 or V2 behavior was replaced.
 
 ## 9. Next Session 13 Plus slice
 
-The next coherent Session 13 Plus slice remains semantic classification and graph integration:
+The next coherent slice is the **Streamlit provider selector UI** — expose
+`ProviderSelection` (provider, reasoning, context_detail) in the control room
+and wire it through the reviewed graph runtime.
 
-1. provider-neutral classifier port and deterministic fake;
-2. typed semantic assessment and normalized brief;
-3. deterministic/semantic arbitration;
-4. checkpointed final assessment and route plan;
-5. typed `Command(update=..., goto=...)` handover;
-6. deterministic reformulator rollback;
-7. replay and route-plan stability tests;
-8. bounded live DeepSeek smoke outside deterministic CI.
-
-Model-registry and context-compaction runtime should follow in separate slices after this integration is green.
+Remaining slices:
+- operational Kimi K3 / GPT-5.6 routing (requires live API access);
+- background execution / SSE;
+- matched provider calibration (requires benchmark data).
 
 ## 10. Session 14 branch boundary
 
@@ -421,7 +424,7 @@ Do not implement Session 14 supervisor/HITL work directly on `gg-session-13/plus
 
 Supported wording:
 
-> Session 13 Plus contains strict V3 complexity, model-route, constraint-energy, candidate, repair, ledger, and Energy Card foundations, plus a documented provider-neutral and context-compaction policy covering DeepSeek, Kimi K3, and GPT-5.6.
+> Session 13 Plus contains strict V3 complexity, model-route, constraint-energy, candidate, repair, ledger, and Energy Card foundations; a provider-neutral semantic classifier with typed `Command` handover, arbitration safety gates, and graph integration; a versioned model registry with lifecycle validation; a registry-backed provider selector; a deterministic context-compaction runtime with source fingerprinting and freshness detection; and a deterministic reformulator rollback.  The provider-neutral policy covers DeepSeek, Kimi K3, and GPT-5.6.
 
 Blocked wording:
 
@@ -431,6 +434,11 @@ Blocked wording:
 - GPT-5.6 is always worth its cost;
 - real provider fallback is proven;
 - context compaction is lossless;
-- provider selectors are implemented;
+- provider selectors are exposed in the UI;
 - streaming UI is implemented;
-- V3 is production-ready.
+- V3 is production-ready;
+- provider-quality superiority is proven.
+
+## 13. Stabilization correction record
+
+The final repair pass separates deterministic complexity evidence from arbitrated routing authority, removes the redundant static classifier edge, fixes the reviewed-service provider-selection signature, adds a safe allow-listed SSE activity projection, and moves live-provider tests behind an explicit marker/workflow. Reliability and proposal nodes are implemented; provider selection remains a routing preview until runtime adapters consume the selection per stage. Current proof is the exact stabilization-branch CI result, not earlier test-count claims.

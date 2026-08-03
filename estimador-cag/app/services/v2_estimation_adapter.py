@@ -228,7 +228,7 @@ def canonical_estimation_from_run(
     raw_context = state.get("project_context")
     context = (
         ProjectContextV2.model_validate(raw_context)
-        if isinstance(raw_context, Mapping)
+        if isinstance(raw_context, Mapping) and raw_context.get("transcript")
         else ProjectContextV2(transcript=str(state.get("transcript") or ""))
     )
     return EstimationV2(

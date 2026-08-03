@@ -105,12 +105,19 @@ def build_model_routing_plan(
     assessment: ComplexityAssessment,
     *,
     profile: ExecutionProfileV3 = "balanced",
+    authoritative_level: ComplexityLevel | None = None,
 ) -> ModelRoutingPlan:
-    """Build a deterministic per-stage plan; models never select their own tier."""
+    """Build a deterministic per-stage plan from explicit routing authority.
 
+    ``assessment`` remains the immutable deterministic evidence record.  A
+    separately arbitrated level may control routing without fabricating a
+    contradictory score/dimension assessment.
+    """
+
+    effective_level = authoritative_level or assessment.level
     routes: dict[RoutingStage, ModelRoute] = {}
     for stage in ("complexity", "structure", "recovery", "reliability", "proposal"):
-        spec = _route_spec(stage, assessment.level, profile)
+        spec = _route_spec(stage, effective_level, profile)
         route_id = _route_id(stage, spec)
         fallback_ids = [
             _fallback_route_id(stage, provider, model)
@@ -129,7 +136,7 @@ def build_model_routing_plan(
             cost_limit_usd=_profile_cost(spec.cost_limit_usd, profile),
             fallback_route_ids=fallback_ids,
             reason_codes=[
-                f"complexity:{assessment.level}",
+                f"complexity:{effective_level}",
                 f"profile:{profile}",
                 f"policy:{ROUTING_POLICY_VERSION}",
             ],
@@ -140,6 +147,7 @@ def build_model_routing_plan(
         "calibration_dataset_version": CALIBRATION_DATASET_VERSION,
         "profile": profile,
         "complexity": assessment.model_dump(mode="json"),
+        "authoritative_level": effective_level,
         "routes": {stage: route.model_dump(mode="json") for stage, route in routes.items()},
     }
     plan_id = (

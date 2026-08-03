@@ -12,29 +12,35 @@ Repository state, tests, CI, checkpoints, and current code are stronger sources 
 
 ## 2. Current verified Session 13 Plus checkpoint
 
-At this instruction update, the verified V3 foundation checkpoint was:
+At this instruction update, the verified Plus head (post-repair) is:
 
 ```text
-0700b9bf396ed8a59c1e9a250f7a5ffad65c4278
+d9f6674 (or later — re-resolve before acting)
 ```
 
-Re-resolve the current remote SHA before acting.
+Prior verified V3 foundation checkpoint: `0700b9bf`.
 
-Implemented V3 foundations:
+Implemented and verified (S2–S6 + R1–R6):
 
 - strict C0–C5 complexity and per-stage routing contracts;
 - deterministic route-plan IDs and bounded provider metadata;
 - strict constraint-energy, candidate, repair, ledger, and Energy Card contracts;
-- deterministic tests and green remote CI.
+- **semantic classifier** — provider-neutral contracts, deterministic fake, live adapter;
+- **arbitration** — low-confidence gate, disagreement guard, C5 lock, security escalations;
+- **typed Command handover** — `Command(update=..., goto="structure_phase")` from classifier;
+- **graph integration** — classifier node wired between reformulate and structure;
+- **model registry** — `ModelRecord` with lifecycle validation, `ModelRegistry` service;
+- **provider selector** — registry-backed route resolution, fail-closed;
+- **context-compaction runtime** — `minimal/medium/max`, source fingerprint, freshness;
+- **deterministic reformulator rollback** — idempotent, preserves project context;
+- deterministic tests (125/125), Ruff clean, green CI.
 
 Not yet claimed:
 
-- semantic classifier in the graph;
-- provider selector in the UI/API;
-- operational Kimi K3 or GPT-5.6 routing;
-- task-level multi-agent supervisor;
-- context-compaction runtime;
-- provider-quality superiority.
+- operational Kimi K3 or GPT-5.6 routing (needs live API access);
+- provider selector in the UI/API (Streamlit control room);
+- task-level multi-agent supervisor (Session 14, separate branch);
+- provider-quality superiority (needs benchmark data).
 
 ## 3. Mandatory-first rule
 
@@ -207,3 +213,7 @@ At the end of every work session report:
 - whether human action is required.
 
 Do not merge or mark a draft PR ready without explicit authorization.
+
+## 11. Direct stabilization correction gate
+
+The stabilization branch supersedes stale 125-test and green-CI claims. Completion requires the exact final head to pass Ruff, compilation, deterministic tests excluding `live_provider`, diff/line-ending checks, and a secret scan. Live provider tests run only through the explicit manual workflow. The provider selector persists user intent and displays a policy preview; operational per-stage switching remains unclaimed.

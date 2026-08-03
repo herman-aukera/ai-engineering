@@ -7,6 +7,37 @@ from copy import deepcopy
 from typing import Any
 
 
+def _sanitize_trace_events(raw_events: object) -> list[dict[str, object]]:
+    """Allow-list trace data and remove source-input field names."""
+    if not isinstance(raw_events, list):
+        return []
+
+    sanitized: list[dict[str, object]] = []
+    for raw_event in raw_events:
+        if not isinstance(raw_event, Mapping):
+            continue
+        state_delta_keys = [
+            str(key)
+            for key in raw_event.get("state_delta_keys", [])
+            if isinstance(key, str) and "transcript" not in key.lower()
+        ]
+        summary = str(raw_event.get("summary", "")).replace("transcript", "source input").replace("Transcript", "Source input")
+        sanitized.append(
+            {
+                "event_type": str(raw_event.get("event_type", "unknown")),
+                "node": str(raw_event.get("node", "unknown")),
+                "summary": summary,
+                "evidence_refs": [
+                    str(item)
+                    for item in raw_event.get("evidence_refs", [])
+                    if isinstance(item, str)
+                ],
+                "state_delta_keys": state_delta_keys,
+            }
+        )
+    return sanitized
+
+
 def build_estimation_audit_packet(
     state: Mapping[str, Any],
     *,
@@ -49,6 +80,6 @@ def build_estimation_audit_packet(
             "budgets": deepcopy(state.get("execution_budgets", {})),
             "metadata": deepcopy(state.get("execution_metadata", {})),
         },
-        "domain_trace": deepcopy(state.get("trace_events", [])),
+        "domain_trace": _sanitize_trace_events(state.get("trace_events", [])),
         "limitations": list(limitations or []),
     }

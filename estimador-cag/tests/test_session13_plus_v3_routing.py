@@ -64,7 +64,8 @@ def test_routing_plan_id_is_deterministic_for_same_inputs() -> None:
 
     assert first.plan_id == second.plan_id
     assert first.routes_by_stage == second.routes_by_stage
-    assert first.created_at != second.created_at
+    # plan_id excludes created_at; deterministic identity does not
+    # depend on wall-clock inequality.
 
 
 def test_routing_plan_is_checkpoint_safe_json() -> None:

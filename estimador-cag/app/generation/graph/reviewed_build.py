@@ -21,7 +21,11 @@ from app.generation.graph.nodes.parallel_retrieval import (
     build_parallel_retrieval_nodes,
     parallel_retrieval_dispatch,
 )
+from app.generation.graph.nodes.proposal import build_proposal_node
 from app.generation.graph.nodes.reformulate_request import build_reformulate_request_node
+from app.generation.graph.nodes.reliability_analyst import (
+    build_reliability_analyst_node,
+)
 from app.generation.graph.nodes.review_policy import (
     build_boss_action_node,
     build_deterministic_boss_node,
@@ -32,6 +36,9 @@ from app.generation.graph.nodes.reviewed_validation import (
 )
 from app.generation.graph.nodes.selective_recovery import (
     build_selective_recovery_node,
+)
+from app.generation.graph.nodes.semantic_classify import (
+    build_semantic_classify_node,
 )
 from app.generation.graph.nodes.structure_review import build_structure_review_node
 from app.generation.graph.observability import (
@@ -357,8 +364,13 @@ def build_reviewed_estimation_graph(
     tracer: GraphTracer = NOOP_GRAPH_TRACER,
     retrieval_mode: Literal["sequential", "parallel"] = "sequential",
     retrieval_max_concurrency: int = 4,
+    semantic_classifier=None,
 ) -> CompiledStateGraph:
-    """Compose independently testable structure, estimation, and policy phases."""
+    """Compose independently testable structure, estimation, and policy phases.
+
+    When *semantic_classifier* is provided it replaces the default
+    :class:`FakeSemanticClassifier` in the classify node.
+    """
 
     structure_subgraph = build_structure_subgraph(
         dependencies,
@@ -389,8 +401,26 @@ def build_reviewed_estimation_graph(
             tracer=tracer,
         ),
     )
+    builder.add_node(
+        "semantic_classify",
+        _instrument(
+            graph_name=REVIEWED_GRAPH_NAME,
+            node_name="semantic_classify",
+            node=build_semantic_classify_node(classifier=semantic_classifier),
+            tracer=tracer,
+        ),
+    )
     builder.add_node("structure_phase", structure_subgraph)
     builder.add_node("estimation_phase", estimation_subgraph)
+    builder.add_node(
+        "reliability_analyst",
+        _instrument(
+            graph_name=REVIEWED_GRAPH_NAME,
+            node_name="reliability_analyst",
+            node=build_reliability_analyst_node(),
+            tracer=tracer,
+        ),
+    )
     builder.add_node("review_policy_phase", review_policy_subgraph)
     builder.add_node(
         "boss_action",
@@ -422,7 +452,7 @@ def build_reviewed_estimation_graph(
     )
 
     builder.add_edge(START, "reformulate_request")
-    builder.add_edge("reformulate_request", "structure_phase")
+    builder.add_edge("reformulate_request", "semantic_classify")
     builder.add_conditional_edges(
         "structure_phase",
         _parent_structure_route,
@@ -431,7 +461,8 @@ def build_reviewed_estimation_graph(
             "stop": END,
         },
     )
-    builder.add_edge("estimation_phase", "review_policy_phase")
+    builder.add_edge("estimation_phase", "reliability_analyst")
+    builder.add_edge("reliability_analyst", "review_policy_phase")
     builder.add_edge("review_policy_phase", "boss_action")
     builder.add_conditional_edges(
         "boss_action",
@@ -452,7 +483,17 @@ def build_reviewed_estimation_graph(
         },
     )
     builder.add_edge("final_recovery_phase", "review_policy_phase")
-    builder.add_edge("final_consolidation", END)
+    builder.add_node(
+        "proposal",
+        _instrument(
+            graph_name=REVIEWED_GRAPH_NAME,
+            node_name="proposal",
+            node=build_proposal_node(),
+            tracer=tracer,
+        ),
+    )
+    builder.add_edge("final_consolidation", "proposal")
+    builder.add_edge("proposal", END)
 
     return builder.compile(
         checkpointer=checkpointer,
