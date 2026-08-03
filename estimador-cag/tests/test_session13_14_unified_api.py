@@ -166,7 +166,7 @@ def test_unified_readiness_is_sanitized_and_preserves_rollbacks() -> None:
     assert payload["runtime_error"] == "RuntimeError"
     assert payload["rollback_paths"] == [
         "/api/v1/estimate/graph",
-        "/api/v1/reviewed/estimate/graph",
+        "/api/v1/estimate/graph/reviewed/start",
     ]
 
 
@@ -176,4 +176,4 @@ def test_main_registers_unified_and_legacy_paths() -> None:
     paths = {route.path for route in app.routes}
     assert "/api/v1/estimate/graph/unified" in paths
     assert "/api/v1/estimate/graph" in paths
-    assert "/api/v1/reviewed/estimate/graph" in paths
+    assert "/api/v1/estimate/graph/reviewed/start" in paths
