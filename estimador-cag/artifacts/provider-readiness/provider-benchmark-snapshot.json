@@ -1,0 +1,117 @@
+{
+  "version": "session13-plus-live-v1",
+  "source_commit": "dd0af5149ec796156fc16dcefe302936d90b4df1",
+  "cases_hash": "7ff6e3ab51381ae1839d61223d92189fd0648c715f7e254db9839ae7677bde4e",
+  "created_at": "2026-07-22T17:48:18.549250Z",
+  "required_providers": [
+    "deepseek",
+    "moonshot",
+    "openai"
+  ],
+  "summaries": [
+    {
+      "provider": "deepseek",
+      "model": "deepseek-v4-flash",
+      "effort": "high",
+      "status": "benchmark_calibrated",
+      "sample_count": 3,
+      "quality_score": 1.0,
+      "schema_pass_rate": 1.0,
+      "tool_pass_rate": 1.0,
+      "median_latency_ms": 1501.62,
+      "median_cost_usd": 0.000029120000000000002,
+      "failure_count": 0
+    },
+    {
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "effort": "max",
+      "status": "benchmark_calibrated",
+      "sample_count": 3,
+      "quality_score": 1.0,
+      "schema_pass_rate": 1.0,
+      "tool_pass_rate": 1.0,
+      "median_latency_ms": 1456.32,
+      "median_cost_usd": 0.00006786,
+      "failure_count": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.6-luna",
+      "effort": "low",
+      "status": "benchmark_calibrated",
+      "sample_count": 3,
+      "quality_score": 1.0,
+      "schema_pass_rate": 1.0,
+      "tool_pass_rate": 1.0,
+      "median_latency_ms": 1466.01,
+      "median_cost_usd": 0.000127,
+      "failure_count": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "status": "benchmark_calibrated",
+      "sample_count": 3,
+      "quality_score": 1.0,
+      "schema_pass_rate": 1.0,
+      "tool_pass_rate": 1.0,
+      "median_latency_ms": 1030.07,
+      "median_cost_usd": 0.0003175,
+      "failure_count": 0
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "status": "benchmark_calibrated",
+      "sample_count": 3,
+      "quality_score": 1.0,
+      "schema_pass_rate": 1.0,
+      "tool_pass_rate": 1.0,
+      "median_latency_ms": 1032.28,
+      "median_cost_usd": 0.000635,
+      "failure_count": 0
+    },
+    {
+      "provider": "moonshot",
+      "model": "kimi-k3",
+      "effort": "low",
+      "status": "benchmark_calibrated",
+      "sample_count": 3,
+      "quality_score": 1.0,
+      "schema_pass_rate": 1.0,
+      "tool_pass_rate": 1.0,
+      "median_latency_ms": 3766.47,
+      "median_cost_usd": 0.001503,
+      "failure_count": 0
+    },
+    {
+      "provider": "moonshot",
+      "model": "kimi-k3",
+      "effort": "high",
+      "status": "benchmark_calibrated",
+      "sample_count": 3,
+      "quality_score": 1.0,
+      "schema_pass_rate": 1.0,
+      "tool_pass_rate": 1.0,
+      "median_latency_ms": 2934.82,
+      "median_cost_usd": 0.001158,
+      "failure_count": 0
+    },
+    {
+      "provider": "moonshot",
+      "model": "kimi-k3",
+      "effort": "max",
+      "status": "benchmark_calibrated",
+      "sample_count": 3,
+      "quality_score": 1.0,
+      "schema_pass_rate": 1.0,
+      "tool_pass_rate": 1.0,
+      "median_latency_ms": 3396.98,
+      "median_cost_usd": 0.00141,
+      "failure_count": 0
+    }
+  ]
+}
