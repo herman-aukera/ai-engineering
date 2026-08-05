@@ -3,7 +3,7 @@ LAYER: config (settings & wiring)
 RESPONSIBILITY: Load environment variables, validate them via Pydantic, and define tier routing
 WHY IT EXISTS: Prevents secret leakage into source code and centralizes environment-dependent
                configuration. Fails fast on startup if configuration is invalid.
-DEPENDS_ON: pydantic_settings (BaseSettings), openai (OpenAI client factory)
+DEPENDS ON: pydantic_settings (BaseSettings), openai (OpenAI client factory)
 """
 
 from typing import Literal
@@ -13,14 +13,10 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 TierName = Literal["flash", "pro", "backup", "backup_pro"]
-EstimationBackend = Literal["legacy", "graph"]
-GraphRolloutMode = Literal["off", "shadow", "serve"]
-GraphRetrievalMode = Literal["sequential", "parallel"]
 
 
 class Settings(BaseSettings):
     """Pydantic Settings validates env vars at import time. Fails fast on missing secrets."""
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -28,10 +24,6 @@ class Settings(BaseSettings):
     )
 
     llm_tier: TierName = "flash"
-    estimation_backend: EstimationBackend = "legacy"
-    graph_rollout_mode: GraphRolloutMode = "off"
-    graph_retrieval_mode: GraphRetrievalMode = "sequential"
-    graph_retrieval_max_concurrency: int = 4
 
     deepseek_api_key: str = "dummy"
     deepseek_model: str = "deepseek-v4-flash"
@@ -41,16 +33,7 @@ class Settings(BaseSettings):
     kimi_api_key: str = "dummy"
     kimi_model: str = "kimi-k2.5"
     kimi_model_pro: str = "kimi-k2.6"
-    kimi_model_max: str = ""
     kimi_base_url: str = "https://api.moonshot.ai/v1"
-
-    openai_api_key: str = "dummy"
-    openai_model_luna: str = "gpt-5.6-luna"
-    openai_model_terra: str = "gpt-5.6-terra"
-    openai_model_sol: str = "gpt-5.6-sol"
-    openai_base_url: str = "https://api.openai.com/v1"
-
-    provider_benchmark_snapshot_path: str = ""
 
     database_url: str = "postgresql://dev:dev@localhost:5432/lidr"
     redis_url: str = "redis://localhost:6379/0"
@@ -62,24 +45,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_api_keys(self):
-        """Require one configured provider unless deterministic fake mode is active."""
+        """Fail-fast automatico: si ambas keys son dummy, la app no arranca."""
         if (
             not self.stress_fake_provider
             and self.deepseek_api_key == "dummy"
             and self.kimi_api_key == "dummy"
-            and self.openai_api_key == "dummy"
         ):
             raise ValueError(
-                "At least one API key must be configured: "
-                "DEEPSEEK_API_KEY, KIMI_API_KEY, or OPENAI_API_KEY"
+                "Al menos una API key debe configurarse: DEEPSEEK_API_KEY o KIMI_API_KEY"
             )
-        if self.graph_retrieval_max_concurrency <= 0:
-            raise ValueError("GRAPH_RETRIEVAL_MAX_CONCURRENCY must be positive")
         return self
 
     @property
     def tier_ladder(self) -> list[TierName]:
-        """Ordered list of legacy tiers for compatibility and escalation logic."""
+        """Ordered list of tiers for escalation logic."""
         return ["flash", "pro", "backup", "backup_pro"]
 
 
@@ -93,17 +72,18 @@ def get_model_config(tier: TierName | None = None) -> tuple[OpenAI, str]:
     if tier == "flash":
         client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url)
         return client, settings.deepseek_model
-    if tier == "pro":
+    elif tier == "pro":
         client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url)
         return client, settings.deepseek_model_pro
-    if tier == "backup":
+    elif tier == "backup":
         return (
             OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url),
             settings.kimi_model,
         )
-    if tier == "backup_pro":
+    elif tier == "backup_pro":
         return (
             OpenAI(api_key=settings.kimi_api_key, base_url=settings.kimi_base_url),
             settings.kimi_model_pro,
         )
-    raise ValueError(f"Unknown tier: {tier}")
+    else:
+        raise ValueError(f"Tier desconocido: {tier}")

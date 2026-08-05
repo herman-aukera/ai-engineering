@@ -80,20 +80,3 @@ class IngestResponse(BaseModel):
 
     chunks: list[EmbeddedChunk]
     stats: IngestStats
-
-
-class PersistentIngestRequest(BaseModel):
-    """Session 08 request body for persisted embedding ingestion."""
-
-    source_path: str = Field(min_length=1)
-    document_type: str = Field(min_length=1, max_length=50)
-    content: dict[str, object]
-
-
-class PersistentIngestResponse(BaseModel):
-    """Session 08 response body for persisted embedding ingestion."""
-
-    document_id: int = Field(ge=1)
-    chunks_created: int = Field(ge=0)
-    embedding_dimension: int = Field(ge=1)
-    ingestion_time_ms: int = Field(ge=0)

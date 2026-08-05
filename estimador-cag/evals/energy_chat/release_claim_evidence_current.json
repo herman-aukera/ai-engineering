@@ -1,0 +1,36 @@
+{
+  "production": {
+    "public_deployment": {
+      "public_url": null,
+      "healthcheck_passed": false,
+      "demo_route_passed": false,
+      "timestamp_utc": null
+    },
+    "ci_green": true,
+    "deterministic_validation_green": true,
+    "secret_scan_green": true,
+    "rollback_documented": true,
+    "observability_documented": true,
+    "privacy_boundary_documented": true,
+    "incident_response_documented": false,
+    "real_user_monitoring_documented": false
+  },
+  "deepseek_quality": {
+    "run_id": null,
+    "cases_total": 0,
+    "plain_deepseek_score": null,
+    "energy_aware_score": null,
+    "metric_name": null,
+    "report_path": null,
+    "live_provider_run": false
+  },
+  "frontier_comparison": {
+    "benchmark_run_id": null,
+    "frontier_models_tested": [],
+    "benchmark_report_path": null,
+    "independent_rubric": false,
+    "same_task_set": false,
+    "cost_and_latency_reported": false,
+    "human_review_notes_present": false
+  }
+}

@@ -7,30 +7,6 @@ PROJECT_DIR="$REPO_ROOT/estimador-cag"
 export UV_LINK_MODE="${UV_LINK_MODE:-copy}"
 export PATH="$HOME/.local/bin:$PATH"
 
-install_pager_defaults() {
-  local shell_rc="$1"
-  local start_marker="# SESSION08_PAGER_DEFAULTS_START"
-  local end_marker="# SESSION08_PAGER_DEFAULTS_END"
-
-  touch "$shell_rc"
-
-  if grep -q "$start_marker" "$shell_rc"; then
-    return 0
-  fi
-
-  {
-    echo ""
-    echo "$start_marker"
-    echo "export GIT_PAGER=cat"
-    echo "export PAGER=cat"
-    echo "export LESS=FRX"
-    echo "$end_marker"
-  } >> "$shell_rc"
-}
-
-install_pager_defaults "$HOME/.zshrc"
-install_pager_defaults "$HOME/.bashrc"
-
 echo ">>> setup-estimador: repo root is $REPO_ROOT"
 echo ">>> setup-estimador: project dir is $PROJECT_DIR"
 
@@ -38,30 +14,6 @@ if ! command -v uv >/dev/null 2>&1; then
   echo ">>> uv not found. Installing uv for the current user..."
   curl -LsSf https://astral.sh/uv/install.sh | sh
   export PATH="$HOME/.local/bin:$PATH"
-
-install_pager_defaults() {
-  local shell_rc="$1"
-  local start_marker="# SESSION08_PAGER_DEFAULTS_START"
-  local end_marker="# SESSION08_PAGER_DEFAULTS_END"
-
-  touch "$shell_rc"
-
-  if grep -q "$start_marker" "$shell_rc"; then
-    return 0
-  fi
-
-  {
-    echo ""
-    echo "$start_marker"
-    echo "export GIT_PAGER=cat"
-    echo "export PAGER=cat"
-    echo "export LESS=FRX"
-    echo "$end_marker"
-  } >> "$shell_rc"
-}
-
-install_pager_defaults "$HOME/.zshrc"
-install_pager_defaults "$HOME/.bashrc"
 fi
 
 if [ ! -d "$PROJECT_DIR" ]; then

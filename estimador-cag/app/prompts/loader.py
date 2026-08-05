@@ -12,11 +12,6 @@ import structlog
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
 from app.schemas.estimation import EstimationRequest
-from app.services.source_context import (
-    RetrievedSourceChunk,
-    build_line_citation_prompt_rules,
-    render_source_context,
-)
 
 PROMPT_ROOT = Path(__file__).resolve().parent
 logger = structlog.get_logger(__name__)
@@ -39,7 +34,6 @@ def render_estimation_prompt(
     version: str = "v1",
     project_metadata: object | None = None,
     attachments_text: str | None = None,
-    source_chunks: list[RetrievedSourceChunk] | None = None,
 ) -> tuple[str, str]:
     """
     Render the system and user prompts for a typed estimation request.
@@ -66,13 +60,6 @@ def render_estimation_prompt(
     else:
         context["project_metadata"] = ""
     context["attachments_text"] = attachments_text or ""
-
-    if source_chunks is None:
-        context["line_citation_rules"] = ""
-        context["source_context"] = ""
-    else:
-        context["line_citation_rules"] = build_line_citation_prompt_rules()
-        context["source_context"] = render_source_context(source_chunks)
 
     system_template = environment.get_template(f"{template_prefix}/system.j2")
     user_template = environment.get_template(f"{template_prefix}/user.j2")

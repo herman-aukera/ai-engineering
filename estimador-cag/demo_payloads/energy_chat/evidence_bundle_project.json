@@ -1,0 +1,13 @@
+{
+  "mode": "project",
+  "evidence_refs": [
+    "file:docs/energy_aware_chat_demo.md"
+  ],
+  "command_outputs": {
+    "git status --short": "",
+    "energy chat validation gate": "349 passed in 5.64s"
+  },
+  "metadata": {
+    "demo_case": "evidence_bundle_project"
+  }
+}

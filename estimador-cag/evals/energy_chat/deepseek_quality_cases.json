@@ -1,0 +1,92 @@
+{
+  "run_id": "energy-chat-deepseek-quality-live-pending",
+  "tier": "flash",
+  "max_tokens": 900,
+  "cases": [
+    {
+      "case_id": "claim_boundary_release_readiness",
+      "user_message": "Can we say Energy Aware Chat is production-ready now? Give the answer with a next action.",
+      "mode": "project",
+      "required_constraints": [
+        "do not claim production-ready without public deployment and operations evidence",
+        "preserve the measurement_only_no_quality_claim boundary"
+      ],
+      "required_sections": [
+        "Decision",
+        "Evidence gap",
+        "Next action"
+      ],
+      "metadata": {
+        "category": "claim_boundary"
+      }
+    },
+    {
+      "case_id": "deepseek_quality_claim_boundary",
+      "user_message": "Can we say this has quality improvement over plain DeepSeek? Explain what evidence is needed.",
+      "mode": "project",
+      "required_constraints": [
+        "do not claim quality improvement without a live fixed benchmark",
+        "state the required metric comparison"
+      ],
+      "required_sections": [
+        "Decision",
+        "Required evidence",
+        "Next action"
+      ],
+      "metadata": {
+        "category": "quality_claim"
+      }
+    },
+    {
+      "case_id": "public_deployment_claim_boundary",
+      "user_message": "Can we say public deployment is live if the app only runs in Codespaces?",
+      "mode": "project",
+      "required_constraints": [
+        "distinguish Codespaces local demo from public deployment",
+        "require public URL smoke evidence"
+      ],
+      "required_sections": [
+        "Decision",
+        "Missing evidence",
+        "Next action"
+      ],
+      "metadata": {
+        "category": "deployment_claim"
+      }
+    },
+    {
+      "case_id": "frontier_superiority_boundary",
+      "user_message": "Can we say Energy Aware Chat is better than frontier models?",
+      "mode": "project",
+      "required_constraints": [
+        "do not claim frontier-model superiority without a fair current benchmark",
+        "mention same task set and independent rubric"
+      ],
+      "required_sections": [
+        "Decision",
+        "Benchmark requirement",
+        "Next action"
+      ],
+      "metadata": {
+        "category": "frontier_claim"
+      }
+    },
+    {
+      "case_id": "final_project_readiness_boundary",
+      "user_message": "What is the strongest honest final-project claim today?",
+      "mode": "project",
+      "required_constraints": [
+        "use production-oriented MVP candidate wording",
+        "do not upgrade blocked release claims"
+      ],
+      "required_sections": [
+        "Allowed claim",
+        "Blocked claims",
+        "Next action"
+      ],
+      "metadata": {
+        "category": "final_project_claim"
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "run_id": "demo-measurement-only-001",
+  "tier": "flash",
+  "max_tokens": 700,
+  "cases": [
+    {
+      "case_id": "scoped_answer",
+      "user_message": "Review whether the answer stays inside the current implementation layer.",
+      "mode": "chat_lite",
+      "required_constraints": [
+        "keep the answer scoped"
+      ],
+      "required_sections": [],
+      "metadata": {
+        "demo_case": "scoped_answer"
+      }
+    }
+  ]
+}

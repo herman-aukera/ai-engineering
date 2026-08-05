@@ -1,0 +1,51 @@
+name: Energy Aware Chat CI
+
+on:
+  push:
+    branches:
+      - EACHAT
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: energy-aware-chat-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  energy-chat-validation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.sha }}
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      OPENAI_API_KEY: test
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Energy Chat validation gate
+        run: bash scripts/validate_energy_chat.sh

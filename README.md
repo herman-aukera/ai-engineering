@@ -4,146 +4,167 @@ This repository contains the LIDR AI Engineering coursework.
 
 ## Current submission
 
-- Active project: `estimador-cag/`
-- Current branch: `gg-session-13/pre-work`
-- Teacher-facing branch: `session-13/pre-work`
-- Deliverable: **Session 13 — agent orchestration with LangGraph**
-
-Teacher-facing branch:
-
-https://github.com/herman-aukera/ai-engineering/tree/session-13/pre-work
-
-## What Session 13 delivers
-
-The Session 12 hand-written estimation loop has been re-expressed as an
-explicit LangGraph workflow inside the AI service:
+Active project:
 
 ```text
-START
-  -> extract_requirements
-  -> classify_components
-  -> search_budgets
-  -> generate_estimate
-  -> validate_and_consolidate
-  -> END
+estimador-cag/
 ```
 
-The mandatory pre-session implementation includes:
-
-1. Typed shared graph state.
-2. Accumulator reducers using `Annotated[..., operator.add]`.
-3. Five sequential nodes that return partial state updates.
-4. An additive graph endpoint at `POST /api/v1/estimate/graph`.
-5. PostgreSQL persistence through `AsyncPostgresSaver`.
-6. Stable thread identity derived from the estimation identifier.
-7. A Logfire root span and one child span per graph node.
-8. A complete execution trace for the complex sample transcript.
-9. Deterministic fake adapters for CI.
-10. Separate live PostgreSQL, Logfire, and provider evidence.
-
-## Evidence
-
-- Deterministic execution:
-  `estimador-cag/artifacts/session13/complex_graph_execution_deterministic.json`
-- PostgreSQL persistence:
-  `estimador-cag/artifacts/session13/postgres_persistence_proof.json`
-- Live PostgreSQL and Logfire trace:
-  `estimador-cag/artifacts/session13/live_postgres_logfire_trace_summary.json`
-- Auxiliary live-provider smoke:
-  `estimador-cag/artifacts/session13/live_provider_smoke/`
-- Mandatory compliance:
-  `estimador-cag/docs/session13_task13_compliance.md`
-- Non-mandatory Plus roadmap:
-  `estimador-cag/docs/session13_plus_roadmap.md`
-- Plus credentialed runtime evidence:
-  `estimador-cag/docs/session13_plus_live_runtime_evidence.md`
-- Spanish presentation guide:
-  `estimador-cag/docs/session13_presentation_guide_es.md`
-
-## Validation snapshot
-
-The latest implementation checkpoint passed:
+Current branch:
 
 ```text
-667 passed, 9 skipped
-Ruff passed
-Python compilation passed
-Secret scan passed
-Remote CI passed
+gg-pre-session-06-cag-stress-test
 ```
 
-Normal CI remains deterministic. Real-provider and hosted observability checks
-are manual and opt-in.
-
-## Scope boundary
-
-Parallel retrieval with the LangGraph `Send` API, advanced retry/fallback
-policies, circuit breakers, `interrupt()`-based human review, and the full graph
-wizard UI are tracked as Session 13 Plus work. They are not claimed as part of
-the mandatory pre-session submission.
-
-## Historical Session 10 retrieval work
-
-Session 10 remains available as historical coursework:
+Current deliverable:
 
 ```text
-Branch: gg-session-10/pre-work
-Deliverable: Session 10 — advanced retrieval compass and A/B/C/D retrieval evaluation
+Session 06 — CAG stress test baseline
 ```
 
-### A/B/C/D retrieval variants
+## What this branch delivers
 
-The deterministic historical runner is:
+This branch adds a measurable stress baseline for the existing CAG system.
 
-```zsh
+The goal is not to implement RAG yet. The goal is to measure where the current Cache Augmented Generation approach starts to degrade under longer conversations, larger attachments, and repeated load.
+
+## Required deliverables
+
+```text
+estimador-cag/evals/stress/REPORT.md
+estimador-cag/evals/stress/results.csv
+```
+
+The committed deterministic stress run contains 900 data rows plus a header.
+
+```text
+3 scenarios × 5 attachment sizes × 3 repeats × 20 turns = 900 rows
+```
+
+A bounded live provider smoke was also run locally with DeepSeek.
+
+```text
+3 scenarios × 5 attachment sizes × 3 repeats × 2 turns = 90 rows
+```
+
+The live smoke was kept as local validation evidence. It is not committed because the required deliverable is the report and CSV in evals/stress/.
+
+## Main Session 06 additions
+
+```text
+estimador-cag/evals/stress/scenarios.py
+estimador-cag/evals/stress/metrics.py
+estimador-cag/evals/stress/run.py
+estimador-cag/evals/stress/fixtures/build_pdfs.py
+estimador-cag/evals/stress/results.csv
+estimador-cag/evals/stress/REPORT.md
+```
+
+The stress runner measures:
+
+* latency vs tokens
+* cumulative cost vs turn
+* fact recall vs conversation length
+* attachment size impact
+* cache hit kind
+* tier used
+* per turn token and cost metadata
+
+## Instrumentation
+
+Each conversational estimate exposes a turn_observed object with:
+
+```text
+turn_index
+session_id
+enriched_transcript_chars
+attachments_total_chars
+messages_in_window
+anchors_count
+summary_chars
+tokens_in
+tokens_out
+cost_usd
+latency_ms
+cache_hit_kind
+last_resolved_tier
+```
+
+## Validation
+
+Local validation completed:
+
+```text
+ruff clean
+py_compile clean
+232 pytest tests passed
+```
+
+GitHub Actions normal CI is green.
+
+Normal CI uses dummy provider keys for deterministic test execution. Real provider validation is available through the manual workflow:
+
+```text
+Live provider smoke - Estimador CAG
+```
+
+That workflow uses GitHub Actions repository secrets:
+
+```text
+DEEPSEEK_API_KEY
+KIMI_API_KEY
+```
+
+## Repository map
+
+```text
+.
+├── estimador-cag/      Active estimator project
+├── docs/               Shared notes and sample files
+├── scripts/            Helper scripts
+├── docker-compose.yml  Root compose file
+└── README.md           Current repository review guide
+```
+
+The old duplicate estimator/ project folder has been removed from this branch.
+
+## Run the active project
+
+```bash
+cd /workspaces/ai-engineering
+
+docker compose up -d redis
+
+cd estimador-cag
+uv sync --extra dev
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+## Run the mandatory stress runner
+
+With the backend running:
+
+```bash
 cd /workspaces/ai-engineering/estimador-cag
-uv run python -m evals.session10_retrieval.run   --output evals/session10_retrieval/results.json   --report evals/session10_retrieval/REPORT.md   --k 5   --recall-k 8
+
+uv run python -m evals.stress.run \
+  --http http://localhost:8000 \
+  --scenarios growing,pivot,contradiction \
+  --attachment-sizes 0,5,20,50,100 \
+  --repeats 3 \
+  --output evals/stress/results.csv
 ```
 
-Historical outputs:
+## Run local gates
 
-```text
-evals/session10_retrieval/results.json
-evals/session10_retrieval/REPORT.md
+```bash
+cd /workspaces/ai-engineering/estimador-cag
+
+uv run ruff check app evals tests
+uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
+DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
 ```
 
-The historical report distinguishes `result budget precision@5` from
-`unique budget precision@5`. The small corpus provided wiring and smoke
-evidence; it was not proof that hybrid search or reranking improves quality in
-production.
+## Notes
 
-Historical provider policy: prefer DeepSeek first and use Kimi only as fallback
-or comparison.
-
-Security policy: Do not commit `.env`, real API keys, copied credentials, or
-credential-bearing connection strings.
-
-## Current Plus/V3 architecture addendum
-
-The active incubator branch is `gg-session-13/plus`. Its verified deterministic V3 foundation before the provider/context documentation update was `0700b9bf396ed8a59c1e9a250f7a5ffad65c4278`.
-
-The current architecture now documents:
-
-- provider selector: `Auto | DeepSeek | Kimi | OpenAI`;
-- default provider: DeepSeek;
-- reasoning intent: `minimal | medium | max`;
-- context detail: `minimal | medium | max`;
-- DeepSeek V4 Flash/Pro;
-- Kimi K3/K2.7 Code/K2.6;
-- GPT-5.6 Luna/Terra/Sol;
-- versioned capability discovery;
-- context compaction and rotten-context prevention;
-- Session 14 manual-supervisor and persistent-HITL direction;
-- EACODE, EACHAT, and evidence-gated EACORE boundaries.
-
-Entry points:
-
-- `estimador-cag/docs/energy_aware_model_context_and_multiagent_policy.md`
-- `estimador-cag/docs/session13_plus_v3_foundation.md`
-- `estimador-cag/CLAUDE.md`
-
-These additions are documentation and architecture requirements. They do not claim that provider selectors, Kimi K3/GPT-5.6 runtime adapters, context compaction, or Session 14 multi-agent execution are already implemented.
-
-## Session 13 Plus stabilization boundary
-
-The direct stabilization branch repairs the reviewed-service API contract, separates deterministic and live-provider CI, hardens the SSE activity projection, removes contradictory routing evidence, and labels provider selection as a capability-gated preview until live per-stage routing is proven. PR #10 remains draft and unmerged.
+The committed full stress report is deterministic by design to avoid 900 live LLM calls. A smaller live DeepSeek smoke was run locally to verify the real provider path.

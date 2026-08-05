@@ -1,0 +1,9 @@
+{
+  "user_message": "Does this branch satisfy the validation gate?",
+  "draft_answer": "The branch satisfies the gate and the next action is to attach the evidence refs before claiming success.",
+  "mode": "project",
+  "evidence_refs": [],
+  "metadata": {
+    "demo_case": "source_needed_project"
+  }
+}

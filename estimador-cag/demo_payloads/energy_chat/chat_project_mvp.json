@@ -1,0 +1,15 @@
+{
+  "user_message": "Is deployment evidence mandatory for the Energy Aware Chat final project MVP?",
+  "mode": "project",
+  "k": 3,
+  "required_constraints": [
+    "deployment evidence"
+  ],
+  "required_sections": [
+    "Decision",
+    "Next action"
+  ],
+  "metadata": {
+    "demo_case": "project_mvp_chat"
+  }
+}

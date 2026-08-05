@@ -1,164 +1,132 @@
-"""
-LAYER: main (application entry point)
-RESPONSIBILITY: Bootstrap FastAPI, register routers, middleware, and health/metrics.
-WHY IT EXISTS: Composition root pattern: all wiring happens in one place
-               so the app is predictable and testable.
-DEPENDS ON: app.routers.estimations, app.middleware.logging
-"""
+"""FastAPI application composition root."""
 
-import logging
-from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 
 from app.embedding_pipeline.router import router as embedding_router
-from app.generation.graph.reviewed_runtime import (
-    open_reviewed_graph_estimation_service,
-)
-from app.generation.graph.runtime import open_graph_estimation_service
+from app.energy_chat.conversation_router import router as conversation_router
+from app.energy_chat.conversation_store import InMemoryConversationStore
+from app.energy_chat.human_router import router as energy_chat_human_router
+from app.energy_chat.router import router as energy_chat_router
+from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
+from app.energy_chat.settings import energy_chat_v2_enabled
 from app.middleware.logging import get_last_metrics, setup_logging
 from app.routers.estimations import router as estimations_router
-from app.routers.graph_estimations import router as graph_estimations_router
-from app.routers.graph_rollout import router as graph_rollout_router
-from app.routers.readiness import router as readiness_router
-from app.routers.reviewed_graph_estimations import (
-    router as reviewed_graph_estimations_router,
-)
-from app.routers.search import router as search_router
 from app.routers.sessions import router as sessions_router
-from app.routers.v2_estimations import router as v2_estimations_router
-from app.services.litellm_timeout import install_litellm_request_timeout
-
-logger = logging.getLogger(__name__)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Own graph runtimes without taking down unrelated routes."""
-
-    stack = AsyncExitStack()
-    app.state.graph_estimation_service = None
-    app.state.reviewed_graph_estimation_service = None
-    app.state.graph_runtime_error = None
-    app.state.reviewed_graph_runtime_error = None
-
-    try:
-        try:
-            service = await stack.enter_async_context(
-                open_graph_estimation_service()
-            )
-        except Exception as exc:
-            app.state.graph_runtime_error = type(exc).__name__
-            logger.exception(
-                "graph_estimation_runtime_initialization_failed"
-            )
-        else:
-            app.state.graph_estimation_service = service
-
-        try:
-            reviewed_service = await stack.enter_async_context(
-                open_reviewed_graph_estimation_service()
-            )
-        except Exception as exc:
-            app.state.reviewed_graph_runtime_error = type(exc).__name__
-            logger.exception(
-                "reviewed_graph_estimation_runtime_initialization_failed"
-            )
-        else:
-            app.state.reviewed_graph_estimation_service = reviewed_service
-
-        yield
-    finally:
-        app.state.reviewed_graph_estimation_service = None
-        app.state.graph_estimation_service = None
-        await stack.aclose()
-
-
-install_litellm_request_timeout()
 
 app = FastAPI(
     title="LIDR Estimador CAG",
     description="Context-Augmented Generation (CAG) estimator",
     version="0.3.0",
-    lifespan=lifespan,
 )
+app.state.energy_chat_runtime = EnergyChatApplicationRuntime()
+app.state.energy_chat_conversation_store = InMemoryConversationStore()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-# Wire observability middleware
-setup_logging(app)
 
-# Transport layer
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next) -> Response:
+    """Apply safe browser defaults without exposing environment-dependent values."""
+
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = (
+        "camera=(), microphone=(), geolocation=(), payment=()"
+    )
+    if request.url.path.startswith("/energy-chat"):
+        response.headers["Cache-Control"] = "no-store"
+    if request.url.path in {"/energy-chat/v2/demo", "/energy-chat/demo"}:
+        response.headers["Content-Security-Policy"] = "; ".join(
+            (
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline'",
+                "style-src 'self' 'unsafe-inline'",
+                "img-src 'self' data:",
+                "connect-src 'self'",
+                "font-src 'self'",
+                "object-src 'none'",
+                "base-uri 'none'",
+                "form-action 'self'",
+                "frame-ancestors 'none'",
+            )
+        )
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
+setup_logging(app)
 app.include_router(estimations_router)
-app.include_router(graph_estimations_router)
-app.include_router(graph_rollout_router)
-app.include_router(reviewed_graph_estimations_router)
-app.include_router(v2_estimations_router)
 app.include_router(sessions_router)
 app.include_router(embedding_router, prefix="/embeddings", tags=["embeddings"])
-app.include_router(search_router, tags=["search"])
-app.include_router(readiness_router)
+app.include_router(energy_chat_router, prefix="/energy-chat", tags=["energy-chat"])
+app.include_router(conversation_router, prefix="/energy-chat", tags=["energy-chat-memory"])
+app.include_router(
+    energy_chat_human_router,
+    prefix="/energy-chat",
+    tags=["energy-chat-human"],
+)
 
 
 @app.get("/health", tags=["health"])
 def health_check():
-    """Health endpoint for Codespaces port forwarding."""
     return {"status": "ok", "version": "0.3.0"}
 
 
 @app.get("/metrics", tags=["observability"])
 def metrics():
-    """
-    Runtime metrics from the last LLM call.
-    WHY: Session 3 observability requirement. Shows tokens, tier, latency.
-    """
     return get_last_metrics()
 
 
-SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
-SSE_SESSION08_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "session08_search_demo.html"
-SSE_DEMO_HTML_PATH = Path(__file__).resolve().parents[1] / "docs" / "sse_demo.html"
+DOCS_DIR = Path(__file__).resolve().parents[1] / "docs"
+DEMO_HTML_PATH = DOCS_DIR / "sse_demo.html"
+ENERGY_CHAT_DEMO_HTML_PATH = DOCS_DIR / "energy_chat_demo.html"
+ENERGY_CHAT_V2_DEMO_HTML_PATH = DOCS_DIR / "energy_chat_v2_demo.html"
+
+
+@app.get("/energy-chat/v2/demo", include_in_schema=False)
+def energy_chat_v2_browser_demo() -> FileResponse:
+    """Serve the V2 product UI only while the feature is enabled."""
+
+    if not energy_chat_v2_enabled():
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "v2_disabled",
+                "detail": "Energy Chat V2 is disabled by EACHAT_V2_ENABLED.",
+            },
+        )
+    return FileResponse(ENERGY_CHAT_V2_DEMO_HTML_PATH)
+
+
+@app.get("/energy-chat/demo", include_in_schema=False)
+def energy_chat_browser_demo() -> FileResponse:
+    """Preserve the legacy evaluator/demo as the rollback path."""
+
+    return FileResponse(ENERGY_CHAT_DEMO_HTML_PATH)
+
+
+def _energy_chat_product_url() -> str:
+    return "/energy-chat/v2/demo" if energy_chat_v2_enabled() else "/energy-chat/demo"
 
 
 @app.get("/demo", include_in_schema=False)
-def browser_demo() -> FileResponse:
-    """
-    LAYER: presentation helper
-    RESPONSIBILITY: Serve the Session 08 pgvector search demo from FastAPI.
-    WHY IT EXISTS: Gives reviewers one safe browser path that exercises
-                   /embeddings/ingest and /search instead of the older LLM estimate demo.
-    DEPENDS_ON: docs/session08_search_demo.html
-    """
-    return FileResponse(SESSION08_DEMO_HTML_PATH)
-
-
-@app.get("/sse-demo", include_in_schema=False)
-def sse_demo() -> FileResponse:
-    """
-    LAYER: presentation helper
-    RESPONSIBILITY: Keep the older synchronous-vs-SSE demo available explicitly.
-    WHY IT EXISTS: Preserves Session 03 demonstration material without making it
-                   the default Session 08 browser path.
-    DEPENDS_ON: docs/sse_demo.html
-    """
-    return FileResponse(SSE_DEMO_HTML_PATH)
+def browser_demo() -> RedirectResponse:
+    return RedirectResponse(url=_energy_chat_product_url(), status_code=307)
 
 
 @app.get("/", include_in_schema=False)
-def root_demo() -> FileResponse:
-    """
-    LAYER: presentation helper
-    RESPONSIBILITY: Serve the Session 08 search demo from the root URL.
-    WHY IT EXISTS: Gives nontechnical testers one obvious URL for the current deliverable.
-    DEPENDS_ON: docs/session08_search_demo.html
-    """
-    return FileResponse(SESSION08_DEMO_HTML_PATH)
+def root_demo() -> RedirectResponse:
+    return RedirectResponse(url=_energy_chat_product_url(), status_code=307)

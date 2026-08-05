@@ -1,0 +1,63 @@
+{
+  "overall_ready": false,
+  "claim_status": "release_claims_blocked_missing_evidence",
+  "results": [
+    {
+      "claim_id": "public_deployment_live",
+      "allowed_phrase": "public deployment is live",
+      "decision": "blocked",
+      "missing_evidence": [
+        "public_url",
+        "healthcheck_passed",
+        "demo_route_passed",
+        "timestamp_utc"
+      ],
+      "reasoning_summary": "Public deployment cannot be claimed until a live public URL is smoke-tested.",
+      "next_action": "Deploy the Docker/FastAPI app to a public host and record URL plus smoke output."
+    },
+    {
+      "claim_id": "quality_improvement_over_plain_deepseek",
+      "allowed_phrase": "quality improvement over plain DeepSeek",
+      "decision": "blocked",
+      "missing_evidence": [
+        "live_provider_run",
+        "run_id",
+        "cases_total_at_least_3",
+        "plain_deepseek_score",
+        "energy_aware_score",
+        "metric_name",
+        "report_path"
+      ],
+      "reasoning_summary": "Quality improvement over plain DeepSeek is blocked until a live comparison report exists.",
+      "next_action": "Run a fixed live DeepSeek benchmark and commit the result plus report."
+    },
+    {
+      "claim_id": "frontier_model_superiority",
+      "allowed_phrase": "frontier-model superiority",
+      "decision": "blocked",
+      "missing_evidence": [
+        "benchmark_run_id",
+        "at_least_two_frontier_models_tested",
+        "benchmark_report_path",
+        "independent_rubric",
+        "same_task_set",
+        "cost_and_latency_reported",
+        "human_review_notes_present"
+      ],
+      "reasoning_summary": "Frontier-model superiority is blocked because it requires a fair current multi-model benchmark.",
+      "next_action": "Do not use this claim for the final project unless a fair frontier benchmark is actually run."
+    },
+    {
+      "claim_id": "production_ready",
+      "allowed_phrase": "production-ready",
+      "decision": "blocked",
+      "missing_evidence": [
+        "public_deployment_live",
+        "incident_response_documented",
+        "real_user_monitoring_documented"
+      ],
+      "reasoning_summary": "Production-ready is blocked until operational evidence exists, not only code and tests.",
+      "next_action": "Treat the project as production-oriented until deployment and operations evidence exists."
+    }
+  ]
+}
