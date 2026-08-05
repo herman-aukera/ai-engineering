@@ -1,7 +1,7 @@
 services:
   db:
     image: pgvector/pgvector:0.8.0-pg16
-    profiles: ["dev", "demo"]
+    profiles: ["dev"]
     restart: unless-stopped
     environment:
       POSTGRES_USER: dev
@@ -19,7 +19,7 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    profiles: ["dev", "demo"]
+    profiles: ["dev"]
     container_name: lidr-estimador-redis
     restart: unless-stopped
     ports:
@@ -34,11 +34,11 @@ services:
       retries: 5
 
   api:
-    profiles: ["dev", "demo"]
+    profiles: ["dev"]
     build:
       context: ./estimador-cag
       dockerfile: Dockerfile
-      target: runtime
+      target: full-runtime
     restart: unless-stopped
     environment:
       DEEPSEEK_API_KEY: test
@@ -46,17 +46,42 @@ services:
       STRESS_FAKE_PROVIDER: "true"
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql://dev:dev@db:5432/lidr
-      EACODE_SESSION_SIGNING_KEY: compose-demo-signing-key-32-bytes-minimum
-      EACODE_DEMO_DB_PATH: /data/eacode-demo.sqlite3
+      EACODE_SESSION_SIGNING_KEY: compose-dev-signing-key-32-bytes-minimum
+      EACODE_ALLOWED_ORIGINS: http://127.0.0.1:8000,http://localhost:8000
     ports:
       - "8000:8000"
-    volumes:
-      - eacode-data:/data
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  eacode-api:
+    profiles: ["demo"]
+    build:
+      context: ./estimador-cag
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    environment:
+      EACODE_SESSION_SIGNING_KEY: compose-demo-signing-key-32-bytes-minimum
+      EACODE_ALLOWED_ORIGINS: http://127.0.0.1:8000,http://localhost:8000
+      EACODE_DEMO_DB_PATH: /data/eacode-demo.sqlite3
+    ports:
+      - "8000:8000"
+    volumes:
+      - eacode-data:/data
     healthcheck:
       test:
         [
@@ -94,6 +119,8 @@ services:
       STRESS_FAKE_PROVIDER: "true"
     command:
       [
+        "python",
+        "-m",
         "pytest",
         "-q",
         "tests/test_energy_core_semantic_jury.py",
@@ -101,6 +128,7 @@ services:
         "tests/test_energy_core_beta_store.py",
         "tests/test_energy_core_beta_evaluation.py",
         "tests/test_eacode_beta_api.py",
+        "tests/test_eacode_cors.py",
       ]
 
 volumes:
