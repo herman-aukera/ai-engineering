@@ -4,7 +4,7 @@
 
 The final `EACHAT` release-candidate head is `2028074ad9826f987595fb9b9a2fed8e5d097231`.
 
-PR #5 was deliberately reconciled with `main` and merged on 2026-08-05. The resulting `main` merge commit is `0ca76f52b708dacf79007f4c914e2940ee1e878a`.
+PR #5 was deliberately reconciled with `main` and merged on 2026-08-05. The product integration merge commit is `0ca76f52b708dacf79007f4c914e2940ee1e878a`; the post-integration documentation baseline is `6f92f5a1b42d054336ea83fe7520b6d85c340f5d`. Resolve the current `main` head before making any exact-head claim.
 
 A rollback checkpoint remains available at:
 
@@ -34,7 +34,9 @@ Claim status remains `release_claims_blocked_missing_evidence` and `measurement_
 | Context compaction runtime | implemented | snapshot/revision/hash and turn-isolation tests |
 | Committee/adaptive runtime | implemented, bounded | runtime budgets and isolation tests |
 | Fixed-corpus evaluation | implemented | deterministic fixed-quality workflow; measurement only |
-| Live-provider evidence | blocked externally | manual credentialed workflow exists; no matched live proof |
+| DeepSeek live-provider integration | evidenced for one bounded call | balanced DeepSeek V4 Flash smoke, exact run and sanitized artifact recorded |
+| Kimi/OpenAI live-provider integration | not evidenced | reusable manual workflow exists; no successful committed smoke evidence |
+| Cross-provider fallback | not evidenced | successful DeepSeek run explicitly used no fallback |
 | Container restart | implemented | PostgreSQL canary and authoritative replay |
 | Security and dependencies | implemented at CI evidence level | secret/history scan, production contracts, isolated lock audit and service smoke |
 | Main integration | complete | PR #5 merged after exact-head validation and tree-preserving history reconciliation |
@@ -73,13 +75,42 @@ Final `EACHAT` exact-head evidence:
 | EACHAT - Container Canary | 31034792439 | successful |
 | Production lock repair verification | 31034693205 | successful |
 
-Post-merge `main` evidence:
+Post-integration `main` evidence:
 
 | Workflow | Run | Result |
 |---|---:|---|
 | CI - Estimador CAG | 31034999430 | successful |
+| Post-audit CI - Estimador CAG | 31035460047 | successful |
 
-The post-merge run passed broad regression, Energy Chat validation, PostgreSQL integration, Chromium browser journey, secret/history scanning, strict dependency audit, isolated production installation, and production-service health smoke.
+The post-integration runs passed broad regression, Energy Chat validation, PostgreSQL integration, Chromium browser journey, secret/history scanning, strict dependency audit, isolated production installation, and production-service health smoke.
+
+## Credentialed DeepSeek live evidence
+
+A first launch attempt identified and repaired a workflow import-path defect before any valid smoke evidence was accepted. A subsequent `fast` attempt reached DeepSeek but was correctly rejected by the deterministic latency budget. The intended `balanced` profile then passed.
+
+| Field | Evidence |
+|---|---|
+| Run | 31035837096 |
+| Artifact | 8942534627 |
+| Tested runtime base | `6f92f5a1b42d054336ea83fe7520b6d85c340f5d` |
+| Tested SHA | `717d744f3e5ce315ef3bb7d1df641b80f995b4a3` |
+| Provider/model | DeepSeek / `deepseek-v4-flash` |
+| Effort | balanced |
+| Calls | 1 |
+| Tokens | 303 input / 576 output |
+| Estimated cost | USD 0.000715 |
+| Provider latency | 12,325 ms |
+| Fallback | false |
+| Final disposition | repair |
+| Sensitive bodies recorded | none |
+
+Canonical sanitized evidence:
+
+```text
+evals/energy_chat/live_provider_smoke_deepseek_2026-08-05.json
+```
+
+The reusable `EACHAT - Live Provider Smoke` workflow now sets the project import path explicitly and verifies that the returned provider and effort match the requested inputs.
 
 ```bash
 cd /workspaces/ai-engineering/estimador-cag
@@ -89,18 +120,19 @@ cd /workspaces/ai-engineering
 bash estimador-cag/scripts/check_energy_chat_ci.sh main "$(git rev-parse HEAD)"
 ```
 
-Allowed claims: CI-validated deterministic graph/API behavior, bounded routing, authoritative replay/resume, PostgreSQL and encrypted-memory integration evidence, safe browser journey, fixed-corpus measurement, security/dependency audit, isolated production smoke, container restart proof, and successful integration into `main`.
+Allowed claims: CI-validated deterministic graph/API behavior, bounded routing, authoritative replay/resume, PostgreSQL and encrypted-memory integration evidence, safe browser journey, fixed-corpus measurement, security/dependency audit, isolated production smoke, container restart proof, successful integration into `main`, and one bounded DeepSeek V4 Flash live integration smoke for the tested balanced profile.
 
-Blocked claims: production readiness, public deployment, real-user telemetry, provider/model superiority, automatic-routing improvement, orchestration superiority, context-rot prevention, and live quality improvement.
+Blocked claims: production readiness, public deployment, real-user telemetry, provider/model superiority, quality improvement over plain DeepSeek, automatic-routing improvement, orchestration superiority, context-rot prevention, Kimi/OpenAI live integration, cross-provider fallback reliability, and matched live quality improvement.
 
 ## External completion boundary
 
-1. Run the manual credentialed provider smoke and retain sanitized output.
-2. Run a versioned same-task benchmark with an explicit rubric before changing `measurement_only_no_quality_claim`.
-3. Deploy to an approved private staging target and record URL, health, demo, persistence, restart, rollback, incident, and monitoring evidence.
-4. Add and verify authentication, rate limiting, deployed monitoring, alerting, incident response, and data-retention procedures.
-5. Conduct a monitored canary before any public production claim.
+1. Run Kimi and OpenAI single-provider smokes only if those integrations are intended for the release scope.
+2. Run an intentional cross-provider fallback scenario before claiming fallback evidence.
+3. Run a versioned same-task benchmark with an explicit rubric before changing `measurement_only_no_quality_claim`.
+4. Deploy to an approved private staging target and record URL, health, demo, persistence, restart, rollback, incident, and monitoring evidence.
+5. Add and verify authentication, rate limiting, deployed monitoring, alerting, incident response, and data-retention procedures.
+6. Conduct a monitored canary before any public production claim.
 
 ## Current product label
 
-> EACHAT is integrated into `main` as a production-oriented, demo-ready Energy Aware Chat release candidate. It is not yet production-ready for unrestricted public users.
+> EACHAT is integrated into `main` as a production-oriented, demo-ready Energy Aware Chat release candidate with deterministic, persistence, security, browser, container, and bounded DeepSeek live-integration evidence. It is not yet production-ready for unrestricted public users.
