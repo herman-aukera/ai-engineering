@@ -38,18 +38,36 @@ services:
     build:
       context: ./estimador-cag
       dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
     environment:
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
+      STRESS_FAKE_PROVIDER: "true"
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql://dev:dev@db:5432/lidr
+      EACODE_SESSION_SIGNING_KEY: compose-demo-signing-key-32-bytes-minimum
+      EACODE_DEMO_DB_PATH: /data/eacode-demo.sqlite3
     ports:
       - "8000:8000"
+    volumes:
+      - eacode-data:/data
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
 
   runner:
     profiles: ["demo"]
@@ -69,11 +87,23 @@ services:
     build:
       context: ./estimador-cag
       dockerfile: Dockerfile
+      target: test
     environment:
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
-    command: ["pytest", "-q", "tests/test_energy_core_semantic_jury.py", "tests/test_energy_core_beta_demo.py", "tests/test_eacode_beta_api.py"]
+      STRESS_FAKE_PROVIDER: "true"
+    command:
+      [
+        "pytest",
+        "-q",
+        "tests/test_energy_core_semantic_jury.py",
+        "tests/test_energy_core_beta_demo.py",
+        "tests/test_energy_core_beta_store.py",
+        "tests/test_energy_core_beta_evaluation.py",
+        "tests/test_eacode_beta_api.py",
+      ]
 
 volumes:
   postgres-data:
   redis-data:
+  eacode-data:
