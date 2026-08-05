@@ -51,7 +51,7 @@ jobs:
           uv run python scripts/smoke_eachat_live_provider.py
           --live
           --provider deepseek
-          --effort fast
+          --effort balanced
           --output /tmp/eachat-live-provider-smoke.json
 
       - name: Validate sanitized evidence contract
@@ -75,6 +75,7 @@ jobs:
           assert payload['status'] == 'success'
           assert payload['provider_call_count'] == 1
           assert payload['requested_provider'] == 'deepseek'
+          assert payload['effort'] == 'balanced'
           assert payload['fallback_used'] is False
           assert payload['answer_present'] is True
           assert payload['answer_body_recorded'] is False
@@ -92,6 +93,6 @@ jobs:
       - name: Upload sanitized live evidence
         uses: actions/upload-artifact@v4
         with:
-          name: eachat-live-deepseek-fast
+          name: eachat-live-deepseek-balanced
           path: /tmp/eachat-live-provider-smoke.json
           if-no-files-found: error
