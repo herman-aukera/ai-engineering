@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from app.energy_chat.artifact_registry import artifact_paths
@@ -11,6 +12,14 @@ DEPLOYMENT_RUNBOOK = Path(
 LIVE_PROVIDER_TEMPLATE = Path(
     "docs/energy_aware_chat_live_provider_evidence_template.md"
 ).read_text(encoding="utf-8")
+LIVE_PROVIDER_WORKFLOW = Path(
+    "../.github/workflows/eachat-live-provider-smoke.yml"
+).read_text(encoding="utf-8")
+LIVE_PROVIDER_EVIDENCE = json.loads(
+    Path("evals/energy_chat/live_provider_smoke_deepseek_2026-08-05.json").read_text(
+        encoding="utf-8"
+    )
+)
 DEMO_RECORDING_PACKET = Path(
     "docs/energy_aware_chat_mvp_demo_recording_packet.md"
 ).read_text(encoding="utf-8")
@@ -62,18 +71,54 @@ def test_deployment_runbook_keeps_public_deployment_claim_blocked() -> None:
         assert required_fragment in DEPLOYMENT_RUNBOOK
 
 
-def test_live_provider_template_requires_explicit_smoke_evidence() -> None:
+def test_live_provider_document_records_bounded_sanitized_evidence() -> None:
     required_fragments = [
-        "Energy Aware Chat Live Provider Smoke",
-        "fallback_observed",
-        "claim_allowed",
-        "secrets_exposed",
-        "Live provider smoke passed for the tested SHA",
-        "quality over DeepSeek",
+        "EACHAT - Live Provider Smoke",
+        "single_provider_live_smoke",
+        "fallback_used",
+        "credential_recorded",
+        "A bounded DeepSeek V4 Flash live integration smoke passed",
+        "quality improvement over plain DeepSeek",
+        "live_provider_smoke_deepseek_2026-08-05.json",
     ]
 
     for required_fragment in required_fragments:
         assert required_fragment in LIVE_PROVIDER_TEMPLATE
+
+
+def test_live_provider_workflow_enforces_exact_requested_profile() -> None:
+    required_fragments = [
+        'PYTHONPATH: "."',
+        "EXPECTED_HEAD_SHA",
+        "provider_call_count",
+        "REQUESTED_PROVIDER",
+        "REQUESTED_EFFORT",
+        "payload['requested_provider'] == os.environ['REQUESTED_PROVIDER']",
+        "payload['effort'] == os.environ['REQUESTED_EFFORT']",
+        "payload['fallback_used'] is False",
+        "payload['credential_recorded'] is False",
+    ]
+
+    for required_fragment in required_fragments:
+        assert required_fragment in LIVE_PROVIDER_WORKFLOW
+
+
+def test_deepseek_live_evidence_preserves_claim_boundary() -> None:
+    assert LIVE_PROVIDER_EVIDENCE["schema_version"] == 1
+    assert LIVE_PROVIDER_EVIDENCE["evidence_type"] == "single_provider_live_smoke"
+    assert LIVE_PROVIDER_EVIDENCE["status"] == "success"
+    assert LIVE_PROVIDER_EVIDENCE["requested_provider"] == "deepseek"
+    assert LIVE_PROVIDER_EVIDENCE["provider"] == "deepseek"
+    assert LIVE_PROVIDER_EVIDENCE["effort"] == "balanced"
+    assert LIVE_PROVIDER_EVIDENCE["provider_call_count"] == 1
+    assert LIVE_PROVIDER_EVIDENCE["fallback_used"] is False
+    assert LIVE_PROVIDER_EVIDENCE["answer_body_recorded"] is False
+    assert LIVE_PROVIDER_EVIDENCE["prompt_body_recorded"] is False
+    assert LIVE_PROVIDER_EVIDENCE["credential_recorded"] is False
+    assert "quality improvement over plain DeepSeek" in LIVE_PROVIDER_EVIDENCE[
+        "claims_blocked"
+    ]
+    assert "production readiness" in LIVE_PROVIDER_EVIDENCE["claims_blocked"]
 
 
 def test_demo_recording_packet_covers_mvp_routes_and_non_claims() -> None:
