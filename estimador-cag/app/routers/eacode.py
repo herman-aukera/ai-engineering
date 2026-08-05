@@ -238,6 +238,7 @@ def selector_ui() -> HTMLResponse:
     body { font-family: system-ui, sans-serif; max-width: 880px; margin: 2rem auto; padding: 0 1rem; }
     form { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
     label { display: grid; gap: .25rem; font-weight: 600; }
+    .check { display: flex; gap: .5rem; align-items: center; }
     button, input, select { padding: .65rem; }
     pre { white-space: pre-wrap; background: #111; color: #eee; padding: 1rem; border-radius: .4rem; }
     .boundary { border-left: 4px solid currentColor; padding-left: 1rem; }
@@ -245,11 +246,12 @@ def selector_ui() -> HTMLResponse:
 </head>
 <body>
   <h1>EACODE ⚡</h1>
-  <p class="boundary">Provider selection is a plan, not proof that any model was called.</p>
+  <p class="boundary">Provider selection is a deterministic plan and does not claim a provider was called.</p>
   <form id="selector">
     <label>Provider<select name="provider"><option>auto</option><option>deepseek</option><option>kimi</option><option>openai</option></select></label>
     <label>Profile<select name="profile"><option>minimal</option><option selected>medium</option><option>max</option></select></label>
     <label>Maximum cost (USD)<input name="max_cost_usd" type="number" min="0" step="0.01" value="1.00"></label>
+    <label class="check"><input name="kimi_code_entitled" type="checkbox">Kimi Code membership confirmed</label>
     <button type="submit">Resolve governed route</button>
   </form>
   <pre id="result">No route resolved yet.</pre>
@@ -268,11 +270,13 @@ def selector_ui() -> HTMLResponse:
     });
     document.getElementById('selector').addEventListener('submit', async (event) => {
       event.preventDefault();
-      const data = Object.fromEntries(new FormData(event.target));
+      const form = new FormData(event.target);
+      const data = Object.fromEntries(form);
       data.max_cost_usd = Number(data.max_cost_usd);
       data.context_profile = data.profile;
       data.fallback_policy = 'none';
-      data.entitled_surfaces = [];
+      data.entitled_surfaces = form.has('kimi_code_entitled') ? ['kimi_code'] : [];
+      delete data.kimi_code_entitled;
       const response = await fetch('/eacode/select', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
       });
