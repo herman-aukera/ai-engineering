@@ -78,7 +78,7 @@ def test_live_provider_document_records_bounded_sanitized_evidence() -> None:
         "fallback_used",
         "credential_recorded",
         "A bounded DeepSeek V4 Flash live integration smoke passed",
-        "quality improvement over plain DeepSeek",
+        "improves quality over plain DeepSeek",
         "live_provider_smoke_deepseek_2026-08-05.json",
     ]
 
