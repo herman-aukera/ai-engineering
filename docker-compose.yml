@@ -129,6 +129,7 @@ services:
         "tests/test_energy_core_beta_evaluation.py",
         "tests/test_eacode_beta_api.py",
         "tests/test_eacode_cors.py",
+        "tests/test_eacode_runtime_app.py",
       ]
 
 volumes:
