@@ -30,14 +30,18 @@ jobs:
       - name: Start complete EACODE demo stack
         run: docker compose --profile demo up -d --build --wait db redis api
 
-      - name: Prove API health, non-root runtime, and durable demo state
+      - name: Prove API health, non-root runtime, tenant auth, and durable state
         run: |
           test "$(docker compose exec -T api id -u)" = "10001"
           docker compose exec -T api python -c "import importlib.util; assert importlib.util.find_spec('pytest') is None"
           curl --fail --silent --show-error http://127.0.0.1:8000/health
           curl --fail --silent --show-error http://127.0.0.1:8000/eacode/status
           curl --fail --silent --show-error http://127.0.0.1:8000/eacode/ui
+          TOKEN="$(docker compose exec -T api python -c "from datetime import UTC, datetime, timedelta; import os; from energy_core.identity import SessionSigner; print(SessionSigner(os.environ['EACODE_SESSION_SIGNING_KEY'].encode()).issue(user_id='container-owner', roles=('operator',), expires_at=datetime.now(UTC)+timedelta(minutes=5)))")"
+          test -n "$TOKEN"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' -d '{"proposal_id":"unsigned-proof","objective":"Must fail","spec_id":"0012-production-hardening","patch":"def fail(): pass","changed_files":["app/fail.py"],"proposed_commands":[["git","status","--short"]]}' http://127.0.0.1:8000/eacode/demo)" = "401"
           curl --fail --silent --show-error \
+            -H "Authorization: Bearer $TOKEN" \
             -H 'Content-Type: application/json' \
             -d '{"proposal_id":"container-persistence-proof","objective":"Prove durable demo state","spec_id":"0012-production-hardening","patch":"def health():\n    return '\''todo'\''\n","changed_files":["app/health.py"],"proposed_commands":[["pytest","-q","tests/test_health.py"]]}' \
             http://127.0.0.1:8000/eacode/demo
@@ -49,6 +53,7 @@ jobs:
             sleep 2
           done
           curl --fail --silent --show-error \
+            -H "Authorization: Bearer $TOKEN" \
             http://127.0.0.1:8000/eacode/demo/container-persistence-proof \
             | grep -q '"proposal_id":"container-persistence-proof"'
 
