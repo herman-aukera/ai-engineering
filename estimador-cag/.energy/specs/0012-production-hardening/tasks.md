@@ -1,19 +1,27 @@
 # Spec 0012 — Production Hardening Slice: Tasks
 
 - [x] Replace client-controlled authorization Boolean with separate prepare, authorize, and execute endpoints.
-- [x] Verify signed backend sessions and require operator/admin role.
+- [x] Require signed sessions for preparation and inspection.
+- [x] Enforce tenant ownership for non-admin sessions and explicit admin override.
+- [x] Require operator/admin role for authorization and execution.
 - [x] Add short-lived exact-scope one-time receipts.
-- [x] Add atomic replay, actor, scope, and expiry rejection.
-- [x] Persist typed demo results and receipts in SQLite.
+- [x] Add atomic replay, actor, owner, scope, expiry, and concurrent-consumption rejection.
+- [x] Add an atomic single-execution reservation per proposal.
+- [x] Persist typed demo results and receipts in SQLite WAL storage.
 - [x] Add integrity verification and tamper tests.
 - [x] Replace empty hard-gate fixture with concrete deterministic findings.
 - [x] Make repaired patch the effective proposal revision.
-- [x] Reevaluate the effective proposal after simulated execution.
-- [x] Replace expected-label benchmark output with evidence-derived policy execution.
+- [x] Reevaluate the effective revision after simulated execution.
+- [x] Replace expected-label benchmark output with evidence-derived decisions.
 - [x] Add poisoned-label regression proving expected labels cannot control actual decisions.
-- [x] Split runtime and test Docker stages.
-- [x] Remove the development extra from the runtime image.
-- [x] Add Compose persistence volume and API health check.
-- [x] Add stack startup, restart, persistence, UID, and runner proof to GitHub Actions.
-- [ ] Capture successful remote canonical CI and runtime-proof workflow URLs.
-- [ ] Perform manual external deployment only after explicit approval.
+- [x] Replace wildcard CORS with explicit fail-closed origin configuration.
+- [x] Add a dedicated EACODE-only FastAPI composition root.
+- [x] Add a pinned minimal EACODE runtime dependency set.
+- [x] Split minimal EACODE runtime, full development runtime, and test image targets.
+- [x] Add Compose persistence volume and EACODE API health check.
+- [x] Add runtime startup, restart, persistence, UID, dependency-exclusion, and runner proof to GitHub Actions.
+- [x] Add fixed high/critical vulnerability blocking.
+- [x] Add SPDX SBOM artifact generation.
+- [x] Restrict GHCR publication to canonical `EACODE` and add BuildKit SBOM/provenance.
+- [ ] Capture successful current-head canonical CI and runtime-proof workflow evidence.
+- [ ] Perform live OIDC, provider, real-process, or external deployment proof only in separately approved slices.
