@@ -1,4 +1,9 @@
-FROM ghcr.io/astral-sh/uv:0.12.0-python3.11-bookworm-slim AS eacode-builder
+FROM ghcr.io/astral-sh/uv:0.12.1 AS uv-binary
+
+FROM python:3.11.15-slim-bookworm AS builder-base
+COPY --from=uv-binary /uv /uvx /bin/
+
+FROM builder-base AS eacode-builder
 WORKDIR /build
 COPY requirements-eacode-runtime.txt ./
 RUN uv venv /opt/eacode-venv \
@@ -6,13 +11,13 @@ RUN uv venv /opt/eacode-venv \
        --python /opt/eacode-venv/bin/python \
        --requirement requirements-eacode-runtime.txt
 
-FROM ghcr.io/astral-sh/uv:0.12.0-python3.11-bookworm-slim AS full-builder
+FROM builder-base AS full-builder
 ENV UV_PROJECT_ENVIRONMENT=/opt/full-venv
 WORKDIR /build
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
-FROM ghcr.io/astral-sh/uv:0.12.0-python3.11-bookworm-slim AS test-builder
+FROM builder-base AS test-builder
 ENV UV_PROJECT_ENVIRONMENT=/opt/test-venv
 WORKDIR /build
 COPY pyproject.toml uv.lock ./
