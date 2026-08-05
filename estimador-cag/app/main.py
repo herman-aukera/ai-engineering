@@ -19,10 +19,24 @@ from app.routers.eacode import router as eacode_router
 from app.routers.estimations import router as estimations_router
 from app.routers.sessions import router as sessions_router
 
+
+def _configured_cors_origins() -> list[str]:
+    """Return an explicit origin allowlist; wildcard CORS is never the default."""
+
+    raw = os.getenv(
+        "EACODE_ALLOWED_ORIGINS",
+        "http://127.0.0.1:8000,http://localhost:8000",
+    )
+    origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
+    if not origins or "*" in origins:
+        raise RuntimeError("EACODE_ALLOWED_ORIGINS must be an explicit non-empty allowlist")
+    return origins
+
+
 app = FastAPI(
     title="LIDR Estimador CAG + EACODE",
     description="CAG estimator with an Energy-Aware governed coding control plane",
-    version="0.5.0",
+    version="0.4.0",
 )
 
 app.add_middleware(
@@ -45,7 +59,7 @@ app.include_router(eacode_router)
 def health_check() -> dict[str, str]:
     """Health endpoint for Codespaces port forwarding."""
 
-    return {"status": "ok", "version": "0.5.0"}
+    return {"status": "ok", "version": "0.4.0"}
 
 
 @app.get("/metrics", tags=["observability"])
@@ -70,16 +84,3 @@ def root_demo() -> FileResponse:
     """Serve the existing browser demo from the root URL."""
 
     return FileResponse(DEMO_HTML_PATH)
-
-
-def _configured_cors_origins() -> list[str]:
-    """Return an explicit origin allowlist; wildcard CORS is never the default."""
-
-    raw = os.getenv(
-        "EACODE_ALLOWED_ORIGINS",
-        "http://127.0.0.1:8000,http://localhost:8000",
-    )
-    origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
-    if not origins or "*" in origins:
-        raise RuntimeError("EACODE_ALLOWED_ORIGINS must be an explicit non-empty allowlist")
-    return origins
