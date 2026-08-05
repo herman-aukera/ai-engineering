@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:0.8.3-python3.11-bookworm-slim AS eacode-builder
+FROM ghcr.io/astral-sh/uv:0.12.0-python3.11-bookworm-slim AS eacode-builder
 WORKDIR /build
 COPY requirements-eacode-runtime.txt ./
 RUN uv venv /opt/eacode-venv \
@@ -6,19 +6,29 @@ RUN uv venv /opt/eacode-venv \
        --python /opt/eacode-venv/bin/python \
        --requirement requirements-eacode-runtime.txt
 
-FROM ghcr.io/astral-sh/uv:0.8.3-python3.11-bookworm-slim AS full-builder
+FROM ghcr.io/astral-sh/uv:0.12.0-python3.11-bookworm-slim AS full-builder
 ENV UV_PROJECT_ENVIRONMENT=/opt/full-venv
 WORKDIR /build
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
-FROM ghcr.io/astral-sh/uv:0.8.3-python3.11-bookworm-slim AS test-builder
+FROM ghcr.io/astral-sh/uv:0.12.0-python3.11-bookworm-slim AS test-builder
 ENV UV_PROJECT_ENVIRONMENT=/opt/test-venv
 WORKDIR /build
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --extra dev --no-install-project
 
-FROM python:3.11.13-slim-bookworm AS test
+FROM python:3.11.15-slim-bookworm AS hardened-python
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf \
+       /usr/local/lib/python3.11/site-packages/pip* \
+       /usr/local/lib/python3.11/site-packages/setuptools* \
+       /usr/local/lib/python3.11/site-packages/wheel* \
+       /usr/local/bin/pip*
+
+FROM hardened-python AS test
 ENV PATH="/opt/test-venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -27,7 +37,7 @@ COPY --from=test-builder /opt/test-venv /opt/test-venv
 COPY . /app
 CMD ["python", "-m", "pytest", "-q"]
 
-FROM python:3.11.13-slim-bookworm AS full-runtime
+FROM hardened-python AS full-runtime
 ENV PATH="/opt/full-venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -41,7 +51,7 @@ HEALTHCHECK --interval=10s --timeout=3s --retries=6 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
-FROM python:3.11.13-slim-bookworm AS runtime
+FROM hardened-python AS runtime
 ENV PATH="/opt/eacode-venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
