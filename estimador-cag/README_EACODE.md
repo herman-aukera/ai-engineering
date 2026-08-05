@@ -1,27 +1,11 @@
 # Energy Aware Code (EACODE) ⚡
 
-Status: deterministic alpha control plane  
+Canonical status: deterministic alpha control plane  
+Current stacked candidate: tenant-scoped simulated beta hardening  
 Canonical branch: `EACODE`  
-Authoritative checkpoint: `docs/eacode_release_checkpoint_2026-07-22.md`
+Hardening specification: `.energy/specs/0012-production-hardening/`
 
-## Demo-ready beta work
-
-Spec 0011 adds a provider-neutral proposal boundary, explicit deterministic hard gates,
-typed independent semantic-judge results, jury disagreement, optional meta-judge evidence,
-and a deterministic action governor. The keyless demo repairs one fixture proposal, records
-human authorization for a protected simulated test action, captures sanitized evidence,
-reevaluates, and exposes the full timeline and rollback boundary at `POST /eacode/demo`,
-`GET /eacode/demo/{proposal_id}`, and `/eacode/ui`.
-
-Local identity contracts keep users separate from linked provider identities and use signed,
-expiring backend sessions. Google and Apple OIDC are configuration contracts only; live login
-is not claimed. The versioned golden set compares unchecked, hard-gate-only, single-judge, and
-jury-plus-governor modes across twelve deterministic cases.
-
-Docker `dev`, `test`, and `demo` profiles and GHCR build assets are present. Compose configuration
-is verified; container build/startup remains a separate gate where a Docker engine is available.
-
-## Product
+## What EACODE is
 
 EACODE is a provider-neutral supervision layer between coding agents, language models, repositories, and tools.
 
@@ -32,12 +16,163 @@ SDD specification + policy + candidate + evidence
     -> deterministic boss/decider
     -> accept | repair | reject | clarify | escalate
     -> bounded authorization and action
-    -> normalized evidence and append-only ledger
+    -> normalized evidence, reevaluation, and ledger
 ```
 
 Models and agentic tools may propose work. They do not approve themselves. Deterministic Python owns hard constraints, budgets, repository verification, authority, evidence sufficiency, and final disposition.
 
-## Kiro-like SDD layer
+## Current beta journey
+
+```text
+signed tenant session
+-> provider-neutral CodingProposal
+-> concrete deterministic hard gates
+-> independent semantic jury
+-> deterministic governor
+-> bounded repair and effective proposal revision
+-> durable inert record
+-> signed operator/admin authorization
+-> exact-scope short-lived receipt
+-> atomic one-time execution reservation
+-> simulated bounded execution
+-> effective-proposal reevaluation
+-> durable timeline and rollback evidence
+```
+
+### API
+
+```text
+GET  /health
+GET  /eacode/status
+GET  /eacode/capabilities
+POST /eacode/select
+GET  /eacode/ui
+POST /eacode/demo
+POST /eacode/demo/{proposal_id}/authorize
+POST /eacode/demo/{proposal_id}/execute
+GET  /eacode/demo/{proposal_id}
+```
+
+Proposal preparation and inspection require a signed backend session. Viewer, reviewer, operator, and admin roles may prepare and inspect inert proposals. Only operator and admin roles may authorize and execute. Non-admin access is scoped to the verified backend user ID; admin cross-tenant access is explicit.
+
+The beta API does not accept client-controlled human authorization. Authorization is a server-issued capability bound to proposal ID, authenticated actor, exact effective command scope, and expiry. Receipt consumption and the proposal's single execution reservation occur atomically.
+
+Execution in this beta remains simulated.
+
+## Deterministic hard gates
+
+The current beta checks:
+
+- changed-file scope exists;
+- paths are repository-relative and traversal-free;
+- patch size remains within the beta budget;
+- credential-shaped material and private keys are absent;
+- deterministic test-weakening markers are absent;
+- proposed commands use the bounded read/test allowlist;
+- workflow, deployment, infrastructure, and migration surfaces trigger human review.
+
+These gates are product policy evidence. They are not a proof that arbitrary code is safe.
+
+## Durable evidence
+
+`SQLiteBetaDemoStore` provides single-node beta durability with:
+
+- WAL mode;
+- tenant ownership;
+- typed canonical JSON records;
+- SHA-256 integrity digests;
+- short-lived actor/scope-bound authorization receipts;
+- nonce replay rejection;
+- atomic receipt consumption;
+- atomic single-execution reservation;
+- application-restart persistence.
+
+SQLite is not claimed as horizontally scaled or multi-region production storage.
+
+## Benchmark
+
+The versioned 12-case benchmark compares:
+
+```text
+unchecked_agent
+hard_gates_only
+single_semantic_judge
+jury_action_governor
+```
+
+The final mode calculates decisions from proposal evidence. Expected labels are never used to generate actual decisions; a poisoned-label regression enforces that boundary.
+
+This benchmark proves only the encoded deterministic cases. It does not prove real-world coding-agent superiority.
+
+## Product image
+
+The EACODE product image uses the dedicated `app.eacode_main` composition root rather than the estimator/coursework application.
+
+The minimal runtime:
+
+- exposes only EACODE product routes;
+- runs as UID 10001;
+- persists state under `/data`;
+- uses a pinned small FastAPI/Pydantic/Uvicorn dependency set;
+- excludes tests, `pytest`, Torch, Jupyter, Streamlit, sentence-transformers, estimator routes, and database/cache clients not used by this beta path;
+- uses an explicit non-wildcard CORS allowlist.
+
+The repository separately retains a full development runtime and a test image for coursework compatibility.
+
+## Container and supply-chain gates
+
+The EACODE image workflow must:
+
+1. validate the `demo` Compose profile;
+2. start the minimal product container and wait for health;
+3. prove UID 10001 and excluded heavy/test dependencies;
+4. reject unsigned proposal preparation;
+5. create a signed tenant proposal, restart the API, and retrieve the durable record;
+6. fail on fixed high or critical OS/library vulnerabilities;
+7. export an SPDX SBOM artifact;
+8. prove the separate UID 10002 read-only, capability-dropped runner boundary;
+9. publish only from a push to canonical `EACODE`;
+10. publish only an immutable commit-SHA tag with BuildKit SBOM and provenance.
+
+Pull requests and non-canonical branches do not publish images.
+
+## Existing deeper execution contracts
+
+Earlier specifications already provide:
+
+- typed controlled execution plans;
+- exact repository snapshot binding;
+- authoritative one-time live authorization storage;
+- `shell=False` argument-list execution;
+- process-group/session handling, cancellation, timeout, and cleanup verification;
+- bounded and redacted output;
+- normalized evidence for reevaluation;
+- a permanently disabled legacy real adapter.
+
+Those contracts remain separate from the beta HTTP journey. The beta API does not silently enable real process execution.
+
+## Provider-neutral model routing
+
+Public request contract:
+
+```text
+provider: auto | deepseek | kimi | openai
+profile: minimal | medium | max
+context_profile: minimal | medium | max
+```
+
+Implemented:
+
+- source-versioned capability facts;
+- distinct DeepSeek API, Kimi Platform, Kimi Code, and OpenAI surfaces;
+- entitlement, freshness, context, effort, output, cache, and pricing metadata;
+- token-aware budget checks;
+- requested, planned, configured, and served facts kept distinct;
+- keyless and network-free deterministic CI.
+
+A route-selection response is a plan. It is not evidence that a provider or model actually served a request.
+
+## SDD layer
 
 Every governed feature is represented through versioned:
 
@@ -52,105 +187,7 @@ requirements
 -> evidence
 ```
 
-The SDD packets live under `.energy/specs/`. This is Kiro-like methodology, not a claim of IDE feature parity with Kiro.
-
-## Current implemented boundary
-
-### Trust and deterministic judgment
-
-- typed Energy policies, candidates, findings, evidence, decisions, and ledgers;
-- deterministic critics, scoring, and boss disposition;
-- hashing, integrity, recovery, retention, and manifests;
-- persistent LangGraph judge with SQLite restart/resume;
-- typed clarification, human gate, and escalation;
-- no self-approval.
-
-### Governed command execution
-
-- controlled planning with executable, argument, repository, path, symlink, timeout, output, and environment policy;
-- fake and dry-run evidence remain non-executing;
-- explicit typed live plan and intent;
-- exact repository snapshot binding: HEAD, tree, staged diff, unstaged diff, and untracked-state digest;
-- one-time SQLite authorization with integrity, replay protection, atomic reservation, and restart persistence;
-- pre-start actor, authority, snapshot, path, executable, argument, and environment verification;
-- `shell=False`, argument lists, process-group/session isolation, cancellation polling, timeout, and verified cleanup;
-- cross-chunk and final redaction, bounded output, accurate truncation, and normalized evidence;
-- secure CLI requires typed live artifacts, authoritative receipt store, receipt ID, and `--live-tool`;
-- legacy real adapter is permanently disabled;
-- deterministic CI creates no real OS process.
-
-A harmless host-level smoke and Windows cleanup demonstration remain manual evidence gates. EACODE does not claim VM/container isolation or safety for arbitrary untrusted code.
-
-### Provider-neutral model routing
-
-Public request contract:
-
-```text
-provider: auto | deepseek | kimi | openai
-profile: minimal | medium | max
-context_profile: minimal | medium | max
-```
-
-Implemented:
-
-- verified, source-versioned capability overlay;
-- DeepSeek API, Kimi Platform, Kimi Code, and OpenAI API represented as distinct surfaces;
-- entitlement, freshness, context, effort, output, cache, and pricing metadata;
-- consistent per-1K price fields and token-aware budget checks;
-- Kimi Code `k3`, `kimi-for-coding`, and entitlement-dependent high-speed route;
-- provider-specific reasoning controls and corrected HTTP timeout units;
-- requested, planned, configured, and served provider/model/effort remain distinct facts;
-- served effort is not asserted unless the provider echoes evidence;
-- deterministic CI remains keyless and network-free.
-
-Live DeepSeek, Kimi, and OpenAI success requires separate opt-in secret-backed smoke evidence.
-
-### Context compaction
-
-- immutable raw source references and hashes;
-- typed canonical state and versioned summaries;
-- minimal, medium, and max profiles;
-- branch/repository snapshot, policy, schema, source-hash, and age freshness checks;
-- constraint, decision, evidence, conflict, question, and rehydration preservation;
-- secret and hidden-reasoning exclusion;
-- loss audit, contradiction detection, summary-decay detection, and fail-closed rehydration.
-
-This proves deterministic compaction contracts, not LLM summary quality.
-
-### Energy-Aware boss and critics
-
-- typed proposer, critic, reviewer, and boss roles;
-- independent task ownership;
-- preserved disagreement records;
-- per-agent and global cost, latency, tool-call, agent-count, and concurrency budgets;
-- missing findings escalate;
-- hard constraints cannot be outvoted;
-- budget overruns escalate;
-- deterministic boss owns the final disposition.
-
-### Product API and UI
-
-FastAPI exposes:
-
-```text
-GET  /eacode/status
-GET  /eacode/capabilities
-POST /eacode/select
-GET  /eacode/ui
-```
-
-The selector UI and API explicitly separate requested, planned, and served state. Route selection does not call a provider and does not claim that a provider served the request.
-
-### Deterministic governance benchmark
-
-A matched synthetic contract benchmark compares a single unchecked proposal with the deterministic governed boss:
-
-```text
-single unchecked: 1/4 expected dispositions
-governed boss:    4/4 expected dispositions
-```
-
-This is evidence for the encoded governance cases only. It is not evidence that multi-agent LLM execution improves real-world quality, cost, or latency.
+The SDD packets live under `.energy/specs/`. This is Kiro-like methodology, not a claim of IDE feature parity.
 
 ## Product family
 
@@ -159,28 +196,29 @@ This is evidence for the encoded governance cases only. It is not evidence that 
 - **LIDR branches:** exact coursework plus isolated evidenced extras.
 - **EACORE:** extraction candidate only after equivalent stable semantics are proven independently in EACODE and EACHAT.
 
-## Safety and claim boundary
-
-Allowed claims are defined in `docs/eacode_release_checkpoint_2026-07-22.md`.
+## Claim boundary
 
 Do not claim:
 
 - production readiness;
+- real coding-agent integration from the beta API;
+- real process execution from the beta API;
 - arbitrary-code sandboxing;
-- complete Windows host cleanup proof;
-- successful live routing for all providers without current smoke evidence;
+- horizontal or multi-region durability;
+- live Google or Apple login;
+- successful live provider routing without current secret-backed evidence;
 - exact served effort when the provider does not echo it;
 - provider or multi-agent superiority without matched live benchmarks;
+- external deployment;
 - EACORE extraction readiness.
 
 ## Reviewer entry points
 
 ```text
+CLAUDE.md
+.energy/specs/0011-demo-ready-beta/
+.energy/specs/0012-production-hardening/
 docs/eacode_release_checkpoint_2026-07-22.md
 docs/eacode_handoff_status.md
-docs/eacode_product_completion_plan.md
 docs/eacode_threat_model.md
-CLAUDE.md
-.energy/specs/0009-sandboxed-tool-adapter/
-.energy/specs/0010-provider-routing-context-compaction/
 ```
