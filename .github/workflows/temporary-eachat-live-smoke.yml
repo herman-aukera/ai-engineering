@@ -19,6 +19,7 @@ jobs:
       MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       LANGGRAPH_STRICT_MSGPACK: "true"
+      PYTHONPATH: "."
       PYTHONUNBUFFERED: "1"
       UV_HTTP_TIMEOUT: "300"
     defaults:
