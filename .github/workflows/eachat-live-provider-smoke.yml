@@ -36,6 +36,7 @@ jobs:
       MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       LANGGRAPH_STRICT_MSGPACK: "true"
+      PYTHONPATH: "."
       PYTHONUNBUFFERED: "1"
       UV_HTTP_TIMEOUT: "300"
     defaults:
@@ -71,9 +72,13 @@ jobs:
           --output /tmp/eachat-live-provider-smoke.json
 
       - name: Validate sanitized evidence contract
+        env:
+          REQUESTED_PROVIDER: ${{ inputs.provider }}
+          REQUESTED_EFFORT: ${{ inputs.effort }}
         run: |
           python - <<'PY'
           import json
+          import os
           import re
           from pathlib import Path
 
@@ -90,6 +95,8 @@ jobs:
           assert set(payload) == allowed
           assert payload['status'] == 'success'
           assert payload['provider_call_count'] == 1
+          assert payload['requested_provider'] == os.environ['REQUESTED_PROVIDER']
+          assert payload['effort'] == os.environ['REQUESTED_EFFORT']
           assert payload['fallback_used'] is False
           assert payload['answer_present'] is True
           assert payload['answer_body_recorded'] is False

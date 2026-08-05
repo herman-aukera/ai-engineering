@@ -1,84 +1,137 @@
-# Energy Aware Chat live provider evidence template
+# Energy Aware Chat live-provider evidence
 
-Status: manual smoke evidence template.
-Branch: `EACHAT`.
-Workflow: `Energy Aware Chat Live Provider Smoke`.
+Status: one bounded DeepSeek smoke complete; reusable manual workflow repaired.
+Canonical workflow: `EACHAT - Live Provider Smoke`.
 
 ## Purpose
 
-This template records whether the live provider path works with real secrets.
-It is required before claiming live DeepSeek-to-Kimi fallback proof.
+This document defines the evidence contract for credentialed provider smoke tests. A smoke test proves that one configured provider path can execute a bounded graph call for an exact SHA. It does not prove answer-quality improvement, model superiority, fallback reliability, production readiness, or public deployment.
 
-## Manual workflow command
+## Reusable manual workflow
 
 ```bash
-gh workflow run "Energy Aware Chat Live Provider Smoke" --ref EACHAT
+gh workflow run "EACHAT - Live Provider Smoke" \
+  --ref main \
+  -f provider=deepseek \
+  -f effort=balanced
 ```
+
+Supported inputs:
+
+```text
+provider: deepseek | kimi | openai
+effort: fast | balanced | max
+```
+
+The workflow:
+
+- checks out the selected exact SHA;
+- uses environment-scoped secrets;
+- makes exactly one bounded provider call;
+- rejects implicit fallback;
+- records no prompt, answer, or credential body;
+- validates the sanitized JSON schema;
+- uploads only the sanitized artifact.
 
 ## Required secrets
 
+Depending on the selected provider:
+
 ```text
 DEEPSEEK_API_KEY
-KIMI_API_KEY
+KIMI_API_KEY or MOONSHOT_API_KEY
+OPENAI_API_KEY
 ```
 
-Do not paste actual secret values into this template.
+Never place secret values in files, logs, screenshots, issues, pull requests, or committed evidence.
 
-## Evidence record
+## Completed DeepSeek evidence — 2026-08-05
 
-Fill this after the manual workflow runs.
+Canonical evidence file:
+
+```text
+evals/energy_chat/live_provider_smoke_deepseek_2026-08-05.json
+```
+
+Summary:
 
 ```json
 {
-  "branch": "EACHAT",
-  "sha": "replace-with-tested-sha",
-  "workflow": "Energy Aware Chat Live Provider Smoke",
-  "run_id": "replace-with-run-id",
-  "status": "completed | failed | skipped",
-  "conclusion": "success | failure | cancelled",
-  "deepseek_primary_result": "pass | fail | skipped",
-  "kimi_backup_result": "pass | fail | skipped",
-  "fallback_observed": "yes | no | not-tested",
-  "secrets_exposed": false,
-  "claim_allowed": false
+  "runtime_base_main_sha": "6f92f5a1b42d054336ea83fe7520b6d85c340f5d",
+  "tested_sha": "717d744f3e5ce315ef3bb7d1df641b80f995b4a3",
+  "workflow_run_id": 31035837096,
+  "status": "success",
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
+  "effort": "balanced",
+  "provider_call_count": 1,
+  "input_tokens": 303,
+  "output_tokens": 576,
+  "estimated_cost_usd": 0.000715,
+  "provider_latency_ms": 12325,
+  "fallback_used": false,
+  "final_disposition": "repair",
+  "answer_body_recorded": false,
+  "prompt_body_recorded": false,
+  "credential_recorded": false
 }
 ```
 
-## Claim decision rule
+A preceding `fast`-profile attempt reached the provider but was correctly rejected by the deterministic policy because provider latency exceeded that profile's budget. The `balanced` profile completed successfully.
 
-Set `claim_allowed` to `true` only when:
-
-1. the workflow conclusion is success,
-2. no secret is exposed,
-3. DeepSeek primary path was exercised,
-4. Kimi backup path was either exercised directly or fallback was intentionally triggered and observed,
-5. the exact SHA matches the branch head being submitted.
-
-## Allowed claim after successful live smoke
+## Allowed claim
 
 ```text
-Live provider smoke passed for the tested SHA, including the configured DeepSeek and Kimi provider paths.
+A bounded DeepSeek V4 Flash live integration smoke passed for the tested runtime and balanced profile, with one provider call, no fallback, and sanitized evidence.
 ```
 
-## Still forbidden after successful live smoke
+## Claims still blocked
 
 ```text
+Energy Aware Chat improves quality over plain DeepSeek.
+DeepSeek is superior to Kimi or OpenAI.
+Kimi or OpenAI live integration has passed.
+Cross-provider fallback has been proven.
+Automatic routing improves quality.
 Energy Aware Chat is production-ready.
-Energy Aware Chat improves quality over DeepSeek.
-Fallback is universally reliable under all outage modes.
+Energy Aware Chat is publicly deployed.
+```
+
+## Evidence template for future runs
+
+```json
+{
+  "schema_version": 1,
+  "evidence_type": "single_provider_live_smoke",
+  "tested_at_utc": "replace",
+  "runtime_base_main_sha": "replace",
+  "tested_sha": "replace",
+  "workflow_run_id": 0,
+  "artifact_id": 0,
+  "artifact_digest": "sha256:replace",
+  "status": "success | failure | cancelled",
+  "requested_provider": "deepseek | kimi | openai",
+  "provider": "replace",
+  "model": "replace",
+  "effort": "fast | balanced | max",
+  "provider_call_count": 1,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "estimated_cost_usd": 0.0,
+  "provider_latency_ms": 0,
+  "fallback_used": false,
+  "answer_body_recorded": false,
+  "prompt_body_recorded": false,
+  "credential_recorded": false,
+  "claims_blocked": []
+}
 ```
 
 ## Failure handling
 
-If the workflow fails:
-
-1. Do not change claim wording to hide the failure.
-2. Inspect workflow logs.
-3. Classify failure as configuration, provider, code, timeout, or secret setup.
-4. Patch the smallest failing layer.
-5. Rerun deterministic local validation before another live smoke.
-
-## Reviewer note
-
-Normal deterministic CI must stay green without real provider keys.
-Live provider smoke is optional for the deterministic MVP, but required for live provider claims.
+1. Preserve the failure classification honestly.
+2. Confirm whether a provider call actually occurred before retrying.
+3. Distinguish workflow configuration, credentials, provider failure, model compatibility, and deterministic budget rejection.
+4. Apply the smallest repair.
+5. Keep deterministic CI credential-free.
+6. Never weaken budgets merely to make a smoke test green without product justification.
