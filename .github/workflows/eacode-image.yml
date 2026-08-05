@@ -30,6 +30,42 @@ jobs:
       - name: Start minimal EACODE product runtime
         run: docker compose --profile demo up -d --build --wait eacode-api
 
+      - name: Tag exact runtime image for security evidence
+        run: |
+          IMAGE_ID="$(docker compose images -q eacode-api)"
+          test -n "$IMAGE_ID"
+          docker tag "$IMAGE_ID" "eacode-ci:${GITHUB_SHA}"
+          echo "EACODE_SCAN_IMAGE=eacode-ci:${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      - name: Fail on fixed high or critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.EACODE_SCAN_IMAGE }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+          scanners: vuln
+
+      - name: Generate SPDX SBOM
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.EACODE_SCAN_IMAGE }}
+          format: spdx-json
+          output: eacode-sbom.spdx.json
+          exit-code: "0"
+          scanners: vuln
+          skip-setup-trivy: true
+
+      - name: Upload SBOM evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: eacode-sbom-${{ github.sha }}
+          path: eacode-sbom.spdx.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Prove health, non-root runtime, tenant auth, and durable state
         run: |
           test "$(docker compose exec -T eacode-api id -u)" = "10001"
@@ -72,7 +108,7 @@ jobs:
         run: docker compose --profile demo down --volumes --remove-orphans
 
   publish:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/EACODE'
     needs: runtime-proof
     runs-on: ubuntu-latest
     steps:
@@ -83,12 +119,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - name: Publish immutable EACODE image with SBOM and provenance
+        uses: docker/build-push-action@v6
         with:
           context: estimador-cag
           file: estimador-cag/Dockerfile
           target: runtime
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/eacode:${{ github.sha }}
+          provenance: mode=max
+          sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
