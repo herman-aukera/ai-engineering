@@ -23,5 +23,5 @@
 - [x] Add fixed high/critical vulnerability blocking.
 - [x] Add SPDX SBOM artifact generation.
 - [x] Restrict GHCR publication to canonical `EACODE` and add BuildKit SBOM/provenance.
-- [ ] Capture successful current-head canonical CI and runtime-proof workflow evidence.
+- [x] Capture successful implementation-head canonical CI and runtime-proof workflow evidence in `evidence.md`.
 - [ ] Perform live OIDC, provider, real-process, or external deployment proof only in separately approved slices.
