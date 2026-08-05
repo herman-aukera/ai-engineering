@@ -1,0 +1,96 @@
+name: Temporary EACHAT DeepSeek Live Smoke
+
+on:
+  push:
+    branches:
+      - gg-eachat/live-smoke-20260805
+
+permissions:
+  contents: read
+
+jobs:
+  credentialed-one-call-smoke:
+    runs-on: ubuntu-latest
+    environment: eachat-live-smoke
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.sha }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+      MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      PYTHONUNBUFFERED: "1"
+      UV_HTTP_TIMEOUT: "300"
+    defaults:
+      run:
+        working-directory: estimador-cag
+    steps:
+      - name: Checkout exact smoke head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install frozen application dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Run one bounded credentialed DeepSeek graph call
+        run: >-
+          uv run python scripts/smoke_eachat_live_provider.py
+          --live
+          --provider deepseek
+          --effort fast
+          --output /tmp/eachat-live-provider-smoke.json
+
+      - name: Validate sanitized evidence contract
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          path = Path('/tmp/eachat-live-provider-smoke.json')
+          payload = json.loads(path.read_text(encoding='utf-8'))
+          allowed = {
+              'status', 'provider', 'model', 'requested_provider', 'effort',
+              'provider_call_count', 'input_tokens', 'output_tokens',
+              'estimated_cost_usd', 'provider_latency_ms', 'fallback_used',
+              'final_disposition', 'energy_decision', 'answer_present',
+              'answer_body_recorded', 'prompt_body_recorded',
+              'credential_recorded', 'checkpoint_id',
+          }
+          assert set(payload) == allowed
+          assert payload['status'] == 'success'
+          assert payload['provider_call_count'] == 1
+          assert payload['requested_provider'] == 'deepseek'
+          assert payload['fallback_used'] is False
+          assert payload['answer_present'] is True
+          assert payload['answer_body_recorded'] is False
+          assert payload['prompt_body_recorded'] is False
+          assert payload['credential_recorded'] is False
+          serialized = path.read_text(encoding='utf-8')
+          secret_patterns = (
+              r'sk-[A-Za-z0-9_-]{20,}',
+              r'Bearer [A-Za-z0-9._-]{20,}',
+              r'BEGIN (RSA|OPENSSH|PRIVATE) KEY',
+          )
+          assert not any(re.search(pattern, serialized) for pattern in secret_patterns)
+          PY
+
+      - name: Upload sanitized live evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: eachat-live-deepseek-fast
+          path: /tmp/eachat-live-provider-smoke.json
+          if-no-files-found: error
