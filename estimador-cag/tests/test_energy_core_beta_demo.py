@@ -1,42 +1,77 @@
+import pytest
+
 from energy_core.beta_demo import BetaDemoRunner
 from energy_core.coding_agent import CodingProposal
 
 
-def test_demo_repairs_authorizes_executes_and_reevaluates() -> None:
-    proposal = CodingProposal(
-        proposal_id="proposal-1",
+def _proposal(
+    proposal_id: str,
+    *,
+    patch: str = "def health():\n    return 'todo'\n",
+    commands: tuple[tuple[str, ...], ...] = (
+        ("pytest", "-q", "tests/test_health.py"),
+    ),
+) -> CodingProposal:
+    return CodingProposal(
+        proposal_id=proposal_id,
         objective="Add a safe health check.",
-        spec_id="0011-demo-ready-beta",
-        patch="def health():\n    return 'todo'\n",
+        spec_id="0012-production-hardening",
+        patch=patch,
         changed_files=("app/health.py",),
-        proposed_commands=(("pytest", "-q", "tests/test_health.py"),),
+        proposed_commands=commands,
     )
 
-    result = BetaDemoRunner().run(proposal, human_authorization=True)
+
+def test_demo_prepares_repair_but_remains_inert_without_server_receipt() -> None:
+    result = BetaDemoRunner().prepare(_proposal("proposal-1"))
 
     assert result.initial_decision.disposition == "repair"
-    assert result.final_decision.disposition == "accept"
-    assert result.authorization.authorized is True
-    assert result.execution.execution_performed is True
-    assert result.execution.sanitized is True
-    assert result.execution.exit_code == 0
-    assert len(result.repair_history) == 1
-    assert result.rollback.available is True
-    assert result.timeline[-1].event_type == "reevaluation"
-
-
-def test_proposal_is_inert_without_human_authorization() -> None:
-    proposal = CodingProposal(
-        proposal_id="proposal-2",
-        objective="Inspect status.",
-        spec_id="0011-demo-ready-beta",
-        patch="def status():\n    return 'ok'\n",
-        changed_files=("app/status.py",),
-        proposed_commands=(("git", "status", "--short"),),
-    )
-
-    result = BetaDemoRunner().run(proposal, human_authorization=False)
-
+    assert result.final_decision.disposition == "escalate"
     assert result.authorization.authorized is False
     assert result.execution.execution_performed is False
-    assert result.final_decision.disposition == "escalate"
+    assert result.effective_proposal.patch.endswith("return 'ok'\n")
+    assert len(result.repair_history) == 1
+
+
+def test_server_authorized_execution_uses_effective_revision_and_reevaluates() -> None:
+    runner = BetaDemoRunner()
+    prepared = runner.prepare(_proposal("proposal-2"))
+
+    completed = runner.execute(
+        prepared,
+        authorization_id="demo-receipt-abcdefghijklmnopqrstuvwxyz",
+        actor="operator-1",
+    )
+
+    assert completed.final_decision.disposition == "accept"
+    assert completed.authorization.authorized is True
+    assert completed.authorization.source == "server_session_receipt"
+    assert completed.execution.execution_performed is True
+    assert completed.execution.sanitized is True
+    assert completed.execution.exit_code == 0
+    assert completed.timeline[-1].event_type == "reevaluation"
+
+
+def test_hard_rejected_proposal_cannot_be_authorized() -> None:
+    proposal = _proposal(
+        "proposal-3",
+        patch="API_KEY = 'sk-this-is-a-secret-value-123456789'\n",
+    )
+    runner = BetaDemoRunner()
+    prepared = runner.prepare(proposal)
+
+    assert prepared.initial_decision.disposition == "reject"
+    assert prepared.final_decision.disposition == "reject"
+    with pytest.raises(PermissionError, match="hard-rejected"):
+        runner.authorization_scope(prepared)
+
+
+def test_unresolved_semantic_repair_cannot_be_authorized() -> None:
+    runner = BetaDemoRunner()
+    prepared = runner.prepare(
+        _proposal("proposal-4", patch="def health():\n    return 'ok'\n", commands=())
+    )
+
+    assert prepared.final_decision.disposition == "repair"
+    with pytest.raises(PermissionError, match="still requires repair"):
+        runner.authorization_scope(prepared)

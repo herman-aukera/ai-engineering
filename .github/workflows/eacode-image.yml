@@ -5,10 +5,12 @@ on:
     branches: [EACODE, "gg-eacode/**"]
     paths:
       - "estimador-cag/**"
+      - "docker-compose.yml"
       - ".github/workflows/eacode-image.yml"
   pull_request:
     paths:
       - "estimador-cag/**"
+      - "docker-compose.yml"
       - ".github/workflows/eacode-image.yml"
   workflow_dispatch:
 
@@ -17,22 +19,115 @@ permissions:
   packages: write
 
 jobs:
-  build:
+  runtime-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        run: docker compose --profile demo config --quiet
+
+      - name: Start minimal EACODE product runtime
+        run: docker compose --profile demo up -d --build --wait eacode-api
+
+      - name: Tag exact runtime image for security evidence
+        run: |
+          IMAGE_ID="$(docker compose images -q eacode-api)"
+          test -n "$IMAGE_ID"
+          docker tag "$IMAGE_ID" "eacode-ci:${GITHUB_SHA}"
+          echo "EACODE_SCAN_IMAGE=eacode-ci:${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      - name: Fail on fixed high or critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.EACODE_SCAN_IMAGE }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+          scanners: vuln
+
+      - name: Generate SPDX SBOM
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.EACODE_SCAN_IMAGE }}
+          format: spdx-json
+          output: eacode-sbom.spdx.json
+          exit-code: "0"
+          scanners: vuln
+          skip-setup-trivy: true
+
+      - name: Upload SBOM evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: eacode-sbom-${{ github.sha }}
+          path: eacode-sbom.spdx.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Prove health, non-root runtime, tenant auth, and durable state
+        run: |
+          test "$(docker compose exec -T eacode-api id -u)" = "10001"
+          docker compose exec -T eacode-api python -c "import importlib.util; assert importlib.util.find_spec('pytest') is None; assert importlib.util.find_spec('torch') is None; assert importlib.util.find_spec('jupyter') is None"
+          curl --fail --silent --show-error http://127.0.0.1:8000/health
+          curl --fail --silent --show-error http://127.0.0.1:8000/eacode/status
+          curl --fail --silent --show-error http://127.0.0.1:8000/eacode/ui
+          TOKEN="$(docker compose exec -T eacode-api python -c "from datetime import UTC, datetime, timedelta; import os; from energy_core.identity import SessionSigner; print(SessionSigner(os.environ['EACODE_SESSION_SIGNING_KEY'].encode()).issue(user_id='container-owner', roles=('operator',), expires_at=datetime.now(UTC)+timedelta(minutes=5)))")"
+          test -n "$TOKEN"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' -d '{"proposal_id":"unsigned-proof","objective":"Must fail","spec_id":"0012-production-hardening","patch":"def fail(): pass","changed_files":["app/fail.py"],"proposed_commands":[["git","status","--short"]]}' http://127.0.0.1:8000/eacode/demo)" = "401"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d '{"proposal_id":"container-persistence-proof","objective":"Prove durable demo state","spec_id":"0012-production-hardening","patch":"def health():\n    return '\''todo'\''\n","changed_files":["app/health.py"],"proposed_commands":[["pytest","-q","tests/test_health.py"]]}' \
+            http://127.0.0.1:8000/eacode/demo
+          docker compose restart eacode-api
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $TOKEN" \
+            http://127.0.0.1:8000/eacode/demo/container-persistence-proof \
+            | grep -q '"proposal_id":"container-persistence-proof"'
+
+      - name: Prove isolated runner boundary
+        run: |
+          docker compose --profile demo build runner
+          test "$(docker compose --profile demo run --rm --no-deps runner id -u)" = "10002"
+          docker compose --profile demo run --rm --no-deps runner
+
+      - name: Capture diagnostics
+        if: always()
+        run: docker compose --profile demo ps && docker compose --profile demo logs --no-color eacode-api
+
+      - name: Stop stack
+        if: always()
+        run: docker compose --profile demo down --volumes --remove-orphans
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/EACODE'
+    needs: runtime-proof
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
-        if: github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - name: Publish immutable EACODE image with SBOM and provenance
+        uses: docker/build-push-action@v6
         with:
           context: estimador-cag
           file: estimador-cag/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          target: runtime
+          push: true
           tags: ghcr.io/${{ github.repository_owner }}/eacode:${{ github.sha }}
+          provenance: mode=max
+          sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max

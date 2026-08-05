@@ -1,0 +1,27 @@
+# Spec 0012 — Production Hardening Slice: Tasks
+
+- [x] Replace client-controlled authorization Boolean with separate prepare, authorize, and execute endpoints.
+- [x] Require signed sessions for preparation and inspection.
+- [x] Enforce tenant ownership for non-admin sessions and explicit admin override.
+- [x] Require operator/admin role for authorization and execution.
+- [x] Add short-lived exact-scope one-time receipts.
+- [x] Add atomic replay, actor, owner, scope, expiry, and concurrent-consumption rejection.
+- [x] Add an atomic single-execution reservation per proposal.
+- [x] Persist typed demo results and receipts in SQLite WAL storage.
+- [x] Add integrity verification and tamper tests.
+- [x] Replace empty hard-gate fixture with concrete deterministic findings.
+- [x] Make repaired patch the effective proposal revision.
+- [x] Reevaluate the effective revision after simulated execution.
+- [x] Replace expected-label benchmark output with evidence-derived decisions.
+- [x] Add poisoned-label regression proving expected labels cannot control actual decisions.
+- [x] Replace wildcard CORS with explicit fail-closed origin configuration.
+- [x] Add a dedicated EACODE-only FastAPI composition root.
+- [x] Add a pinned minimal EACODE runtime dependency set.
+- [x] Split minimal EACODE runtime, full development runtime, and test image targets.
+- [x] Add Compose persistence volume and EACODE API health check.
+- [x] Add runtime startup, restart, persistence, UID, dependency-exclusion, and runner proof to GitHub Actions.
+- [x] Add fixed high/critical vulnerability blocking.
+- [x] Add SPDX SBOM artifact generation.
+- [x] Restrict GHCR publication to canonical `EACODE` and add BuildKit SBOM/provenance.
+- [x] Capture successful implementation-head canonical CI and runtime-proof workflow evidence in `evidence.md`.
+- [ ] Perform live OIDC, provider, real-process, or external deployment proof only in separately approved slices.

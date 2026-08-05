@@ -2,25 +2,28 @@
 
 from __future__ import annotations
 
+import os
+from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from energy_core.beta_demo import BetaDemoResult, BetaDemoRunner
+from energy_core.beta_store import DemoAuthorizationReceipt, SQLiteBetaDemoStore
 from energy_core.coding_agent import CodingProposal
+from energy_core.identity import BackendSession, SessionSigner
 from energy_core.provider_registry import ProviderSelection
-from energy_core.provider_verified import (
-    VerifiedCapabilityRegistry,
-    VerifiedProviderSelector,
-)
+from energy_core.provider_verified import VerifiedCapabilityRegistry, VerifiedProviderSelector
 
 router = APIRouter(prefix="/eacode", tags=["eacode"])
 _registry = VerifiedCapabilityRegistry()
 _selector = VerifiedProviderSelector(_registry)
 _demo_runner = BetaDemoRunner()
-_demo_runs: dict[str, BetaDemoResult] = {}
+_READ_ROLES = {"viewer", "reviewer", "operator", "admin"}
+_EXECUTION_ROLES = {"operator", "admin"}
 
 
 class EACodeSelectRequest(BaseModel):
@@ -37,44 +40,122 @@ class EACodeSelectRequest(BaseModel):
     entitled_surfaces: tuple[str, ...] = Field(default_factory=tuple)
 
 
-class EACodeDemoRequest(CodingProposal):
-    human_authorization: bool = False
+class EACodeExecuteRequest(BaseModel):
+    receipt_id: str = Field(min_length=20, max_length=200)
 
 
-@router.post("/demo", response_model=BetaDemoResult)
-def run_beta_demo(request: EACodeDemoRequest) -> BetaDemoResult:
-    """Run the keyless deterministic beta journey and retain its inspection record."""
+class EACodeAuthorizationResponse(BaseModel):
+    receipt_id: str
+    proposal_id: str
+    actor: str
+    issued_at: datetime
+    expires_at: datetime
 
-    proposal = CodingProposal.model_validate(
-        request.model_dump(exclude={"human_authorization"})
-    )
-    result = _demo_runner.run(
-        proposal,
-        human_authorization=request.human_authorization,
-    )
-    _demo_runs[proposal.proposal_id] = result
+
+@router.post(
+    "/demo",
+    response_model=BetaDemoResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def prepare_beta_demo(
+    request: CodingProposal,
+    authorization: str | None = Header(default=None),
+) -> BetaDemoResult:
+    """Evaluate and persist an inert proposal owned by the signed session."""
+
+    session = _require_session(authorization, allowed_roles=_READ_ROLES)
+    result = _demo_runner.prepare(request)
+    try:
+        _demo_store().create_result(result, owner_id=session.user_id)
+    except FileExistsError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return result
+
+
+@router.post(
+    "/demo/{proposal_id}/authorize",
+    response_model=EACodeAuthorizationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def authorize_beta_demo(
+    proposal_id: str,
+    authorization: str | None = Header(default=None),
+) -> EACodeAuthorizationResponse:
+    """Issue a short-lived exact-scope receipt for a verified operator session."""
+
+    session = _require_session(authorization, allowed_roles=_EXECUTION_ROLES)
+    owner_id = _owner_filter(session)
+    store = _demo_store()
+    result = _load_result(store, proposal_id, owner_id=owner_id)
+    try:
+        receipt = store.issue_authorization(
+            proposal_id=proposal_id,
+            actor=session.user_id,
+            owner_id=owner_id,
+            scope=_demo_runner.authorization_scope(result),
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return _public_receipt(receipt)
+
+
+@router.post("/demo/{proposal_id}/execute", response_model=BetaDemoResult)
+def execute_beta_demo(
+    proposal_id: str,
+    request: EACodeExecuteRequest,
+    authorization: str | None = Header(default=None),
+) -> BetaDemoResult:
+    """Atomically reserve one transition, consume its receipt, and persist reevaluation."""
+
+    session = _require_session(authorization, allowed_roles=_EXECUTION_ROLES)
+    owner_id = _owner_filter(session)
+    store = _demo_store()
+    result = _load_result(store, proposal_id, owner_id=owner_id)
+    try:
+        scope = _demo_runner.authorization_scope(result)
+        receipt = store.consume_authorization(
+            receipt_id=request.receipt_id,
+            proposal_id=proposal_id,
+            actor=session.user_id,
+            owner_id=owner_id,
+            scope=scope,
+        )
+        completed = _demo_runner.execute(
+            result,
+            authorization_id=receipt.receipt_id,
+            actor=receipt.actor,
+        )
+        store.update_result(completed, owner_id=owner_id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return completed
 
 
 @router.get("/demo/{proposal_id}", response_model=BetaDemoResult)
-def inspect_beta_demo(proposal_id: str) -> BetaDemoResult:
-    """Inspect the complete authority, repair, evidence, and rollback record."""
+def inspect_beta_demo(
+    proposal_id: str,
+    authorization: str | None = Header(default=None),
+) -> BetaDemoResult:
+    """Inspect a durable record only within the signed session's ownership boundary."""
 
-    result = _demo_runs.get(proposal_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Demo run not found.")
-    return result
+    session = _require_session(authorization, allowed_roles=_READ_ROLES)
+    return _load_result(
+        _demo_store(),
+        proposal_id,
+        owner_id=_owner_filter(session),
+    )
 
 
 @router.get("/status")
 def eacode_status() -> dict[str, object]:
-    """Return an honest product and claim-boundary snapshot."""
-
     return {
         "status": "ok",
         "control_plane": "deterministic",
         "sdd_layer": True,
         "critic_boss_layer": True,
+        "demo_persistence": "tenant_scoped_sqlite_integrity_checked",
+        "demo_authorization": "signed_session_exact_scope_one_time_receipt",
+        "execution_reservation": "atomic_single_transition",
         "provider_selection": "planned_only",
         "served_provider_evidence": "requires_opt_in_live_call",
         "live_process_execution_enabled": False,
@@ -144,7 +225,7 @@ def select_provider(request: EACodeSelectRequest) -> dict[str, object]:
 
 @router.get("/ui", response_class=HTMLResponse, include_in_schema=False)
 def selector_ui() -> HTMLResponse:
-    """Serve a minimal same-origin selector interface."""
+    """Serve a same-origin beta interface with no client-owned authority switch."""
 
     return HTMLResponse(
         """<!doctype html>
@@ -158,36 +239,35 @@ def selector_ui() -> HTMLResponse:
     form { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
     label { display: grid; gap: .25rem; font-weight: 600; }
     .check { display: flex; gap: .5rem; align-items: center; }
-    button { padding: .7rem 1rem; cursor: pointer; }
+    button, input, select { padding: .65rem; }
     pre { white-space: pre-wrap; background: #111; color: #eee; padding: 1rem; border-radius: .4rem; }
     .boundary { border-left: 4px solid currentColor; padding-left: 1rem; }
   </style>
 </head>
 <body>
   <h1>EACODE ⚡</h1>
-  <p class="boundary">The selector returns a governed plan. It does not claim a provider was called.</p>
+  <p class="boundary">Provider selection is a deterministic plan and does not claim a provider was called.</p>
   <form id="selector">
-    <label>Provider
-      <select name="provider"><option>auto</option><option>deepseek</option><option>kimi</option><option>openai</option></select>
-    </label>
-    <label>Profile
-      <select name="profile"><option>minimal</option><option selected>medium</option><option>max</option></select>
-    </label>
+    <label>Provider<select name="provider"><option>auto</option><option>deepseek</option><option>kimi</option><option>openai</option></select></label>
+    <label>Profile<select name="profile"><option>minimal</option><option selected>medium</option><option>max</option></select></label>
     <label>Maximum cost (USD)<input name="max_cost_usd" type="number" min="0" step="0.01" value="1.00"></label>
-    <label>Premium reason<input name="premium_reason" placeholder="Required for premium escalation"></label>
     <label class="check"><input name="kimi_code_entitled" type="checkbox">Kimi Code membership confirmed</label>
     <button type="submit">Resolve governed route</button>
   </form>
-  <h2>Decision evidence</h2>
   <pre id="result">No route resolved yet.</pre>
   <hr>
   <h2>Governed coding journey</h2>
-  <p>Runs a keyless fixture through hard gates, an independent semantic jury, repair,
-     human authorization, simulated bounded execution, evidence, and reevaluation.</p>
-  <button id="beta-demo" type="button">Run deterministic beta demo</button>
+  <p>Preparation and inspection require a signed session. Execution additionally requires
+     operator authority and a one-time server-issued receipt. Execution remains simulated.</p>
+  <label>Signed session token<input id="operator-token" type="password" autocomplete="off"></label>
+  <button id="beta-demo" type="button">Prepare, authorize, and run beta demo</button>
   <h3>Repair and authority timeline</h3>
   <pre id="demo-result">No demo run yet.</pre>
   <script>
+    const bearerHeaders = (token) => ({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    });
     document.getElementById('selector').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = new FormData(event.target);
@@ -197,29 +277,114 @@ def selector_ui() -> HTMLResponse:
       data.fallback_policy = 'none';
       data.entitled_surfaces = form.has('kimi_code_entitled') ? ['kimi_code'] : [];
       delete data.kimi_code_entitled;
-      if (!data.premium_reason) data.premium_reason = null;
       const response = await fetch('/eacode/select', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
       });
       document.getElementById('result').textContent = JSON.stringify(await response.json(), null, 2);
     });
     document.getElementById('beta-demo').addEventListener('click', async () => {
-      const response = await fetch('/eacode/demo', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
+      const output = document.getElementById('demo-result');
+      const proposalId = `browser-demo-${Date.now()}`;
+      const token = document.getElementById('operator-token').value.trim();
+      if (!token) { output.textContent = 'A signed operator session is required.'; return; }
+      const headers = bearerHeaders(token);
+      const preparedResponse = await fetch('/eacode/demo', {
+        method: 'POST', headers,
         body: JSON.stringify({
-          proposal_id: `browser-demo-${Date.now()}`,
+          proposal_id: proposalId,
           objective: 'Add a safe health check',
-          spec_id: '0011-demo-ready-beta',
-          patch: "def health():\\n    return 'todo'\\n",
+          spec_id: '0012-production-hardening',
+          patch: "def health():\n    return 'todo'\n",
           changed_files: ['app/health.py'],
-          proposed_commands: [['pytest', '-q', 'tests/test_health.py']],
-          human_authorization: true
+          proposed_commands: [['pytest', '-q', 'tests/test_health.py']]
         })
       });
-      document.getElementById('demo-result').textContent =
-        JSON.stringify(await response.json(), null, 2);
+      const prepared = await preparedResponse.json();
+      output.textContent = JSON.stringify(prepared, null, 2);
+      if (!preparedResponse.ok) return;
+      const authorizationResponse = await fetch(`/eacode/demo/${proposalId}/authorize`, {
+        method: 'POST', headers
+      });
+      const receipt = await authorizationResponse.json();
+      output.textContent = JSON.stringify(receipt, null, 2);
+      if (!authorizationResponse.ok) return;
+      const executionResponse = await fetch(`/eacode/demo/${proposalId}/execute`, {
+        method: 'POST', headers, body: JSON.stringify({receipt_id: receipt.receipt_id})
+      });
+      output.textContent = JSON.stringify(await executionResponse.json(), null, 2);
     });
   </script>
 </body>
 </html>"""
+    )
+
+
+def _demo_store() -> SQLiteBetaDemoStore:
+    return SQLiteBetaDemoStore(
+        os.getenv(
+            "EACODE_DEMO_DB_PATH",
+            str(Path(".eacode") / "eacode-demo.sqlite3"),
+        )
+    )
+
+
+def _require_session(
+    authorization: str | None,
+    *,
+    allowed_roles: set[str],
+) -> BackendSession:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Bearer signed session required.",
+        )
+    signing_key = os.getenv("EACODE_SESSION_SIGNING_KEY", "")
+    if len(signing_key.encode("utf-8")) < 32:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="EACODE session signing is not configured.",
+        )
+    try:
+        session = SessionSigner(signing_key.encode("utf-8")).verify(
+            authorization.removeprefix("Bearer ").strip()
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired signed session.",
+        ) from exc
+    if not allowed_roles.intersection(session.roles):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Session role is not authorized for this operation.",
+        )
+    return session
+
+
+def _owner_filter(session: BackendSession) -> str | None:
+    return None if "admin" in session.roles else session.user_id
+
+
+def _load_result(
+    store: SQLiteBetaDemoStore,
+    proposal_id: str,
+    *,
+    owner_id: str | None,
+) -> BetaDemoResult:
+    try:
+        result = store.get_result(proposal_id, owner_id=owner_id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    if result is None:
+        raise HTTPException(status_code=404, detail="Demo run not found.")
+    return result
+
+
+def _public_receipt(receipt: DemoAuthorizationReceipt) -> EACodeAuthorizationResponse:
+    return EACodeAuthorizationResponse(
+        receipt_id=receipt.receipt_id,
+        proposal_id=receipt.proposal_id,
+        actor=receipt.actor,
+        issued_at=receipt.issued_at,
+        expires_at=receipt.expires_at,
     )
