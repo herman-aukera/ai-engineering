@@ -27,17 +27,17 @@ jobs:
       - name: Validate Compose configuration
         run: docker compose --profile demo config --quiet
 
-      - name: Start complete EACODE demo stack
-        run: docker compose --profile demo up -d --build --wait db redis api
+      - name: Start minimal EACODE product runtime
+        run: docker compose --profile demo up -d --build --wait eacode-api
 
-      - name: Prove API health, non-root runtime, tenant auth, and durable state
+      - name: Prove health, non-root runtime, tenant auth, and durable state
         run: |
-          test "$(docker compose exec -T api id -u)" = "10001"
-          docker compose exec -T api python -c "import importlib.util; assert importlib.util.find_spec('pytest') is None"
+          test "$(docker compose exec -T eacode-api id -u)" = "10001"
+          docker compose exec -T eacode-api python -c "import importlib.util; assert importlib.util.find_spec('pytest') is None; assert importlib.util.find_spec('torch') is None; assert importlib.util.find_spec('jupyter') is None"
           curl --fail --silent --show-error http://127.0.0.1:8000/health
           curl --fail --silent --show-error http://127.0.0.1:8000/eacode/status
           curl --fail --silent --show-error http://127.0.0.1:8000/eacode/ui
-          TOKEN="$(docker compose exec -T api python -c "from datetime import UTC, datetime, timedelta; import os; from energy_core.identity import SessionSigner; print(SessionSigner(os.environ['EACODE_SESSION_SIGNING_KEY'].encode()).issue(user_id='container-owner', roles=('operator',), expires_at=datetime.now(UTC)+timedelta(minutes=5)))")"
+          TOKEN="$(docker compose exec -T eacode-api python -c "from datetime import UTC, datetime, timedelta; import os; from energy_core.identity import SessionSigner; print(SessionSigner(os.environ['EACODE_SESSION_SIGNING_KEY'].encode()).issue(user_id='container-owner', roles=('operator',), expires_at=datetime.now(UTC)+timedelta(minutes=5)))")"
           test -n "$TOKEN"
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Content-Type: application/json' -d '{"proposal_id":"unsigned-proof","objective":"Must fail","spec_id":"0012-production-hardening","patch":"def fail(): pass","changed_files":["app/fail.py"],"proposed_commands":[["git","status","--short"]]}' http://127.0.0.1:8000/eacode/demo)" = "401"
           curl --fail --silent --show-error \
@@ -45,7 +45,7 @@ jobs:
             -H 'Content-Type: application/json' \
             -d '{"proposal_id":"container-persistence-proof","objective":"Prove durable demo state","spec_id":"0012-production-hardening","patch":"def health():\n    return '\''todo'\''\n","changed_files":["app/health.py"],"proposed_commands":[["pytest","-q","tests/test_health.py"]]}' \
             http://127.0.0.1:8000/eacode/demo
-          docker compose restart api
+          docker compose restart eacode-api
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8000/health >/dev/null; then
               break
@@ -65,7 +65,7 @@ jobs:
 
       - name: Capture diagnostics
         if: always()
-        run: docker compose --profile demo ps && docker compose --profile demo logs --no-color api
+        run: docker compose --profile demo ps && docker compose --profile demo logs --no-color eacode-api
 
       - name: Stop stack
         if: always()
