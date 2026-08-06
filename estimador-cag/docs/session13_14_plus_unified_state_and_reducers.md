@@ -42,9 +42,9 @@ The hierarchy is an implementation reuse mechanism. It does not imply that check
 
 A node writing to an accumulator returns only newly generated entries. It must not return the previously accumulated list.
 
-### Stable identity rule
+### Stable identity and order rule
 
-Every replay-sensitive reducer uses either an explicit record ID or a deterministic semantic identity. Identical replay is idempotent, conflicting reuse fails closed, and output ordering is deterministic.
+Every replay-sensitive reducer uses either an explicit record ID or a deterministic semantic identity. Identical replay is idempotent and conflicting reuse fails closed. Reducers retain first-seen order so evidence ranking, diagnostic order and graph chronology remain stable across checkpoint replay.
 
 ### `budget_matches`
 
@@ -59,7 +59,7 @@ Identity:
 - explicit `match_id` when supplied;
 - otherwise a deterministic identity derived from component, budget, reference component, source document, source chunk and retrieval method.
 
-A replay with the same evidence is deduplicated. Reusing the same identity with different hours, distance, score or other semantics raises a conflict.
+A replay with the same evidence is deduplicated. Reusing the same identity with different hours, distance, score or other semantics raises a conflict. First-seen retrieval rank is retained.
 
 ### `errors`
 
@@ -74,7 +74,7 @@ Identity:
 - explicit `issue_id` when supplied;
 - otherwise deterministic `node + code` identity.
 
-The same issue may replay once. A changed message or severity under the same identity fails closed.
+The same issue may replay once. A changed message or severity under the same identity fails closed. First-seen diagnostic order is retained.
 
 ### `trace_events`
 
@@ -89,7 +89,7 @@ Identity:
 - explicit `event_id` when supplied;
 - otherwise deterministic identity from node, event type, evidence references and state-delta keys.
 
-This replaces the former blind append behavior. Trace deltas remain sanitized and are sorted by stable identity.
+This replaces the former blind append behavior. Trace deltas remain sanitized and preserve first-seen execution chronology.
 
 ### `stage_route_events`
 

@@ -26,15 +26,14 @@ def _budget_match(*, component_id: str = "component-a") -> BudgetMatch:
     )
 
 
-def test_budget_match_reducer_is_replay_safe_and_deterministic() -> None:
+def test_budget_match_reducer_is_replay_safe_and_preserves_rank_order() -> None:
     first = _budget_match(component_id="component-b")
     second = _budget_match(component_id="component-a")
 
-    left = merge_budget_matches([first], [second, first])
-    right = merge_budget_matches([second], [first, second])
+    merged = merge_budget_matches([first], [second, first])
 
-    assert len(left) == 2
-    assert left == right
+    assert merged == [first, second]
+    assert merge_budget_matches(merged, [first, second]) == merged
 
 
 def test_budget_match_reducer_rejects_conflicting_identity_reuse() -> None:
@@ -61,7 +60,28 @@ def test_graph_issue_reducer_is_idempotent_and_fails_closed() -> None:
         merge_graph_issues([issue], [conflict])
 
 
-def test_trace_event_reducer_is_idempotent_and_fails_closed() -> None:
+def test_trace_event_reducer_is_idempotent_and_preserves_chronology() -> None:
+    first = DomainTraceEvent(
+        event_id="event-1",
+        event_type="requirements_extracted",
+        node="extract_requirements",
+        summary="Extracted requirements.",
+        evidence_refs=[],
+        state_delta_keys=["requirements", "trace_events"],
+    )
+    second = DomainTraceEvent(
+        event_id="event-2",
+        event_type="components_classified",
+        node="classify_components",
+        summary="Classified components.",
+        evidence_refs=[],
+        state_delta_keys=["components", "trace_events"],
+    )
+
+    assert merge_trace_events([first], [second, first]) == [first, second]
+
+
+def test_trace_event_reducer_rejects_conflicting_identity_reuse() -> None:
     event = DomainTraceEvent(
         event_id="event-1",
         event_type="estimate_validated",
@@ -70,9 +90,7 @@ def test_trace_event_reducer_is_idempotent_and_fails_closed() -> None:
         evidence_refs=["estimate:1"],
         state_delta_keys=["status", "trace_events"],
     )
-
-    assert merge_trace_events([event], [event]) == [event]
-
     conflict = DomainTraceEvent(**{**event, "summary": "Different meaning."})
+
     with pytest.raises(ValueError, match="conflicting trace event identity"):
         merge_trace_events([event], [conflict])

@@ -161,17 +161,21 @@ def merge_budget_matches(
     current: list[BudgetMatch],
     incoming: list[BudgetMatch],
 ) -> list[BudgetMatch]:
-    """Deduplicate replayed evidence and reject semantic identity conflicts."""
+    """Deduplicate replayed evidence while preserving first-seen rank order."""
 
     by_id: dict[str, BudgetMatch] = {}
+    order: list[str] = []
     for raw_match in [*current, *incoming]:
         candidate = BudgetMatch(**dict(raw_match))
         record_id = _budget_match_identity(candidate)
         existing = by_id.get(record_id)
-        if existing is not None and existing != candidate:
-            raise ValueError(f"conflicting budget match identity: {record_id}")
+        if existing is not None:
+            if existing != candidate:
+                raise ValueError(f"conflicting budget match identity: {record_id}")
+            continue
         by_id[record_id] = candidate
-    return [by_id[record_id] for record_id in sorted(by_id)]
+        order.append(record_id)
+    return [by_id[record_id] for record_id in order]
 
 
 def _graph_issue_identity(issue: GraphIssue) -> str:
@@ -188,17 +192,21 @@ def merge_graph_issues(
     current: list[GraphIssue],
     incoming: list[GraphIssue],
 ) -> list[GraphIssue]:
-    """Deduplicate identical issue replay and fail closed on conflicting reuse."""
+    """Deduplicate issue replay while preserving first-seen diagnostic order."""
 
     by_id: dict[str, GraphIssue] = {}
+    order: list[str] = []
     for raw_issue in [*current, *incoming]:
         candidate = GraphIssue(**dict(raw_issue))
         record_id = _graph_issue_identity(candidate)
         existing = by_id.get(record_id)
-        if existing is not None and existing != candidate:
-            raise ValueError(f"conflicting graph issue identity: {record_id}")
+        if existing is not None:
+            if existing != candidate:
+                raise ValueError(f"conflicting graph issue identity: {record_id}")
+            continue
         by_id[record_id] = candidate
-    return [by_id[record_id] for record_id in sorted(by_id)]
+        order.append(record_id)
+    return [by_id[record_id] for record_id in order]
 
 
 def _trace_event_identity(event: DomainTraceEvent) -> str:
@@ -220,9 +228,10 @@ def merge_trace_events(
     current: list[DomainTraceEvent],
     incoming: list[DomainTraceEvent],
 ) -> list[DomainTraceEvent]:
-    """Deduplicate replayed trace deltas with deterministic semantic ordering."""
+    """Deduplicate replay while preserving first-seen execution chronology."""
 
     by_id: dict[str, DomainTraceEvent] = {}
+    order: list[str] = []
     for raw_event in [*current, *incoming]:
         candidate = DomainTraceEvent(
             **{
@@ -233,10 +242,13 @@ def merge_trace_events(
         )
         record_id = _trace_event_identity(candidate)
         existing = by_id.get(record_id)
-        if existing is not None and existing != candidate:
-            raise ValueError(f"conflicting trace event identity: {record_id}")
+        if existing is not None:
+            if existing != candidate:
+                raise ValueError(f"conflicting trace event identity: {record_id}")
+            continue
         by_id[record_id] = candidate
-    return [by_id[record_id] for record_id in sorted(by_id)]
+        order.append(record_id)
+    return [by_id[record_id] for record_id in order]
 
 
 class EstimationGraphState(TypedDict, total=False):

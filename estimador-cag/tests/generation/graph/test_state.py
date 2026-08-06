@@ -1,21 +1,23 @@
 from __future__ import annotations
 
 import json
-import operator
 from typing import Annotated, get_args, get_origin, get_type_hints
 
 import pytest
 
 from app.generation.graph.state import (
     EstimationGraphState,
+    merge_budget_matches,
+    merge_graph_issues,
+    merge_trace_events,
     new_estimation_graph_state,
 )
 
-ACCUMULATOR_FIELDS = (
-    "budget_matches",
-    "errors",
-    "trace_events",
-)
+ACCUMULATOR_REDUCERS = {
+    "budget_matches": merge_budget_matches,
+    "errors": merge_graph_issues,
+    "trace_events": merge_trace_events,
+}
 
 
 def _reducer_metadata(field_name: str) -> tuple[object, ...]:
@@ -26,9 +28,15 @@ def _reducer_metadata(field_name: str) -> tuple[object, ...]:
     return get_args(annotation)[1:]
 
 
-@pytest.mark.parametrize("field_name", ACCUMULATOR_FIELDS)
-def test_accumulator_fields_use_operator_add(field_name: str) -> None:
-    assert operator.add in _reducer_metadata(field_name)
+@pytest.mark.parametrize(
+    ("field_name", "expected_reducer"),
+    ACCUMULATOR_REDUCERS.items(),
+)
+def test_accumulator_fields_use_replay_safe_reducer(
+    field_name: str,
+    expected_reducer: object,
+) -> None:
+    assert expected_reducer in _reducer_metadata(field_name)
 
 
 def test_initial_state_has_checkpoint_safe_defaults() -> None:
@@ -77,7 +85,7 @@ def test_initial_state_does_not_share_mutable_accumulators() -> None:
     assert second["errors"] == []
 
 
-def test_operator_add_appends_only_new_reducer_items() -> None:
+def test_replay_safe_issue_reducer_appends_delta_without_mutating_inputs() -> None:
     existing = [
         {
             "code": "existing",
@@ -95,7 +103,7 @@ def test_operator_add_appends_only_new_reducer_items() -> None:
         }
     ]
 
-    merged = operator.add(existing, delta)
+    merged = merge_graph_issues(existing, delta)
 
     assert merged == [existing[0], delta[0]]
     assert existing == [existing[0]]
