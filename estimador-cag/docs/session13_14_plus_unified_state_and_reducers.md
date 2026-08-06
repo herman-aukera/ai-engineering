@@ -42,9 +42,58 @@ The hierarchy is an implementation reuse mechanism. It does not imply that check
 
 A node writing to an accumulator returns only newly generated entries. It must not return the previously accumulated list.
 
-### `budget_matches`, `errors`, `trace_events`
+### Stable identity rule
 
-Inherited mandatory reducers append deltas. Replay safety is achieved by graph lifecycle semantics and by avoiding re-execution of completed nodes.
+Every replay-sensitive reducer uses either an explicit record ID or a deterministic semantic identity. Identical replay is idempotent, conflicting reuse fails closed, and output ordering is deterministic.
+
+### `budget_matches`
+
+Reducer:
+
+```text
+merge_budget_matches
+```
+
+Identity:
+
+- explicit `match_id` when supplied;
+- otherwise a deterministic identity derived from component, budget, reference component, source document, source chunk and retrieval method.
+
+A replay with the same evidence is deduplicated. Reusing the same identity with different hours, distance, score or other semantics raises a conflict.
+
+### `errors`
+
+Reducer:
+
+```text
+merge_graph_issues
+```
+
+Identity:
+
+- explicit `issue_id` when supplied;
+- otherwise deterministic `node + code` identity.
+
+The same issue may replay once. A changed message or severity under the same identity fails closed.
+
+### `trace_events`
+
+Reducer:
+
+```text
+merge_trace_events
+```
+
+Identity:
+
+- explicit `event_id` when supplied;
+- otherwise deterministic identity from node, event type, evidence references and state-delta keys.
+
+This replaces the former blind append behavior. Trace deltas remain sanitized and are sorted by stable identity.
+
+### `stage_route_events`
+
+The inherited provider-route accumulator remains delta-only and is generated from strict `StageRouteDecision` payloads. It is not the canonical graph-transition ledger; `route_events` and `unified_route_events` own transition authority. A dedicated semantic-ID reducer remains bounded follow-up debt because repeated identical provider-stage decisions are currently prevented by completed-node terminal guards rather than reducer-level identity.
 
 ### `parallel_retrieval_results`
 
