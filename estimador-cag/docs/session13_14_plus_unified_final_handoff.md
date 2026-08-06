@@ -2,7 +2,9 @@
 
 ## Handoff decision
 
-The consolidation candidate is **implemented, audited and technically release-ready for review**, but it is intentionally **not merged**.
+**Verdict:** coherent with bounded debt.
+
+The consolidation candidate is implemented and available for review, but it is intentionally draft, unmerged and not presented as production-ready.
 
 ```text
 Branch: gg-session-14/plus-consolidated
@@ -18,88 +20,80 @@ Source lines retained:
 ```text
 Session 13 Plus: f87605cb8a8ee5ff2606c51e5490b6beb2ca7f7a
 Session 14 Plus: 34011bcd9442130e09ab776d9072c0d53a2d93c2
+Common ancestor: d9caf76d013d18cf6235f29d21f7a73f8133bce8
+Controlled ancestry merge: 6e0289cb1006fd3980fd59ceaf37e78f6a77bb5a
 ```
 
 ## Final-proof rule
 
-This document intentionally does not embed its own commit SHA because doing so would create an endless self-referential commit/run cycle.
+This document does not embed its own commit SHA because that would create a self-referential commit/run cycle.
 
 Final repository proof is:
 
-1. the current head of `gg-session-14/plus-consolidated`;
-2. the latest successful PR #21 workflow whose `head_sha` equals that branch head;
-3. successful `test-estimador-cag`, `unified-postgres-evidence` and `container-readiness` jobs in that run;
-4. PostgreSQL and container artifacts whose names include the same head SHA.
+1. current head of `gg-session-14/plus-consolidated`;
+2. latest successful PR #21 workflow whose `head_sha` equals that head;
+3. successful deterministic/static, unified PostgreSQL and container-readiness jobs;
+4. PostgreSQL and container artifacts named with the same head SHA;
+5. PR metadata updated to cite that same head and run without changing source history.
 
-The audited pre-documentation technical checkpoint was:
+Earlier green runs remain historical evidence only.
 
-```text
-SHA: c054399ace1a618fc8eec2ae0ad18333a226e715
-CI run: 30861856860
-Deterministic tests: 1135 passed, 11 skipped, 3 deselected
-PostgreSQL lifecycle: passed
-Production container readiness: passed
-```
-
-## Canonical architecture
+## Unified architecture
 
 ```text
 START
--> calibrated capability and context bootstrap
+-> policy/capability/context bootstrap
 -> deterministic unified supervisor
 -> reformulation with immutable source identity
--> semantic classification
--> requirement extraction and component classification
+-> semantic classification and typed structure
 -> optional durable structure review
 -> bounded retrieval with sequential fallback
 -> deterministic estimate
--> baseline/aggressive/conservative/synthesized competition
--> constraint-Energy assessment
+-> four immutable candidates and Energy assessment
 -> reliability analyst
 -> typed Critic
--> bounded Boss recommendation
--> selective recovery when authorized
+-> deterministic bounded Boss recommendation
+-> selective recovery when authorized and improving
 -> independent coherence validation
 -> persistent human review
--> proposal
--> finalization
+-> supervisor
+   -> proposal for approve/adjust
+   -> stopped finalization for reject
+-> supervisor/finalize
 -> END
 ```
 
 ## Authority contract
 
-There is one graph-routing authority:
-
 - Critic emits typed findings and does not route.
 - Boss emits a bounded recommendation and does not own topology.
-- The unified supervisor decides every transition.
-- Python policy owns arithmetic, constraints, budgets, privileges and deterministic escalation.
+- The unified supervisor owns every graph transition.
+- Python owns arithmetic, constraints, budgets, privileges and deterministic escalation.
 - The persisted human gate owns approve, adjust and reject authority.
 
 Every human outcome returns to the supervisor:
 
 ```text
-approve or adjust -> proposal -> finalize
-reject            -> finalize without proposal
+approve/adjust -> supervisor -> proposal -> supervisor -> finalize
+reject         -> supervisor -> stopped finalization
 ```
 
-## State and identity contract
+## Reducer and identity contract
 
-The source request is preserved byte-for-byte for thread/service identity, including boundary whitespace. Reformulation produces a separate canonical brief in `reformulated_request`. Requirement extraction consumes that brief when present.
+Replay-sensitive budget evidence, graph issues and domain trace events use deterministic semantic identities with optional explicit IDs. They:
 
-This preserves:
+- deduplicate identical replay;
+- reject conflicting identity reuse;
+- preserve first-seen retrieval rank, diagnostic order and trace chronology;
+- leave input collections unmodified.
 
-- exact request identity;
-- reviewed-graph historical behavior;
-- rollback provenance;
-- deterministic specialist input;
-- strict service validation.
+Unified route, contribution, HITL and context reducers retain their keyed replay contracts. Nodes emit deltas only.
 
-## Persistence contract
+Bounded debt: inherited `stage_route_events` remains an `operator.add` provider-routing accumulator. It is not the canonical transition ledger and completed-node guards prevent duplicate execution, but a reducer-level stable ID requires a separate compatibility slice.
 
-The unified runtime uses `AsyncPostgresSaver` with stable thread identity derived from the estimation identifier.
+## Persistence and HITL contract
 
-The evidence gate proves:
+The unified runtime uses `AsyncPostgresSaver` and stable thread identity. Exact-head infrastructure evidence must prove:
 
 ```text
 start
@@ -107,26 +101,26 @@ start
 -> close checkpointer
 -> reopen
 -> resume same thread and expected revision
--> finalize
+-> refresh context
+-> proposal/finalize
 -> close checkpointer
 -> reopen
 -> reread identical terminal state
 ```
 
-Revision and idempotency protections remain those of the Session 14 human-review contract.
+Approve, adjust and reject use revision and idempotency guards. Interrupt and control payloads are allowlisted and sanitized.
 
-## Provider and routing contract
+## Provider and context contract
 
-The runtime registry is built from the sanitized Session 13 Plus benchmark snapshot. A route is enabled only when its historical benchmark record meets the configured quality/schema/tool/failure gates.
+The runtime registry is built from a sanitized immutable historical benchmark snapshot. Passing benchmark records may authorize exact routes, but historical calibration is not current reachability.
 
-The unified policy authorizes both:
+Primary and fallback capabilities both fail closed on missing identity, disabled lifecycle, unsupported effort, output-limit excess or unsupported tools. Deterministic Python recovery is explicit and separate.
 
-- primary stage capability;
-- declared fallback stage capability.
+Compacted context is derived, freshness-checked and sanitized. It preserves identities, hard constraints, evidence refs, route plan, checkpoint/human revision, source SHA, rollback and claim boundaries. It excludes transcript from control projection, prompts, hidden reasoning, raw provider output, credentials and DSNs.
 
-A missing required fallback fails closed. The deterministic Python recovery capability remains separate from provider LLM capability records.
+## Competition and Energy contract
 
-The snapshot is bundled into the production image as the only admitted provider-readiness artifact. Raw rows, responses, logs and credentials are excluded.
+Baseline, aggressive, conservative and synthesized candidates are immutable and fingerprinted. Python owns bounds and arithmetic. Missing hours and material divergence escalate. The selected candidate and Energy snapshot survive resume. Coherence validation may veto synthesis.
 
 ## API and rollback contract
 
@@ -140,29 +134,20 @@ POST /api/v1/estimate/graph/unified/control
 POST /api/v1/estimate/graph/unified/control/{estimation_id}/resume
 ```
 
-Rollback paths retained:
+Rollback endpoints:
 
 ```text
 POST /api/v1/estimate/graph
 POST /api/v1/estimate/graph/reviewed/start
 ```
 
-A unified-runtime startup failure is isolated and must not disable the supervised or reviewed paths.
+A unified-runtime initialization failure is isolated and must not disable the supervised or reviewed services. Historical checkpoints are not upgraded without an explicit versioned adapter.
 
-## Control Room privacy contract
+## Control Room status
 
-The unified Control Room returns an allowlisted control-plane projection only. It excludes raw source text, prompts, hidden reasoning, raw provider output, credentials and connection strings.
+The Streamlit Control Room and allowlisted projection are implemented. Deterministic tests verify URLs, decision contracts, route/candidate rows and recursive privacy rejection.
 
-Recursive projection validation rejects:
-
-- sensitive key names;
-- OpenAI-like keys;
-- Logfire-like tokens;
-- generic bearer credentials;
-- private-key material;
-- unsupported nested values.
-
-Authorized-capability values are subject to the same recursive scanner.
+Browser evidence status: **unverified**. No screenshot or human-visible start/review/resume/final smoke artifact is currently part of the exact-head CI evidence. The UI must not be described as browser-validated.
 
 ## Validation gates
 
@@ -174,12 +159,12 @@ Python compilation
 full deterministic pytest suite excluding live-provider tests
 git diff --check
 tracked-secret scan
-real PostgreSQL pause/restart/resume evidence
+real PostgreSQL pause/reopen/resume evidence
 production-image build and readiness probes
 sanitized readiness assertions
 ```
 
-Provider-readiness live calls remain a separate credentialed gate and are not fabricated by deterministic CI.
+Credentialed live-provider smoke remains separate and opt-in. A skipped provider job means current reachability is unknown.
 
 ## Documentation entrypoints
 
@@ -191,26 +176,25 @@ Provider-readiness live calls remain a separate credentialed gate and are not fa
 - `docs/session13_14_plus_unified_audit.md`
 - `docs/session13_14_plus_unified_final_handoff.md`
 
-## Rollback plan
+## Rollback
 
-No rollback requires rewriting source history:
+1. Keep PR #21 draft and unmerged.
+2. Continue calling supervised or reviewed endpoints.
+3. Disable or omit unified runtime exposure at composition time.
+4. Retain original source branches and immutable benchmark evidence.
+5. Never reinterpret a thread with another graph version.
+6. Revert consolidation-only commits in reverse order on the writable branch if necessary; do not rewrite protected history.
 
-1. keep PR #21 unmerged;
-2. continue using supervised and reviewed API paths;
-3. disable or omit unified runtime exposure at composition time;
-4. retain all source branches and immutable benchmark evidence;
-5. diagnose unified-only state/checkpoint compatibility before any later promotion.
+## Remaining limitations
+
+- no current live-provider reachability proof;
+- no browser/UI smoke artifact;
+- no matched superiority evaluation;
+- no lossless-compaction proof;
+- no historical-checkpoint adapter;
+- inherited `stage_route_events` lacks reducer-level semantic identity;
+- PR history is large, although ancestry, base and rollback boundaries are explicit.
 
 ## Release boundary
 
-This handoff authorizes **review of the consolidation candidate**, not automatic merge or production promotion.
-
-Still unproven:
-
-- superiority over existing paths;
-- fresh reachability of every calibrated provider;
-- lossless compaction;
-- historical-checkpoint migration;
-- safe retirement of rollback routes.
-
-Those remain explicit post-consolidation evaluation and release decisions.
+This handoff authorizes review of a **coherent candidate with bounded debt**. It does not authorize merge, production promotion, retirement of rollback paths or stronger claims than the exact final evidence supports.

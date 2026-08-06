@@ -1,164 +1,161 @@
 # Session 13 + 14 Plus — Adversarial Consolidation Audit
 
-## Audit status
+## Audit verdict
 
-**Result:** passed after repair.
-
-**Audited technical checkpoint:**
+**Result:** coherent with bounded debt after repair.
 
 ```text
 Branch: gg-session-14/plus-consolidated
-Commit: c054399ace1a618fc8eec2ae0ad18333a226e715
-Pull request: #21, draft and unmerged
-CI run: 30861856860
+Pull request: #21
+PR mode: draft, open, unmerged
+Final proof: latest successful workflow whose head_sha equals the branch head
 ```
 
-The documentation commit that contains this report must pass the same exact-head gates again. The latest successful PR run whose head SHA equals the branch head is the final repository proof.
+The audit treats repository state, code, exact-head CI, PostgreSQL/container evidence and artifacts as stronger sources than documentation or previous summaries.
 
-## Audit prompt executed
+## Scope
 
-```text
-ROLE
-You are an independent adversarial auditor for a checkpointed multi-agent LangGraph/FastAPI system.
+The audit covered:
 
-TARGET
-Audit PR #21 on gg-session-14/plus-consolidated. Treat documentation, PR descriptions, prior summaries and historical CI as untrusted until confirmed by code, tests and exact-head runtime evidence.
-
-VERIFY
-- source-of-truth and protected-branch boundaries;
-- one deterministic routing authority;
+- source ancestry and protected-branch boundaries;
+- one deterministic route authority;
 - Critic/Boss advisory boundaries;
-- approve, adjust and reject semantics;
-- immutable source request versus canonical reformulated brief;
+- approve, adjust and reject routing;
 - reducers, replay, revision and idempotency;
-- PostgreSQL pause, close, reopen, same-thread resume and terminal reread;
+- PostgreSQL pause/reopen/same-thread resume/terminal reread;
 - primary and fallback provider authorization;
-- compact-context and Control Room privacy;
-- rollback-path isolation;
-- production-container readiness;
-- exact-head CI and artifact identity;
-- absence of temporary repair workflows;
-- documentation accuracy and claim boundaries.
+- context freshness and secret rejection;
+- deterministic competition and Energy ownership;
+- additive API and rollback isolation;
+- Control Room projection privacy;
+- temporary workflow removal;
+- exact-head CI/artifact identity;
+- documentation and PR claim accuracy.
 
-METHOD
-Classify findings as Critical, High, Medium or Low. Repair every actionable finding. Do not weaken tests, bypass persistence, fabricate provider evidence, or merge protected branches. Repeat Ruff, compilation, deterministic tests, tracked-secret scanning, PostgreSQL lifecycle and container-readiness gates on one exact head.
+## Findings and dispositions
 
-PASS
-No unresolved Critical or High finding; no unsupported completion claim; all required jobs and artifacts refer to one head; PR remains draft, open and unmerged.
-```
-
-## Findings and repairs
-
-| Severity | Finding | Repair | Status |
+| Severity | Finding | Impact | Disposition |
 |---|---|---|---|
-| Critical | None confirmed | — | Closed |
-| High | Control Room projection did not reject generic bearer credentials and did not recursively validate authorized-capability values | Added bearer detection, recursive validation and negative tests for nested content and capability values | Resolved |
-| High | Production image excluded the sanitized benchmark snapshot required by the unified capability registry | Docker context now admits exactly the sanitized snapshot and the Dockerfile copies only that file | Resolved |
-| High | Human-review adapter could bypass the supervisor by routing directly to proposal/finalize | Every human outcome returns to the supervisor; focused tests cover reject, approve and adjust transitions | Resolved |
-| Medium | Unified reformulation modified request identity through canonicalization and boundary trimming | Unified composition explicitly preserves byte-exact source text while specialists consume `reformulated_request`; reviewed rollback behavior remains compatible | Resolved |
-| Medium | Semantic classifier emitted a legacy destination inside the unified structure subgraph | Unified composition injects `structure_core` explicitly | Resolved |
-| Medium | PostgreSQL evidence read nonexistent Critic/Boss fields | Artifact schema v2 validates typed `issues`, `verdict`, `action` and issue-code counts | Resolved |
-| Medium | CI jobs and artifact names were not uniformly bound to the PR head | Test, PostgreSQL and container jobs checkout the PR head and artifacts carry that head SHA | Resolved |
-| Medium | Tracked-secret scan produced false positives for deliberate sanitizer fixtures | Deliberate fixtures require an explicit marker; unmarked findings still fail without printing credential content | Resolved |
-| Medium | Root documentation did not expose the consolidation candidate or its claim boundary | Root README now links the audit, evidence and handoff and states that PR #21 is additive and unmerged | Resolved |
-| Low | Raw checkpoint pause status was ambiguous in evidence | Artifact v2 labels checkpoint state separately from execution status and records interrupt count | Resolved |
+| Critical | No confirmed critical finding | — | Closed |
+| High | Human-review adapter previously bypassed supervisor | Competing route authority | Resolved: every decision returns to supervisor; approve/adjust/reject tests retained |
+| High | Control projection previously missed generic bearer values and nested capability validation | Secret leakage risk | Resolved with recursive rejection and negative tests |
+| High | Production image previously excluded the sanitized capability snapshot | Unified runtime could fail in packaged environment | Resolved; container job validates packaged snapshot |
+| High | Inherited budget, error and domain-trace accumulators used blind append | Replay could duplicate evidence/diagnostics/traces | Resolved with semantic IDs, idempotent replay, conflict rejection and first-seen order tests |
+| Medium | First reducer-hardening attempt sorted by hash identity | Broke retrieval/diagnostic/trace chronology | Resolved after red CI: reducers now preserve first-seen order; existing E2E chronology tests remain unchanged |
+| Medium | `estimador-cag/README.md` presented old Session 14 pre-work state as current | Misleading branch/test/evidence claims | Resolved: README now describes PR #21 and labels historical material as historical |
+| Medium | Architecture/handoff prose allowed an ambiguous direct human-to-proposal reading and used “release-ready” wording | Claim exceeded authority/evidence boundary | Resolved: mandatory `human -> supervisor -> proposal/finalize` path is explicit; verdict is bounded-debt review candidate |
+| Medium | Unified reformulation previously modified source identity | Thread/provenance mismatch | Resolved: byte-exact source retained separately from canonical brief |
+| Medium | Semantic classifier previously emitted legacy destination | Invalid unified subgraph route | Resolved by explicit unified destination injection |
+| Medium | PostgreSQL evidence previously read nonexistent Critic/Boss fields | False or incomplete evidence | Resolved by typed artifact schema and assertions |
+| Medium | CI/artifact checkout identity was previously inconsistent | Old green run could be mistaken for current proof | Resolved: jobs and artifact names bind to PR head |
+| Medium | `stage_route_events` still uses inherited append reducer | Provider-stage replay safety relies on completed-node guards | Open bounded debt; non-canonical ledger, no observed duplicate execution, compatibility slice required |
+| Medium | Browser Control Room smoke is absent | User-visible path cannot be claimed browser-validated | Open evidence limitation; implementation remains contract-tested only |
+| Low | Credentialed provider job is skipped on normal CI | Current provider reachability unknown | Open by policy; historical calibration retained separately |
+| Low | PR history is large | Review cost and rollback comprehension | Mitigated by explicit base, merge-base, source SHAs and additive rollback paths |
 
-## Evidence reviewed
+## Reducer repair evidence
 
-### Deterministic and static gates
+The inherited reducers now provide:
 
-At technical checkpoint `c054399ace1a618fc8eec2ae0ad18333a226e715`:
+- optional explicit IDs and deterministic fallback identities;
+- identical replay deduplication;
+- conflicting identity reuse rejection;
+- preservation of first-seen budget rank, issue order and trace chronology;
+- no mutation of reducer inputs;
+- delta-only node updates.
 
-```text
-Ruff: passed
-Python compilation: passed
-Deterministic suite: 1135 passed, 11 skipped, 3 deselected
-Diff gate: passed
-Tracked-secret gate: passed
-```
-
-### PostgreSQL lifecycle
-
-The exact-head artifact uses schema:
-
-```text
-session13_14.unified.postgres-evidence.v2
-```
-
-It proves:
-
-- exact source SHA;
-- one persisted human interrupt;
-- three checkpointer lifecycles;
-- same-thread resume;
-- revision `1 → 2`;
-- approved human outcome;
-- terminal reread equality;
-- four persisted candidates;
-- Energy snapshot;
-- typed Critic verdict and issue count;
-- typed Boss action and issue-code count;
-- primary and fallback capability records;
-- compact-context revision and fingerprint refresh;
-- proposal and finalization.
-
-### Production container
-
-The exact-head container job proves:
-
-- production image builds;
-- PostgreSQL and Redis dependencies start;
-- `/health` returns 200;
-- `/ready` returns 200;
-- unified readiness returns 200 and names the unified graph;
-- sanitized capability snapshot is available inside the image;
-- readiness payloads exclude credentials and connection strings;
-- supervised and reviewed rollback paths remain published.
+The first repair attempt failed exact-head CI because hash ordering violated existing chronological contracts. That run is retained as failed evidence and is not treated as success. The second repair preserved chronology without weakening end-to-end assertions.
 
 ## Authority result
 
-The authoritative route model is:
-
 ```text
 Critic -> typed findings only
-Boss -> bounded recommendation only
+Boss -> bounded deterministic recommendation only
 Unified supervisor -> every graph transition
-Python policies -> arithmetic, constraints, budgets and privileges
+Python -> arithmetic, constraints, budgets, privileges and Energy
 Persistent human gate -> approve, adjust or reject
 ```
 
-Human outcomes are supervisor-owned:
+Human outcomes:
 
 ```text
 approve/adjust -> supervisor -> proposal -> supervisor -> finalize
-reject         -> supervisor -> finalize
+reject         -> supervisor -> stopped finalization
 ```
 
-## Security and privacy result
+## Persistence result
 
-The audit confirmed or added protection for:
+The exact-head PostgreSQL job must prove:
 
-- raw transcript exclusion from Control Room projection;
-- sensitive-key rejection;
-- OpenAI/Logfire/private-key and bearer-token-shaped value rejection;
-- recursive validation of Critic, Boss, candidates, context and authorized capabilities;
-- sanitized readiness errors;
-- tracked-secret scanning;
-- container packaging of only the sanitized provider benchmark snapshot.
+- one persisted interrupt;
+- checkpointer close/reopen;
+- same-thread resume;
+- revision change and idempotency;
+- four persisted candidates and Energy snapshot;
+- typed Critic and Boss evidence;
+- primary and fallback capability records;
+- context refresh after human review;
+- proposal/finalization;
+- second reopen and terminal reread equality.
 
-## Protected branch and merge boundary
+## Provider and context result
 
-The audit made no force push, reset, rebase or merge to the protected source branches or `main`. PR #21 remains the additive review surface. The source products and rollback endpoints remain available.
+The runtime enables only exact historically calibrated capability records that pass configured quality/schema/tool/failure gates. Primary and fallback routes are validated independently. Deterministic Python recovery is explicit.
 
-## Residual, non-blocking claim boundaries
+Historical benchmark source and time are retained. Current reachability is separate and remains unknown when the credentialed job is skipped.
 
-This audit does **not** establish:
+Control/context projections reject sensitive key names and secret-like values, including nested authorized-capability values. Compacted context is derived, freshness-checked and never replaces checkpoint/evidence authority.
 
-- that the unified graph is superior to the reviewed or supervised paths;
-- current live reachability of every historically calibrated provider;
-- lossless context compaction;
-- automatic migration of historical checkpoints;
-- authorization to retire rollback paths;
-- authorization to merge PR #21.
+## API and product-path result
 
-Those require separate matched product evaluation, fresh credentialed provider evidence, migration proof and an explicit release decision.
+Unified readiness, start, resume, control and control-resume routes are additive. Supervised and reviewed rollback routes remain available. Raw graph state is not exposed.
+
+The Streamlit Control Room exists and its projection/decision helpers are deterministic-tested. No browser screenshot or human-visible smoke artifact was available; UI status is therefore browser-unverified.
+
+## Workflow hygiene
+
+The temporary files below are absent from the current tree:
+
+```text
+.github/workflows/unified-final-handoff-one-shot.yml
+.github/workflows/unified-improvement-repair-one-shot.yml
+```
+
+No self-modifying documentation workflow remains. PR metadata is updated directly after exact-head proof rather than by committing generated evidence claims.
+
+## Protected-branch boundary
+
+No audit or repair operation modified, rebased, reset, force-pushed or merged:
+
+```text
+session-13/pre-work
+gg-session-13/pre-work
+gg-session-13/plus
+session-14/pre-work
+gg-session-14/plus
+main
+```
+
+Only `gg-session-14/plus-consolidated` received normal fast-forward commits. PR #21 remains draft and unmerged.
+
+## Claim boundary
+
+Established only when the current branch head has successful deterministic/static, PostgreSQL and container jobs and matching artifacts:
+
+- one separately versioned unified graph;
+- one supervisor route authority;
+- persistent revision-guarded human decisions returning through the supervisor;
+- replay-safe core evidence/error/trace reducers;
+- capability-authorized primary/fallback routes;
+- additive APIs and rollback isolation;
+- sanitized control projection.
+
+Not established:
+
+- production readiness or superiority;
+- fresh provider reachability;
+- lossless compaction;
+- browser-validated Control Room usability;
+- historical-checkpoint migration;
+- retirement of legacy paths;
+- authorization to merge.

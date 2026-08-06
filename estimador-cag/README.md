@@ -1,311 +1,192 @@
 # Estimador CAG
 
-## Current Session 14 status
-
-Current branch:
+## Current consolidation candidate
 
 ```text
-session-14/pre-work
+Working mode: LIDR coursework continuity + Session 13/14 Plus semantic consolidation
+Branch: gg-session-14/plus-consolidated
+Draft PR: #21
+PR base: gg-session-14/plus
+Graph: session13_14_plus_unified_graph
+Graph version: session13_14_plus.unified.v1
+Status: draft, open, unmerged; review candidate with bounded evidence debt
 ```
 
-Teacher-facing branch:
+This branch semantically consolidates the mature Session 13 Plus reviewed lifecycle with Session 14 Plus supervision, persistent human authority, capability/context controls, deterministic candidate competition and Energy policy. It does not replace or modify the source branches.
+
+Canonical entrypoints:
+
+- `docs/session13_14_plus_unified_architecture.md`
+- `docs/session13_14_plus_unified_migration_map.md`
+- `docs/session13_14_plus_unified_state_and_reducers.md`
+- `docs/session13_14_plus_unified_api.md`
+- `docs/session13_14_plus_unified_evidence.md`
+- `docs/session13_14_plus_unified_audit.md`
+- `docs/session13_14_plus_unified_final_handoff.md`
+
+## Authority model
 
 ```text
-session-14/pre-work
+Models and specialists -> typed proposals, findings and evidence
+Critic                -> typed defects; no route authority
+Boss policy           -> deterministic bounded recommendation
+Unified supervisor    -> every graph transition
+Python policy         -> arithmetic, hard constraints, Energy, budgets and privileges
+Persistent human gate -> approve, adjust or reject protected outcomes
 ```
 
-Current focus:
-
-> Complete the hand-built supervisor and least-privilege specialists, then
-> prove persistent human review and finalized sanitized pause/resume telemetry
-> while preserving the existing external estimation contract.
-
-Current local validation after the bounded Logfire shutdown-flush repair:
+Every final human decision returns to the supervisor:
 
 ```text
-908 passed, 11 skipped
-Ruff passed
-Python compilation passed
-PostgreSQL pause/reopen/resume passed
+approve/adjust -> supervisor -> proposal -> supervisor -> finalize
+reject         -> supervisor -> stopped finalization
 ```
 
-The exact-SHA CI for the starting checkpoint `49cab6d8423e383c765df619ba42fb169bb01eee`
-passed in Actions run `29995480121`. Fresh hosted evidence is not yet complete:
-provider and Logfire credentials are unavailable in the current runtime, and
-the required genuine human decision has not been collected.
-
-Inherited Session 13 references retained for historical contracts:
-`gg-session-13/pre-work` (development) and `session-13/pre-work`
-(teacher-facing).
-Historical compatibility marker: `Current Session 13 status`.
-
-## Inherited Session 13 graph
+## Unified lifecycle
 
 ```text
 START
-  -> extract_requirements
-  -> classify_components
-  -> search_budgets
-  -> generate_estimate
-  -> validate_and_consolidate
-  -> END
+-> policy_bootstrap
+-> supervisor
+-> structure phase and optional structure review
+-> supervisor
+-> bounded retrieval with sequential fallback
+-> deterministic estimate
+-> supervisor
+-> four-candidate competition and Energy
+-> supervisor
+-> reliability analysis
+-> typed Critic and deterministic Boss recommendation
+-> supervisor
+-> bounded selective recovery when justified
+-> supervisor
+-> independent coherence validation
+-> supervisor
+-> persistent human review when required
+-> supervisor
+-> proposal or stopped finalization
+-> supervisor/finalize
+-> END
 ```
 
-The mandatory path remains sequential. Parallel fan-out, advanced recovery, and
-human intervention are deliberately deferred to the Plus roadmap.
+The consolidated graph is additive. Runtime failure in the unified composition must not prevent the supervised or reviewed services from opening.
 
-## Public API integration
+## API
 
-The graph is exposed through the additive endpoint:
+Unified routes:
+
+```text
+GET  /api/v1/estimate/graph/unified/readiness
+POST /api/v1/estimate/graph/unified
+POST /api/v1/estimate/graph/unified/{estimation_id}/resume
+POST /api/v1/estimate/graph/unified/control
+POST /api/v1/estimate/graph/unified/control/{estimation_id}/resume
+```
+
+Rollback routes:
 
 ```text
 POST /api/v1/estimate/graph
+POST /api/v1/estimate/graph/reviewed/start
 ```
 
-The existing estimation endpoint and Streamlit path were not silently replaced
-during the mandatory milestone. This preserves rollback and allows
-compatibility to be proven before broader migration.
-
-The graph endpoint receives a transcript and returns a structured estimate with
-a terminal status. Graph internals are not leaked into the business-backend
-contract.
-
-## Shared state
-
-`app/generation/graph/state.py` defines checkpoint-safe typed state containing:
-
-- transcript and estimation identity;
-- structured requirements;
-- classified components;
-- provenance-rich budget matches;
-- deterministic component estimates;
-- consolidated estimate and status;
-- structured issues;
-- domain trace events;
-- sanitized provider metadata;
-- execution metadata.
-
-Reducer-backed fields include:
-
-- `budget_matches`;
-- `errors`;
-- `trace_events`.
-
-Nodes return partial updates. Reducer-backed nodes return only newly generated
-entries, not the complete accumulated list.
-
-## Node responsibilities
-
-| Node | Responsibility |
-| --- | --- |
-| `extract_requirements` | Convert the transcript into atomic structured requirements |
-| `classify_components` | Group requirements into implementation components |
-| `search_budgets` | Retrieve reference evidence sequentially per component |
-| `generate_estimate` | Calculate hours and totals deterministically in Python |
-| `validate_and_consolidate` | Apply invariants and set terminal status |
-
-Model and retrieval access is hidden behind injected ports. Deterministic fakes
-are used in normal CI; concrete adapters are used at runtime.
+The control endpoints return an allowlisted projection. Raw graph state, source transcript, prompts, hidden reasoning, raw provider output, credentials and connection strings are excluded.
 
 ## Persistence
 
-The graph uses `AsyncPostgresSaver` with the existing project PostgreSQL
-database.
-
-Application lifecycle responsibilities are:
-
-1. Open the checkpointer during FastAPI lifespan.
-2. Run checkpointer setup.
-3. Compile the graph with the saver.
-4. Invoke with a stable storage-safe thread identifier.
-5. Close resources during shutdown.
-
-The implementation includes close/reopen/reread evidence proving that state can
-be recovered without executing completed nodes again.
-
-## Execution semantics
-
-- New execution: starts a new thread.
-- Resume: continues only an incomplete thread.
-- Completed duplicate: returns the existing terminal result idempotently.
-- Replay: requires an explicit checkpoint identity.
-- Recalculation: uses a new thread.
-
-These semantics prevent accumulator reducers from appending historical values a
-second time.
-
-## Observability
-
-Logfire is used for hosted telemetry.
-
-Each execution produces:
-
-- one root span named `session13.graph.run`;
-- five child spans named `session13.graph.node`;
-- sanitized identifiers, counts, status, and totals;
-- no transcript, prompt, provider response, API token, or database DSN.
-
-The domain trace stored in graph state is separate from telemetry spans and
-operational logs.
-
-Final trace identifier:
+The unified runtime uses `AsyncPostgresSaver` and stable thread identity:
 
 ```text
-019f66df5be5e9f5db11c167f81b79dd
+thread_id = estimate:<estimation_id>
 ```
 
-Logfire project:
+The CI lifecycle evidence covers interrupt, checkpointer close/reopen, same-thread revision-guarded resume, proposal/finalization, a second reopen and terminal reread equality.
 
-https://logfire-eu.pydantic.dev/herman-aukera/starter-project
+Historical checkpoints are not automatically interpreted as unified checkpoints. Existing reviewed and supervised threads remain on their originating graph versions.
 
-## Evidence files
+## State and reducers
+
+The state hierarchy is additive:
 
 ```text
-artifacts/session13/complex_graph_execution_deterministic.json
-artifacts/session13/postgres_persistence_proof.json
-artifacts/session13/live_postgres_logfire_trace_summary.json
-artifacts/session13/live_provider_smoke/REPORT.md
-artifacts/session13/live_provider_smoke/metadata.json
-artifacts/session13/live_provider_smoke/results.csv
+EstimationGraphState
+└─ ReviewedEstimationGraphState
+   └─ Session14EstimationGraphState
+      └─ Session14PlusEstimationGraphState
+         └─ UnifiedEstimationGraphState
 ```
 
-The auxiliary live-provider smoke completed operationally, but its historical
-Session 06 latency and memory-drift thresholds did not pass. That result is
-preserved honestly and is not treated as a mandatory Session 13 acceptance
-gate.
+Replay-sensitive unified reducers use stable identities, deduplicate identical replay, fail closed on conflicting reuse and retain semantic order. Nodes emit deltas rather than full accumulated lists.
 
-The Session 13 Plus credentialed runtime gate is independent of that historical
-stress suite. GitHub Actions run `29526996872` completed bounded DeepSeek and
-Kimi turns and requested a remote Logfire flush. The sanitized evidence and
-claim boundary are documented in
-`docs/session13_plus_live_runtime_evidence.md`.
+The inherited `stage_route_events` provider-routing accumulator remains documented bounded debt: it is not the canonical graph-transition ledger, and completed-node guards currently prevent duplicate execution. A dedicated semantic-ID reducer requires a separate compatibility slice.
 
-## Deterministic validation
+## Provider policy
 
-```zsh
-cd /workspaces/ai-engineering/estimador-cag
+Documentation and configuration do not enable a provider route.
 
-uv run ruff check app scripts tests evals
+The unified registry is built from a sanitized historical benchmark snapshot and distinguishes benchmark calibration from present reachability. Both primary and fallback routes must be capability-authorized. Unsupported efforts, excessive output limits, missing fallbacks and unrecognized model identities fail closed. Deterministic Python recovery remains explicit and normal CI makes no paid provider calls.
 
-find app scripts tests evals -name '*.py' -type f -print0 |
-  xargs -0 uv run python -m py_compile
+A skipped credentialed provider job means current reachability is unverified; it does not invalidate historical calibration evidence.
 
-OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
-```
+## Context and competition
 
-## Session 13 documentation
+Compacted context is a derived projection, never source of truth. It preserves identity, versions, hard constraints, evidence references, route-plan identity, checkpoint/human revision, source branch/SHA, rollback and claim boundaries. Sensitive content and stale source revisions are rejected.
 
-- `docs/session13_task13_compliance.md`
-- `docs/session13_plus_roadmap.md`
-- `docs/session13_presentation_guide_es.md`
+Competition produces immutable baseline, aggressive, conservative and synthesized candidates. Python owns arithmetic and evidence bounds. Missing hours and material divergence escalate; downstream coherence validation may veto synthesis. No model owns authoritative totals.
 
-### Session 13 Plus control room
+## Validation
 
-```zsh
-uv run streamlit run app/ui/review_control_room.py
-uv run python -m evals.session13_plus_parallel_retrieval_benchmark
-uv run python -m evals.session13_plus_evaluation_matrix
-```
-
-For a keyless local API/UI journey using the production reviewed router, service
-and graph with deterministic adapters:
-
-```zsh
-uv run uvicorn scripts.session13_plus_demo_api:app --port 8001
-ESTIMADOR_BACKEND_URL=http://localhost:8001 \
-  uv run streamlit run app/ui/review_control_room.py
-```
-
-This demo uses an in-memory saver and is not a substitute for the separate real
-PostgreSQL restart proof.
-
-The reviewed API requires the PostgreSQL-backed application runtime. Sequential
-retrieval remains the default rollback; opt into the measured Plus fan-out with
-`GRAPH_RETRIEVAL_MODE=parallel`. See
-`docs/session13_plus_teacher_superiority_matrix.md` for evidence and limitations.
-
-## Historical Session 12 agentic work
-
-The Session 12 — hand-written agent loop is preserved from branch
-`gg-session-12/pre-work`.
-
-Session 12 agentic handoff:
-
-- `docs/session12_agentic_handoff.md`
-- `docs/session12_task12_compliance.md`
-
-## Historical Session 10 retrieval background
-
-The historical retrieval stack remains available:
-
-| Layer | Files |
-| --- | --- |
-| Fusion | `app/embedding_pipeline/fusion.py` |
-| Reranking | `app/embedding_pipeline/reranker.py` |
-| Search API | `POST /search` |
-| Evaluation | `evals/session10_retrieval/` |
-
-Historical A/B/C/D matrix:
-
-| Config | Search | Reranking |
-| --- | --- | --- |
-| A | Vector | No |
-| B | Hybrid | No |
-| C | Vector | Yes |
-| D | Hybrid | Yes |
-
-Historical runner:
-
-```zsh
-uv run python -m evals.session10_retrieval.run   --output evals/session10_retrieval/results.json   --report evals/session10_retrieval/REPORT.md   --k 5   --recall-k 8
-```
-
-The report distinguished `result budget precision@5` from
-`unique budget precision@5`. The corpus has only four budgets, eight component
-chunks, and seven clean queries plus challenge cases, so the result does not
-prove hybrid retrieval or reranking superiority.
-
-Historical provider policy: prefer DeepSeek first and use Kimi only as fallback
-or comparison.
-
-Historical notes remain indexed in `docs/HISTORICAL_SESSIONS.md`.
-
-## Current Plus/V3 provider, context, and multi-agent addendum
-
-The active incubator branch is `gg-session-13/plus`. The verified deterministic V3 foundation before this documentation update was `0700b9bf396ed8a59c1e9a250f7a5ffad65c4278`.
-
-Canonical architecture entry points:
-
-- `docs/session13_plus_v3_foundation.md`
-- `docs/energy_aware_model_context_and_multiagent_policy.md`
-- `CLAUDE.md`
-
-User-facing policy:
+Normal CI is deterministic and requires:
 
 ```text
-Provider: Auto | DeepSeek | Kimi | OpenAI
-Reasoning: minimal | medium | max
-Context detail: minimal | medium | max
+Ruff
+Python compilation
+full pytest suite excluding live-provider tests
+git diff --check
+tracked-secret scan
+real PostgreSQL pause/reopen/resume evidence
+production image build and readiness probes
+sanitized readiness assertions
 ```
 
-Defaults:
+The exact final proof is the latest successful PR #21 workflow whose `head_sha` equals the current consolidation branch head, plus artifacts named with the same SHA.
+
+## Control Room
+
+Implementation:
 
 ```text
-provider = DeepSeek
-reasoning = medium
-context detail = medium
+app/ui/unified_control_room.py
 ```
 
-Current documented capability families:
+Run locally after FastAPI is available:
 
-- DeepSeek V4 Flash and V4 Pro;
-- Kimi K3, K2.7 Code, and K2.6;
-- GPT-5.6 Luna, Terra, and Sol.
+```zsh
+ESTIMADOR_BACKEND_URL=http://localhost:8000 \
+  uv run streamlit run app/ui/unified_control_room.py
+```
 
-Kimi K3 is documented as a max-capability candidate with a 1M-token context and native multimodality. Launch effort is `max`; low/high modes must not be assumed until capability discovery confirms them. Mid-session switching requires a clean checkpoint and normalized compacted handoff.
+Deterministic tests cover URL construction, decision payloads, candidate/route projection and recursive privacy rejection. A human-visible browser smoke and screenshot are not present in current CI evidence, so the UI is contract-tested but browser-unverified.
 
-The provider table is a policy prior, not proof that one model is universally superior. Runtime selection requires a versioned capability registry, reachability checks, contract verification, and matched product calibration.
+## Claim boundary
 
-Context compaction preserves hard constraints, decisions, evidence references, current state, unresolved issues, budgets, branch/SHA, checkpoint/revision, last green tests/CI, next action, rollback, and claim boundaries. Summaries remain derived projections rather than authoritative records.
+Supported only by exact-head deterministic/infrastructure evidence:
 
-Session 14 must be implemented on a separate `session-14/pre-work` branch created from the current verified Plus head. Its mandatory supervisor uses explicit `StateGraph` + `Command`, least-privilege specialists, persistent `interrupt()` human review, and same-thread approve/adjust/reject resume. Provider selectors and context-compaction runtime remain additive follow-up slices.
+- a separately versioned unified graph exists;
+- the supervisor owns graph transitions;
+- persistent approve/adjust/reject returns through the supervisor;
+- additive APIs and rollback paths are present;
+- PostgreSQL and production-container gates can validate the exact head.
+
+Not established:
+
+- superiority over reviewed or supervised paths;
+- current reachability of every historically calibrated provider;
+- lossless context compaction;
+- automatic migration of historical checkpoints;
+- browser-validated Control Room usability;
+- production promotion or authorization to merge.
+
+## Historical coursework
+
+Historical Session 10–14 submissions, artifacts and presentation material remain under `docs/`, `artifacts/`, `evals/` and `exercises/`. Their recorded branch names, SHAs, runs and test counts are historical evidence, not current consolidation status. See `docs/HISTORICAL_SESSIONS.md` and the session-specific handoff documents when auditing those lines.

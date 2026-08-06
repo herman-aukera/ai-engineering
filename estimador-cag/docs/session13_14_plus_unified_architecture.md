@@ -1,6 +1,6 @@
 # Session 13 + 14 Plus — Unified Architecture
 
-## Status
+## Status and boundary
 
 ```text
 Working mode: LIDR coursework continuity + semantic consolidation
@@ -12,61 +12,60 @@ Common ancestor: d9caf76d013d18cf6235f29d21f7a73f8133bce8
 Controlled ancestry merge: 6e0289cb1006fd3980fd59ceaf37e78f6a77bb5a
 ```
 
-The source branches remain unchanged. The consolidated branch contains the complete Session 13 Plus ancestry and the Session 14 Plus implementation, followed by explicit semantic reconciliation.
+The consolidation is semantic, additive and rollback-safe. It does not rewrite either source branch and it does not silently reinterpret old checkpoints.
 
 ## Objective
 
-Provide one canonical, versioned orchestration path that combines:
+Provide one canonical orchestration path combining:
 
-- Session 13 Plus reviewed lifecycle, structure review, parallel retrieval, recovery, Critic/Boss policy, provider readiness, scenario/audit foundations, API and Control Room patterns;
-- Session 14 manual supervision, typed `Command` routing, least privilege, persistent `interrupt()`, same-thread human review, action auditing;
-- Session 14 Plus capability authorization, compact context integrity, candidate competition, V3 constraint Energy and PostgreSQL lifecycle proof.
-
-The consolidation is additive. Existing mandatory, reviewed and supervised graphs remain available as rollback paths.
+- Session 13 Plus reviewed lifecycle, editable structure review, bounded parallel retrieval, deterministic fallback, reliability, typed Critic, deterministic Boss policy, selective recovery, budgets, provider evidence, audit/scenario foundations and proposal projection;
+- Session 14 manual supervision, typed `Command` routing, least privilege, persistent `interrupt()`, same-thread approve/adjust/reject and action auditing;
+- Session 14 Plus strict capability authorization, context freshness/privacy, deterministic four-candidate competition, Energy escalation and independent coherence veto.
 
 ## Canonical graph
 
 ```text
 START
-→ policy_bootstrap
-→ supervisor
-→ structure_phase
-   → reformulate_request
-   → semantic_classify
-   → extract_requirements
-   → classify_components
-   → structure_review_gate when configured
-→ supervisor
-→ estimation_phase
-   → bounded parallel retrieval or sequential rollback
-   → deterministic estimate generation
-   → validation
-   → selective recovery when justified
-→ supervisor
-→ candidate_competition
-   ├─ baseline
-   ├─ aggressive
-   ├─ conservative
-   └─ deterministic synthesis
-→ supervisor
-→ reliability_analyst
-→ supervisor
-→ review_policy_phase
-   → typed Critic
-   → deterministic Boss recommendation
-→ supervisor
-→ boss_action
-→ supervisor
-→ bounded recovery_phase when recommended and budget remains
-→ supervisor
-→ coherence_validator
-→ supervisor
-→ persistent human_review_gate when policy requires authority
-→ proposal
-→ supervisor
-→ finalize
-→ END
+-> policy_bootstrap
+-> supervisor
+-> structure_phase
+   -> reformulate_request
+   -> semantic_classify
+   -> extract_requirements
+   -> classify_components
+   -> optional structure_review_gate
+-> supervisor
+-> estimation_phase
+   -> bounded parallel retrieval or deterministic sequential fallback
+   -> deterministic estimate generation
+   -> validation
+-> supervisor
+-> candidate_competition
+   -> baseline
+   -> aggressive
+   -> conservative
+   -> deterministic synthesis
+-> supervisor
+-> reliability_analysis
+-> supervisor
+-> critic
+-> deterministic Boss recommendation
+-> supervisor
+-> selective_recovery when justified and budgeted
+-> supervisor
+-> coherence_validator
+-> supervisor
+-> human_review_gate when protected authority is required
+-> supervisor
+   -> proposal for approve/adjust
+   -> stopped finalization for reject
+-> proposal
+-> supervisor
+-> finalize
+-> END
 ```
+
+Fixed internal phases may use explicit edges. Every runtime choice is visible and owned by the supervisor; the supervisor label is not used to conceal a fixed sequence.
 
 Graph identity:
 
@@ -77,167 +76,155 @@ session13_14_plus.unified.v1
 
 ## Authority model
 
-There is one orchestration authority:
-
 ```text
-Critics recommend.
-Boss policy recommends a bounded action.
-The deterministic unified supervisor owns graph routing.
-Python owns arithmetic, constraints, Energy, privileges and budgets.
-Only the persisted human gate can approve, adjust or reject.
+Models/specialists -> typed proposals, findings, evidence and bounded action requests
+Critic             -> typed defects; no graph-transition authority
+Boss policy        -> deterministic accept/repair/clarify/reject/escalate recommendation
+Unified supervisor -> every graph transition and prerequisite/budget enforcement
+Python             -> arithmetic, hard constraints, Energy, privileges and thresholds
+Human gate         -> only approve/adjust/reject authority for protected outcomes
+LangGraph          -> durable control flow and resume
+PostgreSQL         -> checkpoint durability
 ```
 
-This prevents the Session 13 Boss and Session 14 supervisor from becoming competing orchestrators.
+Mandatory final-review transition:
 
-### Structure authority
+```text
+human_review_gate
+-> supervisor
+-> proposal or finalize
+```
 
-The structure review contract may approve, edit, reject or request regeneration of requirements/components. It cannot approve the final estimate.
+No direct human-gate edge to proposal or finalize is permitted.
 
-### Safety and final authority
+## State and reducer model
 
-The Session 14 `interrupt()` gate owns final approve/adjust/reject decisions with:
+The unified state extends the reviewed and supervised states additively. Runtime clients, database connections, checkpointers, callables, open files and secrets are excluded from state.
 
+Reducer rules:
+
+- nodes emit only deltas;
+- explicit or deterministic semantic IDs identify replay-sensitive records;
+- identical replay is idempotent;
+- conflicting ID reuse fails closed;
+- first-seen rank, diagnostic order and execution chronology are retained;
+- completed terminal reads do not execute graph nodes again.
+
+Canonical transition ledgers are `route_events` and `unified_route_events`. The inherited `stage_route_events` provider-routing accumulator is non-canonical bounded debt and still depends on terminal-node guards rather than reducer-level semantic identity.
+
+## Persistence and HITL
+
+Final human authority uses PostgreSQL-backed `interrupt()` with:
+
+- stable thread ID;
 - expected revision;
 - idempotency key;
-- actor;
-- reason;
+- actor and reason;
 - typed adjustments;
-- same-thread continuation;
-- PostgreSQL persistence.
+- sanitized interrupt payload;
+- same-thread resume;
+- terminal reread.
 
-## Reused Session 13 Plus components
+Actions:
 
-The unified graph composes rather than copies:
+```text
+approve -> supervisor -> proposal -> supervisor -> finalize
+adjust  -> deterministic recalculation/revalidation -> supervisor -> proposal -> supervisor -> finalize
+reject  -> supervisor -> stopped finalization
+```
 
-- `build_structure_subgraph`;
-- `build_estimation_subgraph`;
-- `build_review_policy_subgraph`;
-- `build_final_recovery_subgraph`;
-- semantic classification and V3 complexity;
-- bounded parallel retrieval and sequential rollback;
-- reliability analyst;
-- typed Critic and Boss policy;
-- selective recovery;
-- proposal projection;
-- provider-readiness benchmark contracts;
-- reviewed API and Control Room rollback path.
-
-## Reused Session 14 Plus components
-
-- replay-safe supervised state and reducers;
-- least-privilege specialist audit;
-- persistent Session 14 human gate;
-- context-aware post-resume refresh;
-- strict capability registry;
-- compacted context fingerprint and freshness semantics;
-- four-candidate competition;
-- V3 constraint-Energy snapshot;
-- PostgreSQL lifecycle tooling.
+Old reviewed/supervised checkpoints remain on their original graph versions. No automatic converter exists.
 
 ## Provider policy
 
-A model is not enabled because configuration or documentation names it.
-
-The unified runtime loads a sanitized immutable `BenchmarkSnapshot` produced by Session 13 Plus production CI and converts only passing routes into enabled capabilities.
-
-Enablement gate:
+Provider lifecycle states are distinct:
 
 ```text
-status = benchmark_calibrated
-sample_count > 0
-failure_count = 0
-schema_pass_rate >= 0.95
-tool_pass_rate >= 0.95
-exact provider/model identifier has capability metadata
+documented
+configured
+reachable
+contract_verified
+benchmark_calibrated
+enabled
+disabled
 ```
 
-Primary and fallback routes are both checked for:
+The runtime converts only passing records from the immutable sanitized benchmark snapshot into enabled capabilities. Historical benchmark evidence retains source commit and timestamp. It is not evidence of current reachability.
 
+Both primary and fallback routes are checked for:
+
+- exact provider/model identity;
 - enabled lifecycle;
-- exact model identity;
 - supported effort;
-- output-token ceiling;
+- output ceiling;
 - tool support;
 - stage identity.
 
-The unified policy uses the verified Moonshot identifier `kimi-k3`; it does not alias the older `kimi-k2.6` documentation route.
+Unrecognized aliases, unsupported effort, excessive output and missing fallback authorization fail closed. Deterministic Python recovery remains explicit. Normal CI performs no paid calls.
 
 ## Context integrity
 
-Compact context is a derived control-plane projection. It is never source of truth.
+Compacted context is derived and never authoritative. It preserves:
 
-Authoritative records remain:
+- identities and versions;
+- objective and working mode;
+- hard constraints and accepted/rejected decisions;
+- evidence references and route-plan identity;
+- checkpoint and human-review revision;
+- branch/source SHA;
+- budgets, next action, rollback and claim boundary.
 
-- PostgreSQL checkpoints;
-- evidence references;
-- route ledgers;
-- Critic findings;
-- Boss decisions;
-- immutable competition candidates;
-- Energy snapshots;
-- human actions;
-- proposal and validation state.
+It rejects transcript content from control projections, prompts, hidden reasoning, raw provider output, keys, tokens, passwords and DSNs. It refreshes when authoritative revision changes and rejects stale fingerprints/source revisions.
 
-The context projection preserves identity, objective, constraints, accepted/rejected decisions, evidence references, budgets, route, repository/validation/checkpoint state, next action, rollback and claim boundary.
-
-It rejects transcript, prompts, hidden reasoning, raw provider output, credentials, tokens, passwords and DSNs.
-
-## Recovery policy
-
-Recovery is bounded by both inherited Session 13 execution budgets and unified graph cycles.
-
-```text
-unified_max_recovery_cycles = 2
-```
-
-A Boss recommendation cannot create an unbounded loop. When the recovery budget is exhausted, the supervisor sends the retained candidate through coherence validation and forces human authority.
-
-## Competition policy
+## Competition and Energy
 
 Python creates four immutable candidates:
 
-- baseline: deterministic estimator result;
-- aggressive: bounded discount without crossing known lower evidence bounds;
-- conservative: bounded risk buffer respecting upper evidence bounds;
-- synthesized: confidence-weighted deterministic combination.
+- baseline;
+- aggressive, bounded by known lower evidence limits;
+- conservative, bounded by known upper evidence limits;
+- synthesized, using bounded deterministic confidence weighting.
 
-Missing hours and material divergence are hard Energy constraints. Low confidence contributes a soft penalty. Hard failure retains baseline arithmetic and requires human review.
+Missing hours are hard missing evidence. Material divergence creates conflict/escalation. The selected candidate ID and Energy snapshot persist across resume. Independent coherence validation may veto synthesis. No model owns authoritative arithmetic.
 
-Competition does not claim that model personas improve accuracy. Model-generated competition remains disabled pending matched evaluation.
+## API and rollback
 
-## Composition roots and rollback
-
-| Path | Graph | Status |
+| Path | Runtime | Status |
 |---|---|---|
-| `/api/v1/estimate/graph` | Session 14 supervised graph | preserved rollback |
-| `/api/v1/estimate/graph/reviewed/start` | Session 13 Plus reviewed graph | preserved rollback |
-| `/api/v1/estimate/graph/unified` | canonical consolidated graph | additive candidate |
+| `/api/v1/estimate/graph` | Session 14 supervised | preserved rollback |
+| `/api/v1/estimate/graph/reviewed/start` | Session 13 Plus reviewed | preserved rollback |
+| `/api/v1/estimate/graph/unified` | consolidated | additive candidate |
+| `/api/v1/estimate/graph/unified/control` | allowlisted control projection | additive candidate |
 
-FastAPI owns each runtime independently. Failure to initialize the unified runtime does not prevent the older runtimes from being registered.
+Each composition root is isolated. Unified startup failure must not disable reviewed or supervised runtimes.
 
-## Observability
+## Observability and privacy
 
-Unified root and node spans:
+Unified spans:
 
 ```text
 session13_14_plus.graph.run
 session13_14_plus.graph.node
 ```
 
-Allowlisted telemetry may include graph/policy version, route destination, reason code, capability record IDs, candidate IDs, Energy snapshot ID, Critic/Boss disposition, review status/revision and state-delta keys.
+Allowlisted telemetry may contain graph/policy version, route destination, reason code, capability-record IDs, candidate IDs, Energy snapshot ID, Critic/Boss disposition, review status/revision and delta keys.
 
-It must not include transcript, prompts, raw model responses, hidden reasoning, credentials or connection strings.
+It excludes transcript, prompts, raw model output, hidden reasoning, credentials and connection strings. Control responses expose projection models, not raw graph state.
 
-## Claim boundary
+## Evidence boundary
 
-Supported only after exact-head CI and PostgreSQL evidence are green:
+Supported after exact-head CI, PostgreSQL and container jobs succeed:
 
-> The repository contains a separately versioned unified graph that semantically consolidates Session 13 Plus reviewed orchestration with Session 14 Plus supervised HITL, capability-authorized routing, compact-context integrity and deterministic Energy-Aware competition while preserving rollback paths.
+> The repository contains a separately versioned unified graph that semantically consolidates Session 13 Plus reviewed orchestration with Session 14 Plus supervised HITL, capability-authorized routing, context integrity and deterministic Energy-Aware competition while preserving rollback paths.
 
-Not established by this architecture alone:
+The Control Room implementation is deterministic-contract-tested, but no browser screenshot or human-visible smoke artifact is currently recorded. Provider current reachability is also unverified when the credentialed job is skipped.
 
-- production superiority over the reviewed or supervised paths;
+Not established:
+
+- superiority over reviewed or supervised paths;
+- production promotion;
+- current reachability of every calibrated provider;
 - lossless context compaction;
-- current live availability of every calibrated provider route;
-- improved estimate accuracy from candidate competition;
-- authorization to merge into `main` or a protected coursework branch.
+- automatic historical-checkpoint migration;
+- browser-validated UI usability;
+- authorization to merge or retire rollback paths.
