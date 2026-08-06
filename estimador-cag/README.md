@@ -69,11 +69,7 @@ START
 -> END
 ```
 
-The consolidated graph is additive. Runtime failure in the unified composition must not prevent the supervised or reviewed services from opening.
-
-## API
-
-Unified routes:
+## Unified API
 
 ```text
 GET  /api/v1/estimate/graph/unified/readiness
@@ -83,110 +79,138 @@ POST /api/v1/estimate/graph/unified/control
 POST /api/v1/estimate/graph/unified/control/{estimation_id}/resume
 ```
 
-Rollback routes:
+Rollback routes remain available:
 
 ```text
 POST /api/v1/estimate/graph
 POST /api/v1/estimate/graph/reviewed/start
 ```
 
-The control endpoints return an allowlisted projection. Raw graph state, source transcript, prompts, hidden reasoning, raw provider output, credentials and connection strings are excluded.
+The control routes return an allowlisted projection. Raw graph state, source transcript, prompts, hidden reasoning, raw provider output, credentials and connection strings are excluded.
 
-## Persistence
+## Persistence, reducers and provider boundary
 
-The unified runtime uses `AsyncPostgresSaver` and stable thread identity:
+The unified runtime uses `AsyncPostgresSaver` and stable `estimate:<estimation_id>` thread identity. Exact-head infrastructure evidence covers interrupt, close/reopen, same-thread revision-guarded resume, finalization and terminal reread equality.
 
-```text
-thread_id = estimate:<estimation_id>
-```
+Replay-sensitive core evidence/error/trace reducers use stable semantic identities, deduplicate identical replay, reject conflicting reuse and retain first-seen rank/order/chronology. The inherited `stage_route_events` accumulator remains documented bounded debt because it still relies on completed-node guards.
 
-The CI lifecycle evidence covers interrupt, checkpointer close/reopen, same-thread revision-guarded resume, proposal/finalization, a second reopen and terminal reread equality.
-
-Historical checkpoints are not automatically interpreted as unified checkpoints. Existing reviewed and supervised threads remain on their originating graph versions.
-
-## State and reducers
-
-The state hierarchy is additive:
-
-```text
-EstimationGraphState
-└─ ReviewedEstimationGraphState
-   └─ Session14EstimationGraphState
-      └─ Session14PlusEstimationGraphState
-         └─ UnifiedEstimationGraphState
-```
-
-Replay-sensitive unified reducers use stable identities, deduplicate identical replay, fail closed on conflicting reuse and retain semantic order. Nodes emit deltas rather than full accumulated lists.
-
-The inherited `stage_route_events` provider-routing accumulator remains documented bounded debt: it is not the canonical graph-transition ledger, and completed-node guards currently prevent duplicate execution. A dedicated semantic-ID reducer requires a separate compatibility slice.
-
-## Provider policy
-
-Documentation and configuration do not enable a provider route.
-
-The unified registry is built from a sanitized historical benchmark snapshot and distinguishes benchmark calibration from present reachability. Both primary and fallback routes must be capability-authorized. Unsupported efforts, excessive output limits, missing fallbacks and unrecognized model identities fail closed. Deterministic Python recovery remains explicit and normal CI makes no paid provider calls.
-
-A skipped credentialed provider job means current reachability is unverified; it does not invalidate historical calibration evidence.
-
-## Context and competition
-
-Compacted context is a derived projection, never source of truth. It preserves identity, versions, hard constraints, evidence references, route-plan identity, checkpoint/human revision, source branch/SHA, rollback and claim boundaries. Sensitive content and stale source revisions are rejected.
-
-Competition produces immutable baseline, aggressive, conservative and synthesized candidates. Python owns arithmetic and evidence bounds. Missing hours and material divergence escalate; downstream coherence validation may veto synthesis. No model owns authoritative totals.
-
-## Validation
-
-Normal CI is deterministic and requires:
-
-```text
-Ruff
-Python compilation
-full pytest suite excluding live-provider tests
-git diff --check
-tracked-secret scan
-real PostgreSQL pause/reopen/resume evidence
-production image build and readiness probes
-sanitized readiness assertions
-```
-
-The exact final proof is the latest successful PR #21 workflow whose `head_sha` equals the current consolidation branch head, plus artifacts named with the same SHA.
+Historical benchmark calibration is distinct from present reachability. Both primary and fallback routes must be capability-authorized. Unsupported effort, excessive output, missing fallback and unknown model identities fail closed. Deterministic CI performs no paid provider calls.
 
 ## Control Room
-
-Implementation:
-
-```text
-app/ui/unified_control_room.py
-```
-
-Run locally after FastAPI is available:
 
 ```zsh
 ESTIMADOR_BACKEND_URL=http://localhost:8000 \
   uv run streamlit run app/ui/unified_control_room.py
 ```
 
-Deterministic tests cover URL construction, decision payloads, candidate/route projection and recursive privacy rejection. A human-visible browser smoke and screenshot are not present in current CI evidence, so the UI is contract-tested but browser-unverified.
+The implementation and privacy/decision helpers are deterministic-contract-tested. No browser screenshot or human-visible smoke artifact is part of current CI evidence, so the UI is browser-unverified.
+
+## Current Session 13 status — historical submission compatibility
+
+This section preserves the mandatory Session 13 coursework front door and its tested historical contracts. It is not the current consolidation branch.
+
+Current branch:
+
+```text
+gg-session-13/pre-work
+```
+
+Teacher-facing branch:
+
+```text
+session-13/pre-work
+```
+
+Historical graph endpoint:
+
+```text
+POST /api/v1/estimate/graph
+```
+
+Historical Session 13 evidence and instructions:
+
+- `docs/session13_task13_compliance.md`
+- `docs/session13_plus_roadmap.md`
+- `docs/session13_plus_live_runtime_evidence.md`
+- `docs/session13_presentation_guide_es.md`
+- `artifacts/session13/complex_graph_execution_deterministic.json`
+- `artifacts/session13/postgres_persistence_proof.json`
+- `artifacts/session13/live_postgres_logfire_trace_summary.json`
+
+Deterministic validation command retained for coursework compatibility:
+
+```zsh
+OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
+```
+
+Historical provider policy: prefer DeepSeek first and use Kimi only as fallback or comparison.
+
+The Session 13 trace identifier remains historical evidence:
+
+```text
+019f66df5be5e9f5db11c167f81b79dd
+```
+
+## Historical Session 12 agentic work
+
+The Session 12 — hand-written agent loop is preserved from branch `gg-session-12/pre-work`.
+
+Session 12 agentic handoff:
+
+- `docs/session12_agentic_handoff.md`
+- `docs/session12_task12_compliance.md`
+
+That material documents the hand-written tool loop, provider-plan evidence and its original claim boundaries. It does not replace the LangGraph Session 13/14 paths.
+
+## Historical Session 10 retrieval background
+
+The historical retrieval stack remains available:
+
+| Layer | Files |
+| --- | --- |
+| Fusion | `app/embedding_pipeline/fusion.py` |
+| Reranking | `app/embedding_pipeline/reranker.py` |
+| Search API | `POST /search` |
+| Evaluation | `evals/session10_retrieval/` |
+
+Historical A/B/C/D matrix:
+
+| Config | Search | Reranking |
+| --- | --- | --- |
+| A | Vector | No |
+| B | Hybrid | No |
+| C | Vector | Yes |
+| D | Hybrid | Yes |
+
+Historical runner:
+
+```zsh
+uv run python -m evals.session10_retrieval.run \
+  --output evals/session10_retrieval/results.json \
+  --report evals/session10_retrieval/REPORT.md \
+  --k 5 \
+  --recall-k 8
+```
+
+The report distinguishes `result budget precision@5` from `unique budget precision@5`. The corpus has only four budgets, eight component chunks and a small query set, so it does not prove hybrid retrieval or reranking superiority.
+
+Historical session references remain indexed in `docs/HISTORICAL_SESSIONS.md`.
 
 ## Claim boundary
 
-Supported only by exact-head deterministic/infrastructure evidence:
+Supported only by a successful exact-head workflow and same-SHA artifacts:
 
 - a separately versioned unified graph exists;
-- the supervisor owns graph transitions;
-- persistent approve/adjust/reject returns through the supervisor;
-- additive APIs and rollback paths are present;
-- PostgreSQL and production-container gates can validate the exact head.
+- one supervisor owns graph transitions;
+- protected human decisions return through the supervisor;
+- additive API and rollback paths exist;
+- PostgreSQL and production-container gates validate the exact source head.
 
 Not established:
 
-- superiority over reviewed or supervised paths;
+- production readiness or superiority;
 - current reachability of every historically calibrated provider;
 - lossless context compaction;
 - automatic migration of historical checkpoints;
 - browser-validated Control Room usability;
-- production promotion or authorization to merge.
-
-## Historical coursework
-
-Historical Session 10–14 submissions, artifacts and presentation material remain under `docs/`, `artifacts/`, `evals/` and `exercises/`. Their recorded branch names, SHAs, runs and test counts are historical evidence, not current consolidation status. See `docs/HISTORICAL_SESSIONS.md` and the session-specific handoff documents when auditing those lines.
+- authorization to merge or retire rollback paths.
