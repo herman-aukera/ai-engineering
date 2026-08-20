@@ -7,10 +7,11 @@ DEPENDS_ON: app routers, graph runtimes, middleware logging
 """
 
 import logging
+import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -42,6 +43,14 @@ from app.routers.v2_estimations import router as v2_estimations_router
 from app.services.litellm_timeout import install_litellm_request_timeout
 
 logger = logging.getLogger(__name__)
+
+
+def _cors_origins() -> list[str]:
+    """Return explicit cross-origin callers; same-origin demos need no CORS grant."""
+
+    raw = os.getenv("CORS_ORIGINS", "")
+    origins = [item.strip() for item in raw.split(",") if item.strip()]
+    return origins
 
 
 @asynccontextmanager
@@ -117,11 +126,28 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next) -> Response:
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = (
+        "camera=(), microphone=(), geolocation=(), payment=()"
+    )
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+    return response
+
 
 setup_logging(app)
 
@@ -142,6 +168,17 @@ def health_check():
     """Liveness endpoint for Codespaces, containers, and deployment probes."""
 
     return {"status": "ok", "version": "0.4.0"}
+
+
+@app.get("/version", tags=["observability"])
+def version() -> dict[str, str]:
+    """Expose safe build/release identity without runtime secrets."""
+
+    return {
+        "service": "estimador-cag",
+        "version": app.version,
+        "git_sha": os.getenv("GIT_SHA", "unknown"),
+    }
 
 
 @app.get("/metrics", tags=["observability"])
