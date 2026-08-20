@@ -14,9 +14,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.energy_chat.checkpoint_strict import StrictPostgresCheckpointer
 from app.energy_chat.conversation_router import router as conversation_router
@@ -35,6 +35,13 @@ V2_DEMO_PATH = DOCS_DIR / "energy_chat_v2_demo.html"
 
 def _truthy(value: str | None) -> bool:
     return (value or "").strip().casefold() in {"1", "true", "yes", "on"}
+
+
+def _cors_origins() -> list[str]:
+    """Return explicit cross-origin callers; same-origin needs no CORS grant."""
+
+    raw = os.getenv("EACHAT_CORS_ORIGINS", "")
+    return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 def _build_runtime() -> tuple[
@@ -90,9 +97,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.restart_persistent = checkpoint_backend is not None
     app.state.conversation_restart_persistent = conversation_store.restart_persistent
     app.state.strict_msgpack = True
+    app.state.startup_complete = True
     try:
         yield
     finally:
+        app.state.startup_complete = False
         conversation_store.close()
         if checkpoint_backend is not None:
             checkpoint_backend.close()
@@ -109,7 +118,7 @@ def create_production_app() -> FastAPI:
     )
     service.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=_cors_origins(),
         allow_credentials=False,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type"],
@@ -155,16 +164,51 @@ def create_production_app() -> FastAPI:
     )
     service.include_router(human_router, prefix="/energy-chat", tags=["energy-chat-human"])
 
+    @service.get("/startup", include_in_schema=False)
+    def startup(response: Response) -> dict[str, object]:
+        started = bool(getattr(service.state, "startup_complete", False))
+        if not started:
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "started" if started else "starting", "started": started}
+
     @service.get("/health", include_in_schema=False)
     def health() -> dict[str, object]:
+        """Cheap liveness probe: no database, cache, or LLM calls."""
+
+        return {"status": "ok", "service": "eachat"}
+
+    @service.get("/ready", include_in_schema=False)
+    def ready(response: Response) -> dict[str, object]:
+        """Report whether the configured application runtime completed startup.
+
+        Runtime construction already fails closed when production durable state cannot
+        be initialized. This endpoint deliberately never calls an LLM.
+        """
+
+        started = bool(getattr(service.state, "startup_complete", False))
+        runtime = getattr(service.state, "energy_chat_runtime", None)
+        conversation_store = getattr(service.state, "energy_chat_conversation_store", None)
+        is_ready = started and isinstance(runtime, EnergyChatApplicationRuntime) and (
+            conversation_store is not None
+        )
+        if not is_ready:
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {
-            "status": "ok",
-            "service": "eachat",
-            "restart_persistent": bool(service.state.restart_persistent),
+            "status": "ready" if is_ready else "not_ready",
+            "ready": is_ready,
+            "restart_persistent": bool(getattr(service.state, "restart_persistent", False)),
             "conversation_restart_persistent": bool(
-                service.state.conversation_restart_persistent
+                getattr(service.state, "conversation_restart_persistent", False)
             ),
-            "strict_msgpack": bool(service.state.strict_msgpack),
+            "strict_msgpack": bool(getattr(service.state, "strict_msgpack", False)),
+        }
+
+    @service.get("/version", include_in_schema=False)
+    def version() -> dict[str, str]:
+        return {
+            "service": "eachat",
+            "version": service.version,
+            "git_sha": os.getenv("GIT_SHA", "unknown"),
         }
 
     @service.get("/energy-chat/v2/demo", include_in_schema=False)
