@@ -11,6 +11,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test-estimador-cag:
     runs-on: ubuntu-latest
@@ -18,13 +21,21 @@ jobs:
       run:
         working-directory: estimador-cag
     env:
+      EXPECTED_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       DEEPSEEK_API_KEY: test
       KIMI_API_KEY: test
+      OPENAI_API_KEY: test
       PYTHONUNBUFFERED: "1"
 
     steps:
-      - name: Checkout
+      - name: Checkout exact validation head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -61,6 +72,9 @@ jobs:
 
       - name: Tests
         run: uv run pytest -q
+
+      - name: Session 15 EACODE production contract
+        run: uv run python scripts/session15_eacode_production_contract.py
 
       - name: Energy Core Smoke
         run: |
@@ -191,6 +205,18 @@ jobs:
             echo "Energy Core root smoke skipped because root shim or script is absent."
           fi
 
+      - name: Diff and tracked-secret gates
+        working-directory: .
+        run: |
+          git diff --check
+          matches="$(git grep -n -E 'sk-[A-Za-z0-9_-]{20,}|Bearer [A-Za-z0-9._-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- . ':!*.lock' || true)"
+          unapproved="$(printf '%s\n' "$matches" | grep -v '# test-secret-fixture' || true)"
+          if [ -n "$unapproved" ]; then
+            echo "Potential secret in tracked files"
+            printf '%s\n' "$unapproved" | cut -d: -f1-2
+            false
+          fi
+
       - name: Git status check
         working-directory: .
         run: |
@@ -200,3 +226,101 @@ jobs:
             exit 1
           fi
           echo "Repository stayed clean after CI smoke checks."
+
+  eacode-production-envelope:
+    if: >-
+      (github.event_name == 'push' && github.ref_name == 'EACODE') ||
+      (github.event_name == 'pull_request' && github.head_ref == 'EACODE') ||
+      github.event_name == 'workflow_dispatch'
+    needs: test-estimador-cag
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact validation head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Export frozen production requirements
+        working-directory: estimador-cag
+        run: >-
+          uv export --frozen --no-dev --no-emit-project
+          --format requirements-txt
+          --output-file deploy/eacode/requirements.generated.txt
+
+      - name: Build isolated non-root image
+        working-directory: estimador-cag
+        run: docker build --file deploy/eacode/Dockerfile --tag "eacode-canary:${EXPECTED_HEAD_SHA}" .
+
+      - name: Start isolated production service
+        run: |
+          docker run --detach --name eacode-canary \
+            --publish 127.0.0.1:8011:8000 \
+            --env GIT_SHA="$EXPECTED_HEAD_SHA" \
+            "eacode-canary:${EXPECTED_HEAD_SHA}"
+          ready=0
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8011/ready > /tmp/eacode-ready.json; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = "1"
+          curl -fsS http://127.0.0.1:8011/startup > /tmp/eacode-startup.json
+          curl -fsS http://127.0.0.1:8011/health > /tmp/eacode-health.json
+          curl -fsS http://127.0.0.1:8011/version > /tmp/eacode-version.json
+          curl -fsS http://127.0.0.1:8011/api/v1/eacode/status > /tmp/eacode-status.json
+          test "$(docker exec eacode-canary id -u)" != "0"
+
+      - name: Verify production claim boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          ready = json.loads(Path('/tmp/eacode-ready.json').read_text())
+          status = json.loads(Path('/tmp/eacode-status.json').read_text())
+          version = json.loads(Path('/tmp/eacode-version.json').read_text())
+          assert ready == {'status': 'ready', 'ready': True, 'control_plane': 'deterministic'}
+          assert status['control_plane'] == 'deterministic'
+          assert status['provider_selection'] == 'planned_only'
+          assert status['served_provider_evidence'] == 'requires_opt_in_live_call'
+          assert status['live_process_execution_enabled'] is False
+          assert version['git_sha']
+          PY
+
+      - name: Capture container evidence
+        if: always()
+        run: |
+          mkdir -p /tmp/eacode-envelope
+          cp /tmp/eacode-*.json /tmp/eacode-envelope/ 2>/dev/null || true
+          docker logs eacode-canary > /tmp/eacode-envelope/container.log 2>&1 || true
+          docker image inspect "eacode-canary:${EXPECTED_HEAD_SHA}" > /tmp/eacode-envelope/image-inspect.json 2>/dev/null || true
+
+      - name: Upload production-envelope evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eacode-production-envelope-${{ env.EXPECTED_HEAD_SHA }}
+          path: /tmp/eacode-envelope
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Stop canary
+        if: always()
+        run: docker rm --force eacode-canary 2>/dev/null || true
