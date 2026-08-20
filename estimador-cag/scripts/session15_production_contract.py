@@ -3,7 +3,7 @@
 This check intentionally avoids network/provider calls. It protects repository
 properties that can regress even when unit suites remain green: public API
 versioning, LLM-free blocking CI, non-root images, single-ingress production
-wiring, and immutable deploy/rollback semantics.
+wiring, and immutable release/deploy/rollback semantics.
 """
 
 from __future__ import annotations
@@ -71,6 +71,22 @@ def _check_image_contract() -> None:
         raise AssertionError("provider secrets/configuration must not be baked into the image")
 
 
+def _check_release_contract() -> None:
+    release = _read(REPO_ROOT / ".github" / "workflows" / "release-image.yml")
+    required = (
+        "workflow_dispatch:",
+        "packages: write",
+        "push: true",
+        "${{ github.sha }}",
+        "steps.build.outputs.digest",
+    )
+    missing = [marker for marker in required if marker not in release]
+    if missing:
+        raise AssertionError(f"immutable release workflow is missing markers: {missing}")
+    if "OPENAI_API_KEY" in release or "DEEPSEEK_API_KEY" in release or "KIMI_API_KEY" in release:
+        raise AssertionError("image release must not require provider credentials")
+
+
 def _check_single_ingress_contract() -> None:
     compose = _read(PROJECT_ROOT / "deploy" / "session15" / "docker-compose.production.yml")
     caddy = _read(PROJECT_ROOT / "deploy" / "session15" / "Caddyfile")
@@ -103,6 +119,7 @@ def main() -> None:
     _check_api_contract()
     _check_blocking_ci_contract()
     _check_image_contract()
+    _check_release_contract()
     _check_single_ingress_contract()
     _check_deploy_contract()
     print("session15 production contract: PASS")
