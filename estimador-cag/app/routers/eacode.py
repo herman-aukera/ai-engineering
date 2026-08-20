@@ -158,7 +158,7 @@ def selector_ui() -> HTMLResponse:
       data.entitled_surfaces = form.has('kimi_code_entitled') ? ['kimi_code'] : [];
       delete data.kimi_code_entitled;
       if (!data.premium_reason) data.premium_reason = null;
-      const response = await fetch('/eacode/select', {
+      const response = await fetch('./select', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
       });
       document.getElementById('result').textContent = JSON.stringify(await response.json(), null, 2);
