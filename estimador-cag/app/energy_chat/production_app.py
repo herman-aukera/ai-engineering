@@ -173,9 +173,17 @@ def create_production_app() -> FastAPI:
 
     @service.get("/health", include_in_schema=False)
     def health() -> dict[str, object]:
-        """Cheap liveness probe: no database, cache, or LLM calls."""
+        """Cheap liveness probe: reports configured state without I/O or LLM calls."""
 
-        return {"status": "ok", "service": "eachat"}
+        return {
+            "status": "ok",
+            "service": "eachat",
+            "restart_persistent": bool(service.state.restart_persistent),
+            "conversation_restart_persistent": bool(
+                service.state.conversation_restart_persistent
+            ),
+            "strict_msgpack": bool(service.state.strict_msgpack),
+        }
 
     @service.get("/ready", include_in_schema=False)
     def ready(response: Response) -> dict[str, object]:
