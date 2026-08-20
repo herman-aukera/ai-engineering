@@ -1,9 +1,9 @@
 """Deterministic Session 15 production-envelope contract gate.
 
-This check intentionally avoids network/provider calls.  It protects the repository
-properties that can regress even when the unit suites remain green: public API
-versioning, LLM-free blocking CI, non-root images, and single-ingress production
-Compose wiring.
+This check intentionally avoids network/provider calls. It protects repository
+properties that can regress even when unit suites remain green: public API
+versioning, LLM-free blocking CI, non-root images, single-ingress production
+wiring, and immutable deploy/rollback semantics.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ def _check_api_contract() -> None:
     schema = app.openapi()
     paths = schema.get("paths", {})
     required_get_paths = {
+        "/startup",
         "/health",
         "/ready",
         "/api/v1/estimate/graph/unified/readiness",
@@ -85,11 +86,25 @@ def _check_single_ingress_contract() -> None:
         raise AssertionError("Caddy must be the single ingress to the private AI service")
 
 
+def _check_deploy_contract() -> None:
+    deploy = _read(PROJECT_ROOT / "deploy" / "session15" / "deploy.sh")
+    rollback = _read(PROJECT_ROOT / "deploy" / "session15" / "rollback.sh")
+    if "@sha256:" not in deploy or "docker compose" not in deploy:
+        raise AssertionError("deployment must require and deploy an immutable image digest")
+    if "docker build" in deploy:
+        raise AssertionError("deployment must not rebuild the application artifact")
+    if "/ready" not in deploy:
+        raise AssertionError("deployment must be gated on readiness")
+    if "ROLLBACK_IMAGE" not in rollback or "@sha256:" not in rollback:
+        raise AssertionError("rollback must require a previous immutable image digest")
+
+
 def main() -> None:
     _check_api_contract()
     _check_blocking_ci_contract()
     _check_image_contract()
     _check_single_ingress_contract()
+    _check_deploy_contract()
     print("session15 production contract: PASS")
 
 
