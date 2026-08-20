@@ -1,8 +1,9 @@
-"""Operational readiness endpoint for deployment and orchestration probes."""
+"""Operational startup/readiness endpoints for deployment and orchestration probes."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Request, Response, status
+from pydantic import BaseModel, ConfigDict
 
 from app.services.production_readiness import (
     ProductionReadinessReport,
@@ -11,6 +12,22 @@ from app.services.production_readiness import (
 )
 
 router = APIRouter(tags=["health"])
+
+
+class StartupReport(BaseModel):
+    """Cheap local signal that FastAPI lifespan initialization has completed."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: str = "started"
+    started: bool = True
+
+
+@router.get("/startup", response_model=StartupReport)
+def startup() -> StartupReport:
+    """Confirm startup completion without touching databases, caches, or LLMs."""
+
+    return StartupReport()
 
 
 @router.get(
