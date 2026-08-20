@@ -74,6 +74,22 @@ def _check_image_contract() -> None:
         raise AssertionError("EACHAT image must start the isolated production composition root")
 
 
+def _check_release_contract() -> None:
+    release = _read(REPO_ROOT / ".github" / "workflows" / "eachat-release-image.yml")
+    required = (
+        "workflow_dispatch:",
+        "packages: write",
+        "push: true",
+        "${{ github.sha }}",
+        "steps.build.outputs.digest",
+    )
+    missing = [marker for marker in required if marker not in release]
+    if missing:
+        raise AssertionError(f"EACHAT immutable release workflow is missing markers: {missing}")
+    if "DEEPSEEK_API_KEY" in release or "KIMI_API_KEY" in release or "OPENAI_API_KEY" in release:
+        raise AssertionError("EACHAT image release must not require provider credentials")
+
+
 def _check_single_ingress() -> None:
     base = PROJECT_ROOT / "deploy" / "eachat" / "session15"
     compose = _read(base / "docker-compose.production.yml")
@@ -114,6 +130,7 @@ def main() -> None:
     _check_public_contract()
     _check_ci_separation()
     _check_image_contract()
+    _check_release_contract()
     _check_single_ingress()
     _check_durable_runtime_contract()
     _check_deploy_contract()
