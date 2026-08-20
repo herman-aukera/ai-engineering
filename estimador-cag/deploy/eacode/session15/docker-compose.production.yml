@@ -1,0 +1,51 @@
+services:
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST to the public DNS name}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      eacode:
+        condition: service_healthy
+    networks:
+      - edge
+      - internal
+
+  eacode:
+    image: ${EACODE_IMAGE:?Set EACODE_IMAGE to an immutable image digest}
+    pull_policy: always
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      EACODE_CORS_ORIGINS: ${EACODE_CORS_ORIGINS:-}
+      GIT_SHA: ${GIT_SHA:-unknown}
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    networks:
+      - internal
+
+networks:
+  edge:
+  internal:
+    internal: true
+
+volumes:
+  caddy_data:
+  caddy_config:
