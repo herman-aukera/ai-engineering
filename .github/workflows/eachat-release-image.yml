@@ -1,0 +1,59 @@
+name: EACHAT - Release immutable image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release-image:
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout exact release head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Verify and export isolated production lock
+        working-directory: estimador-cag
+        run: |
+          uv lock --project deploy/eachat --check
+          cd deploy/eachat
+          sha256sum --check uv.lock.sha256
+          cd ../..
+          uv export --project deploy/eachat --frozen --no-dev --format requirements-txt --output-file deploy/eachat/requirements.generated.txt
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push immutable SHA image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: estimador-cag
+          file: estimador-cag/deploy/eachat/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/eachat:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Emit deploy identity
+        run: |
+          echo "image=ghcr.io/${{ github.repository_owner }}/eachat@${{ steps.build.outputs.digest }}"
+          echo "commit=${{ github.sha }}"
