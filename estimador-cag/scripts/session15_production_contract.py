@@ -2,8 +2,8 @@
 
 This check intentionally avoids network/provider calls. It protects repository
 properties that can regress even when unit suites remain green: public API
-versioning, LLM-free blocking CI, non-root images, single-ingress production
-wiring, and immutable release/deploy/rollback semantics.
+versioning, LLM-free blocking CI, non-root images, explicit CORS, single-ingress
+production wiring, and immutable release/deploy/rollback semantics.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ def _check_api_contract() -> None:
         "/startup",
         "/health",
         "/ready",
+        "/version",
         "/api/v1/estimate/graph/unified/readiness",
     }
     missing = sorted(
@@ -42,6 +43,10 @@ def _check_api_contract() -> None:
     non_v1 = sorted(path for path in versioned if not path.startswith("/api/v1/"))
     if non_v1:
         raise AssertionError(f"new /api routes must be major-versioned under /api/v1: {non_v1}")
+
+    main_source = _read(PROJECT_ROOT / "app" / "main.py")
+    if 'allow_origins=["*"]' in main_source or "allow_origins=['*']" in main_source:
+        raise AssertionError("production-capable app must not default CORS to wildcard origins")
 
 
 def _check_blocking_ci_contract() -> None:
@@ -79,6 +84,7 @@ def _check_release_contract() -> None:
         "push: true",
         "${{ github.sha }}",
         "steps.build.outputs.digest",
+        "org.opencontainers.image.revision",
     )
     missing = [marker for marker in required if marker not in release]
     if missing:
@@ -98,8 +104,8 @@ def _check_single_ingress_contract() -> None:
             raise AssertionError(
                 f"production Compose exposes an internal service/port: {forbidden_binding}"
             )
-    if "reverse_proxy ai_service:8000" not in caddy:
-        raise AssertionError("Caddy must be the single ingress to the private AI service")
+    if "reverse_proxy ai_service:8000" not in caddy or "health_uri /ready" not in caddy:
+        raise AssertionError("Caddy must be the readiness-aware single ingress to the private AI service")
 
 
 def _check_deploy_contract() -> None:
@@ -111,6 +117,8 @@ def _check_deploy_contract() -> None:
         raise AssertionError("deployment must not rebuild the application artifact")
     if "/ready" not in deploy:
         raise AssertionError("deployment must be gated on readiness")
+    if "org.opencontainers.image.revision" not in deploy:
+        raise AssertionError("deployment must derive safe Git SHA release metadata from the image")
     if "ROLLBACK_IMAGE" not in rollback or "@sha256:" not in rollback:
         raise AssertionError("rollback must require a previous immutable image digest")
 
