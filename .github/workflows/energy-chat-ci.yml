@@ -49,3 +49,18 @@ jobs:
 
       - name: Energy Chat validation gate
         run: bash scripts/validate_energy_chat.sh
+
+      - name: Session 15 production contract
+        run: uv run python scripts/session15_eachat_production_contract.py
+
+      - name: Secret and diff gates
+        working-directory: .
+        run: |
+          git diff --check
+          matches="$(git grep -n -E 'sk-[A-Za-z0-9_-]{20,}|Bearer [A-Za-z0-9._-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- . ':!*.lock' || true)"
+          unapproved="$(printf '%s\n' "$matches" | grep -v '# test-secret-fixture' || true)"
+          if [ -n "$unapproved" ]; then
+            echo "Potential secret in tracked files"
+            printf '%s\n' "$unapproved" | cut -d: -f1-2
+            false
+          fi
