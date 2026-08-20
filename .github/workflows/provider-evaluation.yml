@@ -1,0 +1,66 @@
+name: Provider evaluation - non-blocking
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_live_provider_tests:
+        description: Also run tests marked live_provider
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  matched-provider-evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: estimador-cag
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      DEEPSEEK_BASE_URL: https://api.deepseek.com/v1
+      KIMI_BASE_URL: https://api.moonshot.ai/v1
+      OPENAI_BASE_URL: https://api.openai.com/v1
+      KIMI_BENCHMARK_ROUTES: ${{ vars.KIMI_BENCHMARK_ROUTES }}
+    steps:
+      - name: Checkout exact evaluation head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Verify bounded provider credentials
+        run: |
+          test -n "$DEEPSEEK_API_KEY" || (echo "DEEPSEEK_API_KEY is missing" && exit 1)
+          test -n "$KIMI_API_KEY" || (echo "KIMI_API_KEY is missing" && exit 1)
+
+      - name: Run matched provider benchmark
+        run: uv run python scripts/provider_readiness_benchmark.py
+
+      - name: Run explicitly marked live-provider tests
+        if: inputs.run_live_provider_tests
+        run: uv run pytest -q -m live_provider
+
+      - name: Upload sanitized provider evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-evaluation-${{ github.sha }}
+          path: estimador-cag/artifacts/provider-readiness
+          if-no-files-found: warn
+          retention-days: 30
