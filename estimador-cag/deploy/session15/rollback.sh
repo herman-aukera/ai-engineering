@@ -12,4 +12,4 @@ case "$ROLLBACK_IMAGE" in
 esac
 
 ESTIMADOR_IMAGE="$ROLLBACK_IMAGE" \
-  "$(dirname "$0")/deploy.sh"
+  sh "$(dirname "$0")/deploy.sh"
