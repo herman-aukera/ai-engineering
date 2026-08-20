@@ -1,0 +1,58 @@
+services:
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST to the public DNS name}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      eachat:
+        condition: service_healthy
+    networks:
+      - edge
+      - internal
+
+  eachat:
+    image: ${EACHAT_IMAGE:?Set EACHAT_IMAGE to an immutable image digest}
+    pull_policy: always
+    restart: unless-stopped
+    stop_grace_period: 60s
+    environment:
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      EACHAT_POSTGRES_URL: ${EACHAT_POSTGRES_URL:?Set EACHAT_POSTGRES_URL to durable external PostgreSQL}
+      EACHAT_MEMORY_ENCRYPTION_KEY: ${EACHAT_MEMORY_ENCRYPTION_KEY:?Set EACHAT_MEMORY_ENCRYPTION_KEY}
+      EACHAT_V2_ENABLED: ${EACHAT_V2_ENABLED:-true}
+      EACHAT_CORS_ORIGINS: ${EACHAT_CORS_ORIGINS:-}
+      GIT_SHA: ${GIT_SHA:-unknown}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+    networks:
+      - internal
+
+networks:
+  edge:
+  internal:
+    internal: true
+
+volumes:
+  caddy_data:
+  caddy_config:
