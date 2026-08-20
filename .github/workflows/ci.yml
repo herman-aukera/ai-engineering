@@ -47,6 +47,8 @@ jobs:
         run: uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null)
       - name: Deterministic tests
         run: uv run pytest -q -m "not live_provider"
+      - name: Session 15 production contract
+        run: uv run python scripts/session15_production_contract.py
       - name: Diff and secret gates
         working-directory: .
         run: |
@@ -59,47 +61,10 @@ jobs:
             false
           fi
 
-  provider-readiness:
-    if: github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'gg-session-13/plus'
-    needs: test-estimador-cag
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: estimador-cag
-    env:
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-      KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      DEEPSEEK_BASE_URL: https://api.deepseek.com/v1
-      KIMI_BASE_URL: https://api.moonshot.ai/v1
-      OPENAI_BASE_URL: https://api.openai.com/v1
-      KIMI_BENCHMARK_ROUTES: ${{ vars.KIMI_BENCHMARK_ROUTES }}
-    steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: uv sync --frozen --extra dev
-      - name: Run matched provider benchmark
-        run: uv run python scripts/provider_readiness_benchmark.py
-      - name: Upload sanitized provider evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: session13-plus-provider-readiness-${{ github.event.pull_request.head.sha }}
-          path: estimador-cag/artifacts/provider-readiness
-          if-no-files-found: error
-          retention-days: 30
-
   unified-postgres-evidence:
-    if: github.event_name == 'pull_request' && github.head_ref == 'gg-session-14/plus-consolidated'
+    if: >-
+      (github.event_name == 'pull_request' && github.head_ref == 'gg-session-14/plus-consolidated') ||
+      (github.event_name == 'push' && github.ref_name == 'gg-session-14/plus-consolidated')
     needs: test-estimador-cag
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -131,7 +96,7 @@ jobs:
       - name: Checkout exact unified head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Set up Python
@@ -141,20 +106,21 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --extra dev
       - name: Capture unified PostgreSQL lifecycle
-        run: GITHUB_SHA=${{ github.event.pull_request.head.sha }} uv run python -m scripts.session13_14_unified_postgres_evidence
+        run: GITHUB_SHA=${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }} uv run python -m scripts.session13_14_unified_postgres_evidence
       - name: Upload unified lifecycle evidence
         uses: actions/upload-artifact@v4
         with:
-          name: session13-14-unified-postgres-${{ github.event.pull_request.head.sha }}
+          name: session13-14-unified-postgres-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           path: estimador-cag/artifacts/session13_14_unified/postgres_pause_resume.json
           if-no-files-found: error
           retention-days: 30
 
   container-readiness:
     if: >-
-      github.event_name == 'pull_request' &&
-      ((github.base_ref == 'main' && github.head_ref == 'gg-session-13/plus') ||
-       github.head_ref == 'gg-session-14/plus-consolidated')
+      (github.event_name == 'pull_request' &&
+       ((github.base_ref == 'main' && github.head_ref == 'gg-session-13/plus') ||
+        github.head_ref == 'gg-session-14/plus-consolidated')) ||
+      (github.event_name == 'push' && github.ref_name == 'gg-session-14/plus-consolidated')
     needs: test-estimador-cag
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -182,12 +148,12 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout exact validation head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - name: Build production image
-        run: docker build -t estimador-cag:${{ github.event.pull_request.head.sha }} estimador-cag
+        run: docker build -t estimador-cag:${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }} estimador-cag
       - name: Run production image
         run: |
           docker run --detach --name estimador-cag \
@@ -199,7 +165,7 @@ jobs:
             --env OPENAI_API_KEY=dummy \
             --env GRAPH_RETRIEVAL_MODE=parallel \
             --env GRAPH_RETRIEVAL_MAX_CONCURRENCY=4 \
-            estimador-cag:${{ github.event.pull_request.head.sha }}
+            estimador-cag:${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       - name: Probe liveness and readiness
         run: |
           mkdir -p /tmp/container-readiness
@@ -233,7 +199,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: container-readiness-evidence-${{ github.event.pull_request.head.sha }}
+          name: container-readiness-evidence-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           path: /tmp/container-readiness
           if-no-files-found: error
           retention-days: 14
