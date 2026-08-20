@@ -81,6 +81,22 @@ def _check_image_contract() -> None:
         raise AssertionError("provider credentials/configuration must not be baked into EACODE image")
 
 
+def _check_release_contract() -> None:
+    release = _read(REPO_ROOT / ".github" / "workflows" / "eacode-release-image.yml")
+    required = (
+        "workflow_dispatch:",
+        "packages: write",
+        "push: true",
+        "${{ github.sha }}",
+        "steps.image.outputs.digest",
+    )
+    missing = [marker for marker in required if marker not in release]
+    if missing:
+        raise AssertionError(f"EACODE immutable release workflow is missing markers: {missing}")
+    if "DEEPSEEK_API_KEY" in release or "KIMI_API_KEY" in release or "OPENAI_API_KEY" in release:
+        raise AssertionError("EACODE image release must not require provider credentials")
+
+
 def _check_single_ingress() -> None:
     base = PROJECT_ROOT / "deploy" / "eacode" / "session15"
     compose = _read(base / "docker-compose.production.yml")
@@ -110,6 +126,7 @@ def main() -> None:
     _check_public_contract()
     _check_ci_separation()
     _check_image_contract()
+    _check_release_contract()
     _check_single_ingress()
     _check_deploy_contract()
     print("eacode session15 production contract: PASS")
