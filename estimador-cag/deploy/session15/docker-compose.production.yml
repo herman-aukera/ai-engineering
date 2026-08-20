@@ -24,6 +24,8 @@ services:
     restart: unless-stopped
     stop_grace_period: 45s
     environment:
+      GIT_SHA: ${GIT_SHA:-unknown}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to durable external PostgreSQL}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL to the runtime Redis endpoint}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
