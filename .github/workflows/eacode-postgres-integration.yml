@@ -67,12 +67,9 @@ jobs:
         working-directory: estimador-cag
         run: uv run pytest -q tests/integration/test_eacode_postgres_authority.py
 
-      - name: Export frozen production requirements
+      - name: Verify and export isolated production lock
         working-directory: estimador-cag
-        run: >-
-          uv export --frozen --no-dev --no-emit-project
-          --format requirements-txt
-          --output-file deploy/eacode/requirements.generated.txt
+        run: python scripts/eacode_export_production_requirements.py
 
       - name: Build isolated non-root image
         working-directory: estimador-cag
