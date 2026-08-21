@@ -1,11 +1,6 @@
 """Deterministic Session 15 production-envelope contract for EACODE."""
 
-from __future__ import annotations
-
 from pathlib import Path
-
-from app.eacode.production_app import create_production_app
-from app.main import app as coursework_app
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +18,9 @@ def _paths(app) -> set[str]:
 
 
 def _check_public_contract() -> None:
+    from app.eacode.production_app import create_production_app
+    from app.main import app as coursework_app
+
     production_paths = _paths(create_production_app())
     required = {
         "/startup",
@@ -89,6 +87,7 @@ def _check_release_contract() -> None:
         "push: true",
         "${{ github.sha }}",
         "steps.image.outputs.digest",
+        "org.opencontainers.image.revision",
     )
     missing = [marker for marker in required if marker not in release]
     if missing:
@@ -118,6 +117,8 @@ def _check_deploy_contract() -> None:
         raise AssertionError("EACODE deployment must use an immutable digest without rebuilding")
     if "/ready" not in deploy:
         raise AssertionError("EACODE deployment must be readiness-gated")
+    if "org.opencontainers.image.revision" not in deploy:
+        raise AssertionError("EACODE deployment must derive safe Git SHA release metadata from the image")
     if "ROLLBACK_IMAGE" not in rollback or "@sha256:" not in rollback:
         raise AssertionError("EACODE rollback must use a previous immutable image digest")
 
