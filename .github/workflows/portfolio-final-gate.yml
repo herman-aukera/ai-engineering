@@ -1,0 +1,181 @@
+name: Energy-Aware Portfolio Final Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portfolio-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout canonical main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: portfolio/main
+          fetch-depth: 1
+      - name: Checkout canonical EACHAT
+        uses: actions/checkout@v4
+        with:
+          ref: EACHAT
+          path: portfolio/eachat
+          fetch-depth: 1
+      - name: Checkout canonical EACODE
+        uses: actions/checkout@v4
+        with:
+          ref: EACODE
+          path: portfolio/eacode
+          fetch-depth: 1
+      - name: Capture exact canonical heads
+        run: |
+          mkdir -p portfolio/evidence
+          {
+            printf 'main=%s\n' "$(git -C portfolio/main rev-parse HEAD)"
+            printf 'EACHAT=%s\n' "$(git -C portfolio/eachat rev-parse HEAD)"
+            printf 'EACODE=%s\n' "$(git -C portfolio/eacode rev-parse HEAD)"
+          } | tee portfolio/evidence/canonical-heads.txt
+      - name: Run portfolio protocol, documentation and split evaluation
+        run: |
+          python portfolio/main/estimador-cag/scripts/portfolio_evaluation.py \
+            portfolio/main/estimador-cag \
+            portfolio/eachat/estimador-cag \
+            portfolio/eacode/estimador-cag \
+            --output portfolio/evidence/portfolio-evaluation.json
+      - name: Verify canonical branch set declared by products
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          expected = {
+              'main': 'estimator',
+              'EACHAT': 'eachat',
+              'EACODE': 'eacode',
+          }
+          roots = {
+              'main': Path('portfolio/main/estimador-cag'),
+              'EACHAT': Path('portfolio/eachat/estimador-cag'),
+              'EACODE': Path('portfolio/eacode/estimador-cag'),
+          }
+          for branch, root in roots.items():
+              manifest = json.loads((root / 'docs/energy_aware_product_manifest.json').read_text())
+              assert manifest['canonical_branch'] == branch
+              assert manifest['product'] == expected[branch]
+              assert manifest.get('forbidden_peer_imports')
+          PY
+      - name: Upload portfolio evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: energy-aware-portfolio-final-${{ github.run_id }}
+          path: portfolio/evidence
+          if-no-files-found: error
+          retention-days: 30
+
+  deterministic-product-gates:
+    name: deterministic-${{ matrix.product }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - product: estimator
+            ref: main
+            smoke: tests/smoke/test_session15_http_smoke.py
+            contract: scripts/session15_production_contract.py
+            exporter: scripts/estimator_export_production_requirements.py
+            dockerfile: Dockerfile
+          - product: eachat
+            ref: EACHAT
+            smoke: tests/smoke/test_eachat_production_smoke.py
+            contract: scripts/session15_eachat_production_contract.py
+            exporter: scripts/eachat_export_production_requirements.py
+            dockerfile: deploy/eachat/Dockerfile
+          - product: eacode
+            ref: EACODE
+            smoke: tests/smoke/test_eacode_production_smoke.py
+            contract: scripts/session15_eacode_production_contract.py
+            exporter: scripts/eacode_export_production_requirements.py
+            dockerfile: deploy/eacode/Dockerfile
+    env:
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout canonical product head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+          fetch-depth: 0
+      - name: Capture exact product SHA
+        run: |
+          printf '%s=%s\n' '${{ matrix.ref }}' "$(git rev-parse HEAD)" | tee /tmp/product-head.txt
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deterministic development environment
+        working-directory: estimador-cag
+        run: uv sync --frozen --extra dev
+      - name: Ruff
+        working-directory: estimador-cag
+        run: |
+          TARGETS="app tests scripts"
+          test -d evals && TARGETS="$TARGETS evals"
+          test -d energy_core && TARGETS="$TARGETS energy_core"
+          uv run ruff check $TARGETS
+      - name: Compile first-party Python
+        working-directory: estimador-cag
+        run: |
+          uv run python -m py_compile $(find app tests scripts evals energy_core -name '*.py' -type f 2>/dev/null)
+      - name: Full deterministic suite
+        working-directory: estimador-cag
+        run: uv run pytest -q -m "not live_provider"
+      - name: Focused production smoke
+        working-directory: estimador-cag
+        run: uv run pytest -q '${{ matrix.smoke }}'
+      - name: Production contract
+        working-directory: estimador-cag
+        run: uv run python '${{ matrix.contract }}'
+      - name: Verify isolated production dependency closure
+        working-directory: estimador-cag
+        run: uv run python '${{ matrix.exporter }}'
+      - name: Energy-Aware protocol conformance
+        working-directory: estimador-cag
+        run: uv run python scripts/verify_energy_aware_protocol.py
+      - name: Documentation truth
+        working-directory: estimador-cag
+        run: uv run python scripts/verify_documentation_truth.py
+      - name: Product-only split dry run
+        working-directory: estimador-cag
+        run: uv run python scripts/product_split_dry_run.py
+      - name: Build production image from product-specific lock
+        working-directory: estimador-cag
+        run: docker build --file '${{ matrix.dockerfile }}' --tag 'ea-${{ matrix.product }}:${{ github.run_id }}' .
+      - name: Verify production image is non-root
+        run: test "$(docker run --rm --entrypoint id 'ea-${{ matrix.product }}:${{ github.run_id }}' -u)" != "0"
+      - name: Diff and tracked-secret gates
+        run: |
+          git diff --check
+          matches="$(git grep -n -E 'sk-[A-Za-z0-9_-]{20,}|Bearer [A-Za-z0-9._-]{20,}|BEGIN (RSA|OPENSSH|PRIVATE) KEY' -- . ':!*.lock' || true)"
+          unapproved="$(printf '%s\n' "$matches" | grep -v '# test-secret-fixture' || true)"
+          if [ -n "$unapproved" ]; then
+            printf '%s\n' "$unapproved" | cut -d: -f1-2
+            false
+          fi
+      - name: Verify validation did not mutate tracked source
+        run: test -z "$(git status --short)"
+      - name: Upload exact-head marker
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-head-${{ matrix.product }}-${{ github.run_id }}
+          path: /tmp/product-head.txt
+          if-no-files-found: error
+          retention-days: 30
