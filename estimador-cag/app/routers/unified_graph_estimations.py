@@ -1,14 +1,19 @@
-"""Additive API for the consolidated Session 13 + 14 Plus graph."""
+"""Canonical API for the consolidated Energy-Aware estimator graph."""
 
 from __future__ import annotations
 
 import logging
 from typing import cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from app.estimator.ownership_http import (
+    assert_estimation_owner,
+    authenticated_actor_id,
+    claim_estimation,
+)
 from app.generation.graph.nodes.session14_human_review import (
     IncompleteSession14AdjustmentError,
     StaleSession14HumanReviewError,
@@ -38,7 +43,7 @@ router = APIRouter(
 
 
 class UnifiedRuntimeReadiness(BaseModel):
-    """Sanitized readiness projection for the additive unified runtime."""
+    """Sanitized readiness projection for the canonical unified runtime."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -58,8 +63,6 @@ def _safe_error_type(value: object) -> str | None:
 def get_unified_graph_estimation_service(
     request: Request,
 ) -> GraphEstimationApplication:
-    """Resolve only the lifespan-owned unified service."""
-
     service = getattr(
         request.app.state,
         "unified_graph_estimation_service",
@@ -94,13 +97,25 @@ def _raise_resume_error(exc: Exception) -> None:
     ) from exc
 
 
+def _materialize_estimation_id(payload: GraphEstimationRequest) -> UUID:
+    return payload.estimation_id or uuid4()
+
+
+def _bind_authenticated_actor(
+    request: Request,
+    decision: GraphHumanReviewResumeRequest,
+) -> GraphHumanReviewResumeRequest:
+    actor_id = authenticated_actor_id(request)
+    if actor_id is None:
+        return decision
+    return decision.model_copy(update={"actor": actor_id})
+
+
 @router.get(
     "/readiness",
     response_model=UnifiedRuntimeReadiness,
 )
 def unified_graph_readiness(request: Request) -> UnifiedRuntimeReadiness:
-    """Report unified runtime availability without changing legacy readiness."""
-
     ready = (
         getattr(
             request.app.state,
@@ -133,18 +148,25 @@ def unified_graph_readiness(request: Request) -> UnifiedRuntimeReadiness:
 )
 async def create_unified_graph_estimation(
     payload: GraphEstimationRequest,
+    http_request: Request,
     service: GraphEstimationApplication = Depends(
         get_unified_graph_estimation_service
     ),
 ) -> GraphEstimationResponse:
-    """Execute the canonical graph without replacing older graph endpoints."""
+    """Execute one estimator thread owned by the authenticated production actor."""
 
+    estimation_id = _materialize_estimation_id(payload)
+    if payload.estimation_id is not None:
+        claim_estimation(http_request, str(estimation_id))
     try:
         run = await service.estimate(
             transcript=payload.transcript,
-            estimation_id=payload.estimation_id,
+            estimation_id=estimation_id,
         )
+        claim_estimation(http_request, str(estimation_id))
         return graph_response_from_run(run)
+    except HTTPException:
+        raise
     except ValidationError as exc:
         logger.exception("unified_graph_estimation_response_invalid")
         raise HTTPException(
@@ -165,18 +187,25 @@ async def create_unified_graph_estimation(
 )
 async def create_unified_control_projection(
     payload: GraphEstimationRequest,
+    http_request: Request,
     service: GraphEstimationApplication = Depends(
         get_unified_graph_estimation_service
     ),
 ) -> UnifiedControlProjection:
-    """Run the graph and return only allowlisted control-plane evidence."""
+    """Run one owned graph and return only allowlisted control-plane evidence."""
 
+    estimation_id = _materialize_estimation_id(payload)
+    if payload.estimation_id is not None:
+        claim_estimation(http_request, str(estimation_id))
     try:
         run = await service.estimate(
             transcript=payload.transcript,
-            estimation_id=payload.estimation_id,
+            estimation_id=estimation_id,
         )
+        claim_estimation(http_request, str(estimation_id))
         return unified_control_projection_from_run(run)
+    except HTTPException:
+        raise
     except ValidationError as exc:
         logger.exception("unified_control_projection_invalid")
         raise HTTPException(
@@ -198,18 +227,23 @@ async def create_unified_control_projection(
 async def resume_unified_graph_human_review(
     estimation_id: UUID,
     payload: GraphHumanReviewResumeRequest,
+    http_request: Request,
     service: GraphEstimationApplication = Depends(
         get_unified_graph_estimation_service
     ),
 ) -> GraphEstimationResponse:
-    """Resume the persisted unified graph on its original thread."""
+    """Resume a persisted graph only for its authenticated owner."""
 
+    assert_estimation_owner(http_request, str(estimation_id))
+    decision = _bind_authenticated_actor(http_request, payload)
     try:
         run = await service.resume_human_review(
             estimation_id=estimation_id,
-            decision=payload,
+            decision=decision,
         )
         return graph_response_from_run(run)
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("unified_graph_human_review_resume_failed")
         _raise_resume_error(exc)
@@ -223,18 +257,23 @@ async def resume_unified_graph_human_review(
 async def resume_unified_control_projection(
     estimation_id: UUID,
     payload: GraphHumanReviewResumeRequest,
+    http_request: Request,
     service: GraphEstimationApplication = Depends(
         get_unified_graph_estimation_service
     ),
 ) -> UnifiedControlProjection:
-    """Resume and return the refreshed allowlisted Control Room projection."""
+    """Resume an owned graph and return the refreshed safe control projection."""
 
+    assert_estimation_owner(http_request, str(estimation_id))
+    decision = _bind_authenticated_actor(http_request, payload)
     try:
         run = await service.resume_human_review(
             estimation_id=estimation_id,
-            decision=payload,
+            decision=decision,
         )
         return unified_control_projection_from_run(run)
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("unified_control_human_review_resume_failed")
         _raise_resume_error(exc)
