@@ -89,6 +89,56 @@ def _check_durable_authority_contract() -> None:
             raise AssertionError(f"EACODE restart integration is missing marker: {marker}")
 
 
+def _check_isolated_dependency_contract() -> None:
+    deploy_root = PROJECT_ROOT / "deploy" / "eacode"
+    pyproject = _read(deploy_root / "pyproject.toml")
+    _read(deploy_root / "uv.lock")
+    digest = _read(deploy_root / "uv.lock.sha256")
+    export_script = _read(PROJECT_ROOT / "scripts" / "eacode_export_production_requirements.py")
+
+    required = ("fastapi", "pydantic", "psycopg2-binary", "uvicorn")
+    missing = [package for package in required if package not in pyproject]
+    if missing:
+        raise AssertionError(f"EACODE isolated deploy project misses dependencies: {missing}")
+    forbidden = (
+        "anthropic",
+        "ipykernel",
+        "jupyter",
+        "langgraph",
+        "litellm",
+        "openai",
+        "pandas",
+        "redis",
+        "sentence-transformers",
+        "streamlit",
+        "torch",
+    )
+    leaked = [package for package in forbidden if package in pyproject.casefold()]
+    if leaked:
+        raise AssertionError(f"EACODE deploy project leaked monorepo-only dependencies: {leaked}")
+    if "uv.lock" not in digest or len(digest.split()[0]) != 64:
+        raise AssertionError("EACODE isolated lock digest file is malformed")
+    for marker in (
+        "uv lock",
+        "uv export",
+        "FORBIDDEN_PRODUCTION_PACKAGES",
+        "EACODE_ISOLATED_PRODUCTION_DEPENDENCIES_OK",
+    ):
+        if marker not in export_script:
+            raise AssertionError(f"EACODE production dependency gate misses marker: {marker}")
+
+    for workflow_name in (
+        "ci.yml",
+        "eacode-postgres-integration.yml",
+        "eacode-release-image.yml",
+    ):
+        workflow = _read(REPO_ROOT / ".github" / "workflows" / workflow_name)
+        if "eacode_export_production_requirements.py" not in workflow:
+            raise AssertionError(
+                f"{workflow_name} must consume the isolated EACODE production lock"
+            )
+
+
 def _check_image_contract() -> None:
     dockerfile = _read(PROJECT_ROOT / "deploy" / "eacode" / "Dockerfile")
     if "USER eacode" not in dockerfile:
@@ -147,6 +197,7 @@ def main() -> None:
     _check_public_contract()
     _check_ci_separation()
     _check_durable_authority_contract()
+    _check_isolated_dependency_contract()
     _check_image_contract()
     _check_release_contract()
     _check_single_ingress()
