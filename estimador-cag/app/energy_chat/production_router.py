@@ -14,6 +14,7 @@ from app.energy_chat.api_v2_contracts import (
 )
 from app.energy_chat.candidate_provider import ProviderBudgetExceededError
 from app.energy_chat.graph_application import build_v2_error_detail
+from app.energy_chat.ownership_http import assert_resource_owner, claim_resource
 from app.energy_chat.runtime_container import (
     EnergyChatApplicationRuntime,
     ThreadCheckpointConflictError,
@@ -61,14 +62,18 @@ def _bind_route_profile(
 def _execute_v2(
     request: EnergyChatV2Request,
     execution_profile: ExecutionProfile,
-    runtime: EnergyChatApplicationRuntime,
+    http_request: Request,
 ) -> EnergyChatV2Response:
     try:
         _require_v2_enabled()
-        return runtime.execute(
+        if request.thread_id is not None:
+            claim_resource(http_request, "thread", request.thread_id)
+        response = _application_runtime(http_request).execute(
             _bind_route_profile(request, execution_profile),
             execution_profile,
         )
+        claim_resource(http_request, "thread", response.thread_id)
+        return response
     except HTTPException:
         raise
     except ThreadCheckpointConflictError as exc:
@@ -128,11 +133,7 @@ def chat_v2_deterministic(
     request: EnergyChatV2Request,
     http_request: Request,
 ) -> EnergyChatV2Response:
-    return _execute_v2(
-        request,
-        "deterministic",
-        _application_runtime(http_request),
-    )
+    return _execute_v2(request, "deterministic", http_request)
 
 
 @router.post("/v2/chat/live", response_model=EnergyChatV2Response)
@@ -140,11 +141,7 @@ def chat_v2_live(
     request: EnergyChatV2Request,
     http_request: Request,
 ) -> EnergyChatV2Response:
-    return _execute_v2(
-        request,
-        "live_bounded",
-        _application_runtime(http_request),
-    )
+    return _execute_v2(request, "live_bounded", http_request)
 
 
 @router.get(
@@ -156,6 +153,7 @@ def get_v2_thread_state(
     thread_id: str = Path(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$"),
 ) -> EnergyChatV2ThreadStateResponse:
     _require_v2_enabled()
+    assert_resource_owner(http_request, "thread", thread_id)
     try:
         return _application_runtime(http_request).get_thread_state(thread_id)
     except ThreadCheckpointNotFoundError as exc:
@@ -177,6 +175,7 @@ def replay_v2_thread(
     thread_id: str = Path(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$"),
 ) -> EnergyChatV2Response:
     _require_v2_enabled()
+    assert_resource_owner(http_request, "thread", thread_id)
     try:
         return _application_runtime(http_request).replay(thread_id)
     except ThreadCheckpointNotFoundError as exc:
