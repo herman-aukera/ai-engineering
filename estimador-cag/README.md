@@ -28,9 +28,11 @@ Production requires `EACHAT_SESSION_SIGNING_KEY`. Backend-signed sessions carry 
 
 Production also requires PostgreSQL-backed strict LangGraph checkpoints and encrypted conversation memory. Ownership is persisted in PostgreSQL, so application replacement cannot erase the access boundary. `EACHAT_ALLOW_IN_MEMORY=true` is test/development-only.
 
+`/health` remains a cheap local liveness probe. `/ready` performs a bounded authority-store availability check and returns 503 if the PostgreSQL ownership authority is unreachable; this removes a live-but-unsafe process from service without making an LLM/provider call.
+
 ## Isolated production artifact
 
-EACHAT already carries a dedicated production lock:
+EACHAT carries a dedicated production lock:
 
 ```text
 deploy/eachat/pyproject.toml
@@ -61,7 +63,7 @@ The container canary destroys and recreates the app against the same PostgreSQL 
 
 A sanitized bounded DeepSeek smoke from 2026-08-05 is retained at `evals/energy_chat/live_provider_smoke_deepseek_2026-08-05.json`. It proves one historical balanced-profile live call only; it is **not** current-head provider proof and does not support provider superiority, fallback reliability or production-readiness claims.
 
-## Production topology
+## Production topology and release
 
 ```text
 Internet -> Caddy :80/:443 -> private EACHAT :8000
@@ -70,7 +72,7 @@ Internet -> Caddy :80/:443 -> private EACHAT :8000
          -> explicitly selected provider HTTPS
 ```
 
-Images are non-root, immutable and digest-addressed; deploy is readiness-gated and rollback uses a prior digest.
+Images are non-root, immutable and digest-addressed; deploy is readiness-gated and rollback uses a prior digest. Release builds attach BuildKit SBOM and provenance attestations; the portfolio final gate separately audits the isolated Python dependency closure.
 
 ## Remaining external production gates
 
