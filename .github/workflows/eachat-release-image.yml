@@ -48,6 +48,8 @@ jobs:
           context: estimador-cag
           file: estimador-cag/deploy/eachat/Dockerfile
           push: true
+          sbom: true
+          provenance: mode=max
           tags: ghcr.io/${{ github.repository_owner }}/eachat:${{ github.sha }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
