@@ -1,10 +1,6 @@
 """Deterministic Session 15 production-envelope contract for EACHAT."""
 
-from __future__ import annotations
-
 from pathlib import Path
-
-from app.energy_chat.production_app import create_production_app
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +14,8 @@ def _read(path: Path) -> str:
 
 
 def _route_paths() -> set[str]:
+    from app.energy_chat.production_app import create_production_app
+
     return {getattr(route, "path", "") for route in create_production_app().routes}
 
 
@@ -82,11 +80,12 @@ def _check_release_contract() -> None:
         "push: true",
         "${{ github.sha }}",
         "steps.build.outputs.digest",
+        "org.opencontainers.image.revision",
     )
     missing = [marker for marker in required if marker not in release]
     if missing:
         raise AssertionError(f"EACHAT immutable release workflow is missing markers: {missing}")
-    if "DEEPSEEK_API_KEY" in release or "KIMI_API_KEY" in release or "OPENAI_API_KEY" in release:
+    if "OPENAI_API_KEY" in release or "DEEPSEEK_API_KEY" in release or "KIMI_API_KEY" in release:
         raise AssertionError("EACHAT image release must not require provider credentials")
 
 
@@ -122,6 +121,8 @@ def _check_deploy_contract() -> None:
         raise AssertionError("EACHAT deployment must use an immutable digest without rebuilding")
     if "/ready" not in deploy:
         raise AssertionError("EACHAT deployment must be readiness-gated")
+    if "org.opencontainers.image.revision" not in deploy:
+        raise AssertionError("EACHAT deployment must derive safe Git SHA release metadata from the image")
     if "ROLLBACK_IMAGE" not in rollback or "@sha256:" not in rollback:
         raise AssertionError("EACHAT rollback must use the previous immutable digest")
 
