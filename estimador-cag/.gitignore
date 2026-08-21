@@ -22,6 +22,9 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Production requirements are deterministic exports of committed uv locks.
+deploy/*/requirements.generated.txt
+
 # Session 06 generated stress fixtures
 evals/stress/fixtures/generated/
 
