@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_version": "energy-aware.protocol.v1",
+  "product": "estimator",
+  "canonical_branch": "main",
+  "production_entrypoint": "app/estimator/production_app.py",
+  "public_surface": "/api/v1/estimate/graph/unified",
+  "public_api_major": "v1",
+  "candidate_ref": "estimation_id",
+  "decision_authority": "deterministic_supervisor_and_review_policy",
+  "human_authority": "signed_actor_revision_bound_resume",
+  "authoritative_state": "postgresql_langgraph_and_estimation_ownership",
+  "execution_semantics": "estimate_and_control_projection_only",
+  "dependency_lock": "deploy/estimator/uv.lock",
+  "dependency_lock_digest": "deploy/estimator/uv.lock.sha256",
+  "first_party_roots": ["app"],
+  "runtime_assets": ["artifacts/provider-readiness/provider-benchmark-snapshot.json"],
+  "stages_active": ["INGEST", "UNDERSTAND", "GATHER_EVIDENCE", "PROPOSE", "CRITIQUE", "SCORE", "DECIDE", "REPAIR", "AUTHORIZE", "VERIFY", "RECORD"],
+  "stages_not_applicable": ["EXECUTE"],
+  "required_invariants": {
+    "deterministic_hard_constraints": true,
+    "deterministic_budget_authority": true,
+    "planned_served_distinct": true,
+    "repair_creates_reevaluated_revision": true,
+    "signed_human_authority": true,
+    "replay_safe": true,
+    "durable_authoritative_state": true,
+    "secrets_excluded_from_evidence": true,
+    "hidden_reasoning_excluded": true
+  },
+  "reason_codes": ["runtime_not_ready", "resource_owner_missing", "resource_tenant_mismatch", "stale_human_action", "provider_execution_missing", "cost_budget_exceeded"],
+  "resilience_evidence": [
+    "tests/integration/test_session14_postgres_human_review.py",
+    "scripts/session13_14_unified_postgres_evidence.py",
+    ".github/workflows/ci.yml"
+  ],
+  "claim_boundary": "Production-oriented estimator; real public staging, external IdP integration, backup/restore drills, SLOs and real production telemetry remain external evidence gates."
+}
