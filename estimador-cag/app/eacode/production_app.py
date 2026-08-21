@@ -12,6 +12,7 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import psycopg2
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -35,6 +36,29 @@ def _validate_signing_key() -> None:
         )
 
 
+def _authority_available(store: object) -> bool:
+    ping = getattr(store, "ping", None)
+    if callable(ping):
+        try:
+            return bool(ping())
+        except Exception:
+            logger.warning("eacode_authority_readiness_failed", exc_info=True)
+            return False
+
+    database_url = os.getenv("EACODE_DATABASE_URL", "").strip()
+    if not database_url:
+        return False
+    try:
+        with psycopg2.connect(database_url, connect_timeout=2) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                row = cursor.fetchone()
+        return bool(row and row[0] == 1)
+    except psycopg2.Error:
+        logger.warning("eacode_authority_readiness_failed", exc_info=True)
+        return False
+
+
 @asynccontextmanager
 async def lifespan(service: FastAPI) -> AsyncIterator[None]:
     _validate_signing_key()
@@ -42,10 +66,12 @@ async def lifespan(service: FastAPI) -> AsyncIterator[None]:
     store.verify_schema()
     service.state.startup_complete = True
     service.state.authority_store = "postgresql"
+    service.state.authority_store_backend = store
     try:
         yield
     finally:
         service.state.startup_complete = False
+        service.state.authority_store_backend = None
 
 
 def create_production_app() -> FastAPI:
@@ -99,7 +125,13 @@ def create_production_app() -> FastAPI:
     def ready(response: Response) -> dict[str, object]:
         started = bool(getattr(service.state, "startup_complete", False))
         authority_store = getattr(service.state, "authority_store", None)
-        is_ready = started and authority_store == "postgresql"
+        authority_backend = getattr(service.state, "authority_store_backend", None)
+        authority_available = _authority_available(authority_backend)
+        is_ready = (
+            started
+            and authority_store == "postgresql"
+            and authority_available
+        )
         if not is_ready:
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {
@@ -107,6 +139,7 @@ def create_production_app() -> FastAPI:
             "ready": is_ready,
             "control_plane": "deterministic",
             "authority_store": authority_store,
+            "authority_store_available": authority_available,
         }
 
     @service.get("/version", include_in_schema=False)
