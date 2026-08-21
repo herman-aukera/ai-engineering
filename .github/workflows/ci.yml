@@ -70,8 +70,14 @@ jobs:
             echo "Energy Core boundary check skipped because script or package is absent."
           fi
 
-      - name: Tests
-        run: uv run pytest -q
+      - name: Deterministic tests
+        run: uv run pytest -q -m "not live_provider"
+
+      - name: Session 15 EACODE contract tests
+        run: uv run pytest -q tests/test_eacode_session15_production_contract.py tests/test_eacode_ci_contract.py
+
+      - name: Keyless EACODE production smoke
+        run: uv run pytest -q tests/smoke/test_eacode_production_smoke.py
 
       - name: Session 15 EACODE production contract
         run: uv run python scripts/session15_eacode_production_contract.py
@@ -266,7 +272,7 @@ jobs:
         working-directory: estimador-cag
         run: docker build --file deploy/eacode/Dockerfile --tag "eacode-canary:${EXPECTED_HEAD_SHA}" .
 
-      - name: Start isolated production service
+      - name: Start isolated production service and exercise public v1 API
         run: |
           docker run --detach --name eacode-canary \
             --publish 127.0.0.1:8011:8000 \
@@ -285,23 +291,37 @@ jobs:
           curl -fsS http://127.0.0.1:8011/health > /tmp/eacode-health.json
           curl -fsS http://127.0.0.1:8011/version > /tmp/eacode-version.json
           curl -fsS http://127.0.0.1:8011/api/v1/eacode/status > /tmp/eacode-status.json
+          curl -fsS http://127.0.0.1:8011/api/v1/eacode/capabilities > /tmp/eacode-capabilities.json
+          curl -fsS -X POST http://127.0.0.1:8011/api/v1/eacode/select \
+            -H 'Content-Type: application/json' \
+            --data '{}' > /tmp/eacode-selection.json
           test "$(docker exec eacode-canary id -u)" != "0"
 
-      - name: Verify production claim boundary
+      - name: Verify production claim boundary and integration response
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
+          expected_sha = os.environ['EXPECTED_HEAD_SHA']
           ready = json.loads(Path('/tmp/eacode-ready.json').read_text())
           status = json.loads(Path('/tmp/eacode-status.json').read_text())
           version = json.loads(Path('/tmp/eacode-version.json').read_text())
+          capabilities = json.loads(Path('/tmp/eacode-capabilities.json').read_text())
+          selection = json.loads(Path('/tmp/eacode-selection.json').read_text())
+
           assert ready == {'status': 'ready', 'ready': True, 'control_plane': 'deterministic'}
           assert status['control_plane'] == 'deterministic'
           assert status['provider_selection'] == 'planned_only'
           assert status['served_provider_evidence'] == 'requires_opt_in_live_call'
           assert status['live_process_execution_enabled'] is False
-          assert version['git_sha']
+          assert version['git_sha'] == expected_sha
+          assert capabilities['status'] == 'ok'
+          assert capabilities['count'] > 0
+          assert selection['status'] == 'ok'
+          assert selection['served'] is None
+          assert 'not proof' in selection['claim_boundary']
           PY
 
       - name: Capture container evidence
@@ -318,7 +338,7 @@ jobs:
         with:
           name: eacode-production-envelope-${{ env.EXPECTED_HEAD_SHA }}
           path: /tmp/eacode-envelope
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
       - name: Stop canary
