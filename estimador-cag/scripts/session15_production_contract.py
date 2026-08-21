@@ -36,10 +36,18 @@ def _check_api_contract() -> None:
     if missing:
         raise AssertionError(f"missing GET production/API contracts: {missing}")
 
-    versioned = [path for path in paths if path.startswith("/api/")]
-    non_v1 = sorted(path for path in versioned if not path.startswith("/api/v1/"))
-    if non_v1:
-        raise AssertionError(f"new /api routes must be major-versioned under /api/v1: {non_v1}")
+    public_api_paths = sorted(path for path in paths if path.startswith("/api/"))
+    unversioned = [
+        path
+        for path in public_api_paths
+        if not path.startswith(("/api/v1/", "/api/v2/"))
+    ]
+    if unversioned:
+        raise AssertionError(f"public /api routes must carry an explicit major version: {unversioned}")
+    if not any(path.startswith("/api/v1/") for path in public_api_paths):
+        raise AssertionError("canonical Session 13/14 production routes must expose /api/v1")
+    if not any(path.startswith("/api/v2/") for path in public_api_paths):
+        raise AssertionError("established V2 estimation compatibility surface is missing")
 
     main_source = _read(PROJECT_ROOT / "app" / "main.py")
     if 'allow_origins=["*"]' in main_source or "allow_origins=['*']" in main_source:
