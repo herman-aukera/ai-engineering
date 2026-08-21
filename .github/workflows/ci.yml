@@ -82,6 +82,9 @@ jobs:
       - name: Session 15 EACODE production contract
         run: uv run python scripts/session15_eacode_production_contract.py
 
+      - name: Isolated production dependency contract
+        run: python scripts/eacode_export_production_requirements.py
+
       - name: Energy Core Smoke
         run: |
           if test -d energy_core && test -f scripts/energy_core_smoke.py; then
@@ -285,12 +288,9 @@ jobs:
         working-directory: estimador-cag
         run: uv run python -m energy_core.postgres_beta_store migrate
 
-      - name: Export frozen production requirements
+      - name: Verify and export isolated production lock
         working-directory: estimador-cag
-        run: >-
-          uv export --frozen --no-dev --no-emit-project
-          --format requirements-txt
-          --output-file deploy/eacode/requirements.generated.txt
+        run: python scripts/eacode_export_production_requirements.py
 
       - name: Build isolated non-root image
         working-directory: estimador-cag
