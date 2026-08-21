@@ -177,6 +177,11 @@ jobs:
           fetch-depth: 0
       - name: Verify exact checked-out SHA
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+      - name: Generate masked estimator identity key
+        run: |
+          SESSION_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
+          echo "::add-mask::$SESSION_KEY"
+          printf 'ESTIMATOR_SESSION_SIGNING_KEY=%s\n' "$SESSION_KEY" >> "$GITHUB_ENV"
       - name: Build production image
         run: docker build -t estimador-cag:$EXPECTED_HEAD_SHA estimador-cag
       - name: Run production image
@@ -186,13 +191,14 @@ jobs:
             --env GIT_SHA="$EXPECTED_HEAD_SHA" \
             --env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/lidr \
             --env REDIS_URL=redis://127.0.0.1:6379/0 \
+            --env ESTIMATOR_SESSION_SIGNING_KEY="$ESTIMATOR_SESSION_SIGNING_KEY" \
             --env DEEPSEEK_API_KEY=container-smoke-provider \
             --env KIMI_API_KEY=dummy \
             --env OPENAI_API_KEY=dummy \
             --env GRAPH_RETRIEVAL_MODE=parallel \
             --env GRAPH_RETRIEVAL_MAX_CONCURRENCY=4 \
             estimador-cag:$EXPECTED_HEAD_SHA
-      - name: Probe startup liveness readiness version and unified contract
+      - name: Probe startup liveness readiness version and authenticated unified contract
         run: |
           mkdir -p /tmp/container-readiness
           ready=false
@@ -201,18 +207,23 @@ jobs:
           ready_code=000
           version_code=000
           unified_code=000
+          unauthenticated_unified_code=000
           for attempt in $(seq 1 40); do
             startup_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/startup.json --write-out '%{http_code}' http://127.0.0.1:8000/startup || true)
             health_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/health.json --write-out '%{http_code}' http://127.0.0.1:8000/health || true)
             ready_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/ready.json --write-out '%{http_code}' http://127.0.0.1:8000/ready || true)
             version_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/version.json --write-out '%{http_code}' http://127.0.0.1:8000/version || true)
-            unified_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/unified-ready.json --write-out '%{http_code}' http://127.0.0.1:8000/api/v1/estimate/graph/unified/readiness || true)
-            if [ "$startup_code" = "200" ] && [ "$health_code" = "200" ] && [ "$ready_code" = "200" ] && [ "$version_code" = "200" ] && [ "$unified_code" = "200" ]; then
+            if [ "$startup_code" = "200" ] && [ "$health_code" = "200" ] && [ "$ready_code" = "200" ] && [ "$version_code" = "200" ]; then
               ready=true
               break
             fi
             sleep 3
           done
+          if [ "$ready" = "true" ]; then
+            TOKEN=$(docker exec estimador-cag python -c "import os; from datetime import UTC,datetime,timedelta; from app.estimator.identity import SignedSessionCodec; print(SignedSessionCodec(os.environ['ESTIMATOR_SESSION_SIGNING_KEY'].encode()).issue(subject='ci', tenant_id='ci', roles=('member',), expires_at=datetime.now(UTC)+timedelta(minutes=10)))")
+            unauthenticated_unified_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/unified-unauthenticated.json --write-out '%{http_code}' http://127.0.0.1:8000/api/v1/estimate/graph/unified/readiness || true)
+            unified_code=$(curl --silent --connect-timeout 1 --max-time 2 --header "Authorization: Bearer $TOKEN" --output /tmp/container-readiness/unified-ready.json --write-out '%{http_code}' http://127.0.0.1:8000/api/v1/estimate/graph/unified/readiness || true)
+          fi
           docker logs estimador-cag > /tmp/container-readiness/container.log 2>&1 || true
           docker inspect estimador-cag --format '{{json .State}}' > /tmp/container-readiness/container-state.json || true
           printf '%s\n' "$startup_code" > /tmp/container-readiness/startup-status.txt
@@ -220,14 +231,16 @@ jobs:
           printf '%s\n' "$ready_code" > /tmp/container-readiness/ready-status.txt
           printf '%s\n' "$version_code" > /tmp/container-readiness/version-status.txt
           printf '%s\n' "$unified_code" > /tmp/container-readiness/unified-status.txt
+          printf '%s\n' "$unauthenticated_unified_code" > /tmp/container-readiness/unified-unauthenticated-status.txt
           test "$(docker exec estimador-cag id -u)" != "0"
-          if [ "$ready" != "true" ]; then
-            echo "Container failed readiness gate"
+          if [ "$ready" != "true" ] || [ "$unified_code" != "200" ] || [ "$unauthenticated_unified_code" != "401" ]; then
+            echo "Container failed production identity/readiness gate"
             cat /tmp/container-readiness/startup.json 2>/dev/null || true
             cat /tmp/container-readiness/health.json 2>/dev/null || true
             cat /tmp/container-readiness/ready.json 2>/dev/null || true
             cat /tmp/container-readiness/version.json 2>/dev/null || true
             cat /tmp/container-readiness/unified-ready.json 2>/dev/null || true
+            cat /tmp/container-readiness/unified-unauthenticated.json 2>/dev/null || true
             false
           fi
       - name: Upload container readiness evidence
@@ -254,6 +267,8 @@ jobs:
           assert payload['ready'] is True
           assert payload['status'] == 'ready'
           assert payload['configured_providers'] == ['deepseek']
+          assert payload['ownership_restart_persistent'] is True
+          assert payload['identity_required'] is True
           assert version['git_sha'] == expected_sha
           assert 'container-smoke-provider' not in serialized
           assert 'database_url' not in serialized
