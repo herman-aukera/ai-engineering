@@ -10,13 +10,7 @@ Canonical branch: `EACODE`. It is a peer product to the estimator `main` and `EA
 app.eacode.production_app:app
 ```
 
-Canonical production namespace:
-
-```text
-/api/v1/eacode/*
-```
-
-The broad coursework application retains `/eacode/*` compatibility. Production deploys only the isolated versioned composition root.
+Canonical production namespace: `/api/v1/eacode/*`. The broad coursework application retains `/eacode/*` compatibility; production deploys only the isolated versioned composition root.
 
 ## Governed beta lifecycle
 
@@ -36,32 +30,40 @@ signed session
 
 Provider/model output is evidence, not authority. Requested, planned and actually served provider identities remain distinct. Client-controlled `human_authorization` is rejected.
 
-Common portfolio terminology is defined by `docs/ENERGY_AWARE_PROTOCOL_V1.md`.
+## Identity and durable authority
 
-## Production state truth
+Production requires `EACODE_DATABASE_URL` and `EACODE_SESSION_SIGNING_KEY`. Proposals, ownership, receipts, replay protection, execution reservations and reevaluated results are authoritative PostgreSQL state. The versioned migration is `energy_core/migrations/0001_eacode_beta_authority.sql`; SQLite is compatibility/test-only.
 
-Production EACODE is **stateful** because proposals, ownership, authorization receipts, nonce/replay protection, execution reservations and reevaluated results are authoritative.
+## Isolated production artifact
 
-Production therefore requires:
+The deployable dependency closure is frozen independently from the coursework environment:
 
 ```text
-EACODE_DATABASE_URL
-EACODE_SESSION_SIGNING_KEY
+deploy/eacode/pyproject.toml
+deploy/eacode/uv.lock
+deploy/eacode/uv.lock.sha256
 ```
 
-The versioned PostgreSQL migration is `energy_core/migrations/0001_eacode_beta_authority.sql`. SQLite remains only local/test/coursework compatibility.
+`scripts/eacode_export_production_requirements.py` verifies the lock digest, refuses monorepo-only AI/notebook/UI dependencies and exports hashed requirements. CI, the PostgreSQL restart canary and immutable image release all consume this same contract.
+
+The machine-readable portfolio mapping is `docs/energy_aware_product_manifest.json`. `scripts/verify_energy_aware_protocol.py` proves protocol/accountability invariants, while `scripts/product_split_dry_run.py` traces the production import closure and materializes a compile-checked product-only tree without peer-product imports.
+
+## Observability
+
+Production emits the neutral `energy-aware.event.v1` operational envelope through `app/energy_aware_observability.py`. Events carry request correlation, stable reason codes, outcome and duration; prompts, transcripts, authorization values and secrets are forbidden event attributes.
 
 ## Deterministic validation
 
 ```bash
 cd estimador-cag
-OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test \
-uv run pytest -q -m "not live_provider"
+OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q -m "not live_provider"
+python scripts/eacode_export_production_requirements.py
+python scripts/verify_energy_aware_protocol.py
+python scripts/product_split_dry_run.py
 uv run python scripts/session15_eacode_production_contract.py
-uv run python scripts/verify_repo_split_readiness.py
 ```
 
-Real provider proof remains isolated in `.github/workflows/live-smoke.yml`. PostgreSQL authority/restart evidence runs separately in `.github/workflows/eacode-postgres-integration.yml`.
+Real provider proof remains isolated in `.github/workflows/live-smoke.yml`. PostgreSQL authority/restart evidence runs in `.github/workflows/eacode-postgres-integration.yml`.
 
 ## Production topology
 
@@ -69,31 +71,32 @@ Real provider proof remains isolated in `.github/workflows/live-smoke.yml`. Post
 Internet
 -> Caddy :80/:443
 -> private EACODE container :8000
+-> signed actor / exact-scope authority
 -> durable PostgreSQL / RDS
 -> outbound provider HTTPS only in explicitly live paths
 ```
 
-Release images are non-root, immutable and digest-addressed. Deploy runs the explicit authority migration, replaces the service and waits for `/ready`; rollback uses a previous post-migration digest.
+Release images are non-root, immutable and digest-addressed. Deploy applies the explicit authority migration, replaces the service and waits for `/ready`; rollback uses a previous post-migration digest.
 
 ## Execution claim boundary
 
-The governed beta still proves **simulated execution only**. Existing secure-runner research must not be exposed as arbitrary untrusted-code execution until filesystem/process/network/resource isolation and cleanup evidence are sufficient.
+The governed beta proves **simulated execution only**. Secure-runner research must not be exposed as arbitrary untrusted-code execution until filesystem/process/network/resource isolation and cleanup evidence are independently proven.
 
-## Current production blockers
+## Remaining external production gates
 
 - real staging on EC2/RDS and DNS/TLS;
 - RDS backup/restore and migration rollback exercise;
 - real OIDC/identity-provider adapter;
-- production SLOs, alerts and telemetry;
-- proven sandbox for arbitrary untrusted code;
-- isolated product dependency lock/minimal runtime dependency set rather than the current monorepo-wide frozen dependency source.
+- production SLOs, alerts and collected production telemetry;
+- proven sandbox for arbitrary untrusted code.
 
-EACODE is therefore production-oriented and repository-hardened, but not yet truthful to call live production-ready.
+EACODE is production-oriented and repository-hardened, but real deployment evidence is still required before calling it live production-ready.
 
 ## Canonical documentation
 
-- `docs/ARCHITECTURE.md`
 - `docs/ENERGY_AWARE_PROTOCOL_V1.md`
+- `docs/energy_aware_product_manifest.json`
+- `docs/ARCHITECTURE.md`
 - `docs/SECURITY.md`
 - `docs/OPERATIONS.md`
 - `docs/RELEASE.md`
