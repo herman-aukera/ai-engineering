@@ -42,11 +42,16 @@ def test_production_http_shell_starts_without_model_calls(monkeypatch) -> None:
     assert health.headers["referrer-policy"] == "no-referrer"
 
 
-def test_public_api_major_version_is_v1() -> None:
+def test_public_api_routes_are_major_versioned() -> None:
     import app.main as main_module
 
     paths = set(main_module.app.openapi().get("paths", {}))
-    versioned = sorted(path for path in paths if path.startswith("/api/"))
+    public_api_paths = sorted(path for path in paths if path.startswith("/api/"))
 
-    assert versioned
-    assert all(path.startswith("/api/v1/") for path in versioned)
+    assert public_api_paths
+    assert any(path.startswith("/api/v1/") for path in public_api_paths)
+    assert any(path.startswith("/api/v2/") for path in public_api_paths)
+    assert all(
+        path.startswith(("/api/v1/", "/api/v2/"))
+        for path in public_api_paths
+    )
