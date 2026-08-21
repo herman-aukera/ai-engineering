@@ -28,6 +28,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to durable external PostgreSQL}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL to the runtime Redis endpoint}
+      ESTIMATOR_SESSION_SIGNING_KEY: ${ESTIMATOR_SESSION_SIGNING_KEY:?Set ESTIMATOR_SESSION_SIGNING_KEY to a high-entropy secret of at least 32 bytes}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       KIMI_API_KEY: ${KIMI_API_KEY:-}
