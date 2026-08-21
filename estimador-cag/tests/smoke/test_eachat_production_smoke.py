@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.energy_chat.production_app import create_production_app
-
 
 def test_eachat_keyless_production_shell_smoke(monkeypatch) -> None:
+    from app.energy_chat.production_app import create_production_app
+
     monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
     monkeypatch.setenv("EACHAT_ALLOW_IN_MEMORY", "true")
     monkeypatch.setenv("GIT_SHA", "eachat-smoke")
@@ -36,6 +36,8 @@ def test_eachat_keyless_production_shell_smoke(monkeypatch) -> None:
 
 
 def test_eachat_canonical_versioned_surface_is_v2() -> None:
+    from app.energy_chat.production_app import create_production_app
+
     paths = {getattr(route, "path", "") for route in create_production_app().routes}
     canonical = sorted(path for path in paths if path.startswith("/energy-chat/v"))
 
