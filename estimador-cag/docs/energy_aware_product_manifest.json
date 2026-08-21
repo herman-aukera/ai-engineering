@@ -4,6 +4,7 @@
   "product": "estimator",
   "canonical_branch": "main",
   "production_entrypoint": "app/estimator/production_app.py",
+  "public_surface_owner": "app/routers/unified_graph_estimations.py",
   "public_surface": "/api/v1/estimate/graph/unified",
   "public_api_major": "v1",
   "candidate_ref": "estimation_id",
