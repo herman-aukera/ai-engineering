@@ -5,11 +5,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN addgroup --system app && adduser --system --ingroup app app
+RUN addgroup --system app && adduser --system --ingroup app app \
+    && python -m pip install --no-cache-dir uv
 
-COPY deploy/estimator/requirements.generated.txt /tmp/requirements.txt
-RUN python -m pip install --no-cache-dir --require-hashes -r /tmp/requirements.txt \
-    && rm /tmp/requirements.txt
+COPY deploy/estimator/pyproject.toml /tmp/estimator-runtime/pyproject.toml
+COPY deploy/estimator/uv.lock /tmp/estimator-runtime/uv.lock
+RUN uv export --project /tmp/estimator-runtime --frozen --no-dev \
+      --format requirements-txt --output-file /tmp/requirements.txt \
+    && python -m pip install --no-cache-dir --require-hashes -r /tmp/requirements.txt \
+    && rm -rf /tmp/estimator-runtime /tmp/requirements.txt
 
 COPY app ./app
 COPY artifacts/provider-readiness/provider-benchmark-snapshot.json \
