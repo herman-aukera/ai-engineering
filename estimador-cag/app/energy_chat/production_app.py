@@ -88,6 +88,19 @@ def _build_runtime() -> tuple[EnergyChatApplicationRuntime, StrictPostgresCheckp
     )
 
 
+def _authority_available(ownership_store: object) -> bool:
+    if ownership_store is None:
+        return False
+    ping = getattr(ownership_store, "ping", None)
+    if not callable(ping):
+        return False
+    try:
+        return bool(ping())
+    except Exception:
+        logger.warning("eachat_authority_readiness_failed", exc_info=True)
+        return False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     runtime, checkpoint_backend, conversation_store, ownership_store = _build_runtime()
@@ -180,9 +193,11 @@ def create_production_app() -> FastAPI:
         conversation_store = getattr(service.state, "energy_chat_conversation_store", None)
         ownership_store = getattr(service.state, "energy_chat_ownership_store", None)
         identity_key = getattr(service.state, "eachat_identity_signing_key", None)
+        authority_available = _authority_available(ownership_store)
         is_ready = (
             started and isinstance(runtime, EnergyChatApplicationRuntime)
             and conversation_store is not None and ownership_store is not None
+            and authority_available
             and isinstance(identity_key, bytes) and len(identity_key) >= 32
         )
         if not is_ready:
@@ -192,6 +207,7 @@ def create_production_app() -> FastAPI:
             "restart_persistent": bool(getattr(service.state, "restart_persistent", False)),
             "conversation_restart_persistent": bool(getattr(service.state, "conversation_restart_persistent", False)),
             "ownership_restart_persistent": bool(getattr(service.state, "ownership_restart_persistent", False)),
+            "authority_store_available": authority_available,
             "strict_msgpack": bool(getattr(service.state, "strict_msgpack", False)),
             "identity_required": True,
         }
