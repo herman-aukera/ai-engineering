@@ -7,6 +7,7 @@ on:
       - "gg-**"
       - "sesion-**"
       - "session**"
+      - gg-session-14/plus-consolidated
   pull_request:
   workflow_dispatch:
 
@@ -29,6 +30,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Set up Python
@@ -45,8 +49,10 @@ jobs:
           uv run ruff check $TARGETS
       - name: Compile Python
         run: uv run python -m py_compile $(find app tests evals scripts -name '*.py' -type f 2>/dev/null)
-      - name: Deterministic tests
+      - name: Deterministic unit and contract tests
         run: uv run pytest -q -m "not live_provider"
+      - name: Keyless HTTP smoke tests
+        run: uv run pytest -q tests/smoke/test_session15_http_smoke.py
       - name: Session 15 production contract
         run: uv run python scripts/session15_production_contract.py
       - name: Diff and secret gates
@@ -64,7 +70,8 @@ jobs:
   unified-postgres-evidence:
     if: >-
       (github.event_name == 'pull_request' && github.head_ref == 'gg-session-14/plus-consolidated') ||
-      (github.event_name == 'push' && github.ref_name == 'gg-session-14/plus-consolidated')
+      (github.event_name == 'push' && github.ref_name == 'gg-session-14/plus-consolidated') ||
+      github.event_name == 'workflow_dispatch'
     needs: test-estimador-cag
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -86,6 +93,9 @@ jobs:
       run:
         working-directory: estimador-cag
     env:
+      RUN_SESSION14_POSTGRES_INTEGRATION: "1"
+      SESSION14_POSTGRES_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/lidr
+      SESSION14_POSTGRES_EVIDENCE_PATH: artifacts/session14/postgres_pause_resume_tdd.json
       SESSION13_14_UNIFIED_POSTGRES_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/lidr
       SESSION13_14_UNIFIED_POSTGRES_EVIDENCE_PATH: artifacts/session13_14_unified/postgres_pause_resume.json
       OPENAI_API_KEY: test
@@ -97,6 +107,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Set up Python
@@ -105,13 +118,17 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: uv sync --frozen --extra dev
+      - name: Session 14 PostgreSQL integration test
+        run: uv run pytest -q tests/integration/test_session14_postgres_human_review.py
       - name: Capture unified PostgreSQL lifecycle
         run: GITHUB_SHA=${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }} uv run python -m scripts.session13_14_unified_postgres_evidence
-      - name: Upload unified lifecycle evidence
+      - name: Upload PostgreSQL integration evidence
         uses: actions/upload-artifact@v4
         with:
-          name: session13-14-unified-postgres-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          path: estimador-cag/artifacts/session13_14_unified/postgres_pause_resume.json
+          name: session13-14-postgres-integration-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          path: |
+            estimador-cag/artifacts/session14/postgres_pause_resume_tdd.json
+            estimador-cag/artifacts/session13_14_unified/postgres_pause_resume.json
           if-no-files-found: error
           retention-days: 30
 
@@ -120,7 +137,8 @@ jobs:
       (github.event_name == 'pull_request' &&
        ((github.base_ref == 'main' && github.head_ref == 'gg-session-13/plus') ||
         github.head_ref == 'gg-session-14/plus-consolidated')) ||
-      (github.event_name == 'push' && github.ref_name == 'gg-session-14/plus-consolidated')
+      (github.event_name == 'push' && github.ref_name == 'gg-session-14/plus-consolidated') ||
+      github.event_name == 'workflow_dispatch'
     needs: test-estimador-cag
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -152,12 +170,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
       - name: Build production image
         run: docker build -t estimador-cag:${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }} estimador-cag
       - name: Run production image
         run: |
           docker run --detach --name estimador-cag \
             --network host \
+            --env GIT_SHA=${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }} \
             --env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/lidr \
             --env REDIS_URL=redis://127.0.0.1:6379/0 \
             --env DEEPSEEK_API_KEY=container-smoke-provider \
@@ -166,18 +188,22 @@ jobs:
             --env GRAPH_RETRIEVAL_MODE=parallel \
             --env GRAPH_RETRIEVAL_MAX_CONCURRENCY=4 \
             estimador-cag:${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      - name: Probe liveness and readiness
+      - name: Probe startup liveness readiness version and unified contract
         run: |
           mkdir -p /tmp/container-readiness
           ready=false
+          startup_code=000
           health_code=000
           ready_code=000
+          version_code=000
           unified_code=000
           for attempt in $(seq 1 40); do
+            startup_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/startup.json --write-out '%{http_code}' http://127.0.0.1:8000/startup || true)
             health_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/health.json --write-out '%{http_code}' http://127.0.0.1:8000/health || true)
             ready_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/ready.json --write-out '%{http_code}' http://127.0.0.1:8000/ready || true)
+            version_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/version.json --write-out '%{http_code}' http://127.0.0.1:8000/version || true)
             unified_code=$(curl --silent --connect-timeout 1 --max-time 2 --output /tmp/container-readiness/unified-ready.json --write-out '%{http_code}' http://127.0.0.1:8000/api/v1/estimate/graph/unified/readiness || true)
-            if [ "$health_code" = "200" ] && [ "$ready_code" = "200" ] && [ "$unified_code" = "200" ]; then
+            if [ "$startup_code" = "200" ] && [ "$health_code" = "200" ] && [ "$ready_code" = "200" ] && [ "$version_code" = "200" ] && [ "$unified_code" = "200" ]; then
               ready=true
               break
             fi
@@ -185,13 +211,18 @@ jobs:
           done
           docker logs estimador-cag > /tmp/container-readiness/container.log 2>&1 || true
           docker inspect estimador-cag --format '{{json .State}}' > /tmp/container-readiness/container-state.json || true
+          printf '%s\n' "$startup_code" > /tmp/container-readiness/startup-status.txt
           printf '%s\n' "$health_code" > /tmp/container-readiness/health-status.txt
           printf '%s\n' "$ready_code" > /tmp/container-readiness/ready-status.txt
+          printf '%s\n' "$version_code" > /tmp/container-readiness/version-status.txt
           printf '%s\n' "$unified_code" > /tmp/container-readiness/unified-status.txt
+          test "$(docker exec estimador-cag id -u)" != "0"
           if [ "$ready" != "true" ]; then
             echo "Container failed readiness gate"
+            cat /tmp/container-readiness/startup.json 2>/dev/null || true
             cat /tmp/container-readiness/health.json 2>/dev/null || true
             cat /tmp/container-readiness/ready.json 2>/dev/null || true
+            cat /tmp/container-readiness/version.json 2>/dev/null || true
             cat /tmp/container-readiness/unified-ready.json 2>/dev/null || true
             false
           fi
@@ -203,17 +234,23 @@ jobs:
           path: /tmp/container-readiness
           if-no-files-found: error
           retention-days: 14
-      - name: Verify sanitized readiness payloads
+      - name: Verify sanitized readiness and release identity
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
+          expected_sha = os.environ['GITHUB_SHA']
+          startup = json.loads(Path('/tmp/container-readiness/startup.json').read_text())
           payload = json.loads(Path('/tmp/container-readiness/ready.json').read_text())
+          version = json.loads(Path('/tmp/container-readiness/version.json').read_text())
           serialized = json.dumps(payload).lower()
+          assert startup == {'status': 'started', 'started': True}
           assert payload['ready'] is True
           assert payload['status'] == 'ready'
           assert payload['configured_providers'] == ['deepseek']
+          assert version['git_sha'] == expected_sha
           assert 'container-smoke-provider' not in serialized
           assert 'database_url' not in serialized
           assert 'redis_url' not in serialized
@@ -228,3 +265,6 @@ jobs:
           assert 'container-smoke-provider' not in serialized_unified
           assert 'database_url' not in serialized_unified
           PY
+      - name: Stop smoke container
+        if: always()
+        run: docker rm --force estimador-cag 2>/dev/null || true
