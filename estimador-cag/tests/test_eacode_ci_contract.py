@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 
@@ -56,7 +54,7 @@ def test_release_is_manual_keyless_and_digest_addressable() -> None:
     assert "workflow_dispatch:" in release
     assert "push: true" in release
     assert "${{ github.sha }}" in release
-    assert "steps.build.outputs.digest" in release
+    assert "steps.image.outputs.digest" in release
     assert "OPENAI_API_KEY" not in release
     assert "DEEPSEEK_API_KEY" not in release
     assert "KIMI_API_KEY" not in release
