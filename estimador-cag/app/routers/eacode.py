@@ -277,7 +277,7 @@ def selector_ui() -> HTMLResponse:
       data.fallback_policy = 'none';
       data.entitled_surfaces = form.has('kimi_code_entitled') ? ['kimi_code'] : [];
       delete data.kimi_code_entitled;
-      const response = await fetch('/eacode/select', {
+      const response = await fetch('./select', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
       });
       document.getElementById('result').textContent = JSON.stringify(await response.json(), null, 2);
@@ -288,7 +288,7 @@ def selector_ui() -> HTMLResponse:
       const token = document.getElementById('operator-token').value.trim();
       if (!token) { output.textContent = 'A signed operator session is required.'; return; }
       const headers = bearerHeaders(token);
-      const preparedResponse = await fetch('/eacode/demo', {
+      const preparedResponse = await fetch('./demo', {
         method: 'POST', headers,
         body: JSON.stringify({
           proposal_id: proposalId,
@@ -302,13 +302,13 @@ def selector_ui() -> HTMLResponse:
       const prepared = await preparedResponse.json();
       output.textContent = JSON.stringify(prepared, null, 2);
       if (!preparedResponse.ok) return;
-      const authorizationResponse = await fetch(`/eacode/demo/${proposalId}/authorize`, {
+      const authorizationResponse = await fetch(`./demo/${proposalId}/authorize`, {
         method: 'POST', headers
       });
       const receipt = await authorizationResponse.json();
       output.textContent = JSON.stringify(receipt, null, 2);
       if (!authorizationResponse.ok) return;
-      const executionResponse = await fetch(`/eacode/demo/${proposalId}/execute`, {
+      const executionResponse = await fetch(`./demo/${proposalId}/execute`, {
         method: 'POST', headers, body: JSON.stringify({receipt_id: receipt.receipt_id})
       });
       output.textContent = JSON.stringify(await executionResponse.json(), null, 2);
