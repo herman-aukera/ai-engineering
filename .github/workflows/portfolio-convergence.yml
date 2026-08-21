@@ -1,0 +1,94 @@
+name: Energy-Aware Portfolio Convergence
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - estimador-cag/docs/ENERGY_AWARE_PROTOCOL_V1.md
+      - estimador-cag/docs/energy_aware_product_manifest.json
+      - estimador-cag/app/energy_aware_observability.py
+      - estimador-cag/scripts/portfolio_evaluation.py
+      - estimador-cag/scripts/verify_energy_aware_protocol.py
+      - estimador-cag/scripts/verify_documentation_truth.py
+      - estimador-cag/scripts/product_split_dry_run.py
+      - estimador-cag/deploy/estimator/**
+      - .github/workflows/portfolio-convergence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portfolio-conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout canonical main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: portfolio/main
+          fetch-depth: 1
+
+      - name: Checkout canonical EACHAT
+        uses: actions/checkout@v4
+        with:
+          ref: EACHAT
+          path: portfolio/eachat
+          fetch-depth: 1
+
+      - name: Checkout canonical EACODE
+        uses: actions/checkout@v4
+        with:
+          ref: EACODE
+          path: portfolio/eacode
+          fetch-depth: 1
+
+      - name: Capture exact canonical heads
+        run: |
+          mkdir -p portfolio/evidence
+          {
+            printf 'main=%s\n' "$(git -C portfolio/main rev-parse HEAD)"
+            printf 'EACHAT=%s\n' "$(git -C portfolio/eachat rev-parse HEAD)"
+            printf 'EACODE=%s\n' "$(git -C portfolio/eacode rev-parse HEAD)"
+          } | tee portfolio/evidence/canonical-heads.txt
+
+      - name: Run cross-product portfolio evaluation
+        run: |
+          python portfolio/main/estimador-cag/scripts/portfolio_evaluation.py \
+            portfolio/main/estimador-cag \
+            portfolio/eachat/estimador-cag \
+            portfolio/eacode/estimador-cag \
+            --output portfolio/evidence/portfolio-evaluation.json
+
+      - name: Verify no peer runtime imports in split manifests
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          roots = {
+              'main': Path('portfolio/main/estimador-cag'),
+              'EACHAT': Path('portfolio/eachat/estimador-cag'),
+              'EACODE': Path('portfolio/eacode/estimador-cag'),
+          }
+          expected = {
+              'main': 'estimator',
+              'EACHAT': 'eachat',
+              'EACODE': 'eacode',
+          }
+          for branch, root in roots.items():
+              manifest = json.loads((root / 'docs/energy_aware_product_manifest.json').read_text())
+              assert manifest['canonical_branch'] == branch
+              assert manifest['product'] == expected[branch]
+              assert manifest.get('forbidden_peer_imports'), branch
+          PY
+
+      - name: Upload portfolio convergence evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: energy-aware-portfolio-convergence-${{ github.sha }}
+          path: portfolio/evidence
+          if-no-files-found: error
+          retention-days: 30
