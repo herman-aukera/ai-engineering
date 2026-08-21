@@ -1,10 +1,10 @@
 """Isolated production composition root for Energy Aware Chat.
 
 The coursework application remains available through ``app.main``. This module
-contains only the EACHAT service surface and requires durable PostgreSQL, encrypted
-conversation memory, and strict checkpoint deserialization by default. Process-local
-storage is available only through the explicit ``EACHAT_ALLOW_IN_MEMORY=true``
-development/test override.
+contains only the canonical EACHAT V2 service surface and requires durable
+PostgreSQL, encrypted conversation memory, and strict checkpoint deserialization by
+default. Process-local storage is available only through the explicit
+``EACHAT_ALLOW_IN_MEMORY=true`` development/test override.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from app.energy_chat.conversation_store import (
     PostgresConversationStore,
 )
 from app.energy_chat.human_router import router as human_router
-from app.energy_chat.router import router as energy_chat_router
+from app.energy_chat.production_router import router as production_router
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
 
 DOCS_DIR = Path(__file__).resolve().parents[2] / "docs"
@@ -38,8 +38,6 @@ def _truthy(value: str | None) -> bool:
 
 
 def _cors_origins() -> list[str]:
-    """Return explicit cross-origin callers; same-origin needs no CORS grant."""
-
     raw = os.getenv("EACHAT_CORS_ORIGINS", "")
     return [item.strip() for item in raw.split(",") if item.strip()]
 
@@ -111,7 +109,7 @@ def create_production_app() -> FastAPI:
     service = FastAPI(
         title="EACHAT",
         description="Energy-Aware Chat graph service",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -156,7 +154,7 @@ def create_production_app() -> FastAPI:
             )
         return response
 
-    service.include_router(energy_chat_router, prefix="/energy-chat", tags=["energy-chat"])
+    service.include_router(production_router, prefix="/energy-chat", tags=["energy-chat-v2"])
     service.include_router(
         conversation_router,
         prefix="/energy-chat",
@@ -173,8 +171,6 @@ def create_production_app() -> FastAPI:
 
     @service.get("/health", include_in_schema=False)
     def health() -> dict[str, object]:
-        """Cheap liveness probe: reports configured state without I/O or LLM calls."""
-
         return {
             "status": "ok",
             "service": "eachat",
@@ -187,12 +183,6 @@ def create_production_app() -> FastAPI:
 
     @service.get("/ready", include_in_schema=False)
     def ready(response: Response) -> dict[str, object]:
-        """Report whether the configured application runtime completed startup.
-
-        Runtime construction already fails closed when production durable state cannot
-        be initialized. This endpoint deliberately never calls an LLM.
-        """
-
         started = bool(getattr(service.state, "startup_complete", False))
         runtime = getattr(service.state, "energy_chat_runtime", None)
         conversation_store = getattr(service.state, "energy_chat_conversation_store", None)

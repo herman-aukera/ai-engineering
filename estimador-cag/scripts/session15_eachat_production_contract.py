@@ -1,4 +1,4 @@
-"""Deterministic Session 15 production-envelope contract for EACHAT."""
+"""Deterministic production-envelope contract for the canonical EACHAT service."""
 
 import sys
 from pathlib import Path
@@ -31,21 +31,20 @@ def _check_public_contract() -> None:
         "/energy-chat/v2/chat",
         "/energy-chat/v2/chat/live",
         "/energy-chat/v2/demo",
+        "/energy-chat/v2/conversations",
+        "/energy-chat/v2/chat/human",
     }
     missing = sorted(required - paths)
     if missing:
         raise AssertionError(f"missing EACHAT production routes: {missing}")
 
-    forbidden_new_major = sorted(
+    legacy = sorted(
         path
         for path in paths
-        if path.startswith("/energy-chat/v")
-        and not path.startswith("/energy-chat/v2/")
+        if path.startswith("/energy-chat/") and not path.startswith("/energy-chat/v2/")
     )
-    if forbidden_new_major:
-        raise AssertionError(
-            f"EACHAT canonical public version is v2; unexpected versioned routes: {forbidden_new_major}"
-        )
+    if legacy:
+        raise AssertionError(f"legacy evaluation/coursework routes leaked into production: {legacy}")
 
 
 def _check_ci_separation() -> None:
@@ -137,7 +136,7 @@ def main() -> None:
     _check_single_ingress()
     _check_durable_runtime_contract()
     _check_deploy_contract()
-    print("eachat session15 production contract: PASS")
+    print("eachat production contract: PASS")
 
 
 if __name__ == "__main__":
