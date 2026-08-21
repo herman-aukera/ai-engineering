@@ -17,6 +17,7 @@ from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 
+from app.energy_aware_observability import observe_http_request
 from app.estimator.ownership_store import (
     EstimationOwnershipStore,
     InMemoryEstimationOwnershipStore,
@@ -113,9 +114,7 @@ async def lifespan(service: FastAPI) -> AsyncIterator[None]:
     service.state.startup_complete = False
     try:
         try:
-            runtime = await stack.enter_async_context(
-                open_unified_graph_estimation_service()
-            )
+            runtime = await stack.enter_async_context(open_unified_graph_estimation_service())
         except Exception as exc:
             service.state.unified_graph_runtime_error = type(exc).__name__
             logger.exception("unified_estimator_runtime_initialization_failed")
@@ -152,6 +151,15 @@ def create_production_app() -> FastAPI:
     )
 
     @service.middleware("http")
+    async def energy_aware_observability(request: Request, call_next) -> Response:
+        return await observe_http_request(
+            request,
+            call_next,
+            product="estimator",
+            logger=logger,
+        )
+
+    @service.middleware("http")
     async def security_headers(request: Request, call_next) -> Response:
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -181,7 +189,6 @@ def create_production_app() -> FastAPI:
     @service.get("/health", include_in_schema=False)
     def health() -> dict[str, str]:
         """Cheap local liveness probe; performs no database or model call."""
-
         return {"status": "ok", "service": "estimator"}
 
     @service.get(
@@ -192,23 +199,14 @@ def create_production_app() -> FastAPI:
     )
     def ready(response: Response) -> EstimatorReadinessReport:
         """Require initialized graph runtime, identity, ownership, and a provider."""
-
         started = bool(getattr(service.state, "startup_complete", False))
-        runtime_ready = (
-            getattr(service.state, "unified_graph_estimation_service", None) is not None
-        )
+        runtime_ready = getattr(service.state, "unified_graph_estimation_service", None) is not None
         providers = _configured_providers()
         ownership = getattr(service.state, "estimator_ownership_store", None)
         identity_key = getattr(service.state, "estimator_identity_signing_key", None)
         ownership_ready = ownership is not None
         identity_ready = isinstance(identity_key, bytes) and len(identity_key) >= 32
-        is_ready = (
-            started
-            and runtime_ready
-            and bool(providers)
-            and ownership_ready
-            and identity_ready
-        )
+        is_ready = started and runtime_ready and bool(providers) and ownership_ready and identity_ready
         if not is_ready:
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return EstimatorReadinessReport(
@@ -217,13 +215,9 @@ def create_production_app() -> FastAPI:
             startup_complete=started,
             unified_runtime=runtime_ready,
             configured_providers=providers,
-            ownership_restart_persistent=bool(
-                getattr(ownership, "restart_persistent", False)
-            ),
+            ownership_restart_persistent=bool(getattr(ownership, "restart_persistent", False)),
             identity_required=True,
-            runtime_error=_safe_error_type(
-                getattr(service.state, "unified_graph_runtime_error", None)
-            ),
+            runtime_error=_safe_error_type(getattr(service.state, "unified_graph_runtime_error", None)),
         )
 
     @service.get("/version", include_in_schema=False)
