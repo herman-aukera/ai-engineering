@@ -16,7 +16,16 @@
   "dependency_lock": "deploy/estimator/uv.lock",
   "dependency_lock_digest": "deploy/estimator/uv.lock.sha256",
   "first_party_roots": ["app"],
+  "forbidden_peer_imports": ["app.energy_chat", "app.eacode", "energy_core"],
   "runtime_assets": ["artifacts/provider-readiness/provider-benchmark-snapshot.json"],
+  "split_support_files": [
+    "Dockerfile",
+    "deploy/estimator/pyproject.toml",
+    "deploy/estimator/uv.lock",
+    "deploy/estimator/uv.lock.sha256",
+    "docs/ENERGY_AWARE_PROTOCOL_V1.md",
+    "docs/energy_aware_product_manifest.json"
+  ],
   "stages_active": ["INGEST", "UNDERSTAND", "GATHER_EVIDENCE", "PROPOSE", "CRITIQUE", "SCORE", "DECIDE", "REPAIR", "AUTHORIZE", "VERIFY", "RECORD"],
   "stages_not_applicable": ["EXECUTE"],
   "required_invariants": {
@@ -30,7 +39,7 @@
     "secrets_excluded_from_evidence": true,
     "hidden_reasoning_excluded": true
   },
-  "reason_codes": ["runtime_not_ready", "resource_owner_missing", "resource_tenant_mismatch", "stale_human_action", "provider_execution_missing", "cost_budget_exceeded"],
+  "reason_codes": ["request_completed", "request_identity_denied", "request_state_conflict", "request_http_error", "request_internal_error", "runtime_not_ready", "resource_owner_missing", "resource_tenant_mismatch", "stale_human_action", "provider_execution_missing", "cost_budget_exceeded"],
   "resilience_evidence": [
     "tests/integration/test_session14_postgres_human_review.py",
     "scripts/session13_14_unified_postgres_evidence.py",
