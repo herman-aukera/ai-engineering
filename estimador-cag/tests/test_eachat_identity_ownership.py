@@ -26,8 +26,9 @@ def test_signed_session_rejects_tampering_and_expiry() -> None:
     assert actor.owner_id == "tenant-a:alice"
 
     head, payload, signature = token.split(".")
+    replacement = "A" if signature[-1] != "A" else "B"
     with pytest.raises(ValueError, match="signature"):
-        codec.verify(f"{head}.{payload}.{signature[:-1]}A")
+        codec.verify(f"{head}.{payload}.{signature[:-1]}{replacement}")
 
     expired = codec.issue(
         subject="alice",
