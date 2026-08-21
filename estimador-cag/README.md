@@ -2,101 +2,83 @@
 
 The canonical `main` product is an Energy-Aware AI project estimator: it turns a project request into a governed estimate through typed evidence, specialist proposals, deterministic policy, bounded recovery and persistent human review.
 
-This is the primary evolutionary product line from LIDR Sessions 13/14, with the production envelope applied around it.
-
 ## Production entry point
 
-```text
-app.estimator.production_app:app
-```
+`app.estimator.production_app:app`
 
-The historical `app.main` application remains available for coursework and compatibility, but production does **not** deploy it.
+Production does **not** deploy the historical coursework `app.main`. The canonical business API is `/api/v1/estimate/graph/unified*`; operational probes are `/startup`, `/health`, `/ready` and `/version`. Business routes require a backend-signed bearer session.
 
-Canonical production API:
+## Energy-Aware authority loop
 
 ```text
-GET  /api/v1/estimate/graph/unified/readiness
-POST /api/v1/estimate/graph/unified
-POST /api/v1/estimate/graph/unified/control
-POST /api/v1/estimate/graph/unified/{estimation_id}/resume
-POST /api/v1/estimate/graph/unified/control/{estimation_id}/resume
+request -> structure/retrieval -> candidates -> critics/reliability
+-> deterministic decision -> bounded selective recovery
+-> coherence verification -> protected human authorization -> record
 ```
 
-Operational probes are `/startup`, `/health`, `/ready`, `/version` and are intentionally excluded from the business OpenAPI contract. Production business routes require a backend-signed bearer session.
-
-## Energy-Aware decision loop
-
-```text
-request
--> reformulate / classify
--> structure + retrieval evidence
--> estimate candidates
--> competition + reliability + critics
--> deterministic review/Boss policy
--> bounded selective recovery when justified
--> independent coherence validation
--> persistent human authorization when protected
--> final proposal + evidence
-```
-
-Models and specialists may propose and provide evidence. They may not waive hard constraints, own arithmetic/budgets, authorize protected transitions or decide their own acceptance. The supervisor and deterministic policy own machine routing/decision authority; the human gate owns protected human authority.
-
-The portfolio-neutral vocabulary is defined in `docs/ENERGY_AWARE_PROTOCOL_V1.md`.
+Models and specialists may propose and provide evidence. They may not waive hard constraints, own arithmetic/budgets, authorize protected transitions or decide their own acceptance. The deterministic supervisor/review policy owns machine authority; the human gate owns protected human authority.
 
 ## Identity and durable state
 
-Production requires `ESTIMATOR_SESSION_SIGNING_KEY`. Signed sessions carry an actor and tenant identity; each persisted `estimation_id` is bound to that owner in PostgreSQL. Resume/control requests from another owner fail closed, and the public HITL `actor` field is replaced by the authenticated server-side actor before the decision reaches the graph.
+Production requires `ESTIMATOR_SESSION_SIGNING_KEY`. Signed sessions carry actor and tenant identity; each persisted `estimation_id` is bound to that owner in PostgreSQL. Cross-owner resume/control fails closed, and the public HITL `actor` field is replaced by the authenticated server-side actor before reaching the graph.
 
-This signed-session boundary is an application identity mechanism, **not a claim of live OIDC integration**. A real external identity-provider adapter remains a staging integration task.
+This is an application identity boundary, not a claim of live OIDC integration. Authoritative LangGraph checkpoints, replay/HITL state, revisions and estimation ownership use PostgreSQL; replaceable compute does not own authoritative state.
 
-Authoritative LangGraph checkpoints, replay/HITL state, revisions and estimation ownership use PostgreSQL. Production compute is designed to be replaceable; authoritative workflow state must not depend on EC2/Spot-local disk. Redis is runtime infrastructure and must not silently become authoritative state.
+## Isolated production artifact
 
-## Local deterministic validation
+The deployable dependency closure is frozen independently of coursework dependencies:
+
+```text
+deploy/estimator/pyproject.toml
+deploy/estimator/uv.lock
+deploy/estimator/uv.lock.sha256
+```
+
+`scripts/estimator_export_production_requirements.py` verifies the lock digest and rejects notebook/UI/local-model/document-processing dependencies. The Dockerfile consumes this isolated lock directly and installs hashed requirements.
+
+The product mapping is machine-readable in `docs/energy_aware_product_manifest.json`. `scripts/verify_energy_aware_protocol.py` proves shared authority invariants and `scripts/product_split_dry_run.py` traces the production import closure, rejects peer-product imports and materializes a compile-checked product-only tree.
+
+## Observability
+
+Production emits the neutral `energy-aware.event.v1` envelope through `app/energy_aware_observability.py`. Events contain safe correlation, outcome, stable reason code and duration. Prompts, transcripts, authorization values, API keys and secrets are prohibited event attributes.
+
+## Deterministic validation
 
 ```bash
 cd estimador-cag
 OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q -m "not live_provider"
-uv run ruff check app tests scripts
-```
-
-Production contracts include signed ownership tests, production-surface tests and the Session 15 envelope:
-
-```bash
-uv run pytest -q tests/test_estimator_identity_ownership.py tests/test_estimator_production_ownership.py
+python scripts/estimator_export_production_requirements.py
+python scripts/verify_energy_aware_protocol.py
+python scripts/product_split_dry_run.py
 uv run python scripts/session15_production_contract.py
-uv run python scripts/verify_repo_split_readiness.py
 ```
 
-Normal blocking CI never performs a real model call. Credentialed provider quality/cost/latency evaluation is isolated in `.github/workflows/provider-evaluation.yml`.
+Normal blocking CI never performs a real model call. Credentialed provider quality/cost/latency evaluation remains isolated in `.github/workflows/provider-evaluation.yml`.
 
-## Production model
+## Production topology
 
 ```text
-Internet
--> Caddy :80/:443
--> private estimator container :8000
--> signed actor + tenant ownership
--> durable external PostgreSQL
--> runtime Redis
--> outbound HTTPS to selected model providers
+Internet -> Caddy :80/:443 -> private estimator :8000
+         -> signed actor + tenant ownership
+         -> durable PostgreSQL
+         -> provider HTTPS when explicitly selected
 ```
 
-The production image is non-root, built once, identified by Git SHA/OCI digest, deployed by immutable digest and rolled back by a previous digest. See `deploy/session15/README.md` and `docs/RELEASE.md`.
+The image is non-root, SHA/digest identified, immutable at release and rolled back by prior digest.
 
-## Current claim boundary
+## Remaining external production gates
 
-Repository implementation supports an isolated estimator production surface, signed tenant ownership, deterministic CI contracts, durable graph state, non-root container, single ingress and immutable deployment/rollback design.
+Repository evidence covers the isolated production surface, signed tenant ownership, durable graph state, product-only dependency lock, neutral telemetry contract, single ingress and immutable deployment design.
 
-It is **not yet truthful to call this live production-ready** without exact-head hosted evidence for the current identity slice and real staging/production evidence for EC2/RDS, external identity/OIDC, TLS/DNS, backup/restore, load/SLO/alerting and operational telemetry.
+It is **not yet truthful to call this live production-ready** without real staging/production evidence for EC2/RDS, external identity/OIDC, DNS/TLS, backup/restore, load/SLO/alerting and collected production telemetry.
 
 ## Canonical documentation
 
-- `docs/ARCHITECTURE.md`
 - `docs/ENERGY_AWARE_PROTOCOL_V1.md`
+- `docs/energy_aware_product_manifest.json`
+- `docs/ARCHITECTURE.md`
 - `docs/SECURITY.md`
 - `docs/OPERATIONS.md`
 - `docs/RELEASE.md`
 - `docs/REPO_SPLIT_MANIFEST.md`
 - `docs/history/README.md`
-
-Historical session evidence remains in Git and the history index; it is no longer the product README.
