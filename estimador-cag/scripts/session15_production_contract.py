@@ -8,7 +8,6 @@ production wiring, and immutable release/deploy/rollback semantics.
 
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PROJECT_ROOT.parent
 
