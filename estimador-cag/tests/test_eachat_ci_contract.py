@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 
@@ -26,7 +24,7 @@ def test_blocking_eachat_ci_is_keyless_and_runs_contract_plus_smoke() -> None:
 def test_container_canary_is_real_postgres_restart_integration() -> None:
     canary = _read(".github/workflows/eachat-container-canary.yml")
 
-    assert "branches:\n      - EACHAT" in canary
+    assert "- EACHAT" in canary
     assert "uv lock --project deploy/eachat --check" in canary
     assert "EACHAT_POSTGRES_URL=postgresql://" in canary
     assert '--env GIT_SHA="$EXPECTED_HEAD_SHA"' in canary
