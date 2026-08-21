@@ -70,7 +70,8 @@ jobs:
   unified-postgres-evidence:
     if: >-
       (github.event_name == 'pull_request' && github.head_ref == 'gg-session-14/plus-consolidated') ||
-      (github.event_name == 'push' && github.ref_name == 'gg-session-14/plus-consolidated') ||
+      (github.event_name == 'push' &&
+       (github.ref_name == 'gg-session-14/plus-consolidated' || github.ref_name == 'main')) ||
       github.event_name == 'workflow_dispatch'
     needs: test-estimador-cag
     runs-on: ubuntu-latest
@@ -137,7 +138,8 @@ jobs:
       (github.event_name == 'pull_request' &&
        ((github.base_ref == 'main' && github.head_ref == 'gg-session-13/plus') ||
         github.head_ref == 'gg-session-14/plus-consolidated')) ||
-      (github.event_name == 'push' && github.ref_name == 'gg-session-14/plus-consolidated') ||
+      (github.event_name == 'push' &&
+       (github.ref_name == 'gg-session-14/plus-consolidated' || github.ref_name == 'main')) ||
       github.event_name == 'workflow_dispatch'
     needs: test-estimador-cag
     runs-on: ubuntu-latest
