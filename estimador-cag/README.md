@@ -2,7 +2,7 @@
 
 The canonical `main` product is an Energy-Aware AI project estimator: it turns a project request into a governed estimate through typed evidence, specialist proposals, deterministic policy, bounded recovery and persistent human review.
 
-This is the primary evolutionary product line from LIDR Sessions 13/14, with the Session 15 production envelope applied around it.
+This is the primary evolutionary product line from LIDR Sessions 13/14, with the production envelope applied around it.
 
 ## Production entry point
 
@@ -22,7 +22,7 @@ POST /api/v1/estimate/graph/unified/{estimation_id}/resume
 POST /api/v1/estimate/graph/unified/control/{estimation_id}/resume
 ```
 
-Operational probes are `/startup`, `/health`, `/ready`, `/version` and are intentionally excluded from the business OpenAPI contract.
+Operational probes are `/startup`, `/health`, `/ready`, `/version` and are intentionally excluded from the business OpenAPI contract. Production business routes require a backend-signed bearer session.
 
 ## Energy-Aware decision loop
 
@@ -43,11 +43,13 @@ Models and specialists may propose and provide evidence. They may not waive hard
 
 The portfolio-neutral vocabulary is defined in `docs/ENERGY_AWARE_PROTOCOL_V1.md`.
 
-## Durable state
+## Identity and durable state
 
-Authoritative LangGraph checkpoints, replay/HITL state and revisions use PostgreSQL. Production compute is designed to be replaceable; authoritative workflow state must not depend on EC2/Spot-local disk.
+Production requires `ESTIMATOR_SESSION_SIGNING_KEY`. Signed sessions carry an actor and tenant identity; each persisted `estimation_id` is bound to that owner in PostgreSQL. Resume/control requests from another owner fail closed, and the public HITL `actor` field is replaced by the authenticated server-side actor before the decision reaches the graph.
 
-Redis is runtime infrastructure and must not silently become authoritative state.
+This signed-session boundary is an application identity mechanism, **not a claim of live OIDC integration**. A real external identity-provider adapter remains a staging integration task.
+
+Authoritative LangGraph checkpoints, replay/HITL state, revisions and estimation ownership use PostgreSQL. Production compute is designed to be replaceable; authoritative workflow state must not depend on EC2/Spot-local disk. Redis is runtime infrastructure and must not silently become authoritative state.
 
 ## Local deterministic validation
 
@@ -57,11 +59,10 @@ OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q -m 
 uv run ruff check app tests scripts
 ```
 
-Production-surface smoke:
+Production contracts include signed ownership tests, production-surface tests and the Session 15 envelope:
 
 ```bash
-OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test \
-uv run pytest -q tests/smoke/test_session15_http_smoke.py
+uv run pytest -q tests/test_estimator_identity_ownership.py tests/test_estimator_production_ownership.py
 uv run python scripts/session15_production_contract.py
 uv run python scripts/verify_repo_split_readiness.py
 ```
@@ -74,6 +75,7 @@ Normal blocking CI never performs a real model call. Credentialed provider quali
 Internet
 -> Caddy :80/:443
 -> private estimator container :8000
+-> signed actor + tenant ownership
 -> durable external PostgreSQL
 -> runtime Redis
 -> outbound HTTPS to selected model providers
@@ -83,9 +85,9 @@ The production image is non-root, built once, identified by Git SHA/OCI digest, 
 
 ## Current claim boundary
 
-Repository evidence supports a production-oriented estimator architecture with isolated production surface, deterministic CI contract, durable graph state, non-root container, single ingress and immutable deployment/rollback design.
+Repository implementation supports an isolated estimator production surface, signed tenant ownership, deterministic CI contracts, durable graph state, non-root container, single ingress and immutable deployment/rollback design.
 
-It is **not yet truthful to call this live production-ready** without real staging/production evidence for EC2/RDS, TLS/DNS, backup/restore, load/SLO/alerting, multi-tenant identity/ownership and operational telemetry.
+It is **not yet truthful to call this live production-ready** without exact-head hosted evidence for the current identity slice and real staging/production evidence for EC2/RDS, external identity/OIDC, TLS/DNS, backup/restore, load/SLO/alerting and operational telemetry.
 
 ## Canonical documentation
 
