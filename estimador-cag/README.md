@@ -24,6 +24,8 @@ Production requires `ESTIMATOR_SESSION_SIGNING_KEY`. Signed sessions carry actor
 
 This is an application identity boundary, not a claim of live OIDC integration. Authoritative LangGraph checkpoints, replay/HITL state, revisions and estimation ownership use PostgreSQL; replaceable compute does not own authoritative state.
 
+`/health` is deliberately cheap and provider/database independent. `/ready` separately performs a bounded authority-store availability check and fails with 503 when PostgreSQL authority is unavailable, so a live process with a dead authoritative database is removed from service without calling an LLM.
+
 ## Isolated production artifact
 
 The deployable dependency closure is frozen independently of coursework dependencies:
@@ -55,7 +57,7 @@ uv run python scripts/session15_production_contract.py
 
 Normal blocking CI never performs a real model call. Credentialed provider quality/cost/latency evaluation remains isolated in `.github/workflows/provider-evaluation.yml`.
 
-## Production topology
+## Production topology and release
 
 ```text
 Internet -> Caddy :80/:443 -> private estimator :8000
@@ -64,7 +66,7 @@ Internet -> Caddy :80/:443 -> private estimator :8000
          -> provider HTTPS when explicitly selected
 ```
 
-The image is non-root, SHA/digest identified, immutable at release and rolled back by prior digest.
+The image is non-root, SHA/digest identified, immutable at release and rolled back by prior digest. Release builds attach BuildKit SBOM and provenance attestations; the portfolio final gate separately audits the isolated Python dependency closure.
 
 ## Remaining external production gates
 
