@@ -7,6 +7,7 @@ must use the versioned PostgreSQL store before the process becomes ready.
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -14,8 +15,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.energy_aware_observability import observe_http_request
 from app.routers.eacode import router as eacode_router
 from energy_core.beta_store_runtime import build_beta_demo_store
+
+logger = logging.getLogger(__name__)
 
 
 def _cors_origins() -> list[str]:
@@ -58,8 +62,12 @@ def create_production_app() -> FastAPI:
         allow_origins=_cors_origins(),
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"],
+        allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
     )
+
+    @service.middleware("http")
+    async def energy_aware_observability(request: Request, call_next) -> Response:
+        return await observe_http_request(request, call_next, product="eacode", logger=logger)
 
     @service.middleware("http")
     async def security_headers(request: Request, call_next) -> Response:
@@ -67,15 +75,11 @@ def create_production_app() -> FastAPI:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Permissions-Policy"] = (
-            "camera=(), microphone=(), geolocation=(), payment=()"
-        )
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
         if request.url.path.startswith("/api/v1/eacode"):
             response.headers["Cache-Control"] = "no-store"
         if request.url.scheme == "https":
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
     service.include_router(eacode_router, prefix="/api/v1")
@@ -107,11 +111,7 @@ def create_production_app() -> FastAPI:
 
     @service.get("/version", include_in_schema=False)
     def version() -> dict[str, str]:
-        return {
-            "service": "eacode",
-            "version": service.version,
-            "git_sha": os.getenv("GIT_SHA", "unknown"),
-        }
+        return {"service": "eacode", "version": service.version, "git_sha": os.getenv("GIT_SHA", "unknown")}
 
     return service
 
