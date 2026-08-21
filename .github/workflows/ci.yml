@@ -142,6 +142,8 @@ jobs:
     needs: test-estimador-cag
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -169,17 +171,17 @@ jobs:
       - name: Checkout exact validation head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - name: Verify exact checked-out SHA
-        run: test "$(git rev-parse HEAD)" = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
       - name: Build production image
-        run: docker build -t estimador-cag:${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }} estimador-cag
+        run: docker build -t estimador-cag:$EXPECTED_HEAD_SHA estimador-cag
       - name: Run production image
         run: |
           docker run --detach --name estimador-cag \
             --network host \
-            --env GIT_SHA=${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }} \
+            --env GIT_SHA="$EXPECTED_HEAD_SHA" \
             --env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/lidr \
             --env REDIS_URL=redis://127.0.0.1:6379/0 \
             --env DEEPSEEK_API_KEY=container-smoke-provider \
@@ -187,7 +189,7 @@ jobs:
             --env OPENAI_API_KEY=dummy \
             --env GRAPH_RETRIEVAL_MODE=parallel \
             --env GRAPH_RETRIEVAL_MAX_CONCURRENCY=4 \
-            estimador-cag:${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+            estimador-cag:$EXPECTED_HEAD_SHA
       - name: Probe startup liveness readiness version and unified contract
         run: |
           mkdir -p /tmp/container-readiness
@@ -230,7 +232,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: container-readiness-evidence-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          name: container-readiness-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: /tmp/container-readiness
           if-no-files-found: error
           retention-days: 14
@@ -241,7 +243,7 @@ jobs:
           import os
           from pathlib import Path
 
-          expected_sha = os.environ['GITHUB_SHA']
+          expected_sha = os.environ['EXPECTED_HEAD_SHA']
           startup = json.loads(Path('/tmp/container-readiness/startup.json').read_text())
           payload = json.loads(Path('/tmp/container-readiness/ready.json').read_text())
           version = json.loads(Path('/tmp/container-readiness/version.json').read_text())
