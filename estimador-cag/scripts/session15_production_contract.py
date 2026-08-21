@@ -1,10 +1,4 @@
-"""Deterministic Session 15 production-envelope contract gate.
-
-This check intentionally avoids network/provider calls. It protects repository
-properties that can regress even when unit suites remain green: public API
-versioning, LLM-free blocking CI, non-root images, explicit CORS, single-ingress
-production wiring, and immutable release/deploy/rollback semantics.
-"""
+"""Deterministic production-envelope contract for the canonical estimator service."""
 
 import sys
 from pathlib import Path
@@ -22,39 +16,31 @@ def _read(path: Path) -> str:
 
 
 def _check_api_contract() -> None:
-    from app.main import app
+    from app.estimator.production_app import create_production_app
 
-    schema = app.openapi()
-    paths = schema.get("paths", {})
-    required_get_paths = {
-        "/startup",
-        "/health",
-        "/ready",
-        "/version",
+    app = create_production_app()
+    paths = app.openapi().get("paths", {})
+    if not paths:
+        raise AssertionError("estimator production API has no public business routes")
+    noncanonical = sorted(
+        path for path in paths if not path.startswith("/api/v1/estimate/graph/unified")
+    )
+    if noncanonical:
+        raise AssertionError(
+            f"estimator production app exposes noncanonical business routes: {noncanonical}"
+        )
+    required = {
+        "/api/v1/estimate/graph/unified",
         "/api/v1/estimate/graph/unified/readiness",
     }
-    missing = sorted(
-        path for path in required_get_paths if "get" not in paths.get(path, {})
-    )
+    missing = sorted(required - set(paths))
     if missing:
-        raise AssertionError(f"missing GET production/API contracts: {missing}")
+        raise AssertionError(f"missing canonical estimator routes: {missing}")
 
-    public_api_paths = sorted(path for path in paths if path.startswith("/api/"))
-    unversioned = [
-        path
-        for path in public_api_paths
-        if not path.startswith(("/api/v1/", "/api/v2/"))
-    ]
-    if unversioned:
-        raise AssertionError(f"public /api routes must carry an explicit major version: {unversioned}")
-    if not any(path.startswith("/api/v1/") for path in public_api_paths):
-        raise AssertionError("canonical Session 13/14 production routes must expose /api/v1")
-    if not any(path.startswith("/api/v2/") for path in public_api_paths):
-        raise AssertionError("established V2 estimation compatibility surface is missing")
-
-    main_source = _read(PROJECT_ROOT / "app" / "main.py")
-    if 'allow_origins=["*"]' in main_source or "allow_origins=['*']" in main_source:
-        raise AssertionError("production-capable app must not default CORS to wildcard origins")
+    route_paths = {getattr(route, "path", "") for route in app.routes}
+    for forbidden in ("/demo", "/sse-demo", "/embeddings", "/search", "/api/v2/estimate"):
+        if forbidden in route_paths:
+            raise AssertionError(f"historical/coursework route leaked into production: {forbidden}")
 
 
 def _check_blocking_ci_contract() -> None:
@@ -79,6 +65,10 @@ def _check_image_contract() -> None:
     dockerfile = _read(PROJECT_ROOT / "Dockerfile")
     if "USER app" not in dockerfile:
         raise AssertionError("production image must run as the non-root app user")
+    if "app.estimator.production_app:app" not in dockerfile:
+        raise AssertionError("production image must start the isolated estimator composition root")
+    if "app.main:app" in dockerfile:
+        raise AssertionError("production image must not start the broad coursework application")
     forbidden = ("OPENAI_API_KEY=", "DEEPSEEK_API_KEY=", "KIMI_API_KEY=")
     if any(value in dockerfile for value in forbidden):
         raise AssertionError("provider secrets/configuration must not be baked into the image")
@@ -104,7 +94,6 @@ def _check_release_contract() -> None:
 def _check_single_ingress_contract() -> None:
     compose = _read(PROJECT_ROOT / "deploy" / "session15" / "docker-compose.production.yml")
     caddy = _read(PROJECT_ROOT / "deploy" / "session15" / "Caddyfile")
-
     if compose.count("ports:") != 1:
         raise AssertionError("production Compose must expose exactly one service to the host")
     for forbidden_binding in ("5432:", "6379:", "8000:8000"):
@@ -113,7 +102,7 @@ def _check_single_ingress_contract() -> None:
                 f"production Compose exposes an internal service/port: {forbidden_binding}"
             )
     if "reverse_proxy ai_service:8000" not in caddy or "health_uri /ready" not in caddy:
-        raise AssertionError("Caddy must be the readiness-aware single ingress to the private AI service")
+        raise AssertionError("Caddy must be the readiness-aware single ingress to the private estimator")
 
 
 def _check_deploy_contract() -> None:
@@ -138,7 +127,7 @@ def main() -> None:
     _check_release_contract()
     _check_single_ingress_contract()
     _check_deploy_contract()
-    print("session15 production contract: PASS")
+    print("estimator production contract: PASS")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,6 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app ./app
-COPY docs ./docs
 COPY artifacts/provider-readiness/provider-benchmark-snapshot.json \
     ./artifacts/provider-readiness/provider-benchmark-snapshot.json
 
@@ -25,4 +24,4 @@ USER app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+CMD ["uvicorn", "app.estimator.production_app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
