@@ -33,7 +33,7 @@ _PLACEHOLDER_KEYS = frozenset({"", "test", "dummy", "fake", "placeholder", "exam
 
 
 class EstimatorReadinessReport(BaseModel):
-    """Sanitized production-readiness projection without network/model calls."""
+    """Sanitized production-readiness projection without model calls."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -43,6 +43,7 @@ class EstimatorReadinessReport(BaseModel):
     unified_runtime: bool
     configured_providers: list[str]
     ownership_restart_persistent: bool
+    authority_store_available: bool
     identity_required: bool
     runtime_error: str | None = None
 
@@ -98,6 +99,19 @@ def _build_ownership_store() -> EstimationOwnershipStore:
         "DATABASE_URL is required for estimator production ownership. "
         "Set ESTIMATOR_ALLOW_IN_MEMORY_OWNERSHIP=true only for explicit tests."
     )
+
+
+def _authority_available(ownership: object) -> bool:
+    if ownership is None:
+        return False
+    ping = getattr(ownership, "ping", None)
+    if not callable(ping):
+        return False
+    try:
+        return bool(ping())
+    except Exception:
+        logger.warning("estimator_authority_readiness_failed", exc_info=True)
+        return False
 
 
 @asynccontextmanager
@@ -198,15 +212,23 @@ def create_production_app() -> FastAPI:
         include_in_schema=False,
     )
     def ready(response: Response) -> EstimatorReadinessReport:
-        """Require initialized graph runtime, identity, ownership, and a provider."""
+        """Require initialized runtime, reachable authority DB, identity, and provider config."""
         started = bool(getattr(service.state, "startup_complete", False))
         runtime_ready = getattr(service.state, "unified_graph_estimation_service", None) is not None
         providers = _configured_providers()
         ownership = getattr(service.state, "estimator_ownership_store", None)
         identity_key = getattr(service.state, "estimator_identity_signing_key", None)
         ownership_ready = ownership is not None
+        authority_available = _authority_available(ownership)
         identity_ready = isinstance(identity_key, bytes) and len(identity_key) >= 32
-        is_ready = started and runtime_ready and bool(providers) and ownership_ready and identity_ready
+        is_ready = (
+            started
+            and runtime_ready
+            and bool(providers)
+            and ownership_ready
+            and authority_available
+            and identity_ready
+        )
         if not is_ready:
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return EstimatorReadinessReport(
@@ -216,6 +238,7 @@ def create_production_app() -> FastAPI:
             unified_runtime=runtime_ready,
             configured_providers=providers,
             ownership_restart_persistent=bool(getattr(ownership, "restart_persistent", False)),
+            authority_store_available=authority_available,
             identity_required=True,
             runtime_error=_safe_error_type(getattr(service.state, "unified_graph_runtime_error", None)),
         )
