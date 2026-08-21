@@ -94,12 +94,26 @@ def verify() -> dict[str, object]:
 
     surface = manifest.get("public_surface")
     major = manifest.get("public_api_major")
-    surface_owner = _resolve_declared_path(manifest.get("public_surface_owner"))
-    route_source = surface_owner.read_text(encoding="utf-8")
-    if not isinstance(surface, str) or surface not in route_source:
-        raise AssertionError("canonical public surface is not declared by its route owner")
-    if not isinstance(major, str) or f"/{major}/" not in surface:
-        raise AssertionError("public API major is not explicit in canonical surface")
+    if not isinstance(surface, str) or not isinstance(major, str) or f"/{major}/" not in surface:
+        raise AssertionError("canonical public surface must carry an explicit API major")
+
+    composition_source = _resolve_declared_path(manifest.get("production_entrypoint")).read_text(
+        encoding="utf-8"
+    )
+    route_source = _resolve_declared_path(manifest.get("public_surface_owner")).read_text(
+        encoding="utf-8"
+    )
+    markers = manifest.get("public_surface_markers")
+    if not isinstance(markers, list) or not markers:
+        raise AssertionError("public_surface_markers must be a non-empty list")
+    combined_route_source = composition_source + "\n" + route_source
+    missing_markers = [
+        marker
+        for marker in markers
+        if not isinstance(marker, str) or marker not in combined_route_source
+    ]
+    if missing_markers:
+        raise AssertionError(f"canonical route composition markers are missing: {missing_markers}")
 
     evidence = manifest.get("resilience_evidence")
     if not isinstance(evidence, list) or not evidence:
@@ -113,7 +127,7 @@ def verify() -> dict[str, object]:
     if missing_evidence:
         raise AssertionError(f"declared resilience evidence is missing: {missing_evidence}")
 
-    result = {
+    return {
         "schema_version": manifest["schema_version"],
         "protocol_version": version,
         "product": manifest["product"],
@@ -124,7 +138,6 @@ def verify() -> dict[str, object]:
         "reason_code_count": len(reason_codes),
         "status": "pass",
     }
-    return result
 
 
 def main() -> None:
