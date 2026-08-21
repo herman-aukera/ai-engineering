@@ -1,0 +1,54 @@
+name: EACODE - Release immutable image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact release head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Export frozen production requirements
+        working-directory: estimador-cag
+        run: |
+          uv lock --check
+          uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file deploy/eacode/requirements.generated.txt
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push SHA-addressed image
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: estimador-cag
+          file: estimador-cag/deploy/eacode/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/eacode:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Emit immutable deploy identity
+        run: echo "ghcr.io/${{ github.repository_owner }}/eacode@${{ steps.image.outputs.digest }}"
