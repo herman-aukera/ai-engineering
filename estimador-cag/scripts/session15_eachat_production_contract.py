@@ -46,6 +46,20 @@ def _check_public_contract() -> None:
     if legacy:
         raise AssertionError(f"legacy evaluation/coursework routes leaked into production: {legacy}")
 
+    production_source = _read(PROJECT_ROOT / "app" / "energy_chat" / "production_app.py")
+    required_identity_markers = (
+        "EACHAT_SESSION_SIGNING_KEY",
+        "Depends(require_actor)",
+        "PostgresResourceOwnershipStore",
+    )
+    missing_identity = [
+        marker for marker in required_identity_markers if marker not in production_source
+    ]
+    if missing_identity:
+        raise AssertionError(
+            f"EACHAT production identity/ownership contract missing markers: {missing_identity}"
+        )
+
 
 def _check_ci_separation() -> None:
     ci = _read(REPO_ROOT / ".github" / "workflows" / "energy-chat-ci.yml")
@@ -109,9 +123,17 @@ def _check_durable_runtime_contract() -> None:
     )
     if "EACHAT_ALLOW_IN_MEMORY" in compose:
         raise AssertionError("production topology must not enable process-local authoritative state")
-    required = ("EACHAT_POSTGRES_URL:?", "EACHAT_MEMORY_ENCRYPTION_KEY:?")
-    if any(marker not in compose for marker in required):
-        raise AssertionError("production topology must require durable encrypted conversation state")
+    required = (
+        "EACHAT_POSTGRES_URL:?",
+        "EACHAT_MEMORY_ENCRYPTION_KEY:?",
+        "EACHAT_SESSION_SIGNING_KEY:?",
+    )
+    missing = [marker for marker in required if marker not in compose]
+    if missing:
+        raise AssertionError(
+            "production topology must require durable encrypted state and signed identity: "
+            f"{missing}"
+        )
 
 
 def _check_deploy_contract() -> None:
