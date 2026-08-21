@@ -29,6 +29,11 @@ from app.energy_chat.conversation_store import (
     ConversationTurnConflictError,
 )
 from app.energy_chat.graph_application import build_v2_error_detail
+from app.energy_chat.ownership_http import (
+    assert_resource_owner,
+    claim_resource,
+    delete_resource_owner,
+)
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
 from app.energy_chat.settings import energy_chat_v2_enabled
 
@@ -67,7 +72,13 @@ def _runtime(request: Request) -> EnergyChatApplicationRuntime:
 )
 def create_v2_conversation(http_request: Request) -> ConversationCreateResponse:
     _require_v2_enabled()
-    return create_conversation(_store(http_request))
+    response = create_conversation(_store(http_request))
+    try:
+        claim_resource(http_request, "conversation", response.conversation_id)
+    except HTTPException:
+        _store(http_request).delete(response.conversation_id)
+        raise
+    return response
 
 
 @router.get(
@@ -79,6 +90,7 @@ def get_v2_conversation(
     http_request: Request,
 ) -> ConversationHistoryResponse:
     _require_v2_enabled()
+    assert_resource_owner(http_request, "conversation", conversation_id)
     try:
         return get_conversation_history(_store(http_request), conversation_id)
     except ConversationNotFoundError as exc:
@@ -97,6 +109,7 @@ def delete_v2_conversation(
     http_request: Request,
 ) -> ConversationDeleteResponse:
     _require_v2_enabled()
+    assert_resource_owner(http_request, "conversation", conversation_id)
     try:
         _store(http_request).delete(conversation_id)
     except ConversationNotFoundError as exc:
@@ -104,6 +117,7 @@ def delete_v2_conversation(
             status_code=404,
             detail={"error": "conversation_not_found", "detail": conversation_id},
         ) from exc
+    delete_resource_owner(http_request, "conversation", conversation_id)
     return ConversationDeleteResponse(conversation_id=conversation_id)
 
 
@@ -118,6 +132,7 @@ def create_v2_conversation_turn(
     response: Response,
 ) -> ConversationTurnResponse:
     _require_v2_enabled()
+    assert_resource_owner(http_request, "conversation", conversation_id)
     try:
         result = execute_conversation_turn(
             store=_store(http_request),
@@ -125,6 +140,7 @@ def create_v2_conversation_turn(
             conversation_id=conversation_id,
             request=request,
         )
+        claim_resource(http_request, "thread", result.turn.graph_thread_id)
         if result.replayed_idempotency_key:
             response.headers["X-Idempotent-Replay"] = "true"
         return result
