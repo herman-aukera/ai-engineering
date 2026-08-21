@@ -1,95 +1,70 @@
-# EACODE Session 15 production envelope
+# EACODE production envelope
 
-This directory adds a production/runtime ring around the existing deterministic EACODE control plane. It does **not** enable unrestricted code execution or change the deterministic Boss/critic authority model.
+The isolated production application is `app.eacode.production_app:app`. It publishes only EACODE plus operational probes under the explicit `/api/v1/eacode/*` product namespace.
 
-## Canonical production surface
+## Production truth
 
-The isolated production application is `app.eacode.production_app:app` and publishes only the EACODE service plus operational probes.
+EACODE is **not stateless anymore** once the governed beta API owns proposals, authorization receipts, replay protection, execution reservations and reevaluation records. Production therefore requires durable PostgreSQL through `EACODE_DATABASE_URL`.
 
-Canonical API:
+SQLite remains only a coursework/local/test compatibility backend through the broad application. It is never configured by production Compose.
+
+## Authority lifecycle
+
+```text
+signed session
+-> tenant-owned inert proposal
+-> deterministic gates and critics
+-> repaired effective proposal
+-> operator/admin authorization
+-> one-use exact-scope receipt
+-> atomic execution reservation
+-> simulated execution
+-> deterministic reevaluation
+-> integrity-checked PostgreSQL result
+```
+
+Execution is still simulated. PostgreSQL persistence does not imply arbitrary code is safe to execute.
+
+## Canonical API
 
 - `GET /api/v1/eacode/status`
 - `GET /api/v1/eacode/capabilities`
 - `POST /api/v1/eacode/select`
 - `GET /api/v1/eacode/ui`
+- governed `/api/v1/eacode/demo...` proposal/authorization/execution routes.
 
-The broad coursework application still exposes the historical `/eacode/*` routes for compatibility. New production deployment uses only the versioned isolated application.
+The broad coursework app retains `/eacode/*` compatibility but is not the production process.
 
-The selector is deterministic: it resolves a governed **plan** and never claims that a provider/model was actually served. Credentialed provider proof remains isolated in the manually dispatched live-smoke workflow.
+## Runtime requirements
 
-## Topology
+- `EACODE_IMAGE`: immutable OCI digest.
+- `PUBLIC_HOST`: public DNS name.
+- `EACODE_DATABASE_URL`: durable PostgreSQL/RDS endpoint.
+- `EACODE_SESSION_SIGNING_KEY`: at least 32 bytes, injected only at runtime.
 
-```text
-Internet
-  -> HTTPS 443 / HTTP 80
-  -> Caddy (only host-published service)
-  -> EACODE production container :8000 on a private Docker network
-```
-
-This isolated HTTP control surface has no authoritative runtime database state. The policy/capability data is shipped as version-controlled application data; a replacement container reconstructs the same deterministic service from the immutable image. This makes the service itself suitable for replaceable/Spot compute once the artifact and host bootstrap are supplied.
+Application startup verifies that migration `0001_eacode_beta_authority` is already present. `deploy.sh` explicitly runs the migration before replacing the app.
 
 ## Health semantics
 
-- `/startup`: process/application initialization completed.
-- `/health`: cheap local liveness; no provider call.
-- `/ready`: deterministic control plane is available; no external dependency or provider call.
-- `/version`: safe service version and injected Git SHA.
+- `/startup`: production lifespan completed.
+- `/health`: cheap local liveness; no provider or database call.
+- `/ready`: startup completed with verified PostgreSQL authority schema.
+- `/version`: safe version and Git SHA.
 
-No health endpoint invokes an LLM.
+## Persistence and replacement proof
 
-## Immutable artifact
+`.github/workflows/eacode-postgres-integration.yml` provisions PostgreSQL, applies the migration, runs store-level integration, starts the real container, creates/authorizes/executes a governed proposal, destroys the application container, recreates it against the same database and verifies the completed record survives.
 
-`.github/workflows/eacode-release-image.yml` is a manually dispatched release workflow. It:
+This proves application-container replaceability. It is not yet evidence of a real EC2 Spot interruption or RDS backup/restore.
 
-1. checks out the exact Git SHA;
-2. validates the frozen `uv.lock`;
-3. exports hash-pinned production requirements;
-4. builds the non-root isolated EACODE image;
-5. pushes a SHA-addressed image to GHCR;
-6. emits the immutable `name@sha256:digest` deploy identity.
+## Build, deploy and rollback
 
-Environment changes do not require a rebuild.
+Release remains keyless with respect to model providers and emits an immutable image digest. Deployment rejects mutable tags, applies the versioned PostgreSQL migration and waits for `/ready`. Rollback redeploys a previous digest.
 
-## Deploy
-
-Provide an exact released digest and public DNS name:
-
-```sh
-EACODE_IMAGE='ghcr.io/owner/eacode@sha256:...' \
-PUBLIC_HOST='code.example.com' \
-sh deploy.sh
-```
-
-`deploy.sh` rejects mutable tags, pulls the exact artifact, replaces the service, and waits for `/ready`. It never rebuilds source on the host.
-
-## Rollback
-
-```sh
-ROLLBACK_IMAGE='ghcr.io/owner/eacode@sha256:previous...' \
-PUBLIC_HOST='code.example.com' \
-sh rollback.sh
-```
-
-Rollback is therefore artifact replacement, not source reconstruction.
-
-## CI versus model evaluation
-
-Blocking `.github/workflows/ci.yml` uses only deterministic application behavior and fake provider credentials. It includes the Session 15 production contract and an isolated container canary.
-
-Real provider evidence remains in `.github/workflows/live-smoke.yml`, which is manually dispatched and uses a separate cadence. Provider availability, quota, latency, stochasticity, or billing must never determine whether normal software CI is green.
+**Migration boundary:** rollback to images predating PostgreSQL authority is intentionally unsupported because those images cannot read the durable authority schema. Roll back only to a known-good post-migration image.
 
 ## AWS EC2 Spot boundary
 
-For direct EC2 deployment:
+Compute may be disposable only because authoritative beta state now lives outside the instance. On AWS use RDS/private networking, IAM instance roles, SSM/Secrets Manager and 80/443-only public ingress. Do not store authoritative EACODE state on the Spot filesystem.
 
-- expose only 80/443 through the public security group;
-- prefer SSM Session Manager or tightly restricted administration rather than broad SSH;
-- use an IAM instance role instead of static AWS credentials;
-- fetch the exact released image digest during bootstrap;
-- use SSM Parameter Store / Secrets Manager for any future runtime secrets;
-- allow the container stop grace period before Spot termination;
-- treat the instance filesystem as disposable.
-
-Because this isolated deterministic selector does not own authoritative mutable state, replacement of the application instance does not require state restoration. Any future EACODE execution ledger or remote execution state must be re-audited before being placed on Spot compute.
-
-This repository intentionally does **not** provision paid AWS resources. A real EC2 deployment, DNS/TLS observation, release-image execution, live provider evidence and production telemetry remain separate evidence gates before claiming live production readiness.
+Remaining external gates before a production-ready claim include real EC2/RDS deployment, DNS/TLS, RDS backup/restore, live identity provider integration, SLO/alerts/telemetry and a proven sandbox before any arbitrary untrusted-code execution.

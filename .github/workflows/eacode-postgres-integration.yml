@@ -1,0 +1,211 @@
+name: EACODE - PostgreSQL Restart Integration
+
+on:
+  push:
+    branches:
+      - EACODE
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-authority-and-container-restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: eacode
+          POSTGRES_PASSWORD: eacode_test
+          POSTGRES_DB: eacode_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eacode -d eacode_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.sha }}
+      EACODE_DATABASE_URL: postgresql://eacode:eacode_test@127.0.0.1:5432/eacode_test
+      EACODE_SESSION_SIGNING_KEY: ci-eacode-signing-key-32-bytes-minimum
+      RUN_EACODE_POSTGRES_INTEGRATION: "1"
+      OPENAI_API_KEY: test
+      DEEPSEEK_API_KEY: test
+      KIMI_API_KEY: test
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout exact EACODE head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deterministic test environment
+        working-directory: estimador-cag
+        run: uv sync --frozen --extra dev
+
+      - name: Apply versioned authority migration
+        working-directory: estimador-cag
+        run: uv run python -m energy_core.postgres_beta_store migrate
+
+      - name: PostgreSQL authority integration test
+        working-directory: estimador-cag
+        run: uv run pytest -q tests/integration/test_eacode_postgres_authority.py
+
+      - name: Export frozen production requirements
+        working-directory: estimador-cag
+        run: >-
+          uv export --frozen --no-dev --no-emit-project
+          --format requirements-txt
+          --output-file deploy/eacode/requirements.generated.txt
+
+      - name: Build isolated non-root image
+        working-directory: estimador-cag
+        run: docker build --file deploy/eacode/Dockerfile --tag "eacode-postgres:${EXPECTED_HEAD_SHA}" .
+
+      - name: Start production container against PostgreSQL
+        run: |
+          docker run --detach --name eacode-postgres-app --network host \
+            --env GIT_SHA="$EXPECTED_HEAD_SHA" \
+            --env EACODE_DATABASE_URL="$EACODE_DATABASE_URL" \
+            --env EACODE_SESSION_SIGNING_KEY="$EACODE_SESSION_SIGNING_KEY" \
+            "eacode-postgres:${EXPECTED_HEAD_SHA}"
+          ready=0
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8000/ready > /tmp/eacode-ready-first.json; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = "1"
+          test "$(docker exec eacode-postgres-app id -u)" != "0"
+
+      - name: Exercise signed beta authority over HTTP
+        working-directory: estimador-cag
+        run: |
+          uv run python - <<'PY'
+          from datetime import UTC, datetime, timedelta
+          from pathlib import Path
+          import json
+          import os
+          import httpx
+          from energy_core.identity import SessionSigner
+
+          key = os.environ['EACODE_SESSION_SIGNING_KEY']
+          token = SessionSigner(key.encode()).issue(
+              user_id='ci-operator',
+              roles=('operator',),
+              expires_at=datetime.now(UTC) + timedelta(minutes=10),
+          )
+          headers = {'Authorization': f'Bearer {token}'}
+          payload = {
+              'proposal_id': 'container-restart-persistence',
+              'objective': 'Add a safe health check',
+              'spec_id': '0012-production-hardening',
+              'patch': "def health():\n    return 'todo'\n",
+              'changed_files': ['app/health.py'],
+              'proposed_commands': [['pytest', '-q', 'tests/test_health.py']],
+          }
+          base = 'http://127.0.0.1:8000/api/v1/eacode'
+          with httpx.Client(timeout=10) as client:
+              prepared = client.post(f'{base}/demo', headers=headers, json=payload)
+              prepared.raise_for_status()
+              authorization = client.post(
+                  f'{base}/demo/container-restart-persistence/authorize',
+                  headers=headers,
+              )
+              authorization.raise_for_status()
+              receipt_id = authorization.json()['receipt_id']
+              execution = client.post(
+                  f'{base}/demo/container-restart-persistence/execute',
+                  headers=headers,
+                  json={'receipt_id': receipt_id},
+              )
+              execution.raise_for_status()
+              assert execution.json()['final_decision']['disposition'] == 'accept'
+          Path('/tmp/eacode-session-token.txt').write_text(token, encoding='utf-8')
+          Path('/tmp/eacode-first-execution.json').write_text(
+              json.dumps(execution.json(), indent=2), encoding='utf-8'
+          )
+          PY
+
+      - name: Destroy and recreate application container
+        run: |
+          docker logs eacode-postgres-app > /tmp/eacode-first-container.log 2>&1 || true
+          docker rm --force eacode-postgres-app
+          docker run --detach --name eacode-postgres-app --network host \
+            --env GIT_SHA="$EXPECTED_HEAD_SHA" \
+            --env EACODE_DATABASE_URL="$EACODE_DATABASE_URL" \
+            --env EACODE_SESSION_SIGNING_KEY="$EACODE_SESSION_SIGNING_KEY" \
+            "eacode-postgres:${EXPECTED_HEAD_SHA}"
+          ready=0
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8000/ready > /tmp/eacode-ready-restarted.json; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = "1"
+
+      - name: Verify authoritative state survived container replacement
+        working-directory: estimador-cag
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+          import json
+          import httpx
+
+          token = Path('/tmp/eacode-session-token.txt').read_text(encoding='utf-8')
+          response = httpx.get(
+              'http://127.0.0.1:8000/api/v1/eacode/demo/container-restart-persistence',
+              headers={'Authorization': f'Bearer {token}'},
+              timeout=10,
+          )
+          response.raise_for_status()
+          payload = response.json()
+          assert payload['final_decision']['disposition'] == 'accept'
+          assert payload['execution']['execution_performed'] is True
+          Path('/tmp/eacode-recovered.json').write_text(
+              json.dumps(payload, indent=2), encoding='utf-8'
+          )
+          PY
+
+      - name: Capture restart evidence
+        if: always()
+        run: |
+          mkdir -p /tmp/eacode-postgres-evidence
+          cp /tmp/eacode-ready-*.json /tmp/eacode-postgres-evidence/ 2>/dev/null || true
+          cp /tmp/eacode-first-execution.json /tmp/eacode-postgres-evidence/ 2>/dev/null || true
+          cp /tmp/eacode-recovered.json /tmp/eacode-postgres-evidence/ 2>/dev/null || true
+          cp /tmp/eacode-first-container.log /tmp/eacode-postgres-evidence/ 2>/dev/null || true
+          docker logs eacode-postgres-app > /tmp/eacode-postgres-evidence/restarted-container.log 2>&1 || true
+
+      - name: Upload PostgreSQL restart evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eacode-postgres-restart-${{ env.EXPECTED_HEAD_SHA }}
+          path: /tmp/eacode-postgres-evidence
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Stop application container
+        if: always()
+        run: docker rm --force eacode-postgres-app 2>/dev/null || true

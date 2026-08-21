@@ -1,19 +1,21 @@
-"""Minimal production composition root for the EACODE control plane.
+"""Isolated production composition root for the EACODE control plane.
 
-The coursework application keeps the legacy ``/eacode`` compatibility surface in
-``app.main``. This production root publishes the same deterministic product
-semantics under the explicit major-version namespace ``/api/v1/eacode`` and does
-not mount unrelated estimator/chat routes.
+Production publishes only the explicitly versioned EACODE service surface and
+operational probes. Authoritative proposals, receipts and execution reservations
+must use the versioned PostgreSQL store before the process becomes ready.
 """
 
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.eacode import router as eacode_router
+from energy_core.beta_store_runtime import build_beta_demo_store
 
 
 def _cors_origins() -> list[str]:
@@ -21,11 +23,33 @@ def _cors_origins() -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _validate_signing_key() -> None:
+    signing_key = os.getenv("EACODE_SESSION_SIGNING_KEY", "")
+    if len(signing_key.encode("utf-8")) < 32:
+        raise RuntimeError(
+            "EACODE_SESSION_SIGNING_KEY must contain at least 32 bytes in production."
+        )
+
+
+@asynccontextmanager
+async def lifespan(service: FastAPI) -> AsyncIterator[None]:
+    _validate_signing_key()
+    store = build_beta_demo_store(require_durable=True)
+    store.verify_schema()
+    service.state.startup_complete = True
+    service.state.authority_store = "postgresql"
+    try:
+        yield
+    finally:
+        service.state.startup_complete = False
+
+
 def create_production_app() -> FastAPI:
     service = FastAPI(
         title="EACODE",
         description="Deterministic Energy-Aware coding control plane",
-        version="0.1.0",
+        version="0.2.0",
+        lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
     )
@@ -34,7 +58,7 @@ def create_production_app() -> FastAPI:
         allow_origins=_cors_origins(),
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Content-Type", "Authorization"],
     )
 
     @service.middleware("http")
@@ -57,20 +81,29 @@ def create_production_app() -> FastAPI:
     service.include_router(eacode_router, prefix="/api/v1")
 
     @service.get("/startup", include_in_schema=False)
-    def startup() -> dict[str, object]:
-        return {"status": "started", "started": True}
+    def startup(response: Response) -> dict[str, object]:
+        started = bool(getattr(service.state, "startup_complete", False))
+        if not started:
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "started" if started else "starting", "started": started}
 
     @service.get("/health", include_in_schema=False)
     def health() -> dict[str, str]:
-        """Cheap local liveness probe; it performs no provider call."""
-
         return {"status": "ok", "service": "eacode"}
 
     @service.get("/ready", include_in_schema=False)
-    def ready() -> dict[str, object]:
-        """The deterministic selector has no external runtime dependency."""
-
-        return {"status": "ready", "ready": True, "control_plane": "deterministic"}
+    def ready(response: Response) -> dict[str, object]:
+        started = bool(getattr(service.state, "startup_complete", False))
+        authority_store = getattr(service.state, "authority_store", None)
+        is_ready = started and authority_store == "postgresql"
+        if not is_ready:
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {
+            "status": "ready" if is_ready else "not_ready",
+            "ready": is_ready,
+            "control_plane": "deterministic",
+            "authority_store": authority_store,
+        }
 
     @service.get("/version", include_in_schema=False)
     def version() -> dict[str, str]:

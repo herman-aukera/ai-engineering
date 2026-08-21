@@ -5,6 +5,8 @@ COMPOSE_FILE="$(dirname "$0")/docker-compose.production.yml"
 
 : "${EACODE_IMAGE:?Set EACODE_IMAGE to ghcr.io/...@sha256:<digest>}"
 : "${PUBLIC_HOST:?Set PUBLIC_HOST to the public DNS name}"
+: "${EACODE_DATABASE_URL:?Set EACODE_DATABASE_URL to durable PostgreSQL}"
+: "${EACODE_SESSION_SIGNING_KEY:?Set EACODE_SESSION_SIGNING_KEY}"
 
 case "$EACODE_IMAGE" in
   *@sha256:*) ;;
@@ -26,6 +28,10 @@ if [ -z "${GIT_SHA:-}" ]; then
   GIT_SHA="${GIT_SHA:-unknown}"
   export GIT_SHA
 fi
+
+# Schema evolution is explicit and versioned; application startup only verifies it.
+docker compose -f "$COMPOSE_FILE" run --rm --no-deps eacode \
+  python -m energy_core.postgres_beta_store migrate
 
 docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
 

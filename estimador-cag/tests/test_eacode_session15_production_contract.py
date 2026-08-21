@@ -1,21 +1,39 @@
 from fastapi.testclient import TestClient
 
-from app.eacode.production_app import create_production_app
 from app.main import app as coursework_app
 
 
+class _FakeDurableStore:
+    def verify_schema(self) -> None:
+        return None
+
+
+def _production_module(monkeypatch):
+    import app.eacode.production_app as production_module
+
+    monkeypatch.setenv("EACODE_SESSION_SIGNING_KEY", "eacode-contract-signing-key-32-bytes-minimum")
+    monkeypatch.setattr(
+        production_module,
+        "build_beta_demo_store",
+        lambda *, require_durable: _FakeDurableStore(),
+    )
+    return production_module
+
+
 def test_eacode_production_app_is_versioned_and_provider_keyless(monkeypatch) -> None:
+    production_module = _production_module(monkeypatch)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.delenv("KIMI_API_KEY", raising=False)
 
-    with TestClient(create_production_app()) as client:
+    with TestClient(production_module.create_production_app()) as client:
         assert client.get("/startup").json() == {"status": "started", "started": True}
         assert client.get("/health").json() == {"status": "ok", "service": "eacode"}
         assert client.get("/ready").json() == {
             "status": "ready",
             "ready": True,
             "control_plane": "deterministic",
+            "authority_store": "postgresql",
         }
         status = client.get("/api/v1/eacode/status")
         assert status.status_code == 200
@@ -29,8 +47,9 @@ def test_legacy_coursework_app_keeps_eacode_compatibility_route() -> None:
     assert "/eacode/status" in paths
 
 
-def test_eacode_selector_ui_uses_prefix_relative_api_call() -> None:
-    with TestClient(create_production_app()) as client:
+def test_eacode_selector_ui_uses_prefix_relative_api_call(monkeypatch) -> None:
+    production_module = _production_module(monkeypatch)
+    with TestClient(production_module.create_production_app()) as client:
         response = client.get("/api/v1/eacode/ui")
 
     assert response.status_code == 200

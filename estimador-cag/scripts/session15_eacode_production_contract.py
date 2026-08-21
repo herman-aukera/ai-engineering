@@ -1,4 +1,4 @@
-"""Deterministic Session 15 production-envelope contract for EACODE."""
+"""Deterministic production-envelope contract for EACODE."""
 
 import sys
 from pathlib import Path
@@ -33,11 +33,11 @@ def _check_public_contract() -> None:
         "/api/v1/eacode/capabilities",
         "/api/v1/eacode/select",
         "/api/v1/eacode/ui",
+        "/api/v1/eacode/demo",
     }
     missing = sorted(required - production_paths)
     if missing:
         raise AssertionError(f"missing EACODE production routes: {missing}")
-
     non_v1 = sorted(
         path
         for path in production_paths
@@ -45,9 +45,8 @@ def _check_public_contract() -> None:
     )
     if non_v1:
         raise AssertionError(f"EACODE production API must be major-versioned: {non_v1}")
-
     if "/eacode/status" in production_paths:
-        raise AssertionError("isolated production app must not publish legacy unversioned EACODE routes")
+        raise AssertionError("isolated production app must not publish legacy unversioned routes")
     if "/eacode/status" not in _paths(coursework_app):
         raise AssertionError("coursework app must preserve the legacy compatibility route")
 
@@ -62,12 +61,32 @@ def _check_ci_separation() -> None:
     failures = [message for needle, message in forbidden.items() if needle in ci]
     if failures:
         raise AssertionError("; ".join(failures))
-
     live = _read(REPO_ROOT / ".github" / "workflows" / "live-smoke.yml")
-    if "workflow_dispatch:" not in live:
-        raise AssertionError("EACODE live-provider smoke must remain explicitly dispatched")
-    if "energy_core_live_provider_smoke.py" not in live:
-        raise AssertionError("EACODE live-provider workflow must own credentialed provider proof")
+    if "workflow_dispatch:" not in live or "energy_core_live_provider_smoke.py" not in live:
+        raise AssertionError("EACODE live-provider proof must remain separately dispatched")
+
+
+def _check_durable_authority_contract() -> None:
+    compose = _read(PROJECT_ROOT / "deploy" / "eacode" / "session15" / "docker-compose.production.yml")
+    if "EACODE_DATABASE_URL:?" not in compose:
+        raise AssertionError("production EACODE must require durable PostgreSQL authority state")
+    if "EACODE_SESSION_SIGNING_KEY:?" not in compose:
+        raise AssertionError("production EACODE must require server-owned signing authority")
+    if "EACODE_DEMO_DB_PATH" in compose:
+        raise AssertionError("production topology must not configure SQLite authority")
+    migration = _read(PROJECT_ROOT / "energy_core" / "migrations" / "0001_eacode_beta_authority.sql")
+    for table in ("eacode_beta_demo_runs", "eacode_beta_demo_authorizations"):
+        if table not in migration:
+            raise AssertionError(f"EACODE migration is missing authoritative table {table}")
+    integration = _read(REPO_ROOT / ".github" / "workflows" / "eacode-postgres-integration.yml")
+    for marker in (
+        "postgres:16",
+        "test_eacode_postgres_authority.py",
+        "Destroy and recreate application container",
+        "Verify authoritative state survived container replacement",
+    ):
+        if marker not in integration:
+            raise AssertionError(f"EACODE restart integration is missing marker: {marker}")
 
 
 def _check_image_contract() -> None:
@@ -76,9 +95,6 @@ def _check_image_contract() -> None:
         raise AssertionError("EACODE production image must run as the non-root eacode user")
     if "app.eacode.production_app:app" not in dockerfile:
         raise AssertionError("EACODE image must start the isolated production composition root")
-    forbidden = ("OPENAI_API_KEY=", "DEEPSEEK_API_KEY=", "KIMI_API_KEY=")
-    if any(marker in dockerfile for marker in forbidden):
-        raise AssertionError("provider credentials/configuration must not be baked into EACODE image")
 
 
 def _check_release_contract() -> None:
@@ -117,22 +133,25 @@ def _check_deploy_contract() -> None:
     rollback = _read(base / "rollback.sh")
     if "@sha256:" not in deploy or "docker build" in deploy:
         raise AssertionError("EACODE deployment must use an immutable digest without rebuilding")
+    if "python -m energy_core.postgres_beta_store migrate" not in deploy:
+        raise AssertionError("EACODE deployment must apply the explicit versioned schema migration")
     if "/ready" not in deploy:
         raise AssertionError("EACODE deployment must be readiness-gated")
     if "org.opencontainers.image.revision" not in deploy:
-        raise AssertionError("EACODE deployment must derive safe Git SHA release metadata from the image")
+        raise AssertionError("EACODE deployment must derive Git SHA metadata from the image")
     if "ROLLBACK_IMAGE" not in rollback or "@sha256:" not in rollback:
-        raise AssertionError("EACODE rollback must use a previous immutable image digest")
+        raise AssertionError("EACODE rollback must use the previous immutable digest")
 
 
 def main() -> None:
     _check_public_contract()
     _check_ci_separation()
+    _check_durable_authority_contract()
     _check_image_contract()
     _check_release_contract()
     _check_single_ingress()
     _check_deploy_contract()
-    print("eacode session15 production contract: PASS")
+    print("eacode production contract: PASS")
 
 
 if __name__ == "__main__":

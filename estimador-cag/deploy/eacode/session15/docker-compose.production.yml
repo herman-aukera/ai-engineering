@@ -25,6 +25,8 @@ services:
     stop_grace_period: 30s
     environment:
       EACODE_CORS_ORIGINS: ${EACODE_CORS_ORIGINS:-}
+      EACODE_DATABASE_URL: ${EACODE_DATABASE_URL:?Set EACODE_DATABASE_URL to durable PostgreSQL}
+      EACODE_SESSION_SIGNING_KEY: ${EACODE_SESSION_SIGNING_KEY:?Set EACODE_SESSION_SIGNING_KEY}
       GIT_SHA: ${GIT_SHA:-unknown}
     expose:
       - "8000"
