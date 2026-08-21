@@ -1,0 +1,72 @@
+name: Estimator - Production dependency contract
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - estimador-cag/deploy/estimator/**
+      - estimador-cag/Dockerfile
+      - estimador-cag/scripts/estimator_export_production_requirements.py
+      - .github/workflows/estimator-production-dependencies.yml
+  pull_request:
+    paths:
+      - estimador-cag/deploy/estimator/**
+      - estimador-cag/Dockerfile
+      - estimador-cag/scripts/estimator_export_production_requirements.py
+      - .github/workflows/estimator-production-dependencies.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact validation head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify isolated lock and export surface
+        working-directory: estimador-cag
+        run: python scripts/estimator_export_production_requirements.py
+
+      - name: Build product-only runtime image
+        working-directory: estimador-cag
+        run: docker build --file Dockerfile --tag estimator-dependency-contract:${{ github.sha }} .
+
+      - name: Verify image excludes coursework dependency markers
+        run: |
+          docker run --rm estimator-dependency-contract:${{ github.sha }} python - <<'PY'
+          import importlib.util
+
+          required = [
+              'fastapi', 'langgraph', 'litellm', 'logfire', 'openai',
+              'pgvector', 'psycopg', 'pydantic_settings', 'sqlalchemy',
+              'structlog', 'tiktoken', 'uvicorn',
+          ]
+          forbidden = [
+              'jupyter', 'pandas', 'pypdf', 'sentence_transformers',
+              'streamlit', 'torch',
+          ]
+          missing = [name for name in required if importlib.util.find_spec(name) is None]
+          leaked = [name for name in forbidden if importlib.util.find_spec(name) is not None]
+          assert not missing, f'missing runtime dependencies: {missing}'
+          assert not leaked, f'coursework dependencies leaked into image: {leaked}'
+          print('ESTIMATOR_PRODUCT_ONLY_IMAGE_DEPENDENCIES_OK')
+          PY
