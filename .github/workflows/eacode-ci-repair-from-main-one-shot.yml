@@ -1,0 +1,65 @@
+name: One-shot finalize EACODE readiness CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/eacode-ci-repair-from-main-one-shot.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout canonical main
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: main
+          fetch-depth: 0
+      - name: Checkout canonical EACODE
+        uses: actions/checkout@v4
+        with:
+          ref: EACODE
+          path: eacode
+          fetch-depth: 0
+      - name: Repair EACODE production-envelope assertion
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('eacode/.github/workflows/ci.yml')
+          text = path.read_text()
+          if "'authority_store_available': True" not in text:
+              old = "              'authority_store': 'postgresql',\n          }"
+              new = "              'authority_store': 'postgresql',\n              'authority_store_available': True,\n          }"
+              if old not in text:
+                  raise SystemExit('expected EACODE readiness assertion marker not found')
+              path.write_text(text.replace(old, new, 1))
+          stale = Path('eacode/.github/workflows/eacode-readiness-contract-repair-one-shot.yml')
+          if stale.exists():
+              stale.unlink()
+          PY
+      - name: Commit EACODE repair if needed
+        working-directory: eacode
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A .github/workflows
+          if git diff --cached --quiet; then
+            echo 'EACODE CI already repaired.'
+          else
+            git diff --cached --check
+            git commit -m "eacode: ci(resilience): finalize DB-aware readiness contract"
+            git push origin HEAD:EACODE
+          fi
+      - name: Remove this one-shot workflow from main
+        working-directory: main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/eacode-ci-repair-from-main-one-shot.yml
+          git commit -m "main: chore(ci): remove one-shot EACODE CI repair"
+          git push origin HEAD:main
