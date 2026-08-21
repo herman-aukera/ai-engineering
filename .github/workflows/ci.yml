@@ -241,8 +241,24 @@ jobs:
     needs: test-estimador-cag
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: eacode
+          POSTGRES_PASSWORD: eacode_test
+          POSTGRES_DB: eacode_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eacode -d eacode_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
       EXPECTED_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      EACODE_DATABASE_URL: postgresql://eacode:eacode_test@127.0.0.1:5432/eacode_test
+      EACODE_SESSION_SIGNING_KEY: ci-eacode-production-envelope-signing-key-32-bytes
     steps:
       - name: Checkout exact validation head
         uses: actions/checkout@v4
@@ -261,6 +277,14 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install migration runtime
+        working-directory: estimador-cag
+        run: uv sync --frozen --no-dev
+
+      - name: Apply versioned authority migration
+        working-directory: estimador-cag
+        run: uv run python -m energy_core.postgres_beta_store migrate
+
       - name: Export frozen production requirements
         working-directory: estimador-cag
         run: >-
@@ -275,24 +299,26 @@ jobs:
       - name: Start isolated production service and exercise public v1 API
         run: |
           docker run --detach --name eacode-canary \
-            --publish 127.0.0.1:8011:8000 \
+            --network host \
             --env GIT_SHA="$EXPECTED_HEAD_SHA" \
+            --env EACODE_DATABASE_URL="$EACODE_DATABASE_URL" \
+            --env EACODE_SESSION_SIGNING_KEY="$EACODE_SESSION_SIGNING_KEY" \
             "eacode-canary:${EXPECTED_HEAD_SHA}"
           ready=0
           for attempt in $(seq 1 40); do
-            if curl -fsS http://127.0.0.1:8011/ready > /tmp/eacode-ready.json; then
+            if curl -fsS http://127.0.0.1:8000/ready > /tmp/eacode-ready.json; then
               ready=1
               break
             fi
             sleep 2
           done
           test "$ready" = "1"
-          curl -fsS http://127.0.0.1:8011/startup > /tmp/eacode-startup.json
-          curl -fsS http://127.0.0.1:8011/health > /tmp/eacode-health.json
-          curl -fsS http://127.0.0.1:8011/version > /tmp/eacode-version.json
-          curl -fsS http://127.0.0.1:8011/api/v1/eacode/status > /tmp/eacode-status.json
-          curl -fsS http://127.0.0.1:8011/api/v1/eacode/capabilities > /tmp/eacode-capabilities.json
-          curl -fsS -X POST http://127.0.0.1:8011/api/v1/eacode/select \
+          curl -fsS http://127.0.0.1:8000/startup > /tmp/eacode-startup.json
+          curl -fsS http://127.0.0.1:8000/health > /tmp/eacode-health.json
+          curl -fsS http://127.0.0.1:8000/version > /tmp/eacode-version.json
+          curl -fsS http://127.0.0.1:8000/api/v1/eacode/status > /tmp/eacode-status.json
+          curl -fsS http://127.0.0.1:8000/api/v1/eacode/capabilities > /tmp/eacode-capabilities.json
+          curl -fsS -X POST http://127.0.0.1:8000/api/v1/eacode/select \
             -H 'Content-Type: application/json' \
             --data '{}' > /tmp/eacode-selection.json
           test "$(docker exec eacode-canary id -u)" != "0"
@@ -311,7 +337,12 @@ jobs:
           capabilities = json.loads(Path('/tmp/eacode-capabilities.json').read_text())
           selection = json.loads(Path('/tmp/eacode-selection.json').read_text())
 
-          assert ready == {'status': 'ready', 'ready': True, 'control_plane': 'deterministic'}
+          assert ready == {
+              'status': 'ready',
+              'ready': True,
+              'control_plane': 'deterministic',
+              'authority_store': 'postgresql',
+          }
           assert status['control_plane'] == 'deterministic'
           assert status['provider_selection'] == 'planned_only'
           assert status['served_provider_evidence'] == 'requires_opt_in_live_call'
