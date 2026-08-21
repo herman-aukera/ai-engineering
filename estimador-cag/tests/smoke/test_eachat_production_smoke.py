@@ -3,9 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 
-def test_eachat_keyless_production_shell_smoke(monkeypatch) -> None:
-    from app.energy_chat.production_app import create_production_app
-
+def _configure_keyless_runtime(monkeypatch) -> None:
     monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
     monkeypatch.setenv("EACHAT_ALLOW_IN_MEMORY", "true")
     monkeypatch.setenv("EACHAT_SESSION_SIGNING_KEY", "eachat-smoke-signing-key-32-bytes-minimum")
@@ -15,6 +13,12 @@ def test_eachat_keyless_production_shell_smoke(monkeypatch) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.delenv("KIMI_API_KEY", raising=False)
+
+
+def test_eachat_keyless_production_shell_smoke(monkeypatch) -> None:
+    from app.energy_chat.production_app import create_production_app
+
+    _configure_keyless_runtime(monkeypatch)
 
     with TestClient(create_production_app()) as client:
         startup = client.get("/startup")
@@ -30,12 +34,34 @@ def test_eachat_keyless_production_shell_smoke(monkeypatch) -> None:
     assert ready.json()["ready"] is True
     assert ready.json()["restart_persistent"] is False
     assert ready.json()["ownership_restart_persistent"] is False
+    assert ready.json()["authority_store_available"] is True
     assert ready.json()["identity_required"] is True
     assert version.json()["git_sha"] == "eachat-smoke"
     assert demo.status_code == 200
     assert demo.headers["cache-control"] == "no-store"
     assert health.headers["x-content-type-options"] == "nosniff"
     assert health.headers["x-frame-options"] == "DENY"
+
+
+def test_eachat_readiness_fails_closed_when_authority_store_is_unavailable(monkeypatch) -> None:
+    import app.energy_chat.production_app as production_module
+
+    _configure_keyless_runtime(monkeypatch)
+    monkeypatch.setattr(
+        production_module.InMemoryResourceOwnershipStore,
+        "ping",
+        lambda self: False,
+        raising=False,
+    )
+
+    with TestClient(production_module.create_production_app()) as client:
+        health = client.get("/health")
+        ready = client.get("/ready")
+
+    assert health.status_code == 200
+    assert ready.status_code == 503
+    assert ready.json()["ready"] is False
+    assert ready.json()["authority_store_available"] is False
 
 
 def test_eachat_canonical_versioned_surface_is_v2() -> None:
