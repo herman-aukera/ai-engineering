@@ -1,0 +1,52 @@
+name: Estimator - Production Lock Bootstrap
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - estimador-cag/deploy/estimator/pyproject.toml
+      - .github/workflows/estimator-lock-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  generate-lock:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact bootstrap head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Resolve isolated estimator production lock
+        run: uv lock --project estimador-cag/deploy/estimator
+
+      - name: Record lock digest
+        run: |
+          cd estimador-cag/deploy/estimator
+          sha256sum uv.lock > uv.lock.sha256
+
+      - name: Commit deterministic lock to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add estimador-cag/deploy/estimator/uv.lock estimador-cag/deploy/estimator/uv.lock.sha256
+          git diff --cached --check
+          git commit -m "main: lock isolated estimator production dependencies"
+          git push origin HEAD:main
