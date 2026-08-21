@@ -16,6 +16,7 @@ class EstimationOwnershipStore(Protocol):
     restart_persistent: bool
 
     def setup(self) -> None: ...
+    def ping(self) -> bool: ...
     def claim(self, estimation_id: str, owner_id: str) -> None: ...
     def assert_owner(self, estimation_id: str, owner_id: str) -> None: ...
     def close(self) -> None: ...
@@ -30,6 +31,9 @@ class InMemoryEstimationOwnershipStore:
 
     def setup(self) -> None:
         return None
+
+    def ping(self) -> bool:
+        return True
 
     def claim(self, estimation_id: str, owner_id: str) -> None:
         estimation_id = _identity(estimation_id, "estimation_id", 256)
@@ -75,7 +79,12 @@ class PostgresEstimationOwnershipStore:
             conninfo=connection_string,
             min_size=min_size,
             max_size=max_size,
-            kwargs={"autocommit": False, "row_factory": dict_row},
+            timeout=2.0,
+            kwargs={
+                "autocommit": False,
+                "row_factory": dict_row,
+                "connect_timeout": 2,
+            },
             open=True,
         )
         self._closed = False
@@ -99,6 +108,20 @@ class PostgresEstimationOwnershipStore:
                     """
                 )
             connection.commit()
+
+    def ping(self) -> bool:
+        if self._closed:
+            return False
+        try:
+            with self._pool.connection(timeout=2.0) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                    row = cursor.fetchone()
+            if isinstance(row, dict):
+                return next(iter(row.values()), None) == 1
+            return bool(row and row[0] == 1)
+        except Exception:
+            return False
 
     def claim(self, estimation_id: str, owner_id: str) -> None:
         estimation_id = _identity(estimation_id, "estimation_id", 256)
