@@ -6,10 +6,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY deploy/eachat/requirements.generated.txt /tmp/requirements.txt
-RUN python -m pip install --no-cache-dir --require-hashes --requirement /tmp/requirements.txt \
-    && rm -f /tmp/requirements.txt \
+RUN python -m pip install --no-cache-dir uv \
     && useradd --create-home --uid 10001 eachat
+
+COPY deploy/eachat/pyproject.toml /tmp/eachat-runtime/pyproject.toml
+COPY deploy/eachat/uv.lock /tmp/eachat-runtime/uv.lock
+RUN uv export --project /tmp/eachat-runtime --frozen --no-dev \
+      --format requirements-txt --output-file /tmp/requirements.txt \
+    && python -m pip install --no-cache-dir --require-hashes --requirement /tmp/requirements.txt \
+    && rm -rf /tmp/eachat-runtime /tmp/requirements.txt
 
 COPY --chown=eachat:eachat app /app/app
 COPY --chown=eachat:eachat docs/energy_chat_v2_demo.html /app/docs/energy_chat_v2_demo.html
