@@ -1,0 +1,14 @@
+[project]
+name = "eacode-production-runtime"
+version = "0.1.0"
+description = "Minimal deployable dependency surface for the EACODE control plane"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "fastapi>=0.139.2,<0.140",
+    "pydantic>=2.12,<3",
+    "psycopg2-binary>=2.9.12,<3",
+    "uvicorn>=0.51,<0.52",
+]
+
+[tool.uv]
+package = false
