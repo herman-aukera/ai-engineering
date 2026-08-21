@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_version": "energy-aware.protocol.v1",
+  "product": "eachat",
+  "canonical_branch": "EACHAT",
+  "production_entrypoint": "app/energy_chat/production_app.py",
+  "public_surface_owner": "app/energy_chat/production_router.py",
+  "public_surface": "/energy-chat/v2/chat",
+  "public_surface_markers": ["/energy-chat", "/v2/chat"],
+  "public_api_major": "v2",
+  "candidate_ref": "answer_candidate_and_thread_id",
+  "decision_authority": "deterministic_critics_energy_and_disposition_policy",
+  "human_authority": "signed_actor_revision_bound_human_resume",
+  "authoritative_state": "postgresql_langgraph_conversations_and_resource_ownership",
+  "execution_semantics": "answer_generation_and_protected_human_continuation",
+  "dependency_lock": "deploy/eachat/uv.lock",
+  "dependency_lock_digest": "deploy/eachat/uv.lock.sha256",
+  "first_party_roots": ["app"],
+  "runtime_assets": ["docs/energy_chat_v2_demo.html"],
+  "stages_active": ["INGEST", "UNDERSTAND", "GATHER_EVIDENCE", "PROPOSE", "CRITIQUE", "SCORE", "DECIDE", "REPAIR", "AUTHORIZE", "VERIFY", "RECORD"],
+  "stages_not_applicable": ["EXECUTE"],
+  "required_invariants": {
+    "deterministic_hard_constraints": true,
+    "deterministic_budget_authority": true,
+    "planned_served_distinct": true,
+    "repair_creates_reevaluated_revision": true,
+    "signed_human_authority": true,
+    "replay_safe": true,
+    "durable_authoritative_state": true,
+    "secrets_excluded_from_evidence": true,
+    "hidden_reasoning_excluded": true
+  },
+  "reason_codes": ["runtime_not_ready", "resource_owner_missing", "resource_tenant_mismatch", "stale_human_action", "provider_execution_missing", "provider_budget_exceeded", "conversation_revision_conflict"],
+  "resilience_evidence": [
+    "tests/test_eachat_identity_ownership.py",
+    "scripts/canary_eachat_container.py",
+    ".github/workflows/eachat-container-canary.yml"
+  ],
+  "claim_boundary": "Production-oriented conversational service; browser OIDC adapter, public staging, backup/restore drills, abuse controls, SLOs and real production telemetry remain external evidence gates."
+}
