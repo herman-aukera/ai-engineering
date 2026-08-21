@@ -1,0 +1,45 @@
+name: EACHAT - One-time Production Lock Repair
+
+on:
+  push:
+    branches:
+      - EACHAT
+    paths:
+      - estimador-cag/deploy/eachat/pyproject.toml
+      - .github/workflows/eachat-lock-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate-production-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout living EACHAT branch
+        uses: actions/checkout@v4
+        with:
+          ref: EACHAT
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Regenerate isolated production lock
+        working-directory: estimador-cag
+        run: |
+          uv lock --project deploy/eachat
+          grep -A3 'name = "langgraph-checkpoint-postgres"' deploy/eachat/uv.lock | grep 'version = "3.1.1"'
+          cd deploy/eachat
+          sha256sum uv.lock > uv.lock.sha256
+
+      - name: Commit exact generated lock if changed
+        run: |
+          if git diff --quiet -- estimador-cag/deploy/eachat/uv.lock estimador-cag/deploy/eachat/uv.lock.sha256; then
+            echo "Production lock already matches pyproject."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add estimador-cag/deploy/eachat/uv.lock estimador-cag/deploy/eachat/uv.lock.sha256
+          git commit -m "eachat: fix(security): lock patched checkpoint runtime"
+          git push origin HEAD:EACHAT
