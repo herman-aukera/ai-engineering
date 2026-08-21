@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_version": "energy-aware.protocol.v1",
+  "product": "eacode",
+  "canonical_branch": "EACODE",
+  "production_entrypoint": "app/eacode/production_app.py",
+  "public_surface_owner": "app/routers/eacode.py",
+  "public_surface": "/api/v1/eacode",
+  "public_surface_markers": ["/api/v1", "/eacode"],
+  "public_api_major": "v1",
+  "candidate_ref": "coding_proposal_and_effective_proposal",
+  "decision_authority": "deterministic_hard_gates_jury_and_governor",
+  "human_authority": "signed_operator_or_admin_exact_scope_receipt",
+  "authoritative_state": "postgresql_proposal_receipt_and_execution_reservation",
+  "execution_semantics": "simulated_execution_only_until_separate_sandbox_proof",
+  "dependency_lock": "deploy/eacode/uv.lock",
+  "dependency_lock_digest": "deploy/eacode/uv.lock.sha256",
+  "first_party_roots": ["app", "energy_core"],
+  "runtime_assets": ["energy_core/migrations/0001_eacode_beta_authority.sql"],
+  "stages_active": ["INGEST", "UNDERSTAND", "GATHER_EVIDENCE", "PROPOSE", "CRITIQUE", "SCORE", "DECIDE", "REPAIR", "AUTHORIZE", "EXECUTE", "VERIFY", "RECORD"],
+  "stages_not_applicable": [],
+  "required_invariants": {
+    "deterministic_hard_constraints": true,
+    "deterministic_budget_authority": true,
+    "planned_served_distinct": true,
+    "repair_creates_reevaluated_revision": true,
+    "signed_human_authority": true,
+    "replay_safe": true,
+    "durable_authoritative_state": true,
+    "secrets_excluded_from_evidence": true,
+    "hidden_reasoning_excluded": true
+  },
+  "reason_codes": ["authorization_receipt_missing", "receipt_already_consumed", "receipt_expired", "scope_mismatch", "actor_mismatch", "execution_already_reserved", "provider_execution_missing"],
+  "resilience_evidence": [
+    "tests/integration/test_eacode_postgres_authority.py",
+    ".github/workflows/eacode-postgres-integration.yml",
+    "energy_core/migrations/0001_eacode_beta_authority.sql"
+  ],
+  "claim_boundary": "Governed simulated coding-control beta; arbitrary untrusted-code execution, production sandboxing, public staging, external IdP integration, SLOs and real production telemetry remain external evidence gates."
+}
