@@ -17,6 +17,9 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
+      - name: Verify exact checked-out SHA
+        run: test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
@@ -43,6 +46,8 @@ jobs:
           context: estimador-cag
           file: estimador-cag/deploy/eacode/Dockerfile
           push: true
+          sbom: true
+          provenance: mode=max
           tags: ghcr.io/${{ github.repository_owner }}/eacode:${{ github.sha }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
