@@ -42,6 +42,18 @@ def _check_api_contract() -> None:
         if forbidden in route_paths:
             raise AssertionError(f"historical/coursework route leaked into production: {forbidden}")
 
+    source = _read(PROJECT_ROOT / "app" / "estimator" / "production_app.py")
+    required_security = (
+        "ESTIMATOR_SESSION_SIGNING_KEY",
+        "PostgresEstimationOwnershipStore",
+        "Depends(require_actor)",
+    )
+    missing_security = [marker for marker in required_security if marker not in source]
+    if missing_security:
+        raise AssertionError(
+            f"estimator identity/ownership contract missing markers: {missing_security}"
+        )
+
 
 def _check_blocking_ci_contract() -> None:
     ci = _read(REPO_ROOT / ".github" / "workflows" / "ci.yml")
@@ -101,6 +113,10 @@ def _check_single_ingress_contract() -> None:
             raise AssertionError(
                 f"production Compose exposes an internal service/port: {forbidden_binding}"
             )
+    if "ESTIMATOR_SESSION_SIGNING_KEY:?" not in compose:
+        raise AssertionError("production Compose must require signed estimator identity")
+    if "ESTIMATOR_ALLOW_IN_MEMORY_OWNERSHIP" in compose:
+        raise AssertionError("production Compose must not enable process-local ownership")
     if "reverse_proxy ai_service:8000" not in caddy or "health_uri /ready" not in caddy:
         raise AssertionError("Caddy must be the readiness-aware single ingress to the private estimator")
 
