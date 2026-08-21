@@ -18,6 +18,7 @@ class ResourceOwnershipStore(Protocol):
     restart_persistent: bool
 
     def setup(self) -> None: ...
+    def ping(self) -> bool: ...
     def claim(self, resource_type: str, resource_id: str, owner_id: str) -> None: ...
     def assert_owner(self, resource_type: str, resource_id: str, owner_id: str) -> None: ...
     def delete(self, resource_type: str, resource_id: str, owner_id: str) -> None: ...
@@ -33,6 +34,9 @@ class InMemoryResourceOwnershipStore:
 
     def setup(self) -> None:
         return None
+
+    def ping(self) -> bool:
+        return True
 
     def claim(self, resource_type: str, resource_id: str, owner_id: str) -> None:
         key = _key(resource_type, resource_id)
@@ -84,7 +88,12 @@ class PostgresResourceOwnershipStore:
             conninfo=connection_string,
             min_size=min_size,
             max_size=max_size,
-            kwargs={"autocommit": False, "row_factory": dict_row},
+            timeout=2.0,
+            kwargs={
+                "autocommit": False,
+                "row_factory": dict_row,
+                "connect_timeout": 2,
+            },
             open=True,
         )
         self._closed = False
@@ -110,6 +119,20 @@ class PostgresResourceOwnershipStore:
                     """
                 )
             connection.commit()
+
+    def ping(self) -> bool:
+        if self._closed:
+            return False
+        try:
+            with self._pool.connection(timeout=2.0) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                    row = cursor.fetchone()
+            if isinstance(row, dict):
+                return next(iter(row.values()), None) == 1
+            return bool(row and row[0] == 1)
+        except Exception:
+            return False
 
     def claim(self, resource_type: str, resource_id: str, owner_id: str) -> None:
         resource_type, resource_id = _key(resource_type, resource_id)
