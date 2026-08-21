@@ -75,10 +75,13 @@ def test_eacode_premium_route_fails_closed_without_reason() -> None:
     assert response.status_code == 422
 
 
-def test_eacode_selector_ui_is_same_origin_and_explicit() -> None:
+def test_eacode_selector_ui_is_same_origin_and_mount_safe() -> None:
     response = client.get("/eacode/ui")
     assert response.status_code == 200
     assert "EACODE" in response.text
-    assert "fetch('/eacode/select'" in response.text
+    assert "fetch('./select'" in response.text
+    assert "fetch('./demo'" in response.text
+    assert "fetch(`/eacode/" not in response.text
+    assert "fetch('/eacode/" not in response.text
     assert "does not claim a provider was called" in response.text
     assert "Kimi Code membership confirmed" in response.text
