@@ -130,7 +130,7 @@ jobs:
 
       - name: Seed durable owned two-turn conversation
         working-directory: estimador-cag
-        run: uv run python scripts/canary_eachat_container.py seed
+        run: uv run python -m scripts.canary_eachat_container seed
 
       - name: Recreate application container against the same database
         run: |
@@ -179,15 +179,15 @@ jobs:
 
       - name: Verify restart recovery and ownership
         working-directory: estimador-cag
-        run: uv run python scripts/canary_eachat_container.py verify
+        run: uv run python -m scripts.canary_eachat_container verify
 
       - name: Run bounded authenticated HTTP load
         working-directory: estimador-cag
-        run: uv run python scripts/canary_eachat_container.py load
+        run: uv run python -m scripts.canary_eachat_container load
 
       - name: Delete canary conversation
         working-directory: estimador-cag
-        run: uv run python scripts/canary_eachat_container.py cleanup
+        run: uv run python -m scripts.canary_eachat_container cleanup
 
       - name: Verify strict checkpoint deserialization
         run: |
