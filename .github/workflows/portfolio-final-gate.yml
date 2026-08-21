@@ -1,8 +1,11 @@
 name: Energy-Aware Portfolio Final Gate
 
 on:
-  pull_request:
+  push:
     branches: [main]
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, edited]
   workflow_dispatch:
 
 permissions:
