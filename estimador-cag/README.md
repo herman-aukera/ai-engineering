@@ -16,7 +16,9 @@ Canonical public business API is explicitly versioned under:
 /energy-chat/v2/*
 ```
 
-The production app exposes V2 chat, bounded live chat, thread state/replay, multi-turn conversations, HITL start/resume and the same-origin V2 demo. Historical evaluation, benchmark, draft and legacy MVP routes remain compatibility/coursework code and are not imported by the production V2 transport.
+The production app exposes V2 chat, bounded live chat, thread state/replay, multi-turn conversations and HITL start/resume. Historical evaluation, benchmark, draft and legacy MVP routes remain compatibility/coursework code and are not imported by the production V2 transport.
+
+The bundled V2 HTML remains a browser shell, but protected API calls now require authenticated identity. A real browser login/OIDC adapter is deliberately **not faked**; it remains a staging integration task.
 
 ## Energy-Aware decision loop
 
@@ -36,11 +38,15 @@ Models/providers can draft and return evidence. Deterministic policy owns hard c
 
 Common portfolio terminology is defined in `docs/ENERGY_AWARE_PROTOCOL_V1.md`.
 
-## Durable state
+## Identity, ownership and durable state
 
-Production requires PostgreSQL-backed strict LangGraph checkpointing plus encrypted conversation storage. `EACHAT_ALLOW_IN_MEMORY=true` is a development/test override only and is absent from production Compose.
+Production requires `EACHAT_SESSION_SIGNING_KEY`. Backend-signed sessions carry actor and tenant identity. Conversations and graph threads are bound to their authenticated owner; cross-tenant history/replay/resume attempts fail closed with stable reason codes. The client-supplied HITL `actor` is replaced by the authenticated server actor before authority reaches the runtime.
 
-Existing container canary evidence destroys and recreates the application against the same PostgreSQL database and verifies conversation recovery.
+Ownership itself is persisted in PostgreSQL, so destroying/replacing the application cannot silently erase the access boundary.
+
+Production also requires PostgreSQL-backed strict LangGraph checkpointing plus encrypted conversation storage. `EACHAT_ALLOW_IN_MEMORY=true` is a development/test override only and is absent from production Compose.
+
+The container canary is configured to destroy and recreate the application against the same PostgreSQL database and verify conversation **and ownership** recovery.
 
 ## Deterministic validation
 
@@ -49,6 +55,7 @@ cd estimador-cag
 DEEPSEEK_API_KEY=test KIMI_API_KEY=test OPENAI_API_KEY=test \
 uv run pytest -q
 bash scripts/validate_energy_chat.sh
+uv run pytest -q tests/test_eachat_identity_ownership.py tests/test_eachat_production_ownership.py
 uv run python scripts/session15_eachat_production_contract.py
 uv run python scripts/verify_repo_split_readiness.py
 ```
@@ -61,6 +68,7 @@ Normal CI uses fake/deterministic providers. Credentialed provider evidence runs
 Internet
 -> Caddy :80/:443
 -> private EACHAT container :8000
+-> signed actor + tenant ownership
 -> durable PostgreSQL
 -> outbound HTTPS to explicitly selected providers
 ```
@@ -69,9 +77,9 @@ Images are non-root, released by immutable digest, deployed by exact digest and 
 
 ## Current claim boundary
 
-EACHAT is a production-oriented, restart-persistent conversational product candidate with deterministic governance, V2-only production API, encrypted durable conversation state and Session 15 release/deploy contracts.
+Repository implementation supports a production-oriented conversational product candidate with deterministic governance, V2-only production API, signed tenant/resource ownership, encrypted durable conversation state and immutable release/deploy contracts.
 
-It is **not yet live production-ready**. Major remaining gates are authenticated tenant/thread ownership, real staging on EC2/RDS, backup/restore, abuse/rate controls, external identity integration, load/SLO/alerting and real production telemetry.
+It is **not yet live production-ready**. Remaining gates include exact-head hosted validation of the current ownership slice, real external identity/OIDC, EC2/RDS staging, backup/restore, abuse/rate controls, load/SLO/alerting and real production telemetry.
 
 ## Canonical documentation
 
