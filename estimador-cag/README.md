@@ -59,6 +59,8 @@ uv run python scripts/session15_eachat_production_contract.py
 
 The container canary destroys and recreates the app against the same PostgreSQL database and verifies conversation and ownership recovery. Credentialed provider evidence remains isolated in `.github/workflows/eachat-live-provider-smoke.yml`.
 
+A sanitized bounded DeepSeek smoke from 2026-08-05 is retained at `evals/energy_chat/live_provider_smoke_deepseek_2026-08-05.json`. It proves one historical balanced-profile live call only; it is **not** current-head provider proof and does not support provider superiority, fallback reliability or production-readiness claims.
+
 ## Production topology
 
 ```text
