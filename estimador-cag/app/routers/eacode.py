@@ -5,14 +5,14 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from decimal import Decimal
-from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from energy_core.beta_demo import BetaDemoResult, BetaDemoRunner
-from energy_core.beta_store import DemoAuthorizationReceipt, SQLiteBetaDemoStore
+from energy_core.beta_store import DemoAuthorizationReceipt
+from energy_core.beta_store_runtime import build_beta_demo_store
 from energy_core.coding_agent import CodingProposal
 from energy_core.identity import BackendSession, SessionSigner
 from energy_core.provider_registry import ProviderSelection
@@ -153,7 +153,8 @@ def eacode_status() -> dict[str, object]:
         "control_plane": "deterministic",
         "sdd_layer": True,
         "critic_boss_layer": True,
-        "demo_persistence": "tenant_scoped_sqlite_integrity_checked",
+        "demo_persistence": "tenant_scoped_runtime_store_integrity_checked",
+        "production_authority_store": "postgresql_required",
         "demo_authorization": "signed_session_exact_scope_one_time_receipt",
         "execution_reservation": "atomic_single_transition",
         "provider_selection": "planned_only",
@@ -319,13 +320,10 @@ def selector_ui() -> HTMLResponse:
     )
 
 
-def _demo_store() -> SQLiteBetaDemoStore:
-    return SQLiteBetaDemoStore(
-        os.getenv(
-            "EACODE_DEMO_DB_PATH",
-            str(Path(".eacode") / "eacode-demo.sqlite3"),
-        )
-    )
+def _demo_store():
+    """Use PostgreSQL when configured; SQLite remains local/coursework compatibility."""
+
+    return build_beta_demo_store(require_durable=False)
 
 
 def _require_session(
@@ -366,7 +364,7 @@ def _owner_filter(session: BackendSession) -> str | None:
 
 
 def _load_result(
-    store: SQLiteBetaDemoStore,
+    store,
     proposal_id: str,
     *,
     owner_id: str | None,

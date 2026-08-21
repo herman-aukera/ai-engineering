@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import argparse
 import os
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -199,13 +200,13 @@ class PostgresBetaDemoStore:
 
         issued_at = _aware_now(now)
         receipt = _build_receipt(
-            receipt_id=f"demo-receipt-{os.urandom(24).hex()}",
+            receipt_id=f"demo-receipt-{secrets.token_urlsafe(24)}",
             proposal_id=proposal_id,
             actor=actor,
             scope_hash=scope_hash(scope),
-            nonce_hash=_sha256_text(os.urandom(32).hex()),
+            nonce_hash=_sha256_text(secrets.token_urlsafe(32)),
             issued_at=issued_at,
-            expires_at=issued_at + __import__("datetime").timedelta(seconds=ttl_seconds),
+            expires_at=issued_at + timedelta(seconds=ttl_seconds),
             consumed_at=None,
         )
         try:
