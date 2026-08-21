@@ -4,18 +4,24 @@ from fastapi.testclient import TestClient
 
 
 class _FakeDurableStore:
+    def __init__(self, *, available: bool = True) -> None:
+        self.available = available
+
     def verify_schema(self) -> None:
         return None
 
+    def ping(self) -> bool:
+        return self.available
 
-def _production_module(monkeypatch):
+
+def _production_module(monkeypatch, *, authority_available: bool = True):
     import app.eacode.production_app as production_module
 
     monkeypatch.setenv("EACODE_SESSION_SIGNING_KEY", "eacode-smoke-signing-key-32-bytes-minimum")
     monkeypatch.setattr(
         production_module,
         "build_beta_demo_store",
-        lambda *, require_durable: _FakeDurableStore(),
+        lambda *, require_durable: _FakeDurableStore(available=authority_available),
     )
     return production_module
 
@@ -43,6 +49,7 @@ def test_eacode_keyless_v1_control_plane_smoke(monkeypatch) -> None:
         "ready": True,
         "control_plane": "deterministic",
         "authority_store": "postgresql",
+        "authority_store_available": True,
     }
     assert version.json()["git_sha"] == "eacode-smoke"
     assert status.status_code == 200
@@ -55,6 +62,19 @@ def test_eacode_keyless_v1_control_plane_smoke(monkeypatch) -> None:
     assert "not proof" in selection.json()["claim_boundary"]
     assert status.headers["cache-control"] == "no-store"
     assert health.headers["x-content-type-options"] == "nosniff"
+
+
+def test_eacode_readiness_fails_closed_when_authority_database_is_unavailable(monkeypatch) -> None:
+    production_module = _production_module(monkeypatch, authority_available=False)
+
+    with TestClient(production_module.create_production_app()) as client:
+        health = client.get("/health")
+        ready = client.get("/ready")
+
+    assert health.status_code == 200
+    assert ready.status_code == 503
+    assert ready.json()["ready"] is False
+    assert ready.json()["authority_store_available"] is False
 
 
 def test_eacode_production_app_does_not_mount_legacy_unversioned_surface(monkeypatch) -> None:
