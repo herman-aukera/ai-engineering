@@ -25,11 +25,9 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Export frozen production requirements
+      - name: Verify and export isolated production lock
         working-directory: estimador-cag
-        run: |
-          uv lock --check
-          uv export --frozen --no-dev --no-emit-project --format requirements-txt --output-file deploy/eacode/requirements.generated.txt
+        run: python scripts/eacode_export_production_requirements.py
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
