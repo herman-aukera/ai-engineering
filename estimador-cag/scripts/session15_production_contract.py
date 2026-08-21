@@ -6,11 +6,7 @@ versioning, LLM-free blocking CI, non-root images, explicit CORS, single-ingress
 production wiring, and immutable release/deploy/rollback semantics.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-
-from app.main import app
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +20,8 @@ def _read(path: Path) -> str:
 
 
 def _check_api_contract() -> None:
+    from app.main import app
+
     schema = app.openapi()
     paths = schema.get("paths", {})
     required_get_paths = {
