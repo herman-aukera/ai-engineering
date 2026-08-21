@@ -1,24 +1,21 @@
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
-    PATH="/app/.venv/bin:$PATH"
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir uv
+RUN addgroup --system app && adduser --system --ingroup app app
 
-COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --frozen --no-dev --no-install-project
+COPY deploy/estimator/requirements.generated.txt /tmp/requirements.txt
+RUN python -m pip install --no-cache-dir --require-hashes -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
 
 COPY app ./app
 COPY artifacts/provider-readiness/provider-benchmark-snapshot.json \
     ./artifacts/provider-readiness/provider-benchmark-snapshot.json
 
-RUN addgroup --system app && adduser --system --ingroup app app \
-    && chown -R app:app /app
+RUN chown -R app:app /app
 
 USER app
 
