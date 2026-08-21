@@ -2,8 +2,8 @@
 
 The historical coursework application remains available through ``app.main`` for
 compatibility and teaching evidence. Production deploys this module instead: only
-the consolidated Session 13/14 unified estimator API and operational probes are
-published.
+the consolidated estimator API and operational probes are published. Persisted
+estimation IDs are bound to signed tenant actors in durable PostgreSQL ownership.
 """
 
 from __future__ import annotations
@@ -13,10 +13,16 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, status
+from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 
+from app.estimator.ownership_store import (
+    EstimationOwnershipStore,
+    InMemoryEstimationOwnershipStore,
+    PostgresEstimationOwnershipStore,
+)
+from app.estimator.production_identity import require_actor
 from app.generation.graph.observability import flush_logfire_graph_traces
 from app.generation.graph.unified_runtime import open_unified_graph_estimation_service
 from app.routers.unified_graph_estimations import router as unified_graph_estimations_router
@@ -35,7 +41,13 @@ class EstimatorReadinessReport(BaseModel):
     startup_complete: bool
     unified_runtime: bool
     configured_providers: list[str]
+    ownership_restart_persistent: bool
+    identity_required: bool
     runtime_error: str | None = None
+
+
+def _truthy(value: str | None) -> bool:
+    return (value or "").strip().casefold() in {"1", "true", "yes", "on"}
 
 
 def _cors_origins() -> list[str]:
@@ -62,11 +74,40 @@ def _safe_error_type(value: object) -> str | None:
     return value if value.isidentifier() else None
 
 
+def _identity_key() -> bytes:
+    value = os.getenv("ESTIMATOR_SESSION_SIGNING_KEY", "").encode("utf-8")
+    if len(value) < 32:
+        raise RuntimeError(
+            "ESTIMATOR_SESSION_SIGNING_KEY must contain at least 32 bytes in production."
+        )
+    return value
+
+
+def _build_ownership_store() -> EstimationOwnershipStore:
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if database_url:
+        store = PostgresEstimationOwnershipStore(database_url)
+        store.setup()
+        return store
+    if _truthy(os.getenv("ESTIMATOR_ALLOW_IN_MEMORY_OWNERSHIP")):
+        store = InMemoryEstimationOwnershipStore()
+        store.setup()
+        return store
+    raise RuntimeError(
+        "DATABASE_URL is required for estimator production ownership. "
+        "Set ESTIMATOR_ALLOW_IN_MEMORY_OWNERSHIP=true only for explicit tests."
+    )
+
+
 @asynccontextmanager
 async def lifespan(service: FastAPI) -> AsyncIterator[None]:
-    """Own only the canonical unified runtime for the production process."""
+    """Own canonical graph runtime, signed identity, and durable ownership."""
 
     stack = AsyncExitStack()
+    ownership_store = _build_ownership_store()
+    identity_key = _identity_key()
+    service.state.estimator_ownership_store = ownership_store
+    service.state.estimator_identity_signing_key = identity_key
     service.state.unified_graph_estimation_service = None
     service.state.unified_graph_runtime_error = None
     service.state.startup_complete = False
@@ -85,6 +126,7 @@ async def lifespan(service: FastAPI) -> AsyncIterator[None]:
     finally:
         service.state.startup_complete = False
         service.state.unified_graph_estimation_service = None
+        ownership_store.close()
         await stack.aclose()
         try:
             flush_logfire_graph_traces()
@@ -95,8 +137,8 @@ async def lifespan(service: FastAPI) -> AsyncIterator[None]:
 def create_production_app() -> FastAPI:
     service = FastAPI(
         title="Energy-Aware Estimator",
-        description="Consolidated Session 13/14 estimation control plane",
-        version="1.0.0",
+        description="Consolidated Energy-Aware estimation control plane",
+        version="1.1.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -124,7 +166,10 @@ def create_production_app() -> FastAPI:
             )
         return response
 
-    service.include_router(unified_graph_estimations_router)
+    service.include_router(
+        unified_graph_estimations_router,
+        dependencies=[Depends(require_actor)],
+    )
 
     @service.get("/startup", include_in_schema=False)
     def startup(response: Response) -> dict[str, object]:
@@ -146,14 +191,24 @@ def create_production_app() -> FastAPI:
         include_in_schema=False,
     )
     def ready(response: Response) -> EstimatorReadinessReport:
-        """Require initialized durable graph runtime and one configured provider."""
+        """Require initialized graph runtime, identity, ownership, and a provider."""
 
         started = bool(getattr(service.state, "startup_complete", False))
         runtime_ready = (
             getattr(service.state, "unified_graph_estimation_service", None) is not None
         )
         providers = _configured_providers()
-        is_ready = started and runtime_ready and bool(providers)
+        ownership = getattr(service.state, "estimator_ownership_store", None)
+        identity_key = getattr(service.state, "estimator_identity_signing_key", None)
+        ownership_ready = ownership is not None
+        identity_ready = isinstance(identity_key, bytes) and len(identity_key) >= 32
+        is_ready = (
+            started
+            and runtime_ready
+            and bool(providers)
+            and ownership_ready
+            and identity_ready
+        )
         if not is_ready:
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return EstimatorReadinessReport(
@@ -162,6 +217,10 @@ def create_production_app() -> FastAPI:
             startup_complete=started,
             unified_runtime=runtime_ready,
             configured_providers=providers,
+            ownership_restart_persistent=bool(
+                getattr(ownership, "restart_persistent", False)
+            ),
+            identity_required=True,
             runtime_error=_safe_error_type(
                 getattr(service.state, "unified_graph_runtime_error", None)
             ),
