@@ -8,6 +8,7 @@ def test_eachat_keyless_production_shell_smoke(monkeypatch) -> None:
 
     monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
     monkeypatch.setenv("EACHAT_ALLOW_IN_MEMORY", "true")
+    monkeypatch.setenv("EACHAT_SESSION_SIGNING_KEY", "eachat-smoke-signing-key-32-bytes-minimum")
     monkeypatch.setenv("GIT_SHA", "eachat-smoke")
     monkeypatch.delenv("EACHAT_POSTGRES_URL", raising=False)
     monkeypatch.delenv("EACHAT_MEMORY_ENCRYPTION_KEY", raising=False)
@@ -28,6 +29,8 @@ def test_eachat_keyless_production_shell_smoke(monkeypatch) -> None:
     assert ready.status_code == 200
     assert ready.json()["ready"] is True
     assert ready.json()["restart_persistent"] is False
+    assert ready.json()["ownership_restart_persistent"] is False
+    assert ready.json()["identity_required"] is True
     assert version.json()["git_sha"] == "eachat-smoke"
     assert demo.status_code == 200
     assert demo.headers["cache-control"] == "no-store"
