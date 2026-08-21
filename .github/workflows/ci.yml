@@ -342,6 +342,7 @@ jobs:
               'ready': True,
               'control_plane': 'deterministic',
               'authority_store': 'postgresql',
+              'authority_store_available': True,
           }
           assert status['control_plane'] == 'deterministic'
           assert status['provider_selection'] == 'planned_only'
