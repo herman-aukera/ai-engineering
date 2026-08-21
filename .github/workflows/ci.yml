@@ -348,6 +348,8 @@ jobs:
             /tmp/eachat-production-requirements.txt
             /tmp/eachat-production-health.json
             /tmp/eachat-production.log
+            estimador-cag/deploy/eachat/uv.lock
+            estimador-cag/deploy/eachat/uv.lock.sha256
           if-no-files-found: warn
 
       - name: Stop isolated production service
