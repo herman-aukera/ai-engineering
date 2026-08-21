@@ -17,6 +17,8 @@ from app.energy_chat.human_gate import (
     HumanIdempotencyConflictError,
     StaleHumanActionError,
 )
+from app.energy_chat.ownership_http import assert_resource_owner, claim_resource
+from app.energy_chat.production_identity import current_actor
 from app.energy_chat.runtime_container import (
     EnergyChatApplicationRuntime,
     HumanActionAlreadyResumedError,
@@ -97,9 +99,15 @@ def start_human_gated_chat(
 
     _require_v2_enabled()
     try:
-        return _runtime(http_request).execute_human(_bind_human_route(request))
+        if request.thread_id is not None:
+            claim_resource(http_request, "thread", request.thread_id)
+        result = _runtime(http_request).execute_human(_bind_human_route(request))
+        claim_resource(http_request, "thread", result.thread_id)
+        return result
     except UnsupportedProfileError as exc:
         raise _profile_error(exc, request) from exc
+    except HTTPException:
+        raise
     except ThreadCheckpointConflictError as exc:
         raise HTTPException(
             status_code=409,
@@ -134,6 +142,10 @@ def resume_human_gated_chat(
     """Apply approve, adjust, or reject to one pending protected checkpoint."""
 
     _require_v2_enabled()
+    assert_resource_owner(http_request, "thread", thread_id)
+    actor = current_actor(http_request)
+    if actor is not None:
+        submission = submission.model_copy(update={"actor": actor.owner_id})
     try:
         return resume_human_authoritatively(
             _runtime(http_request),
@@ -180,6 +192,8 @@ def resume_human_gated_chat(
                 "The pending human action has already been applied.",
             ).model_dump(),
         ) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=500,
