@@ -34,6 +34,8 @@ Provider/model output is evidence, not authority. Requested, planned and actuall
 
 Production requires `EACODE_DATABASE_URL` and `EACODE_SESSION_SIGNING_KEY`. Proposals, ownership, receipts, replay protection, execution reservations and reevaluated results are authoritative PostgreSQL state. The versioned migration is `energy_core/migrations/0001_eacode_beta_authority.sql`; SQLite is compatibility/test-only.
 
+`/health` remains a cheap local liveness probe. `/ready` separately performs a bounded authority-store availability check and returns 503 when PostgreSQL authority is unavailable, so a live process with a dead authoritative database stops receiving production traffic without invoking a model/provider.
+
 ## Isolated production artifact
 
 The deployable dependency closure is frozen independently from the coursework environment:
