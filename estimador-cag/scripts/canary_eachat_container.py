@@ -1,4 +1,4 @@
-"""Container canary for durable EACHAT health, restart recovery, and bounded load."""
+"""Container canary for durable EACHAT health, ownership, restart recovery, and load."""
 
 from __future__ import annotations
 
@@ -8,26 +8,52 @@ import os
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+from app.energy_chat.identity import SignedSessionCodec
 
 BASE_URL = os.environ.get("EACHAT_CANARY_BASE_URL", "http://127.0.0.1:8010").rstrip("/")
 EVIDENCE_DIR = Path(os.environ.get("EACHAT_CANARY_EVIDENCE", "/tmp/eachat-canary"))
 CONVERSATION_FILE = EVIDENCE_DIR / "conversation-id.txt"
 
 
-def request_json(path: str, *, method: str = "GET", payload: dict | None = None):
+def _authorization() -> str:
+    key = os.environ.get("EACHAT_SESSION_SIGNING_KEY", "").encode("utf-8")
+    token = SignedSessionCodec(key).issue(
+        subject="canary-operator",
+        tenant_id="canary-tenant",
+        roles=("member",),
+        expires_at=datetime.now(UTC) + timedelta(minutes=20),
+    )
+    return f"Bearer {token}"
+
+
+def request_json(
+    path: str,
+    *,
+    method: str = "GET",
+    payload: dict | None = None,
+    authenticated: bool | None = None,
+):
     body = None if payload is None else json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    use_auth = path.startswith("/energy-chat/v2/") if authenticated is None else authenticated
+    if use_auth:
+        headers["Authorization"] = _authorization()
     request = urllib.request.Request(
         f"{BASE_URL}{path}",
         data=body,
         method=method,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             data = json.loads(response.read().decode("utf-8"))
-            headers = {key.casefold(): value for key, value in response.headers.items()}
-            return response.status, headers, data
+            response_headers = {
+                key.casefold(): value for key, value in response.headers.items()
+            }
+            return response.status, response_headers, data
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"HTTP {exc.code} for {path}: {detail}") from exc
@@ -75,10 +101,11 @@ def seed() -> None:
 
 def verify() -> None:
     conversation_id = CONVERSATION_FILE.read_text(encoding="utf-8").strip()
-    status, headers, health = request_json("/health")
+    status, headers, health = request_json("/health", authenticated=False)
     assert status == 200
     assert health["restart_persistent"] is True
     assert health["conversation_restart_persistent"] is True
+    assert health["ownership_restart_persistent"] is True
     assert health["strict_msgpack"] is True
     assert headers.get("x-content-type-options") == "nosniff"
     history = request_json(f"/energy-chat/v2/conversations/{conversation_id}")[2]
@@ -91,7 +118,7 @@ def verify() -> None:
 
 def load() -> None:
     def health_call(_: int) -> int:
-        return request_json("/health")[0]
+        return request_json("/health", authenticated=False)[0]
 
     def chat_call(index: int) -> int:
         return request_json(
