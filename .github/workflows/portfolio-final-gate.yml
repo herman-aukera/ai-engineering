@@ -88,18 +88,21 @@ jobs:
             smoke: tests/smoke/test_session15_http_smoke.py
             contract: scripts/session15_production_contract.py
             exporter: scripts/estimator_export_production_requirements.py
+            requirements: deploy/estimator/requirements.generated.txt
             dockerfile: Dockerfile
           - product: eachat
             ref: EACHAT
             smoke: tests/smoke/test_eachat_production_smoke.py
             contract: scripts/session15_eachat_production_contract.py
             exporter: scripts/eachat_export_production_requirements.py
+            requirements: deploy/eachat/requirements.generated.txt
             dockerfile: deploy/eachat/Dockerfile
           - product: eacode
             ref: EACODE
             smoke: tests/smoke/test_eacode_production_smoke.py
             contract: scripts/session15_eacode_production_contract.py
             exporter: scripts/eacode_export_production_requirements.py
+            requirements: deploy/eacode/requirements.generated.txt
             dockerfile: deploy/eacode/Dockerfile
     env:
       OPENAI_API_KEY: test
@@ -147,6 +150,9 @@ jobs:
       - name: Verify isolated production dependency closure
         working-directory: estimador-cag
         run: uv run python '${{ matrix.exporter }}'
+      - name: Audit isolated production dependencies
+        working-directory: estimador-cag
+        run: uvx --from pip-audit pip-audit --requirement '${{ matrix.requirements }}'
       - name: Energy-Aware protocol conformance
         working-directory: estimador-cag
         run: uv run python scripts/verify_energy_aware_protocol.py
