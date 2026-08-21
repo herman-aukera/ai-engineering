@@ -7,25 +7,25 @@ on:
       - estimador-cag/docs/energy_chat_v2_demo.html
       - estimador-cag/deploy/eachat/**
       - estimador-cag/scripts/canary_eachat_container.py
+      - estimador-cag/scripts/session15_eachat_production_contract.py
+      - estimador-cag/tests/test_eachat_session15_production_contract.py
+      - estimador-cag/tests/test_eachat_ci_contract.py
+      - estimador-cag/tests/smoke/test_eachat_production_smoke.py
+      - .github/workflows/energy-chat-ci.yml
       - .github/workflows/eachat-container-canary.yml
   push:
     branches:
       - EACHAT
       - repair/eachat-foundation-and-release-evidence
-    paths:
-      - estimador-cag/app/energy_chat/**
-      - estimador-cag/docs/energy_chat_v2_demo.html
-      - estimador-cag/deploy/eachat/**
-      - estimador-cag/scripts/canary_eachat_container.py
-      - .github/workflows/eachat-container-canary.yml
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  container-restart-canary:
+  postgres-restart-integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     env:
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       EACHAT_CANARY_BASE_URL: http://127.0.0.1:8010
@@ -48,7 +48,7 @@ jobs:
       - name: Verify and export isolated production lock
         working-directory: estimador-cag
         run: |
-          uv lock --project deploy/eachat
+          uv lock --project deploy/eachat --check
           cd deploy/eachat
           sha256sum --check uv.lock.sha256
           cd ../..
@@ -83,20 +83,44 @@ jobs:
           test "$POSTGRES_READY" = "1"
           docker run --detach --name eachat-app --network eachat-canary-network \
             --publish 8010:8000 \
+            --env GIT_SHA="$EXPECTED_HEAD_SHA" \
             --env LANGGRAPH_STRICT_MSGPACK=true \
             --env EACHAT_POSTGRES_URL=postgresql://eachat:eachat_test@eachat-postgres:5432/eachat_test \
             --env EACHAT_MEMORY_ENCRYPTION_KEY="$EACHAT_MEMORY_ENCRYPTION_KEY" \
             "eachat-canary:${EXPECTED_HEAD_SHA}"
           APP_READY=0
           for attempt in $(seq 1 45); do
-            if curl -fsS http://127.0.0.1:8010/health > /tmp/eachat-canary-health-first.json; then
+            if curl -fsS http://127.0.0.1:8010/ready > /tmp/eachat-canary-ready-first.json; then
               APP_READY=1
               break
             fi
             sleep 1
           done
           test "$APP_READY" = "1"
+          curl -fsS http://127.0.0.1:8010/startup > /tmp/eachat-canary-startup-first.json
+          curl -fsS http://127.0.0.1:8010/health > /tmp/eachat-canary-health-first.json
+          curl -fsS http://127.0.0.1:8010/version > /tmp/eachat-canary-version-first.json
           test "$(docker exec eachat-app id -u)" != "0"
+
+      - name: Verify first production lifecycle contract
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          expected = os.environ['EXPECTED_HEAD_SHA']
+          startup = json.loads(Path('/tmp/eachat-canary-startup-first.json').read_text())
+          ready = json.loads(Path('/tmp/eachat-canary-ready-first.json').read_text())
+          version = json.loads(Path('/tmp/eachat-canary-version-first.json').read_text())
+          assert startup == {'status': 'started', 'started': True}
+          assert ready['status'] == 'ready'
+          assert ready['ready'] is True
+          assert ready['restart_persistent'] is True
+          assert ready['conversation_restart_persistent'] is True
+          assert ready['strict_msgpack'] is True
+          assert version['git_sha'] == expected
+          PY
 
       - name: Seed durable two-turn conversation
         working-directory: estimador-cag
@@ -108,20 +132,41 @@ jobs:
           docker rm --force eachat-app
           docker run --detach --name eachat-app --network eachat-canary-network \
             --publish 8010:8000 \
+            --env GIT_SHA="$EXPECTED_HEAD_SHA" \
             --env LANGGRAPH_STRICT_MSGPACK=true \
             --env EACHAT_POSTGRES_URL=postgresql://eachat:eachat_test@eachat-postgres:5432/eachat_test \
             --env EACHAT_MEMORY_ENCRYPTION_KEY="$EACHAT_MEMORY_ENCRYPTION_KEY" \
             "eachat-canary:${EXPECTED_HEAD_SHA}"
           APP_READY=0
           for attempt in $(seq 1 45); do
-            if curl -fsS http://127.0.0.1:8010/health > /tmp/eachat-canary-health-restarted.json; then
+            if curl -fsS http://127.0.0.1:8010/ready > /tmp/eachat-canary-ready-restarted.json; then
               APP_READY=1
               break
             fi
             sleep 1
           done
           test "$APP_READY" = "1"
+          curl -fsS http://127.0.0.1:8010/startup > /tmp/eachat-canary-startup-restarted.json
+          curl -fsS http://127.0.0.1:8010/health > /tmp/eachat-canary-health-restarted.json
+          curl -fsS http://127.0.0.1:8010/version > /tmp/eachat-canary-version-restarted.json
           test "$(docker exec eachat-app id -u)" != "0"
+
+      - name: Verify restarted production lifecycle contract
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          expected = os.environ['EXPECTED_HEAD_SHA']
+          ready = json.loads(Path('/tmp/eachat-canary-ready-restarted.json').read_text())
+          version = json.loads(Path('/tmp/eachat-canary-version-restarted.json').read_text())
+          assert ready['ready'] is True
+          assert ready['restart_persistent'] is True
+          assert ready['conversation_restart_persistent'] is True
+          assert ready['strict_msgpack'] is True
+          assert version['git_sha'] == expected
+          PY
 
       - name: Verify restart recovery
         working-directory: estimador-cag
@@ -150,8 +195,7 @@ jobs:
           docker logs eachat-app > /tmp/eachat-canary/app-restarted.log 2>&1 || true
           docker logs eachat-postgres > /tmp/eachat-canary/postgres.log 2>&1 || true
           docker image inspect "eachat-canary:${EXPECTED_HEAD_SHA}" > /tmp/eachat-canary/image-inspect.json 2>/dev/null || true
-          cp /tmp/eachat-canary-health-first.json /tmp/eachat-canary/health-first.json 2>/dev/null || true
-          cp /tmp/eachat-canary-health-restarted.json /tmp/eachat-canary/health-restarted.json 2>/dev/null || true
+          cp /tmp/eachat-canary-*.json /tmp/eachat-canary/ 2>/dev/null || true
           cp /tmp/eachat-app-first.log /tmp/eachat-canary/app-first.log 2>/dev/null || true
           cp /tmp/eachat-app-restarted.log /tmp/eachat-canary/app-restarted.log 2>/dev/null || true
 
@@ -159,9 +203,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: eachat-container-canary-evidence
+          name: eachat-container-canary-${{ env.EXPECTED_HEAD_SHA }}
           path: /tmp/eachat-canary
-          if-no-files-found: warn
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Stop canary containers
         if: always()
