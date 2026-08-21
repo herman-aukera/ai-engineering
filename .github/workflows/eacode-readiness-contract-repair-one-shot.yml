@@ -1,0 +1,41 @@
+name: One-shot EACODE readiness contract repair
+
+on:
+  push:
+    branches: [EACODE]
+    paths:
+      - .github/workflows/eacode-readiness-contract-repair-one-shot.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Update production-envelope assertion
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/ci.yml')
+          text = path.read_text()
+          old = "              'authority_store': 'postgresql',\n          }"
+          new = "              'authority_store': 'postgresql',\n              'authority_store_available': True,\n          }"
+          if old not in text:
+              raise SystemExit('expected readiness assertion marker not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Remove one-shot workflow and commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/eacode-readiness-contract-repair-one-shot.yml
+          git add .github/workflows/ci.yml
+          git diff --cached --check
+          git commit -m "eacode: ci(resilience): assert authority database readiness"
+          git push origin HEAD:EACODE
