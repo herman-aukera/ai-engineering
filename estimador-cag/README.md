@@ -68,6 +68,97 @@ Internet -> Caddy :80/:443 -> private estimator :8000
 
 The image is non-root, SHA/digest identified, immutable at release and rolled back by prior digest. Release builds attach BuildKit SBOM and provenance attestations; the portfolio final gate separately audits the isolated Python dependency closure.
 
+## Current Session 13 status — historical submission compatibility
+
+This section preserves the mandatory Session 13 coursework front door and its tested historical contracts. It is not the current production branch policy.
+
+Current branch:
+
+```text
+gg-session-13/pre-work
+```
+
+Teacher-facing branch:
+
+```text
+session-13/pre-work
+```
+
+Historical graph endpoint:
+
+```text
+POST /api/v1/estimate/graph
+```
+
+Historical Session 13 evidence and instructions:
+
+- `docs/session13_task13_compliance.md`
+- `docs/session13_plus_roadmap.md`
+- `docs/session13_plus_live_runtime_evidence.md`
+- `docs/session13_presentation_guide_es.md`
+- `artifacts/session13/complex_graph_execution_deterministic.json`
+- `artifacts/session13/postgres_persistence_proof.json`
+- `artifacts/session13/live_postgres_logfire_trace_summary.json`
+
+Deterministic validation command retained for coursework compatibility:
+
+```bash
+OPENAI_API_KEY=test DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
+```
+
+Historical provider policy: prefer DeepSeek first and use Kimi only as fallback or comparison.
+
+The Session 13 trace identifier remains historical evidence:
+
+```text
+019f66df5be5e9f5db11c167f81b79dd
+```
+
+## Historical Session 12 agentic work
+
+The Session 12 — hand-written agent loop is preserved from branch `gg-session-12/pre-work`.
+
+Session 12 agentic handoff:
+
+- `docs/session12_agentic_handoff.md`
+- `docs/session12_task12_compliance.md`
+
+That material documents the hand-written tool loop, provider-plan evidence and its original claim boundaries. It does not replace the LangGraph Session 13/14 paths.
+
+## Historical Session 10 retrieval background
+
+The historical retrieval stack remains available:
+
+| Layer | Files |
+| --- | --- |
+| Fusion | `app/embedding_pipeline/fusion.py` |
+| Reranking | `app/embedding_pipeline/reranker.py` |
+| Search API | `POST /search` |
+| Evaluation | `evals/session10_retrieval/` |
+
+Historical A/B/C/D matrix:
+
+| Config | Search | Reranking |
+| --- | --- | --- |
+| A | Vector | No |
+| B | Hybrid | No |
+| C | Vector | Yes |
+| D | Hybrid | Yes |
+
+Historical runner:
+
+```bash
+uv run python -m evals.session10_retrieval.run \
+  --output evals/session10_retrieval/results.json \
+  --report evals/session10_retrieval/REPORT.md \
+  --k 5 \
+  --recall-k 8
+```
+
+The report distinguishes `result budget precision@5` from `unique budget precision@5`. The corpus has only four budgets, eight component chunks and a small query set, so it does not prove hybrid retrieval or reranking superiority.
+
+Historical session references remain indexed in `docs/HISTORICAL_SESSIONS.md`.
+
 ## Remaining external production gates
 
 Repository evidence covers the isolated production surface, signed tenant ownership, durable graph state, product-only dependency lock, neutral telemetry contract, single ingress and immutable deployment design.
