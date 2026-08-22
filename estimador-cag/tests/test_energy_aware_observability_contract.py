@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from app.energy_aware_observability import EVENT_SCHEMA_VERSION, PROTOCOL_VERSION, OperationalEvent, safe_request_id
+from app.energy_aware_observability import (
+    EVENT_SCHEMA_VERSION,
+    PROTOCOL_VERSION,
+    OperationalEvent,
+    safe_request_id,
+)
 
 
 def test_operational_event_is_stable_sanitized_and_protocol_versioned() -> None:
