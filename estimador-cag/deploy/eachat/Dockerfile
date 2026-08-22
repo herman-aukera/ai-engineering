@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:a630a63cdb314e2d138a2fca3e375e319e8568346ffafac5b980f888630ac4f1
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN python -m pip install --no-cache-dir uv \
+RUN python -m pip install --no-cache-dir uv==0.12.1 \
     && useradd --create-home --uid 10001 eachat
 
 COPY deploy/eachat/pyproject.toml /tmp/eachat-runtime/pyproject.toml
