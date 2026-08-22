@@ -1,6 +1,6 @@
-FROM ghcr.io/astral-sh/uv:0.12.1 AS uv-binary
+FROM ghcr.io/astral-sh/uv@sha256:dfe4069fefc02ee4d6097c26f31d0784df09c9b6242fb4a25ad31fbae74ec6aa AS uv-binary
 
-FROM python:3.11.15-slim-bookworm AS builder-base
+FROM python:3.11.15-slim-bookworm@sha256:d29f48a31a8b408ed19272ca1e7b10ebae13b240a27e862d3d4217c528e2e0c3 AS builder-base
 COPY --from=uv-binary /uv /uvx /bin/
 
 FROM builder-base AS eacode-builder
@@ -23,7 +23,7 @@ WORKDIR /build
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --extra dev --no-install-project
 
-FROM python:3.11.15-slim-bookworm AS hardened-python
+FROM python:3.11.15-slim-bookworm@sha256:d29f48a31a8b408ed19272ca1e7b10ebae13b240a27e862d3d4217c528e2e0c3 AS hardened-python
 RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/* \
