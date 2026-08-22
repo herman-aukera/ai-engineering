@@ -39,6 +39,19 @@ def test_image_pin_validator_rejects_mutable_ci_and_base_images(tmp_path: Path) 
     assert any("postgres:16" in error for error in errors)
 
 
+def test_image_pin_validator_rejects_mutable_docker_pull_and_run(tmp_path: Path) -> None:
+    _write(tmp_path / ".github/workflows/ci.yml", "steps:\n  - run: docker pull redis:7-alpine\n  - run: docker run --rm postgres:16\n")
+    errors = find_mutable_image_refs(tmp_path)
+    assert any("redis:7-alpine" in error for error in errors)
+    assert any("postgres:16" in error for error in errors)
+
+
+def test_image_pin_validator_scans_shell_scripts_outside_deploy(tmp_path: Path) -> None:
+    _write(tmp_path / "scripts/container-smoke.sh", "docker pull postgres:16\n")
+    errors = find_mutable_image_refs(tmp_path)
+    assert any("scripts/container-smoke.sh" in error for error in errors)
+
+
 def test_image_pin_validator_allows_explicit_local_dev_classification(tmp_path: Path) -> None:
     _write(tmp_path / "docker-compose.yml", "services:\n  redis:\n    image: redis:7.4-alpine\n")
     assert find_mutable_image_refs(tmp_path) == []
