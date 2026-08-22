@@ -6,6 +6,10 @@
         format json
     }
 
+    request_body {
+        max_size 2MB
+    }
+
     reverse_proxy eachat:8000 {
         health_uri /ready
         health_interval 15s
