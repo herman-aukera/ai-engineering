@@ -24,10 +24,9 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --extra dev --no-install-project
 
 FROM python:3.11.15-slim-bookworm@sha256:d29f48a31a8b408ed19272ca1e7b10ebae13b240a27e862d3d4217c528e2e0c3 AS hardened-python
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf \
+# Keep the pinned base filesystem immutable. Security refreshes happen by
+# advancing the reviewed base digest, never by a floating apt repository update.
+RUN rm -rf \
        /usr/local/lib/python3.11/site-packages/pip* \
        /usr/local/lib/python3.11/site-packages/setuptools* \
        /usr/local/lib/python3.11/site-packages/wheel* \
