@@ -1,6 +1,6 @@
 {
   "schema_version": "energy-aware.portfolio-rtm.v2",
-  "base_rtm": "portfolio_requirements_traceability.json",
+  "base_rtm": "portfolio_requirements_traceability_v1.json",
   "evidence_bundle_additions": {
     "supply_chain": {
       "implementation": [
