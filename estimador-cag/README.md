@@ -84,6 +84,35 @@ Release images are non-root, immutable and digest-addressed. Deploy applies the 
 
 The governed beta proves **simulated execution only**. Secure-runner research must not be exposed as arbitrary untrusted-code execution until filesystem/process/network/resource isolation and cleanup evidence are independently proven.
 
+## Historical coursework compatibility — Sessions 04 and 05
+
+The following material is retained only to preserve tested LIDR coursework evidence. It describes older `app.main` and Streamlit behavior and does **not** define the EACODE production composition root.
+
+### Session 04 Live Plus
+
+The historical Session 04 Live Plus path used a typed product-estimation workflow with Structured JSON output, deterministic validation and this provider fallback ladder:
+
+```text
+DeepSeek flash → DeepSeek pro → Kimi 2.5 backup → Kimi 2.6 backup_pro
+```
+
+Historical cache behavior was explicit: Exact Redis cache runs before semantic cache. Semantic cache shadow mode observed candidates without serving them. The response exposed `requested_tier`, `served_tier`, `fallback_used`, `semantic_cache_mode`, and `semantic_candidate_found` for troubleshooting and class-defense evidence.
+
+### Session 05 memory and attachments
+
+Session 05 extended the historical coursework application with conversational memory and attachments. Its compatibility endpoints were:
+
+```text
+POST /sessions
+POST /sessions/{session_id}/estimate
+```
+
+The flow retained `project_metadata` beside `ConversationHistory`, used a bounded sliding window for recent turns, and accepted attachment requests through `multipart/form-data`. PDF extraction used `pypdf`; DOCX extraction used `python-docx`.
+
+The historical Streamlit path exposed **New conversation**, **Project metadata**, PDF and DOCX attachment controls, and could point at the backend through `ESTIMADOR_BACKEND_URL`.
+
+These Session 04/05 contracts remain regression-tested because they are part of the repository's coursework record; they are not evidence that the isolated EACODE production service mounts those surfaces.
+
 ## Remaining external production gates
 
 - real staging on EC2/RDS and DNS/TLS;
