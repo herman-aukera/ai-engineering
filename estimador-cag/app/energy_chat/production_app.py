@@ -23,9 +23,17 @@ from fastapi.responses import FileResponse, RedirectResponse
 from app.energy_aware_observability import observe_http_request
 from app.energy_chat.checkpoint_strict import StrictPostgresCheckpointer
 from app.energy_chat.conversation_router import router as conversation_router
-from app.energy_chat.conversation_store import ConversationStore, InMemoryConversationStore, PostgresConversationStore
+from app.energy_chat.conversation_store import (
+    ConversationStore,
+    InMemoryConversationStore,
+    PostgresConversationStore,
+)
 from app.energy_chat.human_router import router as human_router
-from app.energy_chat.ownership_store import InMemoryResourceOwnershipStore, PostgresResourceOwnershipStore, ResourceOwnershipStore
+from app.energy_chat.ownership_store import (
+    InMemoryResourceOwnershipStore,
+    PostgresResourceOwnershipStore,
+    ResourceOwnershipStore,
+)
 from app.energy_chat.production_identity import require_actor
 from app.energy_chat.production_router import router as production_router
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
