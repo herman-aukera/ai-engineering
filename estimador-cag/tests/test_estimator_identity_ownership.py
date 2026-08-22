@@ -27,11 +27,13 @@ def test_estimator_signed_session_rejects_tampering_and_expiry() -> None:
     with pytest.raises(ValueError, match="signature"):
         codec.verify(f"{version}.{payload}.{signature[:-1]}{replacement}")
 
+    now = datetime.now(UTC)
     expired = codec.issue(
         subject="alice",
         tenant_id="tenant-a",
         roles=("member",),
-        expires_at=datetime.now(UTC) - timedelta(seconds=1),
+        issued_at=now - timedelta(minutes=10),
+        expires_at=now - timedelta(minutes=5),
     )
     with pytest.raises(ValueError, match="expired"):
         codec.verify(expired)
