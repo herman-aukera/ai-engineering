@@ -7,7 +7,12 @@ from pathlib import Path
 DIGEST = re.compile(r"@sha256:[0-9a-fA-F]{64}$")
 FROM = re.compile(r"^\s*FROM\s+(\S+)(?:\s+AS\s+(\S+))?", re.IGNORECASE)
 IMAGE = re.compile(r"^\s*image:\s*(.+?)\s*$")
-IMAGE_TOKEN = re.compile(r"(?<![A-Za-z0-9_./-])([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*:[A-Za-z0-9._-]+(?:@sha256:[0-9a-fA-F]{64})?)")
+IMAGE_TOKEN = re.compile(
+    r"(?<![A-Za-z0-9_./-])([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*:[A-Za-z0-9._-]+(?:@sha256:[0-9a-fA-F]{64})?)"
+)
+DOCKER_IMAGE_COMMAND = re.compile(r"\bdocker\s+(?:run|pull)\b")
+IGNORED_PARTS = {".git", ".venv", "node_modules", "__pycache__"}
+
 LOCAL_DEVELOPMENT_ONLY = {
     ("docker-compose.yml", "ghcr.io/astral-sh/uv:python3.11-bookworm"),
     ("docker-compose.yml", "pgvector/pgvector:pg16"),
@@ -19,6 +24,10 @@ LOCAL_DEVELOPMENT_ONLY = {
 
 def repository_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _is_ignored(path: Path) -> bool:
+    return any(part in IGNORED_PARTS for part in path.parts)
 
 
 def _is_external_image(value: str) -> bool:
@@ -42,13 +51,13 @@ def _check_image_value(path: Path, root: Path, lineno: int, value: str) -> str |
     return None
 
 
-def _logical_shell_commands(lines: list[str]) -> list[tuple[int, str]]:
+def _logical_docker_commands(lines: list[str]) -> list[tuple[int, str]]:
     commands: list[tuple[int, str]] = []
     current: list[str] = []
     start = 0
     for lineno, line in enumerate(lines, 1):
         stripped = line.strip()
-        if not current and "docker run" not in stripped:
+        if not current and not DOCKER_IMAGE_COMMAND.search(stripped):
             continue
         if not current:
             start = lineno
@@ -61,14 +70,14 @@ def _logical_shell_commands(lines: list[str]) -> list[tuple[int, str]]:
     return commands
 
 
+def _candidate_files(root: Path, pattern: str) -> list[Path]:
+    return sorted(path for path in root.rglob(pattern) if path.is_file() and not _is_ignored(path))
+
+
 def find_mutable_image_refs(root: Path) -> list[str]:
     errors: list[str] = []
-    product_root = root / "estimador-cag"
-    dockerfiles = sorted(product_root.glob("Dockerfile*"))
-    deploy = product_root / "deploy"
-    if deploy.exists():
-        dockerfiles.extend(sorted(p for p in deploy.rglob("Dockerfile*") if p.is_file()))
-    for path in dockerfiles:
+
+    for path in _candidate_files(root, "Dockerfile*"):
         stages: set[str] = set()
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             match = FROM.match(line)
@@ -79,11 +88,19 @@ def find_mutable_image_refs(root: Path) -> list[str]:
                 errors.append(f"{path.relative_to(root)}:{lineno}: mutable Dockerfile base image: {image}")
             if alias:
                 stages.add(alias)
-    yaml_paths = sorted((root / ".github/workflows").glob("*.yml")) + sorted((root / ".github/workflows").glob("*.yaml"))
-    yaml_paths += sorted(root.glob("docker-compose*.yml")) + sorted(root.glob("docker-compose*.yaml"))
+
+    yaml_paths: list[Path] = []
+    workflow_dir = root / ".github" / "workflows"
+    if workflow_dir.exists():
+        yaml_paths.extend(sorted(workflow_dir.glob("*.yml")))
+        yaml_paths.extend(sorted(workflow_dir.glob("*.yaml")))
+    yaml_paths.extend(sorted(root.glob("docker-compose*.yml")))
+    yaml_paths.extend(sorted(root.glob("docker-compose*.yaml")))
+    deploy = root / "estimador-cag" / "deploy"
     if deploy.exists():
-        yaml_paths += sorted(p for p in deploy.rglob("*.yml") if p.is_file())
-        yaml_paths += sorted(p for p in deploy.rglob("*.yaml") if p.is_file())
+        yaml_paths.extend(sorted(path for path in deploy.rglob("*.yml") if path.is_file()))
+        yaml_paths.extend(sorted(path for path in deploy.rglob("*.yaml") if path.is_file()))
+
     for path in dict.fromkeys(yaml_paths):
         lines = path.read_text(encoding="utf-8").splitlines()
         for lineno, line in enumerate(lines, 1):
@@ -92,26 +109,23 @@ def find_mutable_image_refs(root: Path) -> list[str]:
                 error = _check_image_value(path, root, lineno, match.group(1))
                 if error:
                     errors.append(error)
-        for lineno, command in _logical_shell_commands(lines):
+        for lineno, command in _logical_docker_commands(lines):
             for candidate in IMAGE_TOKEN.findall(command):
-                if "${" in candidate or "$" in candidate:
-                    continue
                 name = candidate.split(":", 1)[0]
                 if re.fullmatch(r"\d+(?:\.\d+){3}", name):
                     continue
                 error = _check_image_value(path, root, lineno, candidate)
                 if error:
                     errors.append(error)
-    shell_paths = sorted(p for p in deploy.rglob("*.sh") if p.is_file()) if deploy.exists() else []
-    for path in shell_paths:
+
+    for path in _candidate_files(root, "*.sh"):
         lines = path.read_text(encoding="utf-8").splitlines()
-        for lineno, command in _logical_shell_commands(lines):
+        for lineno, command in _logical_docker_commands(lines):
             for candidate in IMAGE_TOKEN.findall(command):
-                if "${" in candidate or "$" in candidate:
-                    continue
                 error = _check_image_value(path, root, lineno, candidate)
                 if error:
                     errors.append(error)
+
     return sorted(set(errors))
 
 
