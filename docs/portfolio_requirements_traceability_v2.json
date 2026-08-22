@@ -1,0 +1,36 @@
+{
+  "schema_version": "energy-aware.portfolio-rtm.v2",
+  "base_rtm": "portfolio_requirements_traceability.json",
+  "evidence_bundle_additions": {
+    "supply_chain": {
+      "implementation": [
+        "main:estimador-cag/scripts/verify_tool_pins.py",
+        "EACHAT:estimador-cag/scripts/verify_tool_pins.py",
+        "EACODE:estimador-cag/scripts/verify_tool_pins.py"
+      ],
+      "test": [
+        "main:estimador-cag/tests/test_supply_chain_runtime_pins.py",
+        "EACHAT:estimador-cag/tests/test_supply_chain_runtime_pins.py",
+        "EACODE:estimador-cag/tests/test_supply_chain_runtime_pins.py"
+      ],
+      "CI_evidence": [
+        "main:.github/workflows/portfolio-final-gate.yml#portfolio-contracts"
+      ]
+    }
+  },
+  "requirements": [
+    {
+      "requirement_id": "SC-006",
+      "requirement": "Blocking CI executable toolchain versions are exact-pinned and anti-regression validated",
+      "source_family": "zero_gap_supply_chain",
+      "product": "portfolio",
+      "applicability": "REPOSITORY_CONTROLLED",
+      "implementation": "bundle:supply_chain",
+      "test": "bundle:supply_chain",
+      "CI_evidence": "bundle:supply_chain",
+      "status": "PASS",
+      "external_reason_if_any": null,
+      "repository_controlled": true
+    }
+  ]
+}
