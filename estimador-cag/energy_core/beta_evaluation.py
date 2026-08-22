@@ -95,7 +95,7 @@ def default_beta_cases() -> tuple[BetaEvaluationCase, ...]:
             category="hard-gate",
             proposal=proposal(
                 "secret",
-                patch="API_KEY = 'sk-this-is-a-secret-value-123456789'\n",
+                patch="API_KEY = 'sk-this-is-a-secret-value-123456789'\n",  # test-secret-fixture
             ),
             expected="reject",
         ),
