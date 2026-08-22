@@ -14,26 +14,26 @@ permissions:
 jobs:
   portfolio-contracts:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     outputs:
       main_sha: ${{ steps.heads.outputs.main_sha }}
       eachat_sha: ${{ steps.heads.outputs.eachat_sha }}
       eacode_sha: ${{ steps.heads.outputs.eacode_sha }}
     steps:
       - name: Checkout canonical main
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: main
           path: portfolio/main
           fetch-depth: 1
       - name: Checkout canonical EACHAT
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: EACHAT
           path: portfolio/eachat
           fetch-depth: 1
       - name: Checkout canonical EACODE
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: EACODE
           path: portfolio/eacode
@@ -53,6 +53,21 @@ jobs:
           printf 'main_sha=%s\n' "$MAIN_SHA" >> "$GITHUB_OUTPUT"
           printf 'eachat_sha=%s\n' "$EACHAT_SHA" >> "$GITHUB_OUTPUT"
           printf 'eacode_sha=%s\n' "$EACODE_SHA" >> "$GITHUB_OUTPUT"
+      - name: Verify immutable execution chain on all products
+        run: |
+          for root in portfolio/main portfolio/eachat portfolio/eacode; do
+            python "$root/estimador-cag/scripts/verify_action_pins.py"
+            python "$root/estimador-cag/scripts/verify_image_pins.py"
+            python "$root/estimador-cag/scripts/verify_dependabot_config.py"
+          done
+      - name: Validate exhaustive zero-gap requirements matrix
+        run: |
+          python portfolio/main/estimador-cag/scripts/verify_portfolio_requirements.py \
+            --rtm portfolio/main/docs/portfolio_requirements_traceability.json \
+            --repo main=portfolio/main \
+            --repo EACHAT=portfolio/eachat \
+            --repo EACODE=portfolio/eacode \
+            | tee portfolio/evidence/portfolio-rtm.txt
       - name: Run portfolio protocol, documentation and split evaluation
         run: |
           python portfolio/main/estimador-cag/scripts/portfolio_evaluation.py \
@@ -82,7 +97,7 @@ jobs:
               assert manifest.get('forbidden_peer_imports')
           PY
       - name: Upload portfolio evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: energy-aware-portfolio-final-${{ github.run_id }}
           path: portfolio/evidence
@@ -92,7 +107,7 @@ jobs:
   deterministic-product-gates:
     name: deterministic-${{ matrix.product }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -125,7 +140,7 @@ jobs:
       PYTHONUNBUFFERED: "1"
     steps:
       - name: Checkout canonical product head
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ matrix.ref }}
           fetch-depth: 0
@@ -133,9 +148,9 @@ jobs:
         run: |
           printf '%s=%s\n' '${{ matrix.ref }}' "$(git rev-parse HEAD)" | tee /tmp/product-head.txt
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
       - name: Install deterministic development environment
@@ -152,6 +167,15 @@ jobs:
         working-directory: estimador-cag
         run: |
           uv run python -m py_compile $(find app tests scripts evals energy_core -name '*.py' -type f 2>/dev/null)
+      - name: Immutable Action validation
+        working-directory: estimador-cag
+        run: uv run python scripts/verify_action_pins.py
+      - name: Immutable executable image validation
+        working-directory: estimador-cag
+        run: uv run python scripts/verify_image_pins.py
+      - name: Dependabot policy validation
+        working-directory: estimador-cag
+        run: uv run python scripts/verify_dependabot_config.py
       - name: Full deterministic suite
         working-directory: estimador-cag
         run: uv run pytest -q -m "not live_provider"
@@ -166,7 +190,7 @@ jobs:
         run: uv run python '${{ matrix.exporter }}'
       - name: Audit isolated production dependencies
         working-directory: estimador-cag
-        run: uvx --from pip-audit pip-audit --requirement '${{ matrix.requirements }}'
+        run: uvx --from pip-audit==2.10.1 pip-audit --requirement '${{ matrix.requirements }}'
       - name: Energy-Aware protocol conformance
         working-directory: estimador-cag
         run: uv run python scripts/verify_energy_aware_protocol.py
@@ -193,7 +217,7 @@ jobs:
       - name: Verify validation did not mutate tracked source
         run: test -z "$(git status --short)"
       - name: Upload exact-head marker
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: final-head-${{ matrix.product }}-${{ github.run_id }}
           path: /tmp/product-head.txt
@@ -212,7 +236,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Report exact hosted result to visibility PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           PORTFOLIO_RESULT: ${{ needs.portfolio-contracts.result }}
           PRODUCT_RESULT: ${{ needs.deterministic-product-gates.result }}
@@ -235,7 +259,9 @@ jobs:
               `- deterministic product gates: **${products}**\n` +
               `- main: \`${process.env.MAIN_SHA || 'unavailable'}\`\n` +
               `- EACHAT: \`${process.env.EACHAT_SHA || 'unavailable'}\`\n` +
-              `- EACODE: \`${process.env.EACODE_SHA || 'unavailable'}\`\n\n` +
+              `- EACODE: \`${process.env.EACODE_SHA || 'unavailable'}\`\n` +
+              `- zero-gap RTM: **required**\n` +
+              `- immutable Actions/images: **required**\n\n` +
               `This comment is emitted by the cross-product final gate; provider-live calls are not part of this blocking validation.`;
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number || 29;
