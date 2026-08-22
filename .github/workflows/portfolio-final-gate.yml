@@ -64,7 +64,7 @@ jobs:
       - name: Validate exhaustive zero-gap requirements matrix
         run: |
           python portfolio/main/estimador-cag/scripts/verify_portfolio_requirements.py \
-            --rtm portfolio/main/docs/portfolio_requirements_traceability.json \
+            --rtm portfolio/main/docs/portfolio_requirements_traceability_v2.json \
             --repo main=portfolio/main \
             --repo EACHAT=portfolio/eachat \
             --repo EACODE=portfolio/eacode \
