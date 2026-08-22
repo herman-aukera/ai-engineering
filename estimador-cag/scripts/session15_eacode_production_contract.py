@@ -118,12 +118,16 @@ def _check_isolated_dependency_contract() -> None:
         raise AssertionError(f"EACODE deploy project leaked monorepo-only dependencies: {leaked}")
     if "uv.lock" not in digest or len(digest.split()[0]) != 64:
         raise AssertionError("EACODE isolated lock digest file is malformed")
-    for marker in (
-        "uv lock",
-        "uv export",
+
+    executable_markers = (
+        '"uv", "lock",',
+        '"--check"',
+        '"uv",\n        "export",',
+        '"--frozen"',
         "FORBIDDEN_PRODUCTION_PACKAGES",
         "EACODE_ISOLATED_PRODUCTION_DEPENDENCIES_OK",
-    ):
+    )
+    for marker in executable_markers:
         if marker not in export_script:
             raise AssertionError(f"EACODE production dependency gate misses marker: {marker}")
 
