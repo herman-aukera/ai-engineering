@@ -219,7 +219,7 @@ class FailureInjectingAdapter(SandboxedToolAdapter):
 
         exit_code = 1 if self._inject_non_zero_exit else 0
         stdout = (
-            "Result: sk-abcdefghijklmnopqrstuvwxyz123456"
+            "Result: sk-abcdefghijklmnopqrstuvwxyz123456"  # test-secret-fixture
             if self._inject_secret_output
             else "Deterministic fake output."
         )
