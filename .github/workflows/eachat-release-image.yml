@@ -14,7 +14,7 @@ jobs:
       EXPECTED_HEAD_SHA: ${{ github.sha }}
     steps:
       - name: Checkout exact release head
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
@@ -23,7 +23,7 @@ jobs:
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
 
       - name: Verify and export isolated production lock
         working-directory: estimador-cag
@@ -35,7 +35,7 @@ jobs:
           uv export --project deploy/eachat --frozen --no-dev --format requirements-txt --output-file deploy/eachat/requirements.generated.txt
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -43,7 +43,7 @@ jobs:
 
       - name: Build and push immutable SHA image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: estimador-cag
           file: estimador-cag/deploy/eachat/Dockerfile
