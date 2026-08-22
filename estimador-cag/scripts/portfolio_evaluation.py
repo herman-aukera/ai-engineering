@@ -53,14 +53,20 @@ def evaluate(roots: list[Path]) -> dict[str, object]:
 
     for root in roots:
         manifest = json.loads(
-            (root / "docs" / "energy_aware_product_manifest.json").read_text(encoding="utf-8")
+            (root / "docs" / "energy_aware_product_manifest.json").read_text(
+                encoding="utf-8"
+            )
         )
         product = str(manifest["product"])
         branch = str(manifest["canonical_branch"])
         surface = str(manifest["public_surface"])
         if product in seen_products or branch in seen_branches or surface in seen_surfaces:
-            raise AssertionError("portfolio products, canonical branches and public surfaces must be unique")
-        seen_products.add(product); seen_branches.add(branch); seen_surfaces.add(surface)
+            raise AssertionError(
+                "portfolio products, canonical branches and public surfaces must be unique"
+            )
+        seen_products.add(product)
+        seen_branches.add(branch)
+        seen_surfaces.add(surface)
 
         contracts = {script: _run_contract(root, script) for script in CONTRACT_SCRIPTS}
         lock = _verify_lock(root, manifest)
@@ -81,7 +87,9 @@ def evaluate(roots: list[Path]) -> dict[str, object]:
 
     protocol_versions = {str(item["protocol_version"]) for item in products}
     if protocol_versions != {"energy-aware.protocol.v1"}:
-        raise AssertionError(f"portfolio protocol versions diverged: {sorted(protocol_versions)}")
+        raise AssertionError(
+            f"portfolio protocol versions diverged: {sorted(protocol_versions)}"
+        )
     if len(protocol_hashes) != 1:
         raise AssertionError("ENERGY_AWARE_PROTOCOL_V1.md diverged across canonical products")
     if len(observability_hashes) != 1:
