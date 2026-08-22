@@ -11,10 +11,21 @@
 - V2-only production API surface;
 - model/provider calls absent from blocking deterministic CI;
 - single public Caddy ingress; database/application internals remain private;
-- runtime secrets are not baked into the image.
+- runtime secrets are not baked into the image;
+- signed actor/session identity is required by the production chat surface;
+- PostgreSQL ownership binds conversations and persisted graph threads to an actor;
+- read/replay/resume/delete operations enforce owner or explicit administrative authority.
 
-## Critical remaining blocker
+## Remaining external/pre-production security evidence
 
-Current V2 conversation/thread/HITL identifiers are not yet bound to a fully authenticated tenant/actor ownership model. Before public multi-user staging, introduce an IdentityProvider boundary and persist owner/tenant identity with conversations and graph threads. Every read/replay/resume/delete must prove ownership or an explicit admin/service authorization.
+The repository implements and tests the application-level actor/ownership boundary; that is no longer a critical repository blocker. It does **not** prove an external enterprise identity provider, internet-facing abuse resistance, managed cloud IAM, or production incident handling.
 
-Also pending: production rate/abuse controls, managed secret rotation, external auth/OIDC adapter, penetration testing and real operational incident evidence.
+Before public multi-user production, external validation still includes:
+
+- integrate and validate the intended external authentication/OIDC or gateway identity source while preserving the signed internal actor contract;
+- configure managed secret storage/rotation and least-privilege cloud IAM;
+- add or validate edge rate/abuse controls for the selected deployment platform;
+- run internet-facing penetration/adversarial testing, including hostile retrieved content and prompt-injection cases;
+- validate alerting, incident response, backup/restore and credential-rotation procedures in staging/AWS.
+
+These are external evidence/deployment tasks and must not be presented as already proven by repository tests.
