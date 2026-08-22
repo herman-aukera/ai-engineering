@@ -12,6 +12,8 @@ PIP_INSTALL = re.compile(r"\b(?:python\s+-m\s+)?pip\s+install\b")
 NPM_INSTALL = re.compile(r"\bnpm\s+(?:install|i)\b")
 SHELL_PIPE_INSTALL = re.compile(r"\b(?:curl|wget)\b[^\n|]*\|\s*(?:sh|bash)\b")
 FLOATING_OS_REFRESH = re.compile(r"\b(?:apt-get\s+(?:update|upgrade)|apk\s+upgrade)\b")
+EXACT_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
+EXACT_UV_REQUIRED = re.compile(r'^required-version\s*=\s*["\']==(?P<version>\d+\.\d+\.\d+)["\']\s*$')
 
 
 def repository_root() -> Path:
@@ -62,8 +64,10 @@ def _direct_pip_specs(line: str) -> list[str]:
         if skip_next:
             skip_next = False
             continue
-        if token in {"-r", "--requirement", "-c", "--constraint", "--index-url", "--extra-index-url"}:
+        if token in {"-r", "--requirement", "-c", "--constraint", "--index-url", "--extra-index-url", "--python"}:
             skip_next = True
+            continue
+        if token.startswith("--python="):
             continue
         if token.startswith("-"):
             continue
@@ -87,6 +91,25 @@ def _direct_npm_specs(line: str) -> list[str]:
             break
         specs.append(token)
     return specs
+
+
+def find_root_toolchain_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    uv_path = root / "uv.toml"
+    if not uv_path.is_file():
+        errors.append("uv.toml: missing exact repository uv toolchain pin")
+    else:
+        matches = [EXACT_UV_REQUIRED.match(line.strip()) for line in uv_path.read_text(encoding="utf-8").splitlines()]
+        if not any(matches):
+            errors.append("uv.toml: required-version must be an exact ==X.Y.Z pin")
+    python_path = root / ".python-version"
+    if not python_path.is_file():
+        errors.append(".python-version: missing exact repository Python toolchain pin")
+    else:
+        version = python_path.read_text(encoding="utf-8").strip()
+        if not EXACT_VERSION.fullmatch(version):
+            errors.append(".python-version: Python must be pinned to exact X.Y.Z")
+    return errors
 
 
 def find_mutable_tool_refs(root: Path) -> list[str]:
@@ -120,9 +143,10 @@ def find_mutable_tool_refs(root: Path) -> list[str]:
 
 
 def main() -> int:
-    errors = find_mutable_tool_refs(repository_root())
+    root = repository_root()
+    errors = find_root_toolchain_errors(root) + find_mutable_tool_refs(root)
     if errors:
-        print("\n".join(errors))
+        print("\n".join(sorted(set(errors))))
         return 1
     print("EXECUTABLE_TOOL_PINS_OK")
     return 0
