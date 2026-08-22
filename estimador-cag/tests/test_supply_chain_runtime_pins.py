@@ -50,11 +50,39 @@ def test_root_toolchain_contract_rejects_ranges(tmp_path: Path) -> None:
     assert any(".python-version" in error for error in errors)
 
 
-def test_uvx_filesystem_copy_is_not_treated_as_command(tmp_path: Path) -> None:
+def test_workflow_python_input_must_match_exact_repository_pin(tmp_path: Path) -> None:
+    _write(tmp_path / "uv.toml", 'required-version = "==0.12.5"\n')
+    _write(tmp_path / ".python-version", "3.11.16\n")
+    _write(
+        tmp_path / ".github/workflows/ci.yml",
+        "steps:\n"
+        "  - uses: actions/setup-python@" + "a" * 40 + "\n"
+        "    with:\n"
+        '      python-version: "3.11"\n',
+    )
+    errors = find_mutable_tool_refs(tmp_path)
+    assert any("workflow Python version must equal exact repository pin 3.11.16" in error for error in errors)
+
+
+def test_workflow_python_input_accepts_exact_repository_pin(tmp_path: Path) -> None:
+    _write(tmp_path / "uv.toml", 'required-version = "==0.12.5"\n')
+    _write(tmp_path / ".python-version", "3.11.16\n")
+    _write(
+        tmp_path / ".github/workflows/ci.yml",
+        "steps:\n"
+        "  - uses: actions/setup-python@" + "a" * 40 + "\n"
+        "    with:\n"
+        '      python-version: "3.11.16"\n',
+    )
+    assert find_mutable_tool_refs(tmp_path) == []
+
+
+def test_uvx_filesystem_path_is_not_treated_as_command(tmp_path: Path) -> None:
+    _write(tmp_path / "uv.toml", 'required-version = "==0.12.5"\n')
+    _write(tmp_path / ".python-version", "3.11.16\n")
     _write(
         tmp_path / "estimador-cag/Dockerfile",
-        f"FROM ghcr.io/astral-sh/uv:0.12.5@{DIGEST} AS uv-binary\n"
-        f"FROM python:3.11-slim@{DIGEST}\n"
+        f"FROM ghcr.io/astral-sh/uv@{DIGEST} AS uv-binary\n"
         "COPY --from=uv-binary /uv /uvx /bin/\n",
     )
     assert find_mutable_tool_refs(tmp_path) == []
