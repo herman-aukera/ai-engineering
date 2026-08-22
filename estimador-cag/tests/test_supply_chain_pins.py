@@ -4,6 +4,7 @@ from pathlib import Path
 
 from scripts.verify_action_pins import find_mutable_action_refs
 from scripts.verify_image_pins import find_mutable_image_refs
+from scripts.verify_tool_pins import find_mutable_tool_refs
 
 ACTION_SHA = "11d5960a326750d5838078e36cf38b85af677262"
 IMAGE_DIGEST = "sha256:" + "a" * 64
@@ -55,3 +56,44 @@ def test_image_pin_validator_scans_shell_scripts_outside_deploy(tmp_path: Path) 
 def test_image_pin_validator_allows_explicit_local_dev_classification(tmp_path: Path) -> None:
     _write(tmp_path / "docker-compose.yml", "services:\n  redis:\n    image: redis:7.4-alpine\n")
     assert find_mutable_image_refs(tmp_path) == []
+
+
+def test_tool_pin_validator_accepts_exact_tools_and_hashed_requirements(tmp_path: Path) -> None:
+    _write(
+        tmp_path / ".github/workflows/ci.yml",
+        "steps:\n"
+        "  - run: uv tool run pip-audit==2.10.1 --help\n"
+        "  - run: uvx --from pip-audit==2.10.1 pip-audit --help\n"
+        "  - run: npm install --no-save playwright@1.55.0\n",
+    )
+    _write(
+        tmp_path / "estimador-cag/Dockerfile",
+        "FROM python:3.11-slim@sha256:" + "a" * 64 + "\n"
+        "RUN python -m pip install uv==0.12.1\n"
+        "RUN python -m pip install --require-hashes -r /tmp/requirements.txt\n",
+    )
+    assert find_mutable_tool_refs(tmp_path) == []
+
+
+def test_tool_pin_validator_rejects_floating_installers(tmp_path: Path) -> None:
+    _write(
+        tmp_path / ".github/workflows/ci.yml",
+        "steps:\n"
+        "  - run: uv tool run pip-audit --help\n"
+        "  - run: uvx --from ruff ruff check .\n"
+        "  - run: npm install playwright\n"
+        "  - run: curl -fsSL https://example.invalid/install.sh | sh\n",
+    )
+    _write(
+        tmp_path / "estimador-cag/Dockerfile",
+        "FROM python:3.11-slim@sha256:" + "a" * 64 + "\n"
+        "RUN python -m pip install uv\n"
+        "RUN apt-get update && apt-get upgrade -y\n",
+    )
+    errors = find_mutable_tool_refs(tmp_path)
+    assert any("pip-audit" in error for error in errors)
+    assert any("ruff" in error for error in errors)
+    assert any("playwright" in error for error in errors)
+    assert any("shell-piped" in error for error in errors)
+    assert any("direct pip" in error for error in errors)
+    assert any("OS package refresh" in error for error in errors)
