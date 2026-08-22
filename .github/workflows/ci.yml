@@ -289,7 +289,7 @@ jobs:
 
       - name: Audit isolated production dependencies
         run: |
-          uv tool run pip-audit --requirement /tmp/eachat-production-requirements.txt --progress-spinner off --format json --output /tmp/eachat-pip-audit.json
+          uv tool run pip-audit==2.10.1 --requirement /tmp/eachat-production-requirements.txt --progress-spinner off --format json --output /tmp/eachat-pip-audit.json
           python - <<'PY'
           import json
           from pathlib import Path
