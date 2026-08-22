@@ -116,7 +116,7 @@ def test_stale_summary_secrets_and_hidden_reasoning_are_rejected() -> None:
             created_at=datetime.now(UTC) - timedelta(days=365),
             objective=(
                 "private scratchpad chain of thought "
-                "sk-abcdefghijklmnopqrstuvwxyz123456"
+                "sk-abcdefghijklmnopqrstuvwxyz123456"  # test-secret-fixture
             ),
         ),
         [_original()],
