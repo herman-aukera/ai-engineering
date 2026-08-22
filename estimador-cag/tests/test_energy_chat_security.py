@@ -44,7 +44,7 @@ def test_v2_api_response_does_not_expose_credentials_or_environment_values() -> 
         "ANTHROPIC_AUTH_TOKEN",
         "postgresql://",
         "redis://",
-        "BEGIN PRIVATE KEY",
+        "BEGIN PRIVATE KEY",  # test-secret-fixture
     )
     assert all(value not in serialized for value in forbidden)
 
