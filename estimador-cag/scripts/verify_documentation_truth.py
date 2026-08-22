@@ -7,20 +7,38 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 README = (ROOT / "README.md").read_text(encoding="utf-8")
+SECURITY = (ROOT / "docs" / "SECURITY.md").read_text(encoding="utf-8")
 MANIFEST = json.loads(
     (ROOT / "docs" / "energy_aware_product_manifest.json").read_text(encoding="utf-8")
 )
-STALE_CLAIMS = (
+README_STALE_CLAIMS = (
     "authenticated tenant/thread ownership",
     "multi-tenant identity/ownership",
     "isolated product dependency lock/minimal runtime dependency set rather than",
     "Milestone 11 is next",
     "Status: draft, open, unmerged",
 )
+SECURITY_STALE_CLAIMS = (
+    "not yet bound to a fully authenticated tenant/actor ownership model",
+    "introduce an IdentityProvider boundary and persist owner/tenant identity",
+)
+SECURITY_REQUIRED_CLAIMS = (
+    "signed actor/session identity",
+    "PostgreSQL ownership",
+    "read/replay/resume/delete operations enforce owner",
+    "external authentication/OIDC",
+)
+
+
+def _missing(document: str, values: tuple[str, ...]) -> list[str]:
+    return [value for value in values if value.casefold() not in document.casefold()]
+
+
+def _present(document: str, values: tuple[str, ...]) -> list[str]:
+    return [value for value in values if value.casefold() in document.casefold()]
 
 
 def verify() -> dict[str, object]:
-    lower = README.casefold()
     product = str(MANIFEST["product"])
     branch = str(MANIFEST["canonical_branch"])
     surface = str(MANIFEST["public_surface"])
@@ -36,23 +54,34 @@ def verify() -> dict[str, object]:
         "energy-aware.event.v1",
         "PostgreSQL",
     )
-    missing = [value for value in required if value not in README]
+    missing = _missing(README, required)
     if missing:
         raise AssertionError(
             f"README is missing current executable product truth: {missing}"
         )
-    stale = [value for value in STALE_CLAIMS if value.casefold() in lower]
+    stale = _present(README, README_STALE_CLAIMS)
     if stale:
         raise AssertionError(f"README contains stale blocker/history claims: {stale}")
-    if "not yet" not in lower or "production-ready" not in lower:
+    if "not yet" not in README.casefold() or "production-ready" not in README.casefold():
         raise AssertionError(
             "README must preserve an explicit non-production-ready claim boundary"
         )
+
+    security_missing = _missing(SECURITY, SECURITY_REQUIRED_CLAIMS)
+    if security_missing:
+        raise AssertionError(
+            f"SECURITY.md is missing current ownership/claim-boundary truth: {security_missing}"
+        )
+    security_stale = _present(SECURITY, SECURITY_STALE_CLAIMS)
+    if security_stale:
+        raise AssertionError(f"SECURITY.md contains stale ownership blockers: {security_stale}")
+
     return {
         "product": product,
         "canonical_branch": branch,
         "protocol_version": MANIFEST["protocol_version"],
-        "checked_markers": len(required),
+        "checked_readme_markers": len(required),
+        "checked_security_markers": len(SECURITY_REQUIRED_CLAIMS),
         "stale_claim_count": 0,
         "status": "pass",
     }
