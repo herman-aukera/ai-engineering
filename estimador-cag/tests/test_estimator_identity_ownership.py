@@ -6,8 +6,8 @@ import pytest
 
 from app.estimator.identity import SignedSessionCodec
 from app.estimator.ownership_store import (
-    InMemoryEstimationOwnershipStore,
     EstimationOwnershipError,
+    InMemoryEstimationOwnershipStore,
 )
 
 
