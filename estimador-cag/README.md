@@ -74,6 +74,35 @@ Internet -> Caddy :80/:443 -> private EACHAT :8000
 
 Images are non-root, immutable and digest-addressed; deploy is readiness-gated and rollback uses a prior digest. Release builds attach BuildKit SBOM and provenance attestations; the portfolio final gate separately audits the isolated Python dependency closure.
 
+## Historical coursework compatibility — Sessions 04 and 05
+
+The following material preserves tested LIDR coursework evidence for the broader historical application. It does **not** describe the isolated EACHAT V2 production transport.
+
+### Session 04 Live Plus
+
+The historical Session 04 Live Plus estimator used a typed product request, Structured JSON output and deterministic validation. Its documented provider fallback ladder was:
+
+```text
+DeepSeek flash → DeepSeek pro → Kimi 2.5 backup → Kimi 2.6 backup_pro
+```
+
+Historical cache semantics were explicit: Exact Redis cache runs before semantic cache. Semantic cache shadow mode observed candidates without serving them. Responses exposed `requested_tier`, `served_tier`, `fallback_used`, `semantic_cache_mode`, and `semantic_candidate_found` as troubleshooting evidence.
+
+### Session 05 memory and attachments
+
+Session 05 added conversational memory and document attachment support to the historical coursework application through:
+
+```text
+POST /sessions
+POST /sessions/{session_id}/estimate
+```
+
+It retained `project_metadata` beside `ConversationHistory`, used a bounded sliding window, accepted attachment requests through `multipart/form-data`, parsed PDF content with `pypdf`, and parsed DOCX with `python-docx`.
+
+The historical Streamlit path exposed **New conversation**, **Project metadata**, PDF and DOCX attachment controls, and supported `ESTIMADOR_BACKEND_URL` for the backend address.
+
+These historical contracts remain regression-tested as coursework evidence; they are not mounted as the canonical `/energy-chat/v2/*` production API.
+
 ## Remaining external production gates
 
 Repository evidence covers deterministic governance, V2-only production API, signed tenant/resource ownership, encrypted durable state, isolated dependencies, neutral telemetry, restart evidence and immutable release/deploy contracts.
