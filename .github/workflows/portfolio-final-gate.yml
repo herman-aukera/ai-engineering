@@ -15,6 +15,10 @@ jobs:
   portfolio-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      main_sha: ${{ steps.heads.outputs.main_sha }}
+      eachat_sha: ${{ steps.heads.outputs.eachat_sha }}
+      eacode_sha: ${{ steps.heads.outputs.eacode_sha }}
     steps:
       - name: Checkout canonical main
         uses: actions/checkout@v4
@@ -35,13 +39,20 @@ jobs:
           path: portfolio/eacode
           fetch-depth: 1
       - name: Capture exact canonical heads
+        id: heads
         run: |
+          MAIN_SHA="$(git -C portfolio/main rev-parse HEAD)"
+          EACHAT_SHA="$(git -C portfolio/eachat rev-parse HEAD)"
+          EACODE_SHA="$(git -C portfolio/eacode rev-parse HEAD)"
           mkdir -p portfolio/evidence
           {
-            printf 'main=%s\n' "$(git -C portfolio/main rev-parse HEAD)"
-            printf 'EACHAT=%s\n' "$(git -C portfolio/eachat rev-parse HEAD)"
-            printf 'EACODE=%s\n' "$(git -C portfolio/eacode rev-parse HEAD)"
+            printf 'main=%s\n' "$MAIN_SHA"
+            printf 'EACHAT=%s\n' "$EACHAT_SHA"
+            printf 'EACODE=%s\n' "$EACODE_SHA"
           } | tee portfolio/evidence/canonical-heads.txt
+          printf 'main_sha=%s\n' "$MAIN_SHA" >> "$GITHUB_OUTPUT"
+          printf 'eachat_sha=%s\n' "$EACHAT_SHA" >> "$GITHUB_OUTPUT"
+          printf 'eacode_sha=%s\n' "$EACODE_SHA" >> "$GITHUB_OUTPUT"
       - name: Run portfolio protocol, documentation and split evaluation
         run: |
           python portfolio/main/estimador-cag/scripts/portfolio_evaluation.py \
@@ -188,3 +199,55 @@ jobs:
           path: /tmp/product-head.txt
           if-no-files-found: error
           retention-days: 30
+
+  report-final-gate:
+    if: ${{ always() && github.event_name == 'pull_request_target' }}
+    needs:
+      - portfolio-contracts
+      - deterministic-product-gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Report exact hosted result to visibility PR
+        uses: actions/github-script@v7
+        env:
+          PORTFOLIO_RESULT: ${{ needs.portfolio-contracts.result }}
+          PRODUCT_RESULT: ${{ needs.deterministic-product-gates.result }}
+          MAIN_SHA: ${{ needs.portfolio-contracts.outputs.main_sha }}
+          EACHAT_SHA: ${{ needs.portfolio-contracts.outputs.eachat_sha }}
+          EACODE_SHA: ${{ needs.portfolio-contracts.outputs.eacode_sha }}
+        with:
+          script: |
+            const marker = '<!-- energy-aware-portfolio-final-gate -->';
+            const portfolio = process.env.PORTFOLIO_RESULT || 'unknown';
+            const products = process.env.PRODUCT_RESULT || 'unknown';
+            const green = portfolio === 'success' && products === 'success';
+            const verdict = green ? 'GREEN' : 'RED';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `${marker}\n## Energy-Aware Portfolio Final Gate — ${verdict}\n\n` +
+              `- run: ${runUrl}\n` +
+              `- run id: \`${context.runId}\`\n` +
+              `- portfolio contracts: **${portfolio}**\n` +
+              `- deterministic product gates: **${products}**\n` +
+              `- main: \`${process.env.MAIN_SHA || 'unavailable'}\`\n` +
+              `- EACHAT: \`${process.env.EACHAT_SHA || 'unavailable'}\`\n` +
+              `- EACODE: \`${process.env.EACODE_SHA || 'unavailable'}\`\n\n` +
+              `This comment is emitted by the read-only cross-product final gate; provider-live calls are not part of this blocking validation.`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(comment =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker)
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
