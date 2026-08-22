@@ -58,6 +58,7 @@ jobs:
           for root in portfolio/main portfolio/eachat portfolio/eacode; do
             python "$root/estimador-cag/scripts/verify_action_pins.py"
             python "$root/estimador-cag/scripts/verify_image_pins.py"
+            python "$root/estimador-cag/scripts/verify_tool_pins.py"
             python "$root/estimador-cag/scripts/verify_dependabot_config.py"
           done
       - name: Validate exhaustive zero-gap requirements matrix
@@ -173,6 +174,9 @@ jobs:
       - name: Immutable executable image validation
         working-directory: estimador-cag
         run: uv run python scripts/verify_image_pins.py
+      - name: Immutable executable tool validation
+        working-directory: estimador-cag
+        run: uv run python scripts/verify_tool_pins.py
       - name: Dependabot policy validation
         working-directory: estimador-cag
         run: uv run python scripts/verify_dependabot_config.py
@@ -261,7 +265,7 @@ jobs:
               `- EACHAT: \`${process.env.EACHAT_SHA || 'unavailable'}\`\n` +
               `- EACODE: \`${process.env.EACODE_SHA || 'unavailable'}\`\n` +
               `- zero-gap RTM: **required**\n` +
-              `- immutable Actions/images: **required**\n\n` +
+              `- immutable Actions/images/tools: **required**\n\n` +
               `This comment is emitted by the cross-product final gate; provider-live calls are not part of this blocking validation.`;
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number || 29;
