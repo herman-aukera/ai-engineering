@@ -201,7 +201,7 @@ jobs:
           retention-days: 30
 
   report-final-gate:
-    if: ${{ always() && github.event_name == 'pull_request_target' }}
+    if: ${{ always() }}
     needs:
       - portfolio-contracts
       - deterministic-product-gates
@@ -228,6 +228,7 @@ jobs:
             const verdict = green ? 'GREEN' : 'RED';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = `${marker}\n## Energy-Aware Portfolio Final Gate — ${verdict}\n\n` +
+              `- event: \`${context.eventName}\`\n` +
               `- run: ${runUrl}\n` +
               `- run id: \`${context.runId}\`\n` +
               `- portfolio contracts: **${portfolio}**\n` +
@@ -235,9 +236,9 @@ jobs:
               `- main: \`${process.env.MAIN_SHA || 'unavailable'}\`\n` +
               `- EACHAT: \`${process.env.EACHAT_SHA || 'unavailable'}\`\n` +
               `- EACODE: \`${process.env.EACODE_SHA || 'unavailable'}\`\n\n` +
-              `This comment is emitted by the read-only cross-product final gate; provider-live calls are not part of this blocking validation.`;
+              `This comment is emitted by the cross-product final gate; provider-live calls are not part of this blocking validation.`;
             const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
+            const issue_number = context.issue.number || 29;
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner, repo, issue_number, per_page: 100,
             });
