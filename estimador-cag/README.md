@@ -92,7 +92,7 @@ The governed beta proves **simulated execution only**. Secure-runner research mu
 - production SLOs, alerts and collected production telemetry;
 - proven sandbox for arbitrary untrusted code.
 
-EACODE is production-oriented and repository-hardened, but real deployment evidence is still required before calling it live production-ready.
+EACODE is production-oriented and repository-hardened, but it is **not yet live production-ready**. Real deployment evidence is still required before making that claim.
 
 ## Canonical documentation
 
