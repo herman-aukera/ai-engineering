@@ -12,6 +12,7 @@ PIP_INSTALL = re.compile(r"\b(?:python\s+-m\s+)?pip\s+install\b")
 NPM_INSTALL = re.compile(r"\bnpm\s+(?:install|i)\b")
 SHELL_PIPE_INSTALL = re.compile(r"\b(?:curl|wget)\b[^\n|]*\|\s*(?:sh|bash)\b")
 FLOATING_OS_REFRESH = re.compile(r"\b(?:apt-get\s+(?:update|upgrade)|apk\s+upgrade)\b")
+PYTHON_VERSION_INPUT = re.compile(r"^\s*python-version:\s*(?P<value>[^#]+?)\s*(?:#.*)?$")
 EXACT_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 EXACT_UV_REQUIRED = re.compile(r'^required-version\s*=\s*["\']==(?P<version>\d+\.\d+\.\d+)["\']\s*$')
 
@@ -64,7 +65,15 @@ def _direct_pip_specs(line: str) -> list[str]:
         if skip_next:
             skip_next = False
             continue
-        if token in {"-r", "--requirement", "-c", "--constraint", "--index-url", "--extra-index-url", "--python"}:
+        if token in {
+            "-r",
+            "--requirement",
+            "-c",
+            "--constraint",
+            "--index-url",
+            "--extra-index-url",
+            "--python",
+        }:
             skip_next = True
             continue
         if token.startswith("--python="):
@@ -93,6 +102,14 @@ def _direct_npm_specs(line: str) -> list[str]:
     return specs
 
 
+def _repository_python_version(root: Path) -> str | None:
+    path = root / ".python-version"
+    if not path.is_file():
+        return None
+    value = path.read_text(encoding="utf-8").strip()
+    return value if EXACT_VERSION.fullmatch(value) else None
+
+
 def find_root_toolchain_errors(root: Path) -> list[str]:
     errors: list[str] = []
     uv_path = root / "uv.toml"
@@ -109,22 +126,34 @@ def find_root_toolchain_errors(root: Path) -> list[str]:
     python_path = root / ".python-version"
     if not python_path.is_file():
         errors.append(".python-version: missing exact repository Python toolchain pin")
-    else:
-        version = python_path.read_text(encoding="utf-8").strip()
-        if not EXACT_VERSION.fullmatch(version):
-            errors.append(".python-version: Python must be pinned to exact X.Y.Z")
+    elif _repository_python_version(root) is None:
+        errors.append(".python-version: Python must be pinned to exact X.Y.Z")
     return errors
 
 
 def find_mutable_tool_refs(root: Path) -> list[str]:
     errors: list[str] = []
+    repository_python = _repository_python_version(root)
+    workflows_root = root / ".github" / "workflows"
+
     for path in _blocking_files(root):
         rel = path.relative_to(root)
+        is_workflow = workflows_root in path.parents
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if SHELL_PIPE_INSTALL.search(line):
                 errors.append(f"{rel}:{lineno}: shell-piped remote installer is forbidden")
             if path.name.startswith("Dockerfile") and FLOATING_OS_REFRESH.search(line):
                 errors.append(f"{rel}:{lineno}: floating OS package refresh in pinned Docker build")
+
+            if is_workflow:
+                python_match = PYTHON_VERSION_INPUT.match(line)
+                if python_match:
+                    value = python_match.group("value").strip().strip('"\'')
+                    if repository_python is None or value != repository_python:
+                        errors.append(
+                            f"{rel}:{lineno}: workflow Python version must equal exact repository pin "
+                            f"{repository_python or '<missing>'}; found {value}"
+                        )
 
             match = UV_TOOL_RUN.search(line)
             if match and not _exact_python_spec(match.group(1)):
@@ -135,7 +164,11 @@ def find_mutable_tool_refs(root: Path) -> list[str]:
                 errors.append(f"{rel}:{lineno}: mutable uvx --from ref: {match.group(1)}")
             elif "uvx" in line:
                 direct = UVX_DIRECT.search(line)
-                if direct and direct.group(1) != "--from" and not _exact_python_spec(direct.group(1)):
+                if (
+                    direct
+                    and direct.group(1) != "--from"
+                    and not _exact_python_spec(direct.group(1))
+                ):
                     errors.append(f"{rel}:{lineno}: mutable uvx ref: {direct.group(1)}")
 
             if PIP_INSTALL.search(line) and "--require-hashes" not in line:
