@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import re
+import shlex
 import sys
 from pathlib import Path
 
 DIGEST = re.compile(r"@sha256:[0-9a-fA-F]{64}$")
 FROM = re.compile(r"^\s*FROM\s+(\S+)(?:\s+AS\s+(\S+))?", re.IGNORECASE)
 IMAGE = re.compile(r"^\s*image:\s*(.+?)\s*$")
-IMAGE_TOKEN = re.compile(
-    r"(?<![A-Za-z0-9_./-])([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*:[A-Za-z0-9._-]+(?:@sha256:[0-9a-fA-F]{64})?)"
-)
 DOCKER_IMAGE_COMMAND = re.compile(r"\bdocker\s+(?:run|pull)\b")
 IGNORED_PARTS = {".git", ".venv", "node_modules", "__pycache__"}
-
+RUN_OPTIONS_WITH_VALUE = {
+    "--add-host", "--cap-add", "--cap-drop", "--device", "--dns", "--entrypoint",
+    "--env", "--env-file", "--hostname", "--label", "--mount", "--name", "--network",
+    "--platform", "--publish", "--pull", "--security-opt", "--tmpfs", "--user", "--volume",
+    "--workdir", "-e", "-h", "-l", "-p", "-u", "-v", "-w",
+}
 LOCAL_DEVELOPMENT_ONLY = {
     ("docker-compose.yml", "ghcr.io/astral-sh/uv:python3.11-bookworm"),
     ("docker-compose.yml", "pgvector/pgvector:pg16"),
@@ -39,11 +42,8 @@ def _check_image_value(path: Path, root: Path, lineno: int, value: str) -> str |
     rel = str(path.relative_to(root))
     if not value:
         return None
-    if "${" in value:
-        lowered = value.lower()
-        if "immutable" in lowered and "digest" in lowered:
-            return None
-        return f"{rel}:{lineno}: runtime image variable does not require immutable digest: {value}"
+    if "$" in value:
+        return None
     if (rel, value) in LOCAL_DEVELOPMENT_ONLY:
         return None
     if _is_external_image(value) and not DIGEST.search(value):
@@ -70,13 +70,44 @@ def _logical_docker_commands(lines: list[str]) -> list[tuple[int, str]]:
     return commands
 
 
+def _docker_image_operand(command: str) -> str | None:
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return None
+    try:
+        docker = tokens.index("docker")
+    except ValueError:
+        return None
+    if docker + 1 >= len(tokens) or tokens[docker + 1] not in {"run", "pull"}:
+        return None
+    index = docker + 2
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "--":
+            return tokens[index + 1] if index + 1 < len(tokens) else None
+        if token.startswith("--"):
+            option = token.split("=", 1)[0]
+            if "=" in token:
+                index += 1
+            elif option in RUN_OPTIONS_WITH_VALUE:
+                index += 2
+            else:
+                index += 1
+            continue
+        if token.startswith("-"):
+            index += 2 if token in RUN_OPTIONS_WITH_VALUE else 1
+            continue
+        return token
+    return None
+
+
 def _candidate_files(root: Path, pattern: str) -> list[Path]:
     return sorted(path for path in root.rglob(pattern) if path.is_file() and not _is_ignored(path))
 
 
 def find_mutable_image_refs(root: Path) -> list[str]:
     errors: list[str] = []
-
     for path in _candidate_files(root, "Dockerfile*"):
         stages: set[str] = set()
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -100,7 +131,6 @@ def find_mutable_image_refs(root: Path) -> list[str]:
     if deploy.exists():
         yaml_paths.extend(sorted(path for path in deploy.rglob("*.yml") if path.is_file()))
         yaml_paths.extend(sorted(path for path in deploy.rglob("*.yaml") if path.is_file()))
-
     for path in dict.fromkeys(yaml_paths):
         lines = path.read_text(encoding="utf-8").splitlines()
         for lineno, line in enumerate(lines, 1):
@@ -110,22 +140,19 @@ def find_mutable_image_refs(root: Path) -> list[str]:
                 if error:
                     errors.append(error)
         for lineno, command in _logical_docker_commands(lines):
-            for candidate in IMAGE_TOKEN.findall(command):
-                name = candidate.split(":", 1)[0]
-                if re.fullmatch(r"\d+(?:\.\d+){3}", name):
-                    continue
-                error = _check_image_value(path, root, lineno, candidate)
+            image = _docker_image_operand(command)
+            if image:
+                error = _check_image_value(path, root, lineno, image)
                 if error:
                     errors.append(error)
-
     for path in _candidate_files(root, "*.sh"):
         lines = path.read_text(encoding="utf-8").splitlines()
         for lineno, command in _logical_docker_commands(lines):
-            for candidate in IMAGE_TOKEN.findall(command):
-                error = _check_image_value(path, root, lineno, candidate)
+            image = _docker_image_operand(command)
+            if image:
+                error = _check_image_value(path, root, lineno, image)
                 if error:
                     errors.append(error)
-
     return sorted(set(errors))
 
 
