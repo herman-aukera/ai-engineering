@@ -55,7 +55,7 @@ def test_server_authorized_execution_uses_effective_revision_and_reevaluates() -
 def test_hard_rejected_proposal_cannot_be_authorized() -> None:
     proposal = _proposal(
         "proposal-3",
-        patch="API_KEY = 'sk-this-is-a-secret-value-123456789'\n",
+        patch="API_KEY = 'sk-this-is-a-secret-value-123456789'\n",  # test-secret-fixture
     )
     runner = BetaDemoRunner()
     prepared = runner.prepare(proposal)
