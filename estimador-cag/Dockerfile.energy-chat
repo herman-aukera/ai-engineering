@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:a630a63cdb314e2d138a2fca3e375e319e8568346ffafac5b980f888630ac4f1
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
     KIMI_API_KEY=test \
     OPENAI_API_KEY=test
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir uv==0.12.1
 
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
