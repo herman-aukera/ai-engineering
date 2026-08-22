@@ -20,8 +20,10 @@ jobs:
       - name: Verify exact checked-out SHA
         run: test "$(git rev-parse HEAD)" = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
       - name: Compile supply-chain validators
-        run: python -m py_compile estimador-cag/scripts/verify_action_pins.py estimador-cag/scripts/verify_image_pins.py
+        run: python -m py_compile estimador-cag/scripts/verify_action_pins.py estimador-cag/scripts/verify_image_pins.py estimador-cag/scripts/verify_dependabot_config.py
       - name: Reject mutable GitHub Actions
         run: python estimador-cag/scripts/verify_action_pins.py
       - name: Reject mutable CI and production images
         run: python estimador-cag/scripts/verify_image_pins.py
+      - name: Validate bounded Dependabot policy
+        run: python estimador-cag/scripts/verify_dependabot_config.py
