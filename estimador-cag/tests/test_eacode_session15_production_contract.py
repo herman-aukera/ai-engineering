@@ -7,6 +7,9 @@ class _FakeDurableStore:
     def verify_schema(self) -> None:
         return None
 
+    def ping(self) -> bool:
+        return True
+
 
 def _production_module(monkeypatch):
     import app.eacode.production_app as production_module
@@ -34,6 +37,7 @@ def test_eacode_production_app_is_versioned_and_provider_keyless(monkeypatch) ->
             "ready": True,
             "control_plane": "deterministic",
             "authority_store": "postgresql",
+            "authority_store_available": True,
         }
         status = client.get("/api/v1/eacode/status")
         assert status.status_code == 200
