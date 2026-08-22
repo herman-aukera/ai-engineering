@@ -6,8 +6,8 @@ from pathlib import Path
 
 IGNORED_PARTS = {".git", ".venv", "node_modules", "__pycache__"}
 UV_TOOL_RUN = re.compile(r"\buv\s+tool\s+run\s+([^\s\\]+)")
-UVX_FROM = re.compile(r"\buvx\s+--from\s+([^\s\\]+)")
-UVX_DIRECT = re.compile(r"\buvx\s+([^\s\\]+)")
+UVX_FROM = re.compile(r"(?<!/)\buvx\s+--from\s+([^\s\\]+)")
+UVX_DIRECT = re.compile(r"(?<!/)\buvx\s+([^\s\\]+)")
 PIP_INSTALL = re.compile(r"\b(?:python\s+-m\s+)?pip\s+install\b")
 NPM_INSTALL = re.compile(r"\bnpm\s+(?:install|i)\b")
 SHELL_PIPE_INSTALL = re.compile(r"\b(?:curl|wget)\b[^\n|]*\|\s*(?:sh|bash)\b")
