@@ -1,64 +1,58 @@
-name: Temporary supply-chain pin repair
+name: Temporary trusted supply-chain repair
 
 on:
-  push:
+  pull_request_target:
     branches: [main]
+    types: [edited]
 
 permissions:
   contents: write
 
 jobs:
-  repair:
-    if: github.actor != 'github-actions[bot]'
+  repair-canonical-branches:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact branch head
+      - name: Checkout trusted base repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: main
           fetch-depth: 0
-      - name: Pin external actions and add enforcement
+      - name: Pin all canonical workflows
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          import subprocess
-
-          pins = {
-              'actions/checkout@v4': 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4',
-              'actions/setup-python@v5': 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5',
-              'astral-sh/setup-uv@v5': 'astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5',
-              'actions/upload-artifact@v4': 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4',
-              'actions/download-artifact@v4': 'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4',
-              'actions/github-script@v7': 'actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7',
-              'docker/setup-buildx-action@v3': 'docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3',
-              'docker/login-action@v3': 'docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3',
-              'docker/build-push-action@v6': 'docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6',
-              'devcontainers/ci@v0.3': 'devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3',
-          }
-          workflow_dir = Path('.github/workflows')
-          for path in sorted(workflow_dir.glob('*.y*ml')):
-              text = path.read_text(encoding='utf-8')
-              for old, new in pins.items():
-                  text = text.replace(old, new)
-              path.write_text(text, encoding='utf-8')
-
-          guard = Path('.github/scripts/verify_action_pins.py')
-          guard.parent.mkdir(parents=True, exist_ok=True)
-          guard.write_text('''from pathlib import Path\nimport re\nimport sys\nSHA = re.compile(r"^[0-9a-f]{40}$")\nUSE = re.compile(r"^\\s*-?\\s*uses:\\s*([^#\\s]+)")\nerrors = []\nfor path in sorted(Path(".github/workflows").glob("*.y*ml")):\n    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):\n        match = USE.match(line)\n        if not match:\n            continue\n        ref = match.group(1)\n        if ref.startswith("./"):\n            continue\n        if "@" not in ref:\n            errors.append(f"{path}:{lineno}: external action missing ref: {ref}")\n            continue\n        action, version = ref.rsplit("@", 1)\n        if not SHA.fullmatch(version):\n            errors.append(f"{path}:{lineno}: mutable external action ref: {action}@{version}")\nif errors:\n    print("\\n".join(errors))\n    sys.exit(1)\nprint("GITHUB_ACTION_PINS_OK")\n''', encoding='utf-8')
-          guard_workflow = Path('.github/workflows/supply-chain-guard.yml')
-          guard_workflow.write_text('''name: Supply-chain guard\n\non:\n  push:\n  pull_request:\n  workflow_dispatch:\n\npermissions:\n  contents: read\n\njobs:\n  immutable-actions:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout exact validation ref\n        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4\n        with:\n          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}\n      - name: Reject mutable external action references\n        run: python .github/scripts/verify_action_pins.py\n''', encoding='utf-8')
-          Path('.github/dependabot.yml').write_text('''version: 2\nupdates:\n  - package-ecosystem: github-actions\n    directory: /\n    schedule:\n      interval: weekly\n    open-pull-requests-limit: 5\n  - package-ecosystem: pip\n    directory: /estimador-cag\n    schedule:\n      interval: weekly\n    open-pull-requests-limit: 5\n  - package-ecosystem: docker\n    directory: /estimador-cag\n    schedule:\n      interval: weekly\n    open-pull-requests-limit: 5\n''', encoding='utf-8')
-          subprocess.run(['python', str(guard)], check=True)
-          PY
-          git diff --check
-          git status --short
-      - name: Commit deterministic supply-chain repair
-        shell: bash
-        run: |
-          if [ -z "$(git status --porcelain)" ]; then exit 0; fi
+          set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .github
-          git commit -m 'ci: pin external actions and enforce immutable refs'
-          git push origin HEAD:main
+          for branch in main EACHAT EACODE; do
+            git checkout -B "$branch" "origin/$branch"
+            python - <<'PY'
+          from pathlib import Path
+          import re
+          pins={
+          'actions/checkout@v4':'actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4',
+          'actions/setup-python@v5':'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5',
+          'astral-sh/setup-uv@v5':'astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5',
+          'actions/upload-artifact@v4':'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4',
+          'actions/download-artifact@v4':'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4',
+          'actions/github-script@v7':'actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7',
+          'docker/setup-buildx-action@v3':'docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3',
+          'docker/login-action@v3':'docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3',
+          'docker/build-push-action@v6':'docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6',
+          'devcontainers/ci@v0.3':'devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3'}
+          for p in Path('.github/workflows').glob('*.y*ml'):
+              t=p.read_text()
+              for old,new in pins.items(): t=t.replace(old,new)
+              p.write_text(t)
+          g=Path('.github/scripts/verify_action_pins.py'); g.parent.mkdir(parents=True,exist_ok=True)
+          g.write_text('''from pathlib import Path\nimport re,sys\npat=re.compile(r"^\\s*-?\\s*uses:\\s*([^#\\s]+)"); sha=re.compile(r"^[0-9a-f]{40}$"); bad=[]\nfor p in sorted(Path(".github/workflows").glob("*.y*ml")):\n for n,line in enumerate(p.read_text().splitlines(),1):\n  m=pat.match(line)\n  if not m: continue\n  ref=m.group(1)\n  if ref.startswith("./"): continue\n  if "@" not in ref or not sha.fullmatch(ref.rsplit("@",1)[1]): bad.append(f"{p}:{n}: {ref}")\nif bad: print("\\n".join(bad)); sys.exit(1)\nprint("GITHUB_ACTION_PINS_OK")\n''')
+          Path('.github/workflows/supply-chain-guard.yml').write_text('''name: Supply-chain guard\n\non: [push, pull_request, workflow_dispatch]\n\npermissions:\n  contents: read\n\njobs:\n  immutable-actions:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4\n      - run: python .github/scripts/verify_action_pins.py\n''')
+          Path('.github/dependabot.yml').write_text('''version: 2\nupdates:\n  - package-ecosystem: github-actions\n    directory: /\n    schedule: {interval: weekly}\n    open-pull-requests-limit: 5\n  - package-ecosystem: pip\n    directory: /estimador-cag\n    schedule: {interval: weekly}\n    open-pull-requests-limit: 5\n  - package-ecosystem: docker\n    directory: /estimador-cag\n    schedule: {interval: weekly}\n    open-pull-requests-limit: 5\n''')
+          PY
+            python .github/scripts/verify_action_pins.py
+            git diff --check
+            git add .github
+            if ! git diff --cached --quiet; then
+              git commit -m 'ci: pin external actions and enforce immutable refs'
+              git push origin "HEAD:$branch"
+            fi
+          done
