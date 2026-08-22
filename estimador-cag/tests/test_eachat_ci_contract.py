@@ -29,7 +29,7 @@ def test_container_canary_is_real_postgres_restart_integration() -> None:
     assert '--env GIT_SHA="$EXPECTED_HEAD_SHA"' in canary
     for path in ("/startup", "/health", "/ready", "/version"):
         assert path in canary
-    assert "Seed durable two-turn conversation" in canary
+    assert "Seed durable owned two-turn conversation" in canary
     assert "Recreate application container against the same database" in canary
     assert "Verify restart recovery" in canary
     assert "restart_persistent" in canary
