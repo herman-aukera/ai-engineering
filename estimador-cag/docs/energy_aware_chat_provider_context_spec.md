@@ -1,508 +1,389 @@
 # EACHAT provider routing, reasoning and context-compaction specification
 
-Status: canonical design specification; implementation pending dedicated milestones.
+**Status:** canonical architecture. Provider catalog/adapters, strict provider routing, and request-scoped BYOK are implemented. Context-compaction extensions and expanded multi-agent execution remain evidence-gated follow-on work.  
+**Updated:** 2026-08-23  
+**Current provider fact authority:** `docs/energy_aware_chat_provider_fact_audit_2026-08-23.md`
 
-Updated: 2026-07-19.
+## 1. Purpose
 
-## 1. Objective
+This specification defines how EACHAT separates stable product intent from provider-specific model names, reasoning controls, credentials, and temporal capability facts.
 
-Define a stable provider-neutral contract for:
-
-- DeepSeek as the cost-effective default;
-- Kimi K3 as the user-preferred quality candidate after API capability verification;
-- OpenAI GPT-5.6 as a premium option;
-- cross-provider effort selection;
-- user-selectable context compaction;
-- bounded single-agent and multi-agent orchestration;
-- deterministic energy-aware escalation, audit and rollback.
-
-This document does not claim that all adapters or UI selectors are implemented.
-
-## 2. Architectural position
-
-Provider/model selection happens before candidate generation but remains subordinate to deterministic policy.
+The governing rule is:
 
 ```text
-request
--> classify task, evidence, privacy, modality and tool needs
--> resolve provider/model/context/orchestration profile
--> generate candidate(s)
--> run critics
--> calculate authoritative energy
--> decide
--> optional bounded repair or escalation
--> append Decision Ledger entry
--> project Energy Card and safe answer
+user intent -> stable EACHAT effort profile -> allow-listed provider capability
+            -> provider-specific parameters -> candidate proposal
+            -> deterministic EACHAT governance
 ```
 
-A provider cannot override hard constraints, evidence sufficiency, retry/cost budgets or final disposition.
+Provider output is never hard authority. Deterministic EACHAT policy owns evidence sufficiency, hard constraints, repair bounds, disposition, human escalation, and final record semantics.
 
-## 3. Stable user-facing contracts
+## 2. Stable product controls
 
-### 3.1 Provider preference
+EACHAT exposes three stable effort profiles:
+
+- `fast`
+- `balanced`
+- `max`
+
+These product values are deliberately independent from changing vendor model names. A vendor may rename, replace, reprice, or change a model without changing the public EACHAT effort vocabulary. Such a vendor change requires a reviewed catalog revision rather than silent runtime substitution.
+
+Provider choice and effort are separate dimensions:
 
 ```text
-auto | deepseek | kimi | openai
+provider = deepseek | kimi | openai
+effort   = fast | balanced | max
 ```
 
-- `deepseek` is the explicit default until auto-routing benchmark evidence exists.
-- `kimi` targets Kimi K3 after model discovery verifies the account-visible ID and supported parameters.
-- `openai` targets the GPT-5.6 family and requires a premium cost budget.
-- `auto` is disabled by default until controlled routing evals prove safe behavior.
+`auto` routing is not treated as calibrated production authority. Until cross-provider evidence proves a stable policy, an explicit provider selection is required for live routing.
 
-### 3.2 Effort profile
+## 3. Capability catalog contract
+
+Executable authority lives in:
 
 ```text
-fast | balanced | max
+app/energy_chat/provider_catalog.py
 ```
 
-This is a product abstraction, not a provider parameter. Adapters map it to verified capabilities.
-
-### 3.3 Context profile
+Current catalog contract:
 
 ```text
-minimal | balanced | max
+catalog version: 2.1.0
+verified at:     2026-08-23
+review by:       2026-09-22
+maximum age:     30 days
 ```
 
-This controls retained conversation/project context. It is independent of model reasoning effort.
+Each allow-listed entry carries at least:
 
-### 3.4 Orchestration mode
+- provider;
+- API surface;
+- server-owned endpoint base URL;
+- exact model ID;
+- display name;
+- availability status;
+- source references;
+- verification date;
+- context/output limits when published;
+- modality/tool/structured-output/streaming/cache capabilities;
+- supported product effort profiles;
+- provider reasoning controls;
+- temporal price facts when published;
+- billing model;
+- adapter status;
+- calibration status;
+- EACHAT eligibility;
+- entitlement notes where relevant.
+
+Unknown facts remain `None`; they are never guessed.
+
+### 3.1 Temporal freshness
+
+Provider capabilities and prices are external temporal facts. Structural validation alone is insufficient.
+
+`assert_catalog_fresh(...)` fails closed when:
+
+- the verification date is in the future;
+- the declared review window exceeds the configured maximum age;
+- the current validation date is after `CATALOG_REVIEW_BY`;
+- the catalog age exceeds `CATALOG_MAX_AGE_DAYS`.
+
+The normal deterministic test suite evaluates this freshness contract using the CI calendar date. After 2026-09-22, the repository must turn RED until official provider sources are reviewed and the catalog/evidence are advanced.
+
+The deadline is a maximum review interval, not permission to ignore an earlier known vendor change. Material provider changes require immediate re-verification.
+
+## 4. Provider surfaces and routing
+
+### 4.1 DeepSeek
+
+Product API surface:
 
 ```text
-single | critic | committee | adaptive
+provider: deepseek
+base URL: https://api.deepseek.com
 ```
 
-- `single`: one generator; deterministic policy still runs.
-- `critic`: one generator plus independent critic panel.
-- `committee`: multiple bounded candidates/specialists and deterministic adjudication.
-- `adaptive`: begins with the cheapest allowed path and expands only when policy thresholds require it.
+Current deterministic mapping:
 
-## 4. Provider catalog contract
+| EACHAT effort | Model | Provider control |
+| --- | --- | --- |
+| `fast` | `deepseek-v4-flash` | thinking disabled |
+| `balanced` | `deepseek-v4-flash` | thinking enabled |
+| `max` | `deepseek-v4-pro` | thinking enabled |
 
-The domain must depend on a versioned capability catalog, not scattered environment-variable conditionals.
+The current fact audit records the published context, output limits, prompt-cache behavior, tools/structured-output support and pricing.
 
-Suggested strict contract:
+### 4.2 Kimi Platform
+
+EACHAT product-runtime Kimi calls use the Kimi API Platform surface:
 
 ```text
-ProviderModelCapability
-- catalog_version
-- provider
-- model_id
-- display_name
-- availability_status
-- verified_at
-- context_window_tokens
-- max_output_tokens
-- modalities
-- supports_tools
-- supports_structured_output
-- supports_streaming
-- supported_effort_profiles
-- provider_reasoning_parameters
-- speed_class
-- cost_class
-- input_price_per_million
-- output_price_per_million
-- data_handling_profile
-- source_refs
+provider: kimi
+base URL: https://api.moonshot.ai/v1
+model: kimi-k3
 ```
 
-Requirements:
+Current deterministic mapping:
 
-1. Model identifiers are configuration, not user-controlled arbitrary strings.
-2. Catalog entries are allow-listed and versioned.
-3. Time-sensitive metadata records `verified_at` and source references.
-4. Unknown capability fails closed or falls back only through an explicit, ledgered policy.
-5. A model cannot be selected when required modality/tool/schema/privacy capabilities are absent.
-6. Prices are optional metadata and never silently treated as permanent constants.
+| EACHAT effort | Model | Provider control |
+| --- | --- | --- |
+| `fast` | `kimi-k3` | `reasoning_effort=low` |
+| `balanced` | `kimi-k3` | `reasoning_effort=high` |
+| `max` | `kimi-k3` | `reasoning_effort=max` |
 
-## 5. Current provider mapping
+The catalog records the currently published 1M context, output-token ceiling, multimodal input, tools, structured output, streaming, caching and pricing.
 
-### 5.1 DeepSeek
+### 4.3 Kimi Code is a different entitlement surface
 
-Officially verified family:
+Kimi Code membership is explicitly **not** an EACHAT product-runtime credential.
+
+The catalog may retain Kimi Code entries such as:
+
+- `k3`;
+- `kimi-for-coding`.
+
+Those entries exist to preserve factual product/coding-surface separation and entitlement evidence. They have `eligible_for_eachat=False` and cannot become an EACHAT runtime route merely because Kimi Code was used to develop the repository.
+
+Current documented boundaries include:
+
+- K3 availability to Moderato and above;
+- up-to-1M K3 context requiring Allegretto or above;
+- K2.7 Code at 256K context with Thinking ON.
+
+### 4.4 OpenAI
+
+EACHAT uses the OpenAI Responses API surface:
 
 ```text
-deepseek-v4-flash
-deepseek-v4-pro
+provider: openai
+base URL: https://api.openai.com/v1
 ```
 
-Both currently document 1M context and thinking/non-thinking modes.
+Current deterministic mapping:
 
-Recommended mapping:
+| EACHAT effort | Model | Product/provider control |
+| --- | --- | --- |
+| `fast` | `gpt-5.6-luna` | Luna profile |
+| `balanced` | `gpt-5.6-terra` | Terra profile |
+| `max` | `gpt-5.6-sol` | `reasoning.effort=max` |
 
-| Product effort | Mapping |
-|---|---|
-| `fast` | V4 Flash, non-thinking |
-| `balanced` | V4 Flash thinking for reasoning-heavy low-cost work, or V4 Pro non-thinking when quality policy prefers the larger model |
-| `max` | V4 Pro thinking |
+Catalog `2.1.0` represents the current general-availability GPT-5.6 API family, published 1.05M context, 128K maximum output, current reasoning-effort vocabulary, tool/structured-output/streaming/cache support, and source-dated prices.
 
-The router chooses the balanced mapping from task complexity, latency budget and evaluation evidence; it must record the result.
+Pricing is temporal evidence, not a permanent protocol invariant. In particular, the current Sol price includes the reduction announced on 2026-08-21 and must be rechecked by the catalog review deadline or sooner if OpenAI changes it.
 
-### 5.2 Kimi
+## 5. Strict provider authority boundary
 
-Official public release facts currently verified:
+Provider routing is allow-list based.
 
-- Kimi K3 exists;
-- 2.8T parameters are advertised;
-- natively multimodal;
-- 1M-token context;
-- positioned for long-horizon coding, knowledge work and deep reasoning.
+The client may select an allowed provider and stable effort profile. It may not inject:
 
-Not yet treated as verified by this repository:
+- an arbitrary base URL;
+- an arbitrary model ID;
+- an unregistered provider;
+- an unsupported provider parameter;
+- a silent fallback ladder.
 
-- exact API model ID;
-- exact reasoning-mode parameter names;
-- separate speed tiers;
-- API pricing and availability for this account;
-- Claude-compatible endpoint mapping.
+Server-controlled capability data determines endpoint and model identity.
 
-Therefore:
+If a provider/effort combination cannot be resolved, routing fails closed rather than inventing a substitute.
 
-| Product effort | Mapping policy |
-|---|---|
-| `fast` | use a verified K3 fast/instant capability only when provider metadata exposes it |
-| `balanced` | use the verified default K3 capability |
-| `max` | use a verified K3 deep-reasoning or agentic capability only when supported |
+A requested provider and a served provider/model are distinct observable facts. Silent cross-provider substitution is forbidden.
 
-No guessed K3 identifiers may enter committed code, tests or configuration defaults.
+## 6. Request-scoped BYOK
 
-### 5.3 OpenAI
-
-Official GPT-5.6 family:
+EACHAT supports request-scoped BYOK credentials with explicit role ownership:
 
 ```text
-Luna | Terra | Sol
+fast          -> Worker credential
+balanced/max  -> Critic/Advisor credential
 ```
 
-Recommended mapping:
+The roles are intentionally independent. A Worker key does not implicitly authorize Critic/Advisor calls and vice versa.
 
-| Product effort | Mapping |
-|---|---|
-| `fast` | GPT-5.6 Luna |
-| `balanced` | GPT-5.6 Terra with medium effort |
-| `max` | GPT-5.6 Sol with max effort |
+Credential state is request-local and must not become durable conversation state, checkpoint state, audit payload, telemetry, model-visible prompt content, or application configuration.
 
-`ultra` is provider-specific and optional. It is not part of the stable cross-provider three-level contract. It may be exposed as an advanced capability only after endpoint/account support, budget and multi-agent behavior are verified.
+Secrets are excluded from ordinary object representations and first-party telemetry. Browser engineering surfaces do not intentionally persist BYOK keys.
 
-## 6. Routing policy
+### 6.1 Hard call budgets
 
-### 6.1 Default
+Each BYOK role has a server-enforced call budget. The budget is consumed immediately before the delegated provider call.
+
+This prevents provider-side failure from creating an accidental unbounded retry/funding path.
+
+### 6.2 BYOK-exclusive fail-closed behavior
+
+When a request enters BYOK-exclusive routing, a missing required role credential is an error.
+
+It must **not** fall back to:
+
+- a service-funded key;
+- another BYOK role;
+- another provider;
+- a hidden global credential.
+
+This is an authority invariant, not a UI preference.
+
+## 7. Provider adapters
+
+Current V2 live-provider adapters are isolated behind the candidate-provider contract.
+
+Implemented repository behavior includes:
+
+- DeepSeek product adapter;
+- Kimi Platform adapter;
+- OpenAI Responses adapter;
+- provider-neutral candidate result contract;
+- server-controlled endpoint/model selection;
+- strict effort mapping;
+- bounded timeout/call semantics;
+- requested-versus-served provider/model evidence;
+- fake transport injection for deterministic CI;
+- sentinel/test credential rejection where applicable;
+- no adapter-internal cross-provider fallback.
+
+Legacy LiteLLM coursework routing is not the canonical EACHAT V2 production provider path.
+
+Live credential success remains a separate evidence class and is deliberately excluded from blocking deterministic CI.
+
+## 8. Deterministic governance remains above providers
+
+The provider produces a candidate. It does not determine whether the answer may be served.
+
+The canonical control loop remains:
 
 ```text
-provider=deepseek
-effort=balanced
-context=balanced
-orchestration=critic
+UNDERSTAND
+-> GATHER_EVIDENCE
+-> PROPOSE
+-> CRITIQUE
+-> SCORE / DECIDE
+-> bounded REPAIR
+-> AUTHORIZE when protected
+-> RECORD
 ```
 
-The deterministic route uses the local provider regardless of the live preference and records that no external provider was called.
+Deterministic code owns:
 
-### 6.2 Compatibility filter
+- hard constraints;
+- evidence requirements;
+- critic interpretation;
+- Energy/disposition policy;
+- repair limits;
+- refusal/escalation decisions;
+- protected human continuation;
+- authoritative record state.
 
-Before cost/quality selection, reject models that cannot satisfy:
+A stronger model or higher reasoning setting cannot bypass these controls.
 
-- required modality;
-- required tool/structured-output behavior;
-- context length;
-- privacy/data handling;
-- regional/provider policy;
-- maximum cost;
-- maximum latency;
-- availability;
-- evidence/grounding requirements.
+## 9. Context compaction
 
-### 6.3 Escalation
+Context compaction is a separate concern from provider selection and reasoning effort.
 
-Escalation is allowed only when:
-
-- a hard constraint remains unresolved but another verified profile can address it;
-- energy exceeds a configured threshold;
-- critic uncertainty is above threshold;
-- repair on the current profile failed or is not suitable;
-- the user explicitly selected a stronger profile;
-- risk policy requires a stronger reviewer/adjudicator.
-
-Escalation order is policy-driven, not globally fixed. A typical bounded path is:
+Conceptually:
 
 ```text
-DeepSeek balanced
--> repair on same profile
--> DeepSeek max
--> Kimi balanced/max or GPT-5.6 premium, only when selected/allowed
--> clarify or escalate to human
+provider selection != model tier != reasoning effort != context profile
 ```
 
-No silent cross-provider fallback is allowed. A fallback must preserve privacy requirements and be visible in the response and ledger.
+Any future compaction implementation must preserve:
 
-## 7. Multi-agent policy
+- system/developer authority instructions;
+- user objective and current request;
+- unresolved constraints;
+- authoritative evidence and citations;
+- durable human decisions;
+- relevant repair/critic state;
+- stable ownership identifiers without secret material.
 
-Multi-agent execution is a bounded orchestration profile, not an automatic synonym for quality.
+It must not turn lossy summaries into new authority or silently discard evidence required by deterministic gates.
 
-### 7.1 Roles
+Expanded context-compaction behavior remains evidence-gated follow-on work. The current provider catalog does not imply that all vendor context windows should be filled or that longer context is automatically better.
 
-Possible roles:
+## 10. Multi-agent execution
 
-- generator;
-- evidence researcher;
-- domain critic;
-- safety/policy critic;
-- consistency critic;
-- cost/latency critic;
-- deterministic boss/adjudicator;
-- human gate.
+Provider selection, reasoning effort and multi-agent parallelism are distinct controls.
 
-The boss may use model observations but deterministic Python owns:
+Future expanded agent committees must remain subordinate to deterministic governance and bounded by explicit budgets. Parallelism cannot multiply provider calls without a deterministic cap.
 
-- hard-constraint precedence;
-- energy aggregation;
-- quorum;
-- candidate eligibility;
-- retry/turn/cost/token ceilings;
-- terminal disposition;
-- ledger authority.
+The current production claim does **not** require an unbounded provider-agent swarm. Existing deterministic critics and bounded repair remain the authoritative product path.
 
-### 7.2 Product application
+## 11. Observability
 
-- EACHAT: compare general-purpose answers, grounding and usefulness; repair the selected answer.
-- EACODE: critique specifications, patches, tests and commands before returning safe advice/actions to Claude Code, Cline or Aider.
-- Session 13 Plus: improve the mandatory estimator graph with explicit agents, typed state, persistence, human gates and observability, while retaining domain-specific arithmetic.
-- EACORE: document shared role/result contracts first; extract runtime only after equivalent implementations exist in at least two products.
+Provider telemetry may record safe, non-secret operational facts such as:
 
-### 7.3 Limits
+- requested provider;
+- served provider;
+- requested effort;
+- served model;
+- fallback-used flag where explicitly supported;
+- duration;
+- bounded call counters;
+- stable failure/reason code.
 
-Required budgets:
+It must not record:
 
-- maximum agent count;
-- maximum parallel branches;
-- maximum turns per branch;
-- token and cost ceilings;
-- wall-clock deadline;
-- retry ceiling;
-- provider concurrency ceiling.
+- API keys;
+- authorization headers;
+- raw private prompts/transcripts as generic operational telemetry;
+- arbitrary client-injected endpoint values.
 
-## 8. Context compaction contract
+The neutral production envelope remains `energy-aware.event.v1`.
 
-Suggested contracts:
+## 12. Validation and release gates
 
-```text
-ContextCompactionPolicy
-- profile
-- target_input_tokens
-- recent_raw_turns
-- preserve_pinned_facts
-- preserve_evidence_refs
-- preserve_ledger_refs
-- preserve_open_questions
-- preserve_failures
-- preserve_exact_identifiers
-- summarizer_profile
-- max_summary_depth
-- drift_check_enabled
-```
+Provider-routing changes require deterministic validation of at least:
 
-```text
-ContextSnapshot
-- snapshot_id
-- thread_id
-- revision
-- profile
-- source_start_revision
-- source_end_revision
-- created_at
-- summary_text
-- pinned_facts
-- hard_constraints
-- accepted_decisions
-- unresolved_items
-- evidence_refs
-- ledger_entry_ids
-- recent_raw_message_ids
-- source_hash
-- summary_hash
-- token_count_before
-- token_count_after
-- limitations
-```
+1. catalog schema and source references;
+2. exact provider/model allowlisting;
+3. stable effort resolution;
+4. surface separation, especially Kimi Platform versus Kimi Code;
+5. BYOK role isolation and call budgets;
+6. missing-role fail-closed behavior;
+7. no arbitrary endpoint injection;
+8. no silent cross-provider fallback;
+9. requested-versus-served evidence;
+10. provider temporal-fact freshness;
+11. canonical documentation alignment;
+12. production dependency/supply-chain contracts.
 
-### 8.1 Minimal
+Credentialed live smoke remains separate, bounded and non-blocking for deterministic CI.
 
-Retain:
+## 13. Migration status
 
-- current task and success criteria;
-- hard constraints and safety rules;
-- pinned facts;
-- exact IDs/SHAs/paths required for correctness;
-- unresolved decisions/failures;
-- latest relevant turns;
-- evidence and ledger references.
+Completed:
 
-### 8.2 Balanced
+- versioned provider capability catalog;
+- DeepSeek/Kimi/OpenAI explicit model mappings;
+- Kimi Platform versus Kimi Code surface separation;
+- isolated provider adapters;
+- strict provider/effort resolution;
+- request-scoped Worker and Critic/Advisor BYOK;
+- hard BYOK call budgets;
+- no hidden BYOK-to-service-funded fallback;
+- legacy LiteLLM removal from the V2 production routing path;
+- source-dated current provider fact audit;
+- fail-closed 30-day temporal freshness contract.
 
-Retain everything in minimal plus:
+Evidence-gated / not claimed complete:
 
-- structured rolling summary;
-- broader recent raw window;
-- important accepted/rejected alternatives;
-- current plan and next slice;
-- relevant provider/routing history.
-
-This is the default.
-
-### 8.3 Max
-
-Retain everything in balanced plus:
-
-- larger raw window;
-- hierarchical summaries by phase/topic;
-- selected evidence excerpts within privacy limits;
-- complete unresolved-decision lineage;
-- additional audit metadata.
-
-Max context does not mean “send all history blindly.” Irrelevant and duplicate content is still removed.
-
-### 8.4 Anti-rot controls
-
-1. Pinned facts and constraints are separate from generated prose summaries.
-2. Exact identifiers and evidence references are copied, not paraphrased.
-3. Every compaction is revisioned and hash-linked to its source range.
-4. The system retains a recent raw-message window.
-5. Contradiction checks compare the new summary against pinned facts and prior accepted decisions.
-6. Failed checks reject the summary and preserve the previous trusted snapshot.
-7. Users may request recompression or rollback.
-8. Hidden chain-of-thought is never persisted or exposed.
-9. Secrets and raw environment dumps are never summarized into durable memory.
-
-## 9. API projection
-
-Future live requests may include:
-
-```text
-provider_preference
-effort_profile
-context_profile
-orchestration_mode
-allow_provider_fallback
-max_cost_usd
-max_latency_ms
-```
-
-Responses should safely expose:
-
-```text
-requested_profile
-served_profile
-provider
-model
-reasoning_mode
-context_profile
-orchestration_mode
-fallback_used
-escalation_count
-routing_reason
-context_snapshot_id
-context_tokens_before
-context_tokens_after
-provider_metrics
-limitations
-```
-
-Do not expose credentials, raw prompts, hidden reasoning, provider transcripts or sensitive context bodies.
-
-## 10. Ledger additions
-
-Each external candidate decision should record:
-
-- requested and served provider/model profile;
-- capability catalog version;
-- effort/context/orchestration profiles;
-- fallback and escalation reasons;
-- cost/latency/token facts;
-- context snapshot ID and revision;
-- compaction policy version;
-- candidate/critic/score/decision linkage;
-- limitations and unverified capability warnings.
-
-## 11. Tests and evaluations
-
-### Deterministic tests
-
-- strict selector validation;
-- catalog allow-list behavior;
-- unsupported capability failure;
-- no silent fallback;
-- routing budget enforcement;
-- deterministic profile resolution;
-- context profile invariants;
-- pinned fact/constraint preservation;
-- exact ID/evidence preservation;
-- compaction replay/idempotency;
-- summary contradiction rejection;
-- multi-agent budget termination;
-- ledger projection.
-
-### Manual provider smoke
-
-For each enabled provider/profile:
-
-- account-visible model discovery;
-- one bounded sanitized response;
-- structured output/tool behavior if required;
-- measured tokens, latency and cost;
-- no secret leakage;
-- explicit provider/model result.
-
-### Benchmark
-
-Compare providers and orchestration modes on the same fixed corpus and rubric:
-
-- constraint satisfaction;
-- source grounding;
-- repair effectiveness;
-- answer usefulness;
-- coding/spec quality for EACODE;
-- latency;
-- cost;
-- failure rate;
-- context retention accuracy;
-- summary drift;
-- human preference.
-
-No provider receives the label “best” without this evidence.
-
-## 12. Migration sequence
-
-1. Add provider-neutral enums and catalog contracts.
-2. Preserve current DeepSeek behavior through an adapter.
-3. Add request/response metadata without UI change.
-4. Add deterministic routing tests.
-5. Add Kimi K3 discovery and adapter after API verification.
-6. Add GPT-5.6 Responses API adapter with explicit premium budget.
-7. Add context snapshot/compaction contracts.
-8. Add selectors to the graph-backed UI.
-9. Add adaptive and committee modes behind feature flags.
-10. Benchmark before changing defaults or quality claims.
-
-## 13. Rollback
-
-- Default back to the existing DeepSeek seam.
-- Disable provider adapters independently.
-- Disable auto/adaptive/committee modes independently.
-- Ignore additive routing/context fields in older readers.
-- Retain the previous trusted context snapshot.
-- Never delete ledger history during rollback.
+- current-head credentialed success for every provider/model;
+- calibrated `auto` cross-provider selection;
+- superiority claims between providers;
+- expanded context-compaction policies;
+- expanded multi-agent parallel execution;
+- real public-production traffic behavior.
 
 ## 14. Current claim boundary
 
-Allowed:
+EACHAT has an implemented, source-dated provider capability catalog and isolated provider-routing architecture for DeepSeek, Kimi K3 and OpenAI GPT-5.6, subordinate to deterministic governance, with request-scoped BYOK isolation and a fail-closed temporal fact-review deadline.
 
-> EACHAT has a documented provider-neutral routing and context-compaction architecture covering DeepSeek, Kimi K3 and GPT-5.6, with evidence-gated multi-agent escalation.
+This does **not** claim that:
 
-Blocked until implementation/evidence:
+- all current-head provider credentials have been live-tested;
+- one provider is objectively best;
+- `auto` routing is calibrated;
+- vendor prices or availability will remain unchanged after the verification date;
+- the public beta is production-ready;
+- coding-agent membership credentials are interchangeable with EACHAT product API credentials.
 
-- all three providers are available in the product;
-- Kimi K3 is objectively best;
-- automatic routing improves quality or cost;
-- context compaction prevents all context rot;
-- multi-agent mode improves every task;
-- provider switching is production-ready.
+For temporal provider facts, `docs/energy_aware_chat_provider_fact_audit_2026-08-23.md` and catalog `2.1.0` are the current repository authority until their review deadline or an earlier known vendor change.

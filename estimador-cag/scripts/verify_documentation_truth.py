@@ -6,11 +6,22 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+DOCS = ROOT / "docs"
 README = (ROOT / "README.md").read_text(encoding="utf-8")
-SECURITY = (ROOT / "docs" / "SECURITY.md").read_text(encoding="utf-8")
-MANIFEST = json.loads(
-    (ROOT / "docs" / "energy_aware_product_manifest.json").read_text(encoding="utf-8")
+SECURITY = (DOCS / "SECURITY.md").read_text(encoding="utf-8")
+PROVIDER_SPEC = (DOCS / "energy_aware_chat_provider_context_spec.md").read_text(
+    encoding="utf-8"
 )
+PROVIDER_FACT_AUDIT = (
+    DOCS / "energy_aware_chat_provider_fact_audit_2026-08-23.md"
+).read_text(encoding="utf-8")
+PROVIDER_CATALOG = (ROOT / "app" / "energy_chat" / "provider_catalog.py").read_text(
+    encoding="utf-8"
+)
+MANIFEST = json.loads(
+    (DOCS / "energy_aware_product_manifest.json").read_text(encoding="utf-8")
+)
+
 README_STALE_CLAIMS = (
     "authenticated tenant/thread ownership",
     "multi-tenant identity/ownership",
@@ -27,6 +38,56 @@ SECURITY_REQUIRED_CLAIMS = (
     "PostgreSQL ownership",
     "read/replay/resume/delete operations enforce owner",
     "external authentication/OIDC",
+)
+PROVIDER_REQUIRED_CLAIMS = (
+    (
+        "provider specification",
+        PROVIDER_SPEC,
+        "Provider catalog/adapters, strict provider routing, and request-scoped BYOK are implemented",
+    ),
+    ("provider specification", PROVIDER_SPEC, "catalog version: 2.1.0"),
+    ("provider specification", PROVIDER_SPEC, "verified at:     2026-08-23"),
+    ("provider specification", PROVIDER_SPEC, "review by:       2026-09-22"),
+    (
+        "provider specification",
+        PROVIDER_SPEC,
+        "fail-closed temporal fact-review deadline",
+    ),
+    ("provider fact audit", PROVIDER_FACT_AUDIT, "catalog `2.1.0`"),
+    (
+        "provider fact audit",
+        PROVIDER_FACT_AUDIT,
+        "must be re-audited no later than `2026-09-22`",
+    ),
+    ("provider catalog", PROVIDER_CATALOG, 'CATALOG_VERSION = "2.1.0"'),
+    (
+        "provider catalog",
+        PROVIDER_CATALOG,
+        'CATALOG_VERIFIED_AT = "2026-08-23"',
+    ),
+    (
+        "provider catalog",
+        PROVIDER_CATALOG,
+        'CATALOG_REVIEW_BY = "2026-09-22"',
+    ),
+    ("provider catalog", PROVIDER_CATALOG, "def assert_catalog_fresh("),
+)
+PROVIDER_STALE_CLAIMS = (
+    (
+        "provider specification",
+        PROVIDER_SPEC,
+        "implementation pending dedicated milestones",
+    ),
+    (
+        "provider specification",
+        PROVIDER_SPEC,
+        "Not yet treated as verified by this repository",
+    ),
+    (
+        "provider specification",
+        PROVIDER_SPEC,
+        "exact API model ID must be verified",
+    ),
 )
 
 
@@ -76,12 +137,35 @@ def verify() -> dict[str, object]:
     if security_stale:
         raise AssertionError(f"SECURITY.md contains stale ownership blockers: {security_stale}")
 
+    provider_missing = [
+        f"{name}: {marker}"
+        for name, document, marker in PROVIDER_REQUIRED_CLAIMS
+        if marker.casefold() not in document.casefold()
+    ]
+    if provider_missing:
+        raise AssertionError(
+            "Provider documentation/catalog truth is incomplete: "
+            f"{provider_missing}"
+        )
+
+    provider_stale = [
+        f"{name}: {marker}"
+        for name, document, marker in PROVIDER_STALE_CLAIMS
+        if marker.casefold() in document.casefold()
+    ]
+    if provider_stale:
+        raise AssertionError(
+            "Canonical provider documentation contains stale claims: "
+            f"{provider_stale}"
+        )
+
     return {
         "product": product,
         "canonical_branch": branch,
         "protocol_version": MANIFEST["protocol_version"],
         "checked_readme_markers": len(required),
         "checked_security_markers": len(SECURITY_REQUIRED_CLAIMS),
+        "checked_provider_markers": len(PROVIDER_REQUIRED_CLAIMS),
         "stale_claim_count": 0,
         "status": "pass",
     }
