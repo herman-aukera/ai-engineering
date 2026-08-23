@@ -33,6 +33,7 @@ def test_eachat_production_probes_are_local_and_llm_free(monkeypatch) -> None:
         assert ready.json()["ownership_restart_persistent"] is False
         assert ready.json()["identity_required"] is True
         assert ready.json()["strict_msgpack"] is True
+        assert ready.json()["byok_enabled"] is False
 
 
 def test_eachat_version_exposes_safe_release_identity(monkeypatch) -> None:
@@ -45,4 +46,4 @@ def test_eachat_version_exposes_safe_release_identity(monkeypatch) -> None:
     with TestClient(create_production_app()) as client:
         payload = client.get("/version").json()
 
-    assert payload == {"service": "eachat", "version": "0.3.0", "git_sha": "abc123"}
+    assert payload == {"service": "eachat", "version": "0.4.0", "git_sha": "abc123"}
