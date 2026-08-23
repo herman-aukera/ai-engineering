@@ -91,12 +91,22 @@ PROVIDER_STALE_CLAIMS = (
 )
 
 
+def _normalize(document: str) -> str:
+    """Normalize presentation whitespace without weakening textual claim matching."""
+
+    return " ".join(document.casefold().split())
+
+
+def _contains(document: str, value: str) -> bool:
+    return _normalize(value) in _normalize(document)
+
+
 def _missing(document: str, values: tuple[str, ...]) -> list[str]:
-    return [value for value in values if value.casefold() not in document.casefold()]
+    return [value for value in values if not _contains(document, value)]
 
 
 def _present(document: str, values: tuple[str, ...]) -> list[str]:
-    return [value for value in values if value.casefold() in document.casefold()]
+    return [value for value in values if _contains(document, value)]
 
 
 def verify() -> dict[str, object]:
@@ -140,7 +150,7 @@ def verify() -> dict[str, object]:
     provider_missing = [
         f"{name}: {marker}"
         for name, document, marker in PROVIDER_REQUIRED_CLAIMS
-        if marker.casefold() not in document.casefold()
+        if not _contains(document, marker)
     ]
     if provider_missing:
         raise AssertionError(
@@ -151,7 +161,7 @@ def verify() -> dict[str, object]:
     provider_stale = [
         f"{name}: {marker}"
         for name, document, marker in PROVIDER_STALE_CLAIMS
-        if marker.casefold() in document.casefold()
+        if _contains(document, marker)
     ]
     if provider_stale:
         raise AssertionError(
