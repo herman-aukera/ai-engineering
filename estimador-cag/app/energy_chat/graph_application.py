@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from app.energy_chat.api_v2_contracts import (
     EnergyChatV2ErrorDetail,
@@ -31,6 +31,17 @@ from app.energy_chat.human_gate import HumanGateMode
 from app.energy_chat.observability import compute_graph_execution_metrics
 from app.energy_chat.provider_adapters import build_catalog_candidate_provider
 from app.energy_chat.provider_catalog import resolve_effort_profile
+
+
+def _no_legacy_live_provider() -> CandidateProvider | None:
+    """Compatibility injection seam for historical fake-provider tests only."""
+
+    return None
+
+
+BaselineCandidateProvider: Callable[[], CandidateProvider | None] = (
+    _no_legacy_live_provider
+)
 
 
 def run_graph_chat_v2(
@@ -235,6 +246,10 @@ def _resolve_provider(
                 "verified provider explicitly."
             ),
         )
+    if request.provider_preference == "deepseek":
+        injected = BaselineCandidateProvider()
+        if injected is not None:
+            return injected
     try:
         return build_catalog_candidate_provider(
             request.provider_preference,
