@@ -78,23 +78,37 @@ def _identity_key() -> bytes:
     return value
 
 
-def _build_runtime() -> tuple[
-    EnergyChatApplicationRuntime,
-    StrictPostgresCheckpointer | None,
-    ConversationStore,
-    ResourceOwnershipStore,
-]:
+def _validate_runtime_configuration() -> None:
+    """Fail on storage/serializer configuration before allocating any resources."""
+
     if not _truthy(os.getenv("LANGGRAPH_STRICT_MSGPACK")):
         raise RuntimeError(
             "LANGGRAPH_STRICT_MSGPACK=true is required for the production service."
         )
     postgres_url = os.getenv("EACHAT_POSTGRES_URL", "").strip()
     if postgres_url:
-        encryption_key = os.getenv("EACHAT_MEMORY_ENCRYPTION_KEY", "").strip()
-        if not encryption_key:
+        if not os.getenv("EACHAT_MEMORY_ENCRYPTION_KEY", "").strip():
             raise RuntimeError(
                 "EACHAT_MEMORY_ENCRYPTION_KEY is required for durable conversation memory."
             )
+        return
+    if not _truthy(os.getenv("EACHAT_ALLOW_IN_MEMORY")):
+        raise RuntimeError(
+            "EACHAT_POSTGRES_URL is required for the production service. "
+            "Set EACHAT_ALLOW_IN_MEMORY=true only for explicit local/test execution."
+        )
+
+
+def _build_runtime() -> tuple[
+    EnergyChatApplicationRuntime,
+    StrictPostgresCheckpointer | None,
+    ConversationStore,
+    ResourceOwnershipStore,
+]:
+    _validate_runtime_configuration()
+    postgres_url = os.getenv("EACHAT_POSTGRES_URL", "").strip()
+    if postgres_url:
+        encryption_key = os.environ["EACHAT_MEMORY_ENCRYPTION_KEY"].strip()
         checkpointer = StrictPostgresCheckpointer(postgres_url)
         ownership_store: PostgresResourceOwnershipStore | None = None
         conversation_store: PostgresConversationStore | None = None
@@ -120,16 +134,11 @@ def _build_runtime() -> tuple[
             conversation_store,
             ownership_store,
         )
-    if _truthy(os.getenv("EACHAT_ALLOW_IN_MEMORY")):
-        conversation_store = InMemoryConversationStore()
-        conversation_store.setup()
-        ownership_store = InMemoryResourceOwnershipStore()
-        ownership_store.setup()
-        return EnergyChatApplicationRuntime(), None, conversation_store, ownership_store
-    raise RuntimeError(
-        "EACHAT_POSTGRES_URL is required for the production service. "
-        "Set EACHAT_ALLOW_IN_MEMORY=true only for explicit local/test execution."
-    )
+    conversation_store = InMemoryConversationStore()
+    conversation_store.setup()
+    ownership_store = InMemoryResourceOwnershipStore()
+    ownership_store.setup()
+    return EnergyChatApplicationRuntime(), None, conversation_store, ownership_store
 
 
 def _authority_available(ownership_store: object) -> bool:
@@ -147,6 +156,7 @@ def _authority_available(ownership_store: object) -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    _validate_runtime_configuration()
     identity_key = _identity_key()
     runtime, checkpoint_backend, conversation_store, ownership_store = _build_runtime()
     app.state.energy_chat_runtime = runtime
