@@ -49,6 +49,7 @@ from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
 logger = logging.getLogger(__name__)
 DOCS_DIR = Path(__file__).resolve().parents[2] / "docs"
 V2_DEMO_PATH = DOCS_DIR / "energy_chat_v2_demo.html"
+BYOK_TESTER_PATH = DOCS_DIR / "eachat_byok_tester.html"
 
 
 def _truthy(value: str | None) -> bool:
@@ -230,7 +231,7 @@ def create_production_app() -> FastAPI:
         )
         if request.url.path.startswith("/energy-chat"):
             response.headers["Cache-Control"] = "no-store"
-        if request.url.path == "/energy-chat/v2/demo":
+        if request.url.path in {"/energy-chat/v2/demo", "/energy-chat/v2/tester"}:
             response.headers["Content-Security-Policy"] = "; ".join(
                 (
                     "default-src 'self'",
@@ -350,6 +351,15 @@ def create_production_app() -> FastAPI:
                 detail="EACHAT browser client is unavailable",
             )
         return FileResponse(V2_DEMO_PATH)
+
+    @service.get("/energy-chat/v2/tester", include_in_schema=False)
+    def byok_tester() -> FileResponse:
+        if not BYOK_TESTER_PATH.is_file():
+            raise HTTPException(
+                status_code=503,
+                detail="EACHAT BYOK tester is unavailable",
+            )
+        return FileResponse(BYOK_TESTER_PATH)
 
     @service.get("/", include_in_schema=False)
     def root() -> RedirectResponse:
