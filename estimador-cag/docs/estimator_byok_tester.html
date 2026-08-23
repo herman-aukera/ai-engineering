@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Energy-Aware Estimator — Human Tester</title>
+  <style>
+    :root{font-family:system-ui,sans-serif;color-scheme:light dark}body{max-width:980px;margin:0 auto;padding:32px 20px;line-height:1.45}fieldset{border:1px solid #7775;border-radius:12px;padding:18px;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}label{display:grid;gap:6px;font-weight:600}input,select,textarea,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #7777}textarea{min-height:150px}button{cursor:pointer;font-weight:700}.notice{padding:14px;border:1px solid #7776;border-radius:10px}.actions{display:flex;gap:10px;flex-wrap:wrap}pre{white-space:pre-wrap;word-break:break-word;padding:14px;border:1px solid #7775;border-radius:10px;min-height:80px}.muted{opacity:.75;font-size:.92rem}</style>
+</head>
+<body>
+  <h1>⚡ Energy-Aware Estimator</h1>
+  <p>Human acceptance tester. Run a real estimation using either service-funded models or your own request-scoped API keys.</p>
+
+  <div class="notice">
+    <strong>Credential safety:</strong> BYOK keys are sent only as headers on this request. This page does not save them in browser storage, cookies, URLs, conversation state, checkpoints, or the Energy-Aware database. “Clear keys after request” is enabled by default.
+  </div>
+
+  <form id="tester">
+    <fieldset>
+      <legend>Authentication</legend>
+      <label>Signed Energy-Aware session token
+        <input id="sessionToken" type="password" autocomplete="off" required placeholder="Bearer token value">
+      </label>
+      <p class="muted">The repository tester accepts an already-issued signed session. External OIDC login remains a deployment integration.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>⚡ Model budget</legend>
+      <label><input id="useByok" type="checkbox"> Use my own API keys for this request</label>
+      <div id="byokPanel" hidden>
+        <div class="grid">
+          <label>Worker provider
+            <select id="workerProvider"><option value="deepseek">DeepSeek</option><option value="kimi">Kimi / Moonshot</option><option value="openai">OpenAI</option></select>
+          </label>
+          <label>Worker model
+            <input id="workerModel" value="deepseek-v4-flash" autocomplete="off">
+          </label>
+          <label>Worker API key
+            <input id="workerKey" type="password" autocomplete="off">
+          </label>
+          <label>Worker max calls
+            <input id="workerCalls" type="number" min="1" max="100" value="12">
+          </label>
+        </div>
+        <p class="muted"><strong>Worker:</strong> cheap/high-frequency executor for ordinary model work.</p>
+        <div class="grid">
+          <label>Critic / Advisor provider
+            <select id="criticProvider"><option value="deepseek">DeepSeek</option><option value="kimi">Kimi / Moonshot</option><option value="openai">OpenAI</option></select>
+          </label>
+          <label>Critic / Advisor model
+            <input id="criticModel" value="deepseek-v4-pro" autocomplete="off">
+          </label>
+          <label>Critic / Advisor API key
+            <input id="criticKey" type="password" autocomplete="off">
+          </label>
+          <label>Critic max calls
+            <input id="criticCalls" type="number" min="1" max="100" value="4">
+          </label>
+        </div>
+        <p class="muted"><strong>Critic / Advisor:</strong> premium escalation model. It may critique or advise; deterministic Energy-Aware policy remains final process authority.</p>
+        <label><input id="clearAfter" type="checkbox" checked> Clear API keys after request</label>
+        <button id="clearKeys" type="button">Clear keys now</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Real estimation case</legend>
+      <label>Project transcript
+        <textarea id="transcript" required>Build an authenticated customer portal with registration, password reset, dashboard, Stripe subscription management, an admin area, audit logging, PostgreSQL storage, and email notifications. Produce a defensible effort estimate; use historical evidence where available and require human review rather than inventing confidence where evidence is weak.</textarea>
+      </label>
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit">Run estimation</button>
+      <button id="control" type="button">Run control projection</button>
+    </div>
+  </form>
+
+  <h2>Result</h2>
+  <pre id="result" aria-live="polite">No request sent.</pre>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const models = {
+    worker: {deepseek:'deepseek-v4-flash', kimi:'kimi-k2.5', openai:'gpt-5.6-luna'},
+    critic: {deepseek:'deepseek-v4-pro', kimi:'kimi-k2.6', openai:'gpt-5.6-terra'}
+  };
+  $('useByok').addEventListener('change', () => {$('byokPanel').hidden = !$('useByok').checked;});
+  $('workerProvider').addEventListener('change', e => {$('workerModel').value = models.worker[e.target.value];});
+  $('criticProvider').addEventListener('change', e => {$('criticModel').value = models.critic[e.target.value];});
+  const clearKeys = () => {$('workerKey').value=''; $('criticKey').value='';};
+  $('clearKeys').addEventListener('click', clearKeys);
+
+  function requestHeaders() {
+    const headers = {'Content-Type':'application/json','Authorization':'Bearer '+$('sessionToken').value.trim()};
+    if ($('useByok').checked) {
+      const workerKey = $('workerKey').value.trim();
+      const criticKey = $('criticKey').value.trim();
+      if (!workerKey || !criticKey) throw new Error('Worker and Critic / Advisor API keys are both required for BYOK testing.');
+      Object.assign(headers, {
+        'X-EA-Worker-Provider':$('workerProvider').value,
+        'X-EA-Worker-Model':$('workerModel').value.trim(),
+        'X-EA-Worker-Api-Key':workerKey,
+        'X-EA-Worker-Max-Calls':$('workerCalls').value,
+        'X-EA-Critic-Provider':$('criticProvider').value,
+        'X-EA-Critic-Model':$('criticModel').value.trim(),
+        'X-EA-Critic-Api-Key':criticKey,
+        'X-EA-Critic-Max-Calls':$('criticCalls').value
+      });
+    }
+    return headers;
+  }
+
+  async function run(path) {
+    $('result').textContent='Running…';
+    try {
+      const response = await fetch(path, {method:'POST', headers:requestHeaders(), body:JSON.stringify({transcript:$('transcript').value})});
+      const text = await response.text();
+      let body; try { body=JSON.parse(text); } catch { body=text; }
+      $('result').textContent=JSON.stringify({status:response.status, body}, null, 2);
+    } catch (error) {
+      $('result').textContent=String(error);
+    } finally {
+      if ($('useByok').checked && $('clearAfter').checked) clearKeys();
+    }
+  }
+  $('tester').addEventListener('submit', event => {event.preventDefault(); run('/api/v1/estimate/graph/unified');});
+  $('control').addEventListener('click', () => run('/api/v1/estimate/graph/unified/control'));
+})();
+</script>
+</body>
+</html>
