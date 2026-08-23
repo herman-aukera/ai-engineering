@@ -9,7 +9,7 @@ credentials fail closed instead of falling back to service-funded credentials.
 from __future__ import annotations
 
 from contextvars import ContextVar, Token
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, Mapping
 
 import litellm
@@ -59,7 +59,7 @@ class BYOKCredential:
 
     provider: str
     model: str
-    api_key: str
+    api_key: str = field(repr=False)
 
     @property
     def base_url(self) -> str:
