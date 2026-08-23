@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EACHAT — Human Tester</title>
+  <style>
+    :root{font-family:system-ui,sans-serif;color-scheme:light dark}body{max-width:980px;margin:0 auto;padding:32px 20px;line-height:1.45}fieldset{border:1px solid #7775;border-radius:12px;padding:18px;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}label{display:grid;gap:6px;font-weight:600}input,select,textarea,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #7777}textarea{min-height:130px}button{cursor:pointer;font-weight:700}.notice{padding:14px;border:1px solid #7776;border-radius:10px}.muted{opacity:.75;font-size:.92rem}pre{white-space:pre-wrap;word-break:break-word;padding:14px;border:1px solid #7775;border-radius:10px;min-height:80px}</style>
+</head>
+<body>
+  <h1>⚡ EACHAT human tester</h1>
+  <p>Exercise the production V2 graph with bounded live inference while paying only for the provider calls made with your own keys.</p>
+  <div class="notice"><strong>Credential safety:</strong> keys remain only in this page's in-memory form fields and request headers. They are not saved to browser storage, cookies, URLs, chat memory, LangGraph checkpoints, or the EACHAT database. Keys are cleared after each request by default.</div>
+
+  <form id="tester">
+    <fieldset>
+      <legend>Authentication</legend>
+      <label>Signed EACHAT session token
+        <input id="sessionToken" type="password" autocomplete="off" required placeholder="Bearer token value">
+      </label>
+      <p class="muted">The repository tester accepts an already-issued signed session. Browser OIDC remains an external deployment integration.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>⚡ Model budget</legend>
+      <div class="grid">
+        <label>Effort
+          <select id="effort"><option value="fast">Fast — Worker</option><option value="balanced" selected>Balanced — Critic / Advisor</option><option value="max">Max — Critic / Advisor</option></select>
+        </label>
+        <label><span>Clear keys after request</span><input id="clearAfter" type="checkbox" checked></label>
+      </div>
+      <div class="grid">
+        <label>Worker provider
+          <select id="workerProvider"><option value="deepseek">DeepSeek</option><option value="kimi">Kimi / Moonshot</option><option value="openai">OpenAI</option></select>
+        </label>
+        <label>Worker verified model
+          <input id="workerModel" value="deepseek-v4-flash" readonly>
+        </label>
+        <label>Worker API key
+          <input id="workerKey" type="password" autocomplete="off" required>
+        </label>
+        <label>Worker max calls
+          <input id="workerCalls" type="number" min="1" max="100" value="12">
+        </label>
+      </div>
+      <p class="muted"><strong>Worker:</strong> cheap/high-frequency model used by the fast profile.</p>
+
+      <div class="grid">
+        <label>Critic / Advisor provider
+          <select id="criticProvider"><option value="deepseek">DeepSeek</option><option value="kimi">Kimi / Moonshot</option><option value="openai">OpenAI</option></select>
+        </label>
+        <label>Critic / Advisor verified model
+          <input id="criticModel" value="deepseek-v4-flash" readonly>
+        </label>
+        <label>Critic / Advisor API key
+          <input id="criticKey" type="password" autocomplete="off" required>
+        </label>
+        <label>Critic max calls
+          <input id="criticCalls" type="number" min="1" max="100" value="4">
+        </label>
+      </div>
+      <p class="muted"><strong>Critic / Advisor:</strong> stronger bounded model for balanced/max effort. It does not authorize its own answer; deterministic critics, policy, budget gates, and disposition logic remain authoritative.</p>
+      <button id="clearKeys" type="button">Clear keys now</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Grounded conversation case</legend>
+      <label>Question
+        <textarea id="message" required>Based only on the supplied current refund policy and procedure evidence, can this customer receive a refund and what exactly should they do? If an older source conflicts with the current policy, identify the conflict rather than silently combining them. If the evidence is insufficient, say what is missing instead of inventing a rule.</textarea>
+      </label>
+    </fieldset>
+
+    <button type="submit">Run bounded live chat</button>
+  </form>
+
+  <h2>Result</h2>
+  <pre id="result" aria-live="polite">No request sent.</pre>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const fastModels={deepseek:'deepseek-v4-flash',kimi:'kimi-k3',openai:'gpt-5.6-luna'};
+  const balancedModels={deepseek:'deepseek-v4-flash',kimi:'kimi-k3',openai:'gpt-5.6-terra'};
+  const maxModels={deepseek:'deepseek-v4-pro',kimi:'kimi-k3',openai:'gpt-5.6-sol'};
+  const clearKeys=()=>{$('workerKey').value='';$('criticKey').value='';};
+  function refreshModels(){
+    $('workerModel').value=fastModels[$('workerProvider').value];
+    const table=$('effort').value==='max'?maxModels:balancedModels;
+    $('criticModel').value=table[$('criticProvider').value];
+  }
+  $('workerProvider').addEventListener('change',refreshModels);
+  $('criticProvider').addEventListener('change',refreshModels);
+  $('effort').addEventListener('change',refreshModels);
+  $('clearKeys').addEventListener('click',clearKeys);
+
+  $('tester').addEventListener('submit', async event => {
+    event.preventDefault();
+    $('result').textContent='Running…';
+    const effort=$('effort').value;
+    const provider=effort==='fast'?$('workerProvider').value:$('criticProvider').value;
+    const headers={
+      'Content-Type':'application/json',
+      'Authorization':'Bearer '+$('sessionToken').value.trim(),
+      'X-EA-Worker-Provider':$('workerProvider').value,
+      'X-EA-Worker-Model':$('workerModel').value,
+      'X-EA-Worker-Api-Key':$('workerKey').value.trim(),
+      'X-EA-Worker-Max-Calls':$('workerCalls').value,
+      'X-EA-Critic-Provider':$('criticProvider').value,
+      'X-EA-Critic-Model':$('criticModel').value,
+      'X-EA-Critic-Api-Key':$('criticKey').value.trim(),
+      'X-EA-Critic-Max-Calls':$('criticCalls').value
+    };
+    try {
+      const response=await fetch('/energy-chat/v2/chat/live',{method:'POST',headers,body:JSON.stringify({user_message:$('message').value,provider_preference:provider,effort_profile:effort,execution_profile:'live_bounded',allow_provider_fallback:false})});
+      const text=await response.text();let body;try{body=JSON.parse(text)}catch{body=text}
+      $('result').textContent=JSON.stringify({status:response.status,body},null,2);
+    } catch(error) {
+      $('result').textContent=String(error);
+    } finally {
+      if($('clearAfter').checked)clearKeys();
+    }
+  });
+  refreshModels();
+})();
+</script>
+</body>
+</html>
