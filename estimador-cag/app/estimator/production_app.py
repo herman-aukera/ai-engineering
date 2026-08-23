@@ -15,6 +15,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.energy_aware_observability import observe_http_request
@@ -27,6 +28,14 @@ from app.estimator.production_identity import require_actor
 from app.generation.graph.observability import flush_logfire_graph_traces
 from app.generation.graph.unified_runtime import open_unified_graph_estimation_service
 from app.routers.unified_graph_estimations import router as unified_graph_estimations_router
+from app.services.request_byok import (
+    BYOK_HEADER_NAMES,
+    BYOKRequestError,
+    install_byok_provider_override,
+    parse_byok_headers,
+    reset_request_byok,
+    set_request_byok,
+)
 
 logger = logging.getLogger(__name__)
 _PLACEHOLDER_KEYS = frozenset({"", "test", "dummy", "fake", "placeholder", "example"})
@@ -42,6 +51,7 @@ class EstimatorReadinessReport(BaseModel):
     startup_complete: bool
     unified_runtime: bool
     configured_providers: list[str]
+    byok_enabled: bool
     ownership_restart_persistent: bool
     authority_store_available: bool
     identity_required: bool
@@ -68,6 +78,14 @@ def _configured_providers() -> list[str]:
         if value.strip().casefold() not in _PLACEHOLDER_KEYS:
             providers.append(provider)
     return providers
+
+
+def _byok_enabled() -> bool:
+    return _truthy(os.getenv("EA_ALLOW_BYOK"))
+
+
+def _has_byok_headers(request: Request) -> bool:
+    return any(request.headers.get(name) for name in BYOK_HEADER_NAMES)
 
 
 def _safe_error_type(value: object) -> str | None:
@@ -119,8 +137,8 @@ async def lifespan(service: FastAPI) -> AsyncIterator[None]:
     """Own canonical graph runtime, signed identity, and durable ownership."""
 
     stack = AsyncExitStack()
-    ownership_store = _build_ownership_store()
     identity_key = _identity_key()
+    ownership_store = _build_ownership_store()
     service.state.estimator_ownership_store = ownership_store
     service.state.estimator_identity_signing_key = identity_key
     service.state.unified_graph_estimation_service = None
@@ -148,10 +166,11 @@ async def lifespan(service: FastAPI) -> AsyncIterator[None]:
 
 
 def create_production_app() -> FastAPI:
+    install_byok_provider_override()
     service = FastAPI(
         title="Energy-Aware Estimator",
         description="Consolidated Energy-Aware estimation control plane",
-        version="1.1.0",
+        version="1.2.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
@@ -161,8 +180,33 @@ def create_production_app() -> FastAPI:
         allow_origins=_cors_origins(),
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "X-Request-ID",
+            *BYOK_HEADER_NAMES,
+        ],
     )
+
+    @service.middleware("http")
+    async def request_scoped_byok(request: Request, call_next) -> Response:
+        if _has_byok_headers(request) and not _byok_enabled():
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "Request-scoped BYOK is disabled."},
+            )
+        try:
+            request_byok = parse_byok_headers(request.headers) if _byok_enabled() else None
+        except BYOKRequestError:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"detail": "Invalid request-scoped BYOK configuration."},
+            )
+        token = set_request_byok(request_byok)
+        try:
+            return await call_next(request)
+        finally:
+            reset_request_byok(token)
 
     @service.middleware("http")
     async def energy_aware_observability(request: Request, call_next) -> Response:
@@ -212,10 +256,13 @@ def create_production_app() -> FastAPI:
         include_in_schema=False,
     )
     def ready(response: Response) -> EstimatorReadinessReport:
-        """Require initialized runtime, reachable authority DB, identity, and provider config."""
+        """Require runtime, authority, identity, and a valid model funding path."""
         started = bool(getattr(service.state, "startup_complete", False))
-        runtime_ready = getattr(service.state, "unified_graph_estimation_service", None) is not None
+        runtime_ready = (
+            getattr(service.state, "unified_graph_estimation_service", None) is not None
+        )
         providers = _configured_providers()
+        byok_enabled = _byok_enabled()
         ownership = getattr(service.state, "estimator_ownership_store", None)
         identity_key = getattr(service.state, "estimator_identity_signing_key", None)
         ownership_ready = ownership is not None
@@ -224,7 +271,7 @@ def create_production_app() -> FastAPI:
         is_ready = (
             started
             and runtime_ready
-            and bool(providers)
+            and (bool(providers) or byok_enabled)
             and ownership_ready
             and authority_available
             and identity_ready
@@ -237,10 +284,15 @@ def create_production_app() -> FastAPI:
             startup_complete=started,
             unified_runtime=runtime_ready,
             configured_providers=providers,
-            ownership_restart_persistent=bool(getattr(ownership, "restart_persistent", False)),
+            byok_enabled=byok_enabled,
+            ownership_restart_persistent=bool(
+                getattr(ownership, "restart_persistent", False)
+            ),
             authority_store_available=authority_available,
             identity_required=True,
-            runtime_error=_safe_error_type(getattr(service.state, "unified_graph_runtime_error", None)),
+            runtime_error=_safe_error_type(
+                getattr(service.state, "unified_graph_runtime_error", None)
+            ),
         )
 
     @service.get("/version", include_in_schema=False)
