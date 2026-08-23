@@ -270,7 +270,7 @@ def selector_ui() -> HTMLResponse:
     """Serve a same-origin beta interface with no client-owned authority switch."""
 
     return HTMLResponse(
-        """<!doctype html>
+        r"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
