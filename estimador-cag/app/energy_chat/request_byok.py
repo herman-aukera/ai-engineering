@@ -7,9 +7,10 @@ missing role credentials fail closed instead of using service-funded credentials
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
-from typing import Literal, Mapping
+from typing import Literal
 
 from app.energy_chat.provider_catalog import EffortProfile, ProviderName
 
