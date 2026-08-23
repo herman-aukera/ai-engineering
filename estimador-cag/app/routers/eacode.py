@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 from datetime import datetime
 from decimal import Decimal
 
@@ -14,6 +15,11 @@ from energy_core.beta_demo import BetaDemoResult, BetaDemoRunner
 from energy_core.beta_store import DemoAuthorizationReceipt
 from energy_core.beta_store_runtime import build_beta_demo_store
 from energy_core.coding_agent import CodingProposal
+from energy_core.coding_tool_gateway import (
+    CodingToolIdentity,
+    CodingToolProposalRequest,
+    normalize_coding_tool_proposal,
+)
 from energy_core.identity import BackendSession, SessionSigner
 from energy_core.provider_registry import ProviderSelection
 from energy_core.provider_verified import VerifiedCapabilityRegistry, VerifiedProviderSelector
@@ -52,6 +58,16 @@ class EACodeAuthorizationResponse(BaseModel):
     expires_at: datetime
 
 
+class EACodeGatewayResponse(BaseModel):
+    """Public provenance plus the same governed result used by the native beta API."""
+
+    source_tool: CodingToolIdentity
+    normalization_version: str
+    governance: BetaDemoResult
+    execution_mode: str = "simulated"
+    authority: str = "deterministic_eacode_governor"
+
+
 @router.post(
     "/demo",
     response_model=BetaDemoResult,
@@ -65,11 +81,35 @@ def prepare_beta_demo(
 
     session = _require_session(authorization, allowed_roles=_READ_ROLES)
     result = _demo_runner.prepare(request)
-    try:
-        _demo_store().create_result(result, owner_id=session.user_id)
-    except FileExistsError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    _persist_result(result, owner_id=session.user_id)
     return result
+
+
+@router.post(
+    "/gateway/proposals",
+    response_model=EACodeGatewayResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def ingest_coding_tool_proposal(
+    request: CodingToolProposalRequest,
+    authorization: str | None = Header(default=None),
+) -> EACodeGatewayResponse:
+    """Govern a proposal from any coding tool through one authority-neutral contract.
+
+    Tool name/version/session are provenance only. They are deliberately excluded
+    from the CodingProposal passed to hard gates, critics, repair, authorization,
+    and the deterministic governor.
+    """
+
+    session = _require_session(authorization, allowed_roles=_READ_ROLES)
+    normalized = normalize_coding_tool_proposal(request)
+    result = _demo_runner.prepare(normalized.proposal)
+    _persist_result(result, owner_id=session.user_id)
+    return EACodeGatewayResponse(
+        source_tool=normalized.source_tool,
+        normalization_version=normalized.normalization_version,
+        governance=result,
+    )
 
 
 @router.post(
@@ -153,6 +193,8 @@ def eacode_status() -> dict[str, object]:
         "control_plane": "deterministic",
         "sdd_layer": True,
         "critic_boss_layer": True,
+        "coding_tool_gateway": "vendor_neutral_normalized_proposal_v1",
+        "tool_identity_authority": False,
         "demo_persistence": "tenant_scoped_runtime_store_integrity_checked",
         "production_authority_store": "postgresql_required",
         "demo_authorization": "signed_session_exact_scope_one_time_receipt",
@@ -236,39 +278,68 @@ def selector_ui() -> HTMLResponse:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EACODE Control Plane</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 880px; margin: 2rem auto; padding: 0 1rem; }
-    form { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { max-width: 980px; margin: 2rem auto; padding: 0 1rem 4rem; }
+    form, .card { display: grid; gap: .8rem; padding: 1rem; border: 1px solid #8886; border-radius: .7rem; margin: 1rem 0; }
+    .grid { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
     label { display: grid; gap: .25rem; font-weight: 600; }
     .check { display: flex; gap: .5rem; align-items: center; }
-    button, input, select { padding: .65rem; }
-    pre { white-space: pre-wrap; background: #111; color: #eee; padding: 1rem; border-radius: .4rem; }
+    button, input, select, textarea { padding: .65rem; font: inherit; }
+    textarea { min-height: 9rem; font-family: ui-monospace, monospace; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #111; color: #eee; padding: 1rem; border-radius: .4rem; }
     .boundary { border-left: 4px solid currentColor; padding-left: 1rem; }
+    .hint { opacity: .8; font-size: .92rem; }
   </style>
 </head>
 <body>
   <h1>EACODE ⚡</h1>
-  <p class="boundary">Provider selection is a deterministic plan and does not claim a provider was called.</p>
-  <form id="selector">
-    <label>Provider<select name="provider"><option>auto</option><option>deepseek</option><option>kimi</option><option>openai</option></select></label>
-    <label>Profile<select name="profile"><option>minimal</option><option selected>medium</option><option>max</option></select></label>
-    <label>Maximum cost (USD)<input name="max_cost_usd" type="number" min="0" step="0.01" value="1.00"></label>
-    <label class="check"><input name="kimi_code_entitled" type="checkbox">Kimi Code membership confirmed</label>
-    <button type="submit">Resolve governed route</button>
-  </form>
-  <pre id="result">No route resolved yet.</pre>
-  <hr>
-  <h2>Governed coding journey</h2>
-  <p>Preparation and inspection require a signed session. Execution additionally requires
-     operator authority and a one-time server-issued receipt. Execution remains simulated.</p>
-  <label>Signed session token<input id="operator-token" type="password" autocomplete="off"></label>
-  <button id="beta-demo" type="button">Prepare, authorize, and run beta demo</button>
-  <h3>Repair and authority timeline</h3>
-  <pre id="demo-result">No demo run yet.</pre>
+  <p class="boundary">Coding tools propose; EACODE governs. Tool identity is provenance only and cannot weaken hard gates, authorization, or the deterministic final decision.</p>
+
+  <section class="card">
+    <h2>Planned model route</h2>
+    <p class="hint">Planning only. This section does not call a provider.</p>
+    <form id="selector">
+      <div class="grid">
+        <label>Provider<select name="provider"><option>auto</option><option>deepseek</option><option>kimi</option><option>openai</option></select></label>
+        <label>Profile<select name="profile"><option>minimal</option><option selected>medium</option><option>max</option></select></label>
+        <label>Maximum cost (USD)<input name="max_cost_usd" type="number" min="0" step="0.01" value="1.00"></label>
+      </div>
+      <label class="check"><input name="kimi_code_entitled" type="checkbox">Kimi Code membership confirmed</label>
+      <button type="submit">Resolve governed route</button>
+    </form>
+    <pre id="result">No route resolved yet.</pre>
+  </section>
+
+  <section class="card">
+    <h2>Coding-tool gateway</h2>
+    <p>Use the same gateway for Claude Code, Kimi Code, Cline, Codex, Gemini CLI, Antigravity, or another tool that can provide a proposed diff plus bounded validation commands.</p>
+    <p class="hint">The signed EACODE session is separate from any model/provider key. Execution remains simulated until the sandbox contract is proven.</p>
+    <label>Signed EACODE session token<input id="operator-token" type="password" autocomplete="off" spellcheck="false"></label>
+    <div class="grid">
+      <label>Coding tool<select id="tool-name"><option value="claude-code">Claude Code</option><option value="kimi-code">Kimi Code</option><option value="cline">Cline</option><option value="codex">Codex</option><option value="gemini-cli">Gemini CLI</option><option value="antigravity">Antigravity</option><option value="generic">Other / generic</option></select></label>
+      <label>Tool version (optional)<input id="tool-version" autocomplete="off"></label>
+      <label>Tool session ID (optional)<input id="tool-session" autocomplete="off"></label>
+      <label>Specification ID<input id="spec-id" value="human-test-safe-change"></label>
+      <label>Changed file<input id="changed-file" value="app/health.py"></label>
+      <label>Validation command<input id="validation-command" value="pytest -q tests/test_health.py"></label>
+    </div>
+    <label>Objective<input id="objective" value="Add a safe health check"></label>
+    <label>Proposed patch<textarea id="proposal-patch">def health():
+    return 'ok'
+</textarea></label>
+    <button id="gateway-submit" type="button">Govern proposal</button>
+    <button id="gateway-authorize" type="button" disabled>Authorize + simulate execution</button>
+    <h3>Governance result</h3>
+    <pre id="demo-result">No proposal submitted yet.</pre>
+  </section>
+
   <script>
+    const state = { proposalId: null };
     const bearerHeaders = (token) => ({
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     });
+    const token = () => document.getElementById('operator-token').value.trim();
     document.getElementById('selector').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = new FormData(event.target);
@@ -283,33 +354,40 @@ def selector_ui() -> HTMLResponse:
       });
       document.getElementById('result').textContent = JSON.stringify(await response.json(), null, 2);
     });
-    document.getElementById('beta-demo').addEventListener('click', async () => {
+    document.getElementById('gateway-submit').addEventListener('click', async () => {
       const output = document.getElementById('demo-result');
-      const proposalId = `browser-demo-${Date.now()}`;
-      const token = document.getElementById('operator-token').value.trim();
-      if (!token) { output.textContent = 'A signed operator session is required.'; return; }
-      const headers = bearerHeaders(token);
-      const preparedResponse = await fetch('./demo', {
-        method: 'POST', headers,
-        body: JSON.stringify({
-          proposal_id: proposalId,
-          objective: 'Add a safe health check',
-          spec_id: '0012-production-hardening',
-          patch: "def health():\n    return 'todo'\n",
-          changed_files: ['app/health.py'],
-          proposed_commands: [['pytest', '-q', 'tests/test_health.py']]
-        })
+      if (!token()) { output.textContent = 'A signed EACODE session is required.'; return; }
+      const command = document.getElementById('validation-command').value.trim();
+      const payload = {
+        tool: {
+          name: document.getElementById('tool-name').value,
+          version: document.getElementById('tool-version').value.trim() || null,
+          session_id: document.getElementById('tool-session').value.trim() || null
+        },
+        objective: document.getElementById('objective').value,
+        spec_id: document.getElementById('spec-id').value,
+        patch: document.getElementById('proposal-patch').value,
+        changed_files: [document.getElementById('changed-file').value],
+        proposed_commands: command ? [command.split(/\s+/)] : []
+      };
+      const response = await fetch('./gateway/proposals', {
+        method: 'POST', headers: bearerHeaders(token()), body: JSON.stringify(payload)
       });
-      const prepared = await preparedResponse.json();
-      output.textContent = JSON.stringify(prepared, null, 2);
-      if (!preparedResponse.ok) return;
-      const authorizationResponse = await fetch(`./demo/${proposalId}/authorize`, {
-        method: 'POST', headers
-      });
-      const receipt = await authorizationResponse.json();
+      const body = await response.json();
+      output.textContent = JSON.stringify(body, null, 2);
+      if (!response.ok) return;
+      state.proposalId = body.governance.proposal.proposal_id;
+      document.getElementById('gateway-authorize').disabled = false;
+    });
+    document.getElementById('gateway-authorize').addEventListener('click', async () => {
+      const output = document.getElementById('demo-result');
+      if (!state.proposalId || !token()) return;
+      const headers = bearerHeaders(token());
+      const authResponse = await fetch(`./demo/${state.proposalId}/authorize`, {method: 'POST', headers});
+      const receipt = await authResponse.json();
       output.textContent = JSON.stringify(receipt, null, 2);
-      if (!authorizationResponse.ok) return;
-      const executionResponse = await fetch(`./demo/${proposalId}/execute`, {
+      if (!authResponse.ok) return;
+      const executionResponse = await fetch(`./demo/${state.proposalId}/execute`, {
         method: 'POST', headers, body: JSON.stringify({receipt_id: receipt.receipt_id})
       });
       output.textContent = JSON.stringify(await executionResponse.json(), null, 2);
@@ -318,6 +396,13 @@ def selector_ui() -> HTMLResponse:
 </body>
 </html>"""
     )
+
+
+def _persist_result(result: BetaDemoResult, *, owner_id: str) -> None:
+    try:
+        _demo_store().create_result(result, owner_id=owner_id)
+    except FileExistsError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 def _demo_store():
