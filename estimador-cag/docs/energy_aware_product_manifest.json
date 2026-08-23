@@ -17,7 +17,10 @@
   "dependency_lock_digest": "deploy/estimator/uv.lock.sha256",
   "first_party_roots": ["app"],
   "forbidden_peer_imports": ["app.energy_chat", "app.eacode", "energy_core"],
-  "runtime_assets": ["artifacts/provider-readiness/provider-benchmark-snapshot.json"],
+  "runtime_assets": [
+    "artifacts/provider-readiness/provider-benchmark-snapshot.json",
+    "docs/estimator_byok_tester.html"
+  ],
   "split_support_files": [
     "Dockerfile",
     "deploy/estimator/pyproject.toml",
