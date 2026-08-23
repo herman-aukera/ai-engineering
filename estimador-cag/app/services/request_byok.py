@@ -1,9 +1,9 @@
-"""Request-scoped BYOK routing for human product testing.
+"""Request-scoped bring-your-own-key routing for Energy-Aware model calls.
 
-Credentials live only in a ContextVar for the lifetime of one HTTP request. They
-are never written to graph state, PostgreSQL, logs, URLs, cookies, or browser
-storage. The server keeps provider base URLs allowlisted to avoid turning BYOK
-into an arbitrary outbound-request primitive.
+BYOK credentials exist only in ContextVars for the lifetime of one HTTP request.
+They are never checkpointed, logged, stored in application state, or accepted as
+arbitrary provider base URLs. When BYOK is active it is exclusive: missing role
+credentials fail closed instead of falling back to service-funded credentials.
 """
 
 from __future__ import annotations
@@ -12,8 +12,14 @@ from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from typing import Literal, Mapping
 
+import litellm
+
 from app.config import TierName, settings
-from app.services.litellm_provider import LiteLLMProvider, ResolvedModel, _litellm_model_name
+from app.services.litellm_provider import (
+    LiteLLMProvider,
+    ResolvedModel,
+    _litellm_model_name,
+)
 
 BYOK_HEADER_NAMES = (
     "X-EA-Worker-Provider",
@@ -25,9 +31,8 @@ BYOK_HEADER_NAMES = (
     "X-EA-Critic-Api-Key",
     "X-EA-Critic-Max-Calls",
 )
-
 Role = Literal["worker", "critic"]
-_ALLOWED_PROVIDERS = {"deepseek", "kimi", "openai"}
+_ALLOWED_PROVIDERS = frozenset({"deepseek", "kimi", "openai"})
 _ROLE_BY_TIER: dict[TierName, Role] = {
     "flash": "worker",
     "backup": "worker",
@@ -36,8 +41,22 @@ _ROLE_BY_TIER: dict[TierName, Role] = {
 }
 
 
+class BYOKRequestError(ValueError):
+    """Raised when request-scoped BYOK configuration is malformed."""
+
+
+class BYOKCredentialRequiredError(RuntimeError):
+    """Raised instead of silently spending a service-owned provider credential."""
+
+
+class BYOKBudgetExceededError(RuntimeError):
+    """Raised before a provider call would exceed the request-scoped call budget."""
+
+
 @dataclass(frozen=True)
 class BYOKCredential:
+    """One request-local provider credential with an allow-listed destination."""
+
     provider: str
     model: str
     api_key: str
@@ -53,6 +72,8 @@ class BYOKCredential:
 
 @dataclass
 class RequestBYOK:
+    """Exclusive per-request worker/critic credentials and hard call budgets."""
+
     worker: BYOKCredential | None = None
     critic: BYOKCredential | None = None
     worker_max_calls: int = 12
@@ -60,64 +81,86 @@ class RequestBYOK:
     worker_calls: int = 0
     critic_calls: int = 0
 
-    def credential_for_tier(self, tier: TierName) -> BYOKCredential | None:
-        role = _ROLE_BY_TIER[tier]
+    @property
+    def active(self) -> bool:
+        return self.worker is not None or self.critic is not None
+
+    def credential_for_role(self, role: Role) -> BYOKCredential | None:
         return self.worker if role == "worker" else self.critic
 
-    def consume_for_tier(self, tier: TierName) -> None:
-        role = _ROLE_BY_TIER[tier]
+    def credential_for_tier(self, tier: TierName) -> BYOKCredential | None:
+        return self.credential_for_role(_ROLE_BY_TIER[tier])
+
+    def consume_role(self, role: Role) -> None:
         if role == "worker":
-            if self.worker is None:
-                return
             if self.worker_calls >= self.worker_max_calls:
-                raise RuntimeError("BYOK worker call budget exhausted")
+                raise BYOKBudgetExceededError("BYOK worker model-call budget exhausted")
             self.worker_calls += 1
             return
-        if self.critic is None:
-            return
         if self.critic_calls >= self.critic_max_calls:
-            raise RuntimeError("BYOK critic call budget exhausted")
+            raise BYOKBudgetExceededError("BYOK critic model-call budget exhausted")
         self.critic_calls += 1
 
 
-_BYOK_CONTEXT: ContextVar[RequestBYOK | None] = ContextVar("energy_aware_byok", default=None)
+_BYOK_CONTEXT: ContextVar[RequestBYOK | None] = ContextVar(
+    "energy_aware_request_byok",
+    default=None,
+)
+_BYOK_ACTIVE_ROLE: ContextVar[Role | None] = ContextVar(
+    "energy_aware_request_byok_role",
+    default=None,
+)
 _ORIGINAL_RESOLVE_MODEL = LiteLLMProvider.resolve_model
+_ORIGINAL_LITELLM_COMPLETION = litellm.completion
 _BYOK_PATCH_INSTALLED = False
 
 
-def _parse_positive_int(raw: str | None, *, default: int, maximum: int, label: str) -> int:
-    if raw is None or not raw.strip():
+def _header(headers: Mapping[str, str], name: str) -> str:
+    direct = headers.get(name)
+    if direct is not None:
+        return direct.strip()
+    lower = name.casefold()
+    for key, value in headers.items():
+        if key.casefold() == lower:
+            return value.strip()
+    return ""
+
+
+def _positive_budget(raw: str, *, default: int, label: str) -> int:
+    if not raw:
         return default
     try:
         value = int(raw)
     except ValueError as exc:
-        raise ValueError(f"{label} must be an integer") from exc
-    if not 1 <= value <= maximum:
-        raise ValueError(f"{label} must be between 1 and {maximum}")
+        raise BYOKRequestError(f"{label} must be a positive integer") from exc
+    if not 1 <= value <= 100:
+        raise BYOKRequestError(f"{label} must be between 1 and 100")
     return value
 
 
 def _credential(headers: Mapping[str, str], role: Role) -> BYOKCredential | None:
     prefix = "X-EA-Worker" if role == "worker" else "X-EA-Critic"
-    provider = (headers.get(f"{prefix}-Provider") or "").strip().lower()
-    model = (headers.get(f"{prefix}-Model") or "").strip()
-    api_key = (headers.get(f"{prefix}-Api-Key") or "").strip()
-    supplied = (bool(provider), bool(model), bool(api_key))
+    provider = _header(headers, f"{prefix}-Provider").casefold()
+    model = _header(headers, f"{prefix}-Model")
+    api_key = _header(headers, f"{prefix}-Api-Key")
+    supplied = [bool(provider), bool(model), bool(api_key)]
     if not any(supplied):
         return None
     if not all(supplied):
-        raise ValueError(f"{role} BYOK requires provider, model, and API key together")
+        raise BYOKRequestError(
+            f"{role} BYOK requires provider, model, and API key together"
+        )
     if provider not in _ALLOWED_PROVIDERS:
-        raise ValueError(f"unsupported {role} BYOK provider: {provider}")
-    if len(model) > 200:
-        raise ValueError(f"{role} BYOK model is too long")
-    if len(api_key) < 8 or len(api_key) > 1000:
-        raise ValueError(f"{role} BYOK API key has an invalid length")
+        raise BYOKRequestError(f"Unsupported {role} BYOK provider")
+    if not 1 <= len(model) <= 200:
+        raise BYOKRequestError(f"Invalid {role} BYOK model")
+    if not 8 <= len(api_key) <= 1000:
+        raise BYOKRequestError(f"Invalid {role} BYOK API key")
     return BYOKCredential(provider=provider, model=model, api_key=api_key)
 
 
 def parse_byok_headers(headers: Mapping[str, str]) -> RequestBYOK | None:
-    """Parse all-or-nothing role credentials without returning secret-bearing errors."""
+    """Parse allow-listed BYOK headers without retaining the source mapping."""
 
     worker = _credential(headers, "worker")
     critic = _credential(headers, "critic")
@@ -126,57 +169,98 @@ def parse_byok_headers(headers: Mapping[str, str]) -> RequestBYOK | None:
     return RequestBYOK(
         worker=worker,
         critic=critic,
-        worker_max_calls=_parse_positive_int(
-            headers.get("X-EA-Worker-Max-Calls"), default=12, maximum=30, label="worker max calls"
+        worker_max_calls=_positive_budget(
+            _header(headers, "X-EA-Worker-Max-Calls"),
+            default=12,
+            label="worker max calls",
         ),
-        critic_max_calls=_parse_positive_int(
-            headers.get("X-EA-Critic-Max-Calls"), default=4, maximum=10, label="critic max calls"
+        critic_max_calls=_positive_budget(
+            _header(headers, "X-EA-Critic-Max-Calls"),
+            default=4,
+            label="critic max calls",
         ),
     )
 
 
-def set_request_byok(config: RequestBYOK | None) -> Token[RequestBYOK | None]:
-    return _BYOK_CONTEXT.set(config)
+def set_request_byok(value: RequestBYOK | None) -> Token[RequestBYOK | None]:
+    """Bind BYOK to the current request context."""
+
+    return _BYOK_CONTEXT.set(value)
 
 
 def reset_request_byok(token: Token[RequestBYOK | None]) -> None:
+    """Erase the current request binding even when downstream code fails."""
+
     _BYOK_CONTEXT.reset(token)
+    _BYOK_ACTIVE_ROLE.set(None)
 
 
 def current_request_byok() -> RequestBYOK | None:
     return _BYOK_CONTEXT.get()
 
 
+def _resolved_byok_model(tier: TierName, credential: BYOKCredential) -> ResolvedModel:
+    role = _ROLE_BY_TIER[tier]
+    return ResolvedModel(
+        tier=tier,
+        provider=credential.provider,
+        model=_litellm_model_name(
+            provider=credential.provider,
+            model=credential.model,
+        ),
+        api_key=credential.api_key,
+        base_url=credential.base_url,
+        temperature=0.3 if role == "worker" else 0.2,
+    )
+
+
 def install_byok_provider_override() -> None:
-    """Make existing LiteLLMProvider instances honor request-local role credentials."""
+    """Install process-wide hooks whose behavior is activated only by ContextVar.
+
+    The resolve hook selects request-local credentials and refuses service-key
+    fallback. The completion hook consumes the budget immediately before every
+    real LiteLLM call, including structured-output repair calls.
+    """
 
     global _BYOK_PATCH_INSTALLED
     if _BYOK_PATCH_INSTALLED:
         return
 
-    def resolve_model(self: LiteLLMProvider, tier: TierName) -> ResolvedModel:
+    def resolve_model(provider: LiteLLMProvider, tier: TierName) -> ResolvedModel:
+        request_byok = current_request_byok()
+        if request_byok is None:
+            return _ORIGINAL_RESOLVE_MODEL(provider, tier)
+        role = _ROLE_BY_TIER[tier]
+        credential = request_byok.credential_for_role(role)
+        if credential is None:
+            raise BYOKCredentialRequiredError(
+                f"BYOK request has no {role} credential for tier {tier}"
+            )
+        _BYOK_ACTIVE_ROLE.set(role)
+        return _resolved_byok_model(tier, credential)
+
+    def completion(*args, **kwargs):
         request_byok = current_request_byok()
         if request_byok is not None:
-            credential = request_byok.credential_for_tier(tier)
-            if credential is not None:
-                request_byok.consume_for_tier(tier)
-                return ResolvedModel(
-                    tier=tier,
-                    provider=credential.provider,
-                    model=_litellm_model_name(provider=credential.provider, model=credential.model),
-                    api_key=credential.api_key,
-                    base_url=credential.base_url,
-                    temperature=0.3 if _ROLE_BY_TIER[tier] == "worker" else 0.2,
+            role = _BYOK_ACTIVE_ROLE.get()
+            if role is None:
+                raise BYOKCredentialRequiredError(
+                    "BYOK model call was attempted without a resolved request role"
                 )
-        return _ORIGINAL_RESOLVE_MODEL(self, tier)
+            request_byok.consume_role(role)
+        return _ORIGINAL_LITELLM_COMPLETION(*args, **kwargs)
 
     LiteLLMProvider.resolve_model = resolve_model
+    litellm.completion = completion
     _BYOK_PATCH_INSTALLED = True
 
 
 __all__ = [
+    "BYOKBudgetExceededError",
     "BYOKCredential",
+    "BYOKCredentialRequiredError",
     "BYOK_HEADER_NAMES",
+    "BYOKRequestError",
     "RequestBYOK",
     "current_request_byok",
     "install_byok_provider_override",
