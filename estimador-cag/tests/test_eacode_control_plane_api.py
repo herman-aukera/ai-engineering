@@ -80,8 +80,10 @@ def test_eacode_selector_ui_is_same_origin_and_mount_safe() -> None:
     assert response.status_code == 200
     assert "EACODE" in response.text
     assert "fetch('./select'" in response.text
-    assert "fetch('./demo'" in response.text
+    assert "fetch('./gateway/proposals'" in response.text
+    assert "fetch(`./demo/${state.proposalId}/authorize`" in response.text
     assert "fetch(`/eacode/" not in response.text
     assert "fetch('/eacode/" not in response.text
-    assert "does not claim a provider was called" in response.text
+    assert "Planning only. This section does not call a provider." in response.text
     assert "Kimi Code membership confirmed" in response.text
+    assert "Coding tools propose; EACODE governs." in response.text
