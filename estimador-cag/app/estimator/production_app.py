@@ -12,10 +12,11 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
+from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.energy_aware_observability import observe_http_request
@@ -39,6 +40,8 @@ from app.services.request_byok import (
 
 logger = logging.getLogger(__name__)
 _PLACEHOLDER_KEYS = frozenset({"", "test", "dummy", "fake", "placeholder", "example"})
+DOCS_DIR = Path(__file__).resolve().parents[2] / "docs"
+TESTER_PATH = DOCS_DIR / "estimator_byok_tester.html"
 
 
 class EstimatorReadinessReport(BaseModel):
@@ -226,6 +229,21 @@ def create_production_app() -> FastAPI:
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=(), payment=()"
         )
+        if request.url.path == "/tester":
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Content-Security-Policy"] = "; ".join(
+                (
+                    "default-src 'self'",
+                    "script-src 'self' 'unsafe-inline'",
+                    "style-src 'self' 'unsafe-inline'",
+                    "connect-src 'self'",
+                    "img-src 'self' data:",
+                    "object-src 'none'",
+                    "base-uri 'none'",
+                    "form-action 'self'",
+                    "frame-ancestors 'none'",
+                )
+            )
         if request.url.scheme == "https":
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
@@ -302,6 +320,12 @@ def create_production_app() -> FastAPI:
             "version": service.version,
             "git_sha": os.getenv("GIT_SHA", "unknown"),
         }
+
+    @service.get("/tester", include_in_schema=False)
+    def tester() -> FileResponse:
+        if not TESTER_PATH.is_file():
+            raise HTTPException(status_code=503, detail="Estimator tester is unavailable")
+        return FileResponse(TESTER_PATH)
 
     return service
 
