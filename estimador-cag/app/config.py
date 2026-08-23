@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     graph_retrieval_mode: GraphRetrievalMode = "sequential"
     graph_retrieval_max_concurrency: int = 4
     session14_confidence_threshold: float = 0.65
+    ea_allow_byok: bool = False
 
     deepseek_api_key: str = "dummy"
     deepseek_model: str = "deepseek-v4-flash"
@@ -63,16 +64,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_settings(self):
-        """Require a provider outside deterministic mode and validate hard bounds."""
-        if (
-            not self.stress_fake_provider
-            and self.deepseek_api_key == "dummy"
+        """Require server credentials or an explicitly enabled BYOK-only mode."""
+        server_credentials_missing = (
+            self.deepseek_api_key == "dummy"
             and self.kimi_api_key == "dummy"
             and self.openai_api_key == "dummy"
+        )
+        if (
+            not self.stress_fake_provider
+            and not self.ea_allow_byok
+            and server_credentials_missing
         ):
             raise ValueError(
-                "At least one API key must be configured: DEEPSEEK_API_KEY, "
-                "KIMI_API_KEY, or OPENAI_API_KEY"
+                "At least one server API key must be configured or EA_ALLOW_BYOK=true "
+                "must explicitly enable request-scoped BYOK mode."
             )
         if self.graph_retrieval_max_concurrency <= 0:
             raise ValueError("GRAPH_RETRIEVAL_MAX_CONCURRENCY must be positive")
