@@ -17,7 +17,10 @@
   "dependency_lock_digest": "deploy/eachat/uv.lock.sha256",
   "first_party_roots": ["app"],
   "forbidden_peer_imports": ["app.estimator", "app.eacode", "energy_core"],
-  "runtime_assets": ["docs/energy_chat_v2_demo.html"],
+  "runtime_assets": [
+    "docs/energy_chat_v2_demo.html",
+    "docs/eachat_byok_tester.html"
+  ],
   "split_support_files": [
     "deploy/eachat/Dockerfile",
     "deploy/eachat/pyproject.toml",
