@@ -69,85 +69,66 @@ def test_live_route_owns_profile_when_caller_omits_it(monkeypatch) -> None:
     assert response.json()["served_provider"] == "deepseek"
 
 
-def test_live_route_does_not_use_fallback_method_by_default(monkeypatch) -> None:
-    calls = {"direct": 0, "fallback": 0}
+def test_live_route_uses_direct_verified_provider_without_fallback(monkeypatch) -> None:
+    calls = {"direct": 0}
 
-    class FallbackSpy:
-        def complete_messages(self, *, messages, tier, max_tokens):
+    class DirectProvider:
+        def generate(
+            self, request: CandidateProviderRequest
+        ) -> CandidateGenerationResult:
             calls["direct"] += 1
-            return {
-                "estimation": (
+            return CandidateGenerationResult(
+                answer=(
                     "Decision: use direct DeepSeek. Evidence: direct call. "
                     "Next action: verify no fallback."
                 ),
-                "provider": "deepseek",
-                "model": "deepseek-v4-flash",
-                "tier": "flash",
-                "fallback_used": False,
-            }
-
-        def complete_with_fallback_messages(self, **kwargs):
-            calls["fallback"] += 1
-            raise AssertionError("fallback method must not run by default")
+                evidence_refs=["provider:deepseek"],
+                metrics=ProviderMetrics(
+                    provider_call_id=request.provider_call_id,
+                    provider="deepseek",
+                    model="deepseek-v4-flash",
+                    tier="flash",
+                    fallback_used=False,
+                ),
+            )
 
     monkeypatch.setattr(
-        "app.energy_chat.baseline._build_default_provider",
-        lambda: FallbackSpy(),
+        "app.energy_chat.graph_application.BaselineCandidateProvider",
+        lambda: DirectProvider(),
     )
     response = client.post(
         "/energy-chat/v2/chat/live",
-        json={"user_message": "test no fallback default"},
+        json={
+            "user_message": "test no fallback default",
+            "provider_preference": "deepseek",
+        },
     )
     assert response.status_code == 200
-    assert calls == {"direct": 1, "fallback": 0}
+    assert calls == {"direct": 1}
     assert response.json()["fallback_used"] is False
 
 
-def test_explicit_allowlisted_fallback_is_projected_and_ledgered(monkeypatch) -> None:
-    captured: dict[str, object] = {}
-
-    class ExplicitFallbackProvider:
-        def complete_messages(self, **kwargs):
-            raise AssertionError("explicit fallback path should use the ladder method")
-
-        def complete_with_fallback_messages(
-            self, *, messages, starting_tier, tier_ladder, max_tokens
-        ):
-            captured["starting_tier"] = starting_tier
-            captured["tier_ladder"] = tier_ladder
-            return {
-                "estimation": (
-                    "Decision: use authorized Kimi fallback. Evidence: fallback. "
-                    "Next action: inspect the audit references."
-                ),
-                "provider": "kimi",
-                "model": "kimi-backup-test",
-                "tier": "backup",
-                "fallback_used": True,
-            }
+def test_cross_provider_fallback_fails_closed_on_isolated_v2_adapter(monkeypatch) -> None:
+    def fail_if_provider_is_built():
+        raise AssertionError("fallback rejection must happen before provider execution")
 
     monkeypatch.setattr(
-        "app.energy_chat.baseline._build_default_provider",
-        lambda: ExplicitFallbackProvider(),
+        "app.energy_chat.graph_application.BaselineCandidateProvider",
+        fail_if_provider_is_built,
     )
     response = client.post(
         "/energy-chat/v2/chat/live",
         json={
             "user_message": "test authorized fallback",
+            "provider_preference": "deepseek",
             "allow_provider_fallback": True,
             "fallback_provider_allowlist": ["kimi"],
         },
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert captured["tier_ladder"] == ["flash", "backup", "backup_pro"]
-    assert body["served_provider"] == "kimi"
-    assert body["fallback_used"] is True
-    assert body["fallback_authorized"] is True
-    assert body["fallback_provider_allowlist"] == ["kimi"]
-    assert "authorized fallback" in body["routing_reason"]
-    assert "fallback_to:kimi" in body["evidence_refs"]
-    assert body["ledger_entry_ids"]
+    assert response.status_code == 400
+    body = response.json()["detail"]
+    assert body["error"] == "provider_unavailable"
+    assert "fallback" in body["detail"].casefold()
 
 
 def test_fallback_allowlist_requires_explicit_authorization() -> None:
