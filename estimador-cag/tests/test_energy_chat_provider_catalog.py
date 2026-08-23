@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
+import pytest
+
 from app.energy_chat.provider_catalog import (
+    CATALOG_MAX_AGE_DAYS,
+    CATALOG_REVIEW_BY,
+    CATALOG_VERIFIED_AT,
     CATALOG_VERSION,
     DEEPSEEK_V4_FLASH,
     DEEPSEEK_V4_PRO,
@@ -12,6 +19,7 @@ from app.energy_chat.provider_catalog import (
     KIMI_CODE_K3,
     KIMI_CODE_K27,
     KIMI_K3_PLATFORM,
+    assert_catalog_fresh,
     get_catalog,
     get_provider_models,
     resolve_effort_profile,
@@ -19,7 +27,7 @@ from app.energy_chat.provider_catalog import (
 
 
 def test_deepseek_catalog_uses_current_verified_limits_and_prices() -> None:
-    assert CATALOG_VERSION == "2.0.0"
+    assert CATALOG_VERSION == "2.1.0"
     assert DEEPSEEK_V4_FLASH.context_window_tokens == 1_000_000
     assert DEEPSEEK_V4_FLASH.max_output_tokens == 384_000
     assert DEEPSEEK_V4_FLASH.supports_prompt_caching is True
@@ -40,11 +48,17 @@ def test_kimi_platform_and_kimi_code_are_distinct_surfaces() -> None:
     assert KIMI_K3_PLATFORM.eligible_for_eachat is True
     assert KIMI_K3_PLATFORM.billing_model == "pay_as_you_go"
     assert KIMI_K3_PLATFORM.provider_reasoning_values == ["low", "high", "max"]
+    assert KIMI_K3_PLATFORM.context_window_tokens == 1_000_000
+    assert KIMI_K3_PLATFORM.max_output_tokens == 1_048_576
+    assert KIMI_K3_PLATFORM.input_price_per_million == 3.00
+    assert KIMI_K3_PLATFORM.cached_input_price_per_million == 0.30
+    assert KIMI_K3_PLATFORM.output_price_per_million == 15.00
 
     assert KIMI_CODE_K3.model_id == "k3"
     assert KIMI_CODE_K3.api_surface == "kimi_code_anthropic_compatible"
     assert KIMI_CODE_K3.eligible_for_eachat is False
     assert KIMI_CODE_K3.billing_model == "membership_quota"
+    assert "Allegretto" in (KIMI_CODE_K3.entitlement_notes or "")
     assert KIMI_CODE_K27.model_id == "kimi-for-coding"
     assert KIMI_CODE_K27.context_window_tokens == 256_000
     assert KIMI_CODE_K27.eligible_for_eachat is False
@@ -61,18 +75,35 @@ def test_eachat_provider_listing_excludes_coding_membership_models() -> None:
     }
 
 
-def test_openai_preview_records_do_not_guess_unpublished_limits() -> None:
+def test_openai_ga_records_use_current_published_limits_and_prices() -> None:
     assert [GPT56_LUNA.model_id, GPT56_TERRA.model_id, GPT56_SOL.model_id] == [
         "gpt-5.6-luna",
         "gpt-5.6-terra",
         "gpt-5.6-sol",
     ]
-    assert GPT56_LUNA.context_window_tokens is None
-    assert GPT56_TERRA.max_output_tokens is None
-    assert GPT56_SOL.context_window_tokens is None
-    assert GPT56_LUNA.input_price_per_million == 1.0
-    assert GPT56_TERRA.input_price_per_million == 2.5
-    assert GPT56_SOL.input_price_per_million == 5.0
+    for model in (GPT56_LUNA, GPT56_TERRA, GPT56_SOL):
+        assert model.availability_status == "verified"
+        assert model.context_window_tokens == 1_050_000
+        assert model.max_output_tokens == 128_000
+        assert model.modalities == ["text", "image"]
+        assert model.provider_reasoning_values == [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+        ]
+
+    assert GPT56_LUNA.input_price_per_million == 0.20
+    assert GPT56_LUNA.cached_input_price_per_million == 0.02
+    assert GPT56_LUNA.output_price_per_million == 1.20
+    assert GPT56_TERRA.input_price_per_million == 2.00
+    assert GPT56_TERRA.cached_input_price_per_million == 0.20
+    assert GPT56_TERRA.output_price_per_million == 12.00
+    assert GPT56_SOL.input_price_per_million == 4.00
+    assert GPT56_SOL.cached_input_price_per_million == 0.40
+    assert GPT56_SOL.output_price_per_million == 20.00
 
 
 def test_catalog_entries_are_source_dated_and_surface_specific() -> None:
@@ -80,12 +111,33 @@ def test_catalog_entries_are_source_dated_and_surface_specific() -> None:
     for provider_models in catalog.values():
         for model in provider_models.values():
             assert model.source_refs
-            assert model.verified_at == "2026-07-21"
+            assert model.verified_at == CATALOG_VERIFIED_AT == "2026-08-23"
+            assert model.catalog_version == CATALOG_VERSION == "2.1.0"
             assert model.api_surface
             assert model.endpoint_base_url.startswith("https://")
             assert model.billing_model
             assert model.adapter_status
             assert model.calibration_status
+
+
+def test_catalog_freshness_contract_fails_closed_after_review_window() -> None:
+    verified = date.fromisoformat(CATALOG_VERIFIED_AT)
+    review_by = date.fromisoformat(CATALOG_REVIEW_BY)
+    assert review_by - verified == timedelta(days=CATALOG_MAX_AGE_DAYS)
+
+    assert_catalog_fresh(as_of=verified)
+    assert_catalog_fresh(as_of=review_by)
+
+    with pytest.raises(RuntimeError, match="stale"):
+        assert_catalog_fresh(as_of=review_by + timedelta(days=1))
+    with pytest.raises(RuntimeError, match="future"):
+        assert_catalog_fresh(as_of=verified - timedelta(days=1))
+
+
+def test_catalog_temporal_facts_are_current_for_this_ci_run() -> None:
+    # Temporal vendor facts are intentionally fail-closed: after REVIEW_BY the
+    # deterministic release suite turns RED until an official-source re-audit.
+    assert_catalog_fresh(as_of=date.today())
 
 
 def test_effort_resolution_maps_stable_profiles_deterministically() -> None:

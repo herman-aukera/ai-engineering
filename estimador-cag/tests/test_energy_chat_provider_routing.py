@@ -64,7 +64,7 @@ def test_catalog_is_versioned_and_provider_namespaced() -> None:
     assert "deepseek" in catalog
     assert "kimi" in catalog
     assert "openai" in catalog
-    assert catalog["deepseek"]["deepseek-v4-flash"].catalog_version == "2.0.0"
+    assert catalog["deepseek"]["deepseek-v4-flash"].catalog_version == "2.1.0"
     assert catalog["kimi"]["kimi-k3"].eligible_for_eachat is True
     assert catalog["kimi"]["k3"].eligible_for_eachat is False
 
@@ -77,4 +77,4 @@ def test_strict_v2_resolver_does_not_accept_custom_v1_catalogs() -> None:
     )
     assert profile is not None
     assert profile.capability == DEEPSEEK_V4_FLASH
-    assert profile.capability.catalog_version == "2.0.0"
+    assert profile.capability.catalog_version == "2.1.0"

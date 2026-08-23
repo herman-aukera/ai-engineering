@@ -7,12 +7,15 @@ than being guessed.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-CATALOG_VERSION = "2.0.0"
-CATALOG_VERIFIED_AT = "2026-07-21"
+CATALOG_VERSION = "2.1.0"
+CATALOG_VERIFIED_AT = "2026-08-23"
+CATALOG_REVIEW_BY = "2026-09-22"
+CATALOG_MAX_AGE_DAYS = 30
 
 ProviderName = Literal["deepseek", "kimi", "openai"]
 EffortProfile = Literal["fast", "balanced", "max"]
@@ -31,7 +34,7 @@ class ProviderModelCapability(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    catalog_version: Literal["2.0.0"] = CATALOG_VERSION
+    catalog_version: Literal["2.1.0"] = CATALOG_VERSION
     provider: ProviderName
     api_surface: str = Field(min_length=1)
     endpoint_base_url: str = Field(min_length=1)
@@ -73,9 +76,11 @@ class ResolvedProviderProfile(BaseModel):
 
 _DEEPSEEK_SOURCE = "https://api-docs.deepseek.com/quick_start/pricing"
 _KIMI_PLATFORM_SOURCE = "https://platform.kimi.ai/docs/guide/kimi-k3-quickstart"
+_KIMI_PLATFORM_PRICING_SOURCE = "https://platform.kimi.ai/"
 _KIMI_CODE_SOURCE = "https://www.kimi.com/code/docs/en/kimi-code/models.html"
 _OPENAI_RELEASE_SOURCE = "https://openai.com/index/gpt-5-6/"
-_OPENAI_HELP_SOURCE = "https://help.openai.com/en/articles/20001354-gpt-56-in-chatgpt"
+_OPENAI_MODELS_SOURCE = "https://developers.openai.com/api/docs/models"
+_OPENAI_COMPARE_SOURCE = "https://developers.openai.com/api/docs/models/compare"
 
 DEEPSEEK_V4_FLASH = ProviderModelCapability(
     provider="deepseek",
@@ -132,7 +137,7 @@ KIMI_K3_PLATFORM = ProviderModelCapability(
     model_id="kimi-k3",
     display_name="Kimi K3",
     availability_status="verified",
-    source_refs=[_KIMI_PLATFORM_SOURCE],
+    source_refs=[_KIMI_PLATFORM_SOURCE, _KIMI_PLATFORM_PRICING_SOURCE],
     context_window_tokens=1_000_000,
     max_output_tokens=1_048_576,
     modalities=["text", "image", "video"],
@@ -161,6 +166,7 @@ KIMI_CODE_K3 = ProviderModelCapability(
     source_refs=[_KIMI_CODE_SOURCE],
     context_window_tokens=1_000_000,
     max_output_tokens=None,
+    modalities=["text", "image", "video"],
     supports_tools=True,
     supports_structured_output=False,
     supports_streaming=True,
@@ -170,7 +176,11 @@ KIMI_CODE_K3 = ProviderModelCapability(
     billing_model="membership_quota",
     adapter_status="coding_surface_only",
     eligible_for_eachat=False,
-    entitlement_notes="Kimi Code membership surface; not an EACHAT product-runtime credential.",
+    entitlement_notes=(
+        "Kimi Code membership surface; K3 requires Moderato or above and the "
+        "up-to-1M context requires Allegretto or above. Not an EACHAT "
+        "product-runtime credential."
+    ),
 )
 
 KIMI_CODE_K27 = ProviderModelCapability(
@@ -193,8 +203,13 @@ KIMI_CODE_K27 = ProviderModelCapability(
     billing_model="membership_quota",
     adapter_status="coding_surface_only",
     eligible_for_eachat=False,
-    entitlement_notes="Coding-agent membership model; thinking remains enabled.",
+    entitlement_notes=(
+        "Kimi Code membership model available to all members; 256K context and "
+        "Thinking ON. Not an EACHAT product-runtime credential."
+    ),
 )
+
+_OPENAI_REASONING_VALUES = ["none", "low", "medium", "high", "xhigh", "max"]
 
 GPT56_LUNA = ProviderModelCapability(
     provider="openai",
@@ -202,22 +217,31 @@ GPT56_LUNA = ProviderModelCapability(
     endpoint_base_url="https://api.openai.com/v1",
     model_id="gpt-5.6-luna",
     display_name="GPT-5.6 Luna",
-    availability_status="preview",
-    source_refs=[_OPENAI_RELEASE_SOURCE, _OPENAI_HELP_SOURCE],
-    context_window_tokens=None,
-    max_output_tokens=None,
+    availability_status="verified",
+    source_refs=[
+        _OPENAI_RELEASE_SOURCE,
+        _OPENAI_MODELS_SOURCE,
+        _OPENAI_COMPARE_SOURCE,
+    ],
+    context_window_tokens=1_050_000,
+    max_output_tokens=128_000,
+    modalities=["text", "image"],
     supports_tools=True,
     supports_structured_output=True,
     supports_streaming=True,
     supports_prompt_caching=True,
     supported_effort_profiles=["fast"],
-    provider_reasoning_values=[],
-    input_price_per_million=1.00,
-    output_price_per_million=6.00,
+    provider_reasoning_values=_OPENAI_REASONING_VALUES,
+    input_price_per_million=0.20,
+    cached_input_price_per_million=0.02,
+    output_price_per_million=1.20,
     billing_model="pay_as_you_go",
     adapter_status="implemented_live_unproven",
     calibration_status="deterministic_mapping",
-    entitlement_notes="Preview availability; exact context/output limits are not published in the cited preview docs.",
+    entitlement_notes=(
+        "General-availability API model. Temporal pricing and limits were "
+        "reverified from current OpenAI Developers documentation on 2026-08-23."
+    ),
 )
 
 GPT56_TERRA = ProviderModelCapability(
@@ -226,22 +250,31 @@ GPT56_TERRA = ProviderModelCapability(
     endpoint_base_url="https://api.openai.com/v1",
     model_id="gpt-5.6-terra",
     display_name="GPT-5.6 Terra",
-    availability_status="preview",
-    source_refs=[_OPENAI_RELEASE_SOURCE, _OPENAI_HELP_SOURCE],
-    context_window_tokens=None,
-    max_output_tokens=None,
+    availability_status="verified",
+    source_refs=[
+        _OPENAI_RELEASE_SOURCE,
+        _OPENAI_MODELS_SOURCE,
+        _OPENAI_COMPARE_SOURCE,
+    ],
+    context_window_tokens=1_050_000,
+    max_output_tokens=128_000,
+    modalities=["text", "image"],
     supports_tools=True,
     supports_structured_output=True,
     supports_streaming=True,
     supports_prompt_caching=True,
     supported_effort_profiles=["balanced"],
-    provider_reasoning_values=[],
-    input_price_per_million=2.50,
-    output_price_per_million=15.00,
+    provider_reasoning_values=_OPENAI_REASONING_VALUES,
+    input_price_per_million=2.00,
+    cached_input_price_per_million=0.20,
+    output_price_per_million=12.00,
     billing_model="pay_as_you_go",
     adapter_status="implemented_live_unproven",
     calibration_status="deterministic_mapping",
-    entitlement_notes="Preview availability; exact context/output limits are not published in the cited preview docs.",
+    entitlement_notes=(
+        "General-availability API model. Temporal pricing and limits were "
+        "reverified from current OpenAI Developers documentation on 2026-08-23."
+    ),
 )
 
 GPT56_SOL = ProviderModelCapability(
@@ -250,22 +283,32 @@ GPT56_SOL = ProviderModelCapability(
     endpoint_base_url="https://api.openai.com/v1",
     model_id="gpt-5.6-sol",
     display_name="GPT-5.6 Sol",
-    availability_status="preview",
-    source_refs=[_OPENAI_RELEASE_SOURCE, _OPENAI_HELP_SOURCE],
-    context_window_tokens=None,
-    max_output_tokens=None,
+    availability_status="verified",
+    source_refs=[
+        _OPENAI_RELEASE_SOURCE,
+        _OPENAI_MODELS_SOURCE,
+        _OPENAI_COMPARE_SOURCE,
+    ],
+    context_window_tokens=1_050_000,
+    max_output_tokens=128_000,
+    modalities=["text", "image"],
     supports_tools=True,
     supports_structured_output=True,
     supports_streaming=True,
     supports_prompt_caching=True,
     supported_effort_profiles=["max"],
-    provider_reasoning_values=["max"],
-    input_price_per_million=5.00,
-    output_price_per_million=30.00,
+    provider_reasoning_values=_OPENAI_REASONING_VALUES,
+    input_price_per_million=4.00,
+    cached_input_price_per_million=0.40,
+    output_price_per_million=20.00,
     billing_model="pay_as_you_go",
     adapter_status="implemented_live_unproven",
     calibration_status="deterministic_mapping",
-    entitlement_notes="Preview availability; exact context/output limits are not published in the cited preview docs.",
+    entitlement_notes=(
+        "General-availability API model. Current pricing includes the temporary "
+        "Sol reduction announced 2026-08-21 and must be reverified before the "
+        "catalog review deadline."
+    ),
 )
 
 MODEL_CATALOG: tuple[ProviderModelCapability, ...] = (
@@ -299,6 +342,30 @@ def get_provider_models(
         if item.provider == provider
         and (item.eligible_for_eachat or not eachat_only)
     ]
+
+
+def assert_catalog_fresh(
+    *,
+    as_of: date | None = None,
+    max_age_days: int = CATALOG_MAX_AGE_DAYS,
+) -> None:
+    """Fail closed when temporal provider facts have exceeded their review window."""
+
+    if max_age_days < 1:
+        raise ValueError("max_age_days must be positive")
+    check_date = as_of or date.today()
+    verified_at = date.fromisoformat(CATALOG_VERIFIED_AT)
+    review_by = date.fromisoformat(CATALOG_REVIEW_BY)
+    age_days = (check_date - verified_at).days
+    if age_days < 0:
+        raise RuntimeError("Provider catalog verification date is in the future.")
+    if (review_by - verified_at).days > max_age_days:
+        raise RuntimeError("Provider catalog review window exceeds the maximum age.")
+    if check_date > review_by or age_days > max_age_days:
+        raise RuntimeError(
+            "Provider catalog temporal facts are stale; reverify official sources "
+            "and advance the catalog evidence before release."
+        )
 
 
 def resolve_effort_profile(
