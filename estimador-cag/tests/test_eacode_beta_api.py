@@ -147,10 +147,12 @@ def test_missing_demo_run_returns_404_for_signed_session(tmp_path, monkeypatch) 
     )
 
 
-def test_ui_exposes_server_owned_authorization_boundary() -> None:
+def test_ui_exposes_tool_neutral_server_owned_authorization_boundary() -> None:
     response = client.get("/eacode/ui")
     assert response.status_code == 200
-    assert 'id="beta-demo"' in response.text
+    assert 'id="gateway-submit"' in response.text
     assert 'id="operator-token"' in response.text
-    assert "one-time server-issued receipt" in response.text
-    assert "Repair and authority timeline" in response.text
+    assert "Coding tools propose; EACODE governs" in response.text
+    assert "Execution remains simulated" in response.text
+    for label in ("Claude Code", "Kimi Code", "Cline", "Codex", "Gemini CLI", "Antigravity"):
+        assert label in response.text
