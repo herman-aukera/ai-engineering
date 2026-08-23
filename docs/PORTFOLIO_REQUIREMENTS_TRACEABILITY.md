@@ -2,7 +2,7 @@
 
 Status: canonical zero-gap certification matrix
 
-Machine source: `docs/portfolio_requirements_traceability.json`
+Machine source: `docs/portfolio_requirements_traceability.json` (canonical v2 composition over the preserved v1 base)
 
 Validator: `estimador-cag/scripts/verify_portfolio_requirements.py`
 
@@ -22,13 +22,13 @@ It does not authorize merging the peer branches or physically extracting reposit
 
 | Classification | Rows |
 |---|---:|
-| Total | 184 |
-| PASS | 176 |
+| Total | 185 |
+| PASS | 177 |
 | N/A | 0 |
 | BLOCKED_EXTERNAL | 8 |
 | FAIL | 0 |
 
-A final hosted certificate counts only when the validator reports the same zero-failure accounting against the exact branch heads captured by that run.
+The validator cross-checks this human accounting table against the composed machine RTM. A final hosted certificate counts only when both representations agree and the validator reports the same zero-failure accounting against the exact branch heads captured by that run.
 
 ## Requirement families
 
@@ -42,7 +42,7 @@ A final hosted certificate counts only when the validator reports the same zero-
 | `CODE-*` | EACODE definition of done |
 | `AI-*` | provider abstraction, structured output, prompt/evidence safety, evaluation |
 | `RES-*` | resilience, persistence, restart, Spot preparation, repository split contracts |
-| `SC-*` | immutable Actions, immutable executable images, anti-regression scanners, Dependabot |
+| `SC-*` | immutable Actions, immutable executable images/tools, anti-regression scanners, Dependabot |
 | `EXT-*` | approved genuinely external completion work only |
 
 ## Evidence model
@@ -83,9 +83,10 @@ Anything repository-controlled must be repaired until it is `PASS`.
 - a `PASS` row lacks implementation, test, or CI evidence;
 - a referenced branch-qualified evidence path is missing when exact branch roots are supplied;
 - a `PASS` row carries an external blocker;
-- `BLOCKED_EXTERNAL` uses a category outside the approved list.
+- `BLOCKED_EXTERNAL` uses a category outside the approved list;
+- this human accounting table diverges from the composed canonical machine RTM.
 
-The strengthened portfolio final gate also executes the Action-pin, image-pin, Dependabot, protocol, documentation-truth, dependency, smoke, production-contract, Docker, non-root, secret, clean-tree, and split-dry-run contracts.
+The strengthened portfolio final gate also executes the Action-pin, image-pin, tool-pin, Dependabot, protocol, documentation-truth, dependency, smoke, production-contract, Docker, non-root, secret, clean-tree, and split-dry-run contracts.
 
 ## Certification boundary
 
