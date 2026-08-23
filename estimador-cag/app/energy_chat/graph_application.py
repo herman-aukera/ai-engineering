@@ -16,7 +16,6 @@ from app.energy_chat.api_v2_contracts import (
     UUID4IDFactory,
 )
 from app.energy_chat.candidate_provider import (
-    BaselineCandidateProvider,
     CandidateProvider,
     DeterministicCandidateProvider,
     ProviderBudget,
@@ -25,7 +24,6 @@ from app.energy_chat.committee_orchestration import (
     CommitteeCandidateProvider,
     resolve_adaptive_orchestration,
 )
-from app.energy_chat.contracts import ProviderTier
 from app.energy_chat.graph_checkpoint import InMemoryCheckpointer
 from app.energy_chat.graph_runtime import run_energy_chat_graph
 from app.energy_chat.graph_state import EnergyChatGraphState
@@ -228,28 +226,13 @@ def _resolve_provider(
                 f"'{request.effort_profile}' has no verified compatible model."
             ),
         )
-
-    if request.provider_preference == "deepseek":
-        adapter = BaselineCandidateProvider()
-        configure = getattr(adapter, "configure_fallback_policy", None)
-        if callable(configure):
-            configure(
-                allow_provider_fallback=request.allow_provider_fallback,
-                tier_ladder=_fallback_tier_ladder(request),
-            )
-        elif request.allow_provider_fallback:
-            raise ProviderUnavailableError(
-                provider="deepseek",
-                detail="The injected provider adapter cannot enforce fallback authorization.",
-            )
-        return adapter
-
     if request.allow_provider_fallback:
         raise ProviderUnavailableError(
             provider=request.provider_preference,
             detail=(
-                "Direct Kimi/OpenAI adapters do not perform provider fallback. "
-                "Retry with fallback disabled or select DeepSeek with an explicit allow-list."
+                "Cross-provider fallback is not implemented on the isolated V2 "
+                "production adapter. Retry with fallback disabled and select the "
+                "verified provider explicitly."
             ),
         )
     try:
@@ -265,23 +248,6 @@ def _resolve_provider(
                 "adapter is unavailable with the current credential/configuration."
             ),
         ) from exc
-
-
-def _fallback_tier_ladder(request: EnergyChatV2Request) -> list[ProviderTier]:
-    ladder: list[ProviderTier] = ["flash"]
-    if not request.allow_provider_fallback:
-        return ladder
-    allowed = set(request.fallback_provider_allowlist)
-    if "openai" in allowed:
-        raise ProviderUnavailableError(
-            provider="openai",
-            detail="OpenAI fallback is not implemented for the current provider seam.",
-        )
-    if "deepseek" in allowed:
-        ladder.append("pro")
-    if "kimi" in allowed:
-        ladder.extend(["backup", "backup_pro"])
-    return list(dict.fromkeys(ladder))
 
 
 def _resolve_budget(request: EnergyChatV2Request) -> ProviderBudget:
@@ -341,7 +307,9 @@ def project_v2_response(
                 f"allowlist={request.fallback_provider_allowlist}"
             )
         else:
-            routing_reason = f"live route served {last.provider}/{last.model} without fallback"
+            routing_reason = (
+                f"live route served {last.provider}/{last.model} without fallback"
+            )
     provider_summary = ProviderMetricsSummary(
         provider_call_count=len(metrics_list),
         providers_used=list(dict.fromkeys(item.provider for item in metrics_list)),
