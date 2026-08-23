@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -33,6 +34,10 @@ REQUIRED_FIELDS = {
 BUNDLE_FIELDS = ("implementation", "test", "CI_evidence")
 V1_SCHEMA = "energy-aware.portfolio-rtm.v1"
 V2_SCHEMA = "energy-aware.portfolio-rtm.v2"
+HUMAN_INDEX_NAME = "PORTFOLIO_REQUIREMENTS_TRACEABILITY.md"
+_ACCOUNTING_ROW = re.compile(
+    r"^\|\s*(Total|PASS|N/A|BLOCKED_EXTERNAL|FAIL)\s*\|\s*(\d+)\s*\|\s*$"
+)
 
 
 def _parse_repos(values: list[str]) -> dict[str, Path]:
@@ -199,30 +204,65 @@ def validate_rtm(payload: dict[str, object], repos: dict[str, Path] | None = Non
     return errors
 
 
+def accounting(payload: dict[str, object]) -> dict[str, int]:
+    rows = payload.get("requirements")
+    if not isinstance(rows, list):
+        raise ValueError("requirements must be a list before accounting")
+    counts = {status: sum(1 for row in rows if row.get("status") == status) for status in VALID_STATUSES}
+    return {
+        "Total": len(rows),
+        "PASS": counts["PASS"],
+        "N/A": counts["N/A"],
+        "BLOCKED_EXTERNAL": counts["BLOCKED_EXTERNAL"],
+        "FAIL": 0,
+    }
+
+
+def validate_human_index(path: Path, payload: dict[str, object]) -> list[str]:
+    """Require the human RTM accounting table to match the canonical machine RTM."""
+    if not path.exists():
+        return [f"human RTM index missing: {path}"]
+    found: dict[str, int] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = _ACCOUNTING_ROW.match(line)
+        if match:
+            found[match.group(1)] = int(match.group(2))
+    expected = accounting(payload)
+    errors: list[str] = []
+    for key, value in expected.items():
+        if key not in found:
+            errors.append(f"human RTM accounting row missing: {key}")
+        elif found[key] != value:
+            errors.append(f"human RTM accounting mismatch for {key}: human={found[key]} machine={value}")
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--rtm",
-        default=str(Path(__file__).resolve().parents[2] / "docs" / "portfolio_requirements_traceability_v2.json"),
+        default=str(Path(__file__).resolve().parents[2] / "docs" / "portfolio_requirements_traceability.json"),
     )
     parser.add_argument("--repo", action="append", default=[])
     args = parser.parse_args()
+    rtm_path = Path(args.rtm)
     try:
-        payload = load_rtm(Path(args.rtm))
+        payload = load_rtm(rtm_path)
         repos = _parse_repos(args.repo)
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(str(exc))
         return 2
     errors = validate_rtm(payload, repos)
+    if rtm_path.name != "portfolio_requirements_traceability_v1.json":
+        errors.extend(validate_human_index(rtm_path.parent / HUMAN_INDEX_NAME, payload))
     if errors:
         print("\n".join(errors))
         return 1
-    rows = payload["requirements"]
-    counts = {status: sum(1 for row in rows if row["status"] == status) for status in VALID_STATUSES}
+    counts = accounting(payload)
     print(
         "PORTFOLIO_RTM_OK "
-        f"total={len(rows)} pass={counts['PASS']} na={counts['N/A']} "
-        f"blocked_external={counts['BLOCKED_EXTERNAL']} fail=0"
+        f"total={counts['Total']} pass={counts['PASS']} na={counts['N/A']} "
+        f"blocked_external={counts['BLOCKED_EXTERNAL']} fail={counts['FAIL']}"
     )
     return 0
 
