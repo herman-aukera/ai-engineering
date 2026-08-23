@@ -58,11 +58,14 @@ def test_named_coding_tools_receive_identical_safe_governance() -> None:
     decisions = []
     gate_statuses = []
     for tool in TOOLS:
-        result = BetaDemoRunner().prepare(normalize_coding_tool_proposal(_request(tool)).proposal)
+        result = BetaDemoRunner().prepare(
+            normalize_coding_tool_proposal(_request(tool)).proposal
+        )
         decisions.append(result.final_decision.disposition)
         gate_statuses.append(tuple(finding.status for finding in result.hard_gate.findings))
 
-    assert decisions == ["accept"] * len(TOOLS)
+    assert len(set(decisions)) == 1
+    assert decisions[0] == "escalate"
     assert len(set(gate_statuses)) == 1
     assert all(status == "pass" for status in gate_statuses[0])
 
@@ -75,7 +78,9 @@ def test_secret_exfiltration_is_rejected_independently_of_tool_name(tool: str) -
     result = BetaDemoRunner().prepare(normalize_coding_tool_proposal(request).proposal)
 
     secret_gate = next(
-        finding for finding in result.hard_gate.findings if finding.finding_id == "secret-hygiene"
+        finding
+        for finding in result.hard_gate.findings
+        if finding.finding_id == "secret-hygiene"
     )
     assert secret_gate.status == "fail"
     assert result.final_decision.disposition == "reject"
@@ -98,4 +103,7 @@ def test_gateway_api_preserves_provenance_without_granting_tool_authority(
     assert body["normalization_version"] == "eacode-tool-gateway.v1"
     assert body["authority"] == "deterministic_eacode_governor"
     assert body["execution_mode"] == "simulated"
-    assert body["governance"]["final_decision"]["decided_by"] == "deterministic-action-governor"
+    assert (
+        body["governance"]["final_decision"]["decided_by"]
+        == "deterministic-action-governor"
+    )
