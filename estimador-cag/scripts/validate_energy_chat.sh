@@ -28,6 +28,9 @@ ENERGY_CHAT_SCRIPT_TARGETS=(
   scripts/render_energy_chat_closeout_pack.py
   scripts/render_energy_chat_unsupervised_continuation.py
   scripts/list_energy_chat_artifacts.py
+  scripts/ingest_eachat_support_rag.py
+  scripts/smoke_eachat_final_project_live.py
+  evals/energy_chat/final_project_eval.py
 )
 
 echo "=== ENERGY CHAT VALIDATION: RUFF FIX ==="
