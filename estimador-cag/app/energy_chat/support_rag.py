@@ -11,12 +11,12 @@ import json
 import math
 import os
 import re
-from collections.abc import Protocol
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
 from html.parser import HTMLParser
 from pathlib import Path
+from typing import Protocol  # noqa: UP035 - collections.abc.Protocol is unavailable on Python 3.11
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
