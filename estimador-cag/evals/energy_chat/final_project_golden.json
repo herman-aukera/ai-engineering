@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "cases": [
     {
       "case_id": "spring-health-503",
@@ -42,6 +42,12 @@
       "query": "Spring Boot reports database health DOWN and PostgreSQL has many active sessions. What should L2 support inspect first?",
       "expected_source_ids": ["spring_boot_actuator_endpoints", "postgres_monitoring_stats", "postgres_connections"],
       "expected_disposition": "accept"
+    },
+    {
+      "case_id": "version-source-conflict",
+      "query": "Our service runs Spring Boot 2.7.18. Are the current Actuator health endpoint defaults exactly the same? Give me a version-specific answer.",
+      "expected_source_ids": ["spring_boot_actuator_endpoints", "spring_boot_actuator_monitoring"],
+      "expected_disposition": "clarify"
     },
     {
       "case_id": "insufficient-evidence-root-cause",
