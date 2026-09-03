@@ -5,7 +5,7 @@ from app.energy_chat.graph_nodes import (
     load_policy_and_constraints,
 )
 from app.energy_chat.graph_state import EnergyChatGraphState
-from app.energy_chat.policies import default_chat_lite_policy
+from app.energy_chat.policies import REQUEST_POLICY_VERSION, default_chat_lite_policy
 
 
 def _state(**updates: object) -> EnergyChatGraphState:
@@ -60,7 +60,7 @@ def test_policy_node_matches_existing_default_and_normalizes_constraints() -> No
         "policy_version": default_chat_lite_policy().version,
         "request_policy_directive": "continue",
         "request_policy_rule_id": "request_allowed",
-        "request_policy_version": "energy-chat-request-policy-1.0.0",
+        "request_policy_version": REQUEST_POLICY_VERSION,
     }
 
 
