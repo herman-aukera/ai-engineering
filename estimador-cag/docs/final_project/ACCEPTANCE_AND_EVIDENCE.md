@@ -19,6 +19,7 @@ Status: final-project closure gate
 | Monitoring | authenticated JSON + HTML dashboard | IMPLEMENTED / FINAL CI + BROWSER PROOF PENDING |
 | Local deployment | Caddy → EACHAT → PostgreSQL/pgvector + one-shot ingest | IMPLEMENTED / LIVE COMPOSE SMOKE PENDING |
 | Restart persistence proof | compose smoke restarts EACHAT then re-queries RAG | IMPLEMENTED / EXECUTION PENDING |
+| Demo video package | exact three-minute script + payloads + safe recording checklist | IMPLEMENTED / RECORDING PENDING |
 | README/docs | reviewer-first final-project package | IMPLEMENTED / FINAL DOC REVIEW PENDING |
 | No secrets | deterministic secret/diff gates | FINAL EXACT-HEAD CI PENDING |
 | Deployment evidence | public URL OR 2–3 minute video | EXTERNAL BLOCKER |
@@ -42,7 +43,10 @@ A GO claim still requires external execution evidence for the final SHA:
 6. local Compose/restart proof or equivalent deployment evidence;
 7. public URL or required 2–3 minute video.
 
-The repository provides the manual `Final Project - Live RAG Proof` workflow for items 1–5 and `scripts/smoke_eachat_final_project_compose.py` for the local full-stack/restart proof. These are LIVE-READY until actually executed.
+The repository provides the manual `Final Project - Live RAG Proof` workflow for items
+1–6, including `scripts/smoke_eachat_final_project_compose.py` for the full-stack/restart
+proof. The same Compose smoke remains directly runnable on a local Docker host. These are
+LIVE-READY until actually executed.
 
 ## Final-project GO rule
 

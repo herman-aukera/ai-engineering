@@ -1,13 +1,25 @@
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_SCRIPT = ROOT / "scripts" / "export_energy_chat_manifest.sh"
 
 
+def _bash_executable() -> str:
+    if sys.platform == "win32":
+        git = shutil.which("git")
+        if git:
+            candidate = Path(git).resolve().parents[1] / "bin" / "bash.exe"
+            if candidate.is_file():
+                return str(candidate)
+    return "bash"
+
+
 def _manifest_output() -> str:
     result = subprocess.run(
-        ["bash", str(MANIFEST_SCRIPT)],
+        [_bash_executable(), str(MANIFEST_SCRIPT)],
         cwd=ROOT,
         check=True,
         capture_output=True,

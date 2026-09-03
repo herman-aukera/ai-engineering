@@ -161,6 +161,12 @@ jobs:
           --strict
           --output /tmp/final-project-system-eval.json
 
+      - name: Run full Compose restart-persistence proof
+        run: >-
+          uv run python scripts/smoke_eachat_final_project_compose.py
+          --cleanup
+          > /tmp/final-project-compose-smoke.json
+
       - name: Reject secrets from evidence artifacts
         run: |
           python - <<'PY'
@@ -172,6 +178,7 @@ jobs:
               Path('/tmp/final-project-retrieval-report.json'),
               Path('/tmp/final-project-live-answer.json'),
               Path('/tmp/final-project-system-eval.json'),
+              Path('/tmp/final-project-compose-smoke.json'),
           ]
           patterns = (
               r'sk-[A-Za-z0-9_-]{20,}',
@@ -192,4 +199,5 @@ jobs:
             /tmp/final-project-retrieval-report.json
             /tmp/final-project-live-answer.json
             /tmp/final-project-system-eval.json
+            /tmp/final-project-compose-smoke.json
           if-no-files-found: error

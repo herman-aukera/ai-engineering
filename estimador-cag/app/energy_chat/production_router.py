@@ -18,8 +18,8 @@ from app.energy_chat.api_v2_contracts import (
 from app.energy_chat.candidate_provider import ProviderBudgetExceededError
 from app.energy_chat.graph_application import build_v2_error_detail
 from app.energy_chat.monitoring import (
-    EnergyChatMonitoringWindow,
     MonitoringSnapshot,
+    get_monitoring_window,
     render_monitoring_dashboard,
 )
 from app.energy_chat.ownership_http import assert_resource_owner, claim_resource
@@ -31,7 +31,7 @@ from app.energy_chat.runtime_container import (
 from app.energy_chat.settings import energy_chat_v2_enabled
 
 router = APIRouter()
-_MONITORING = EnergyChatMonitoringWindow(max_samples=500)
+_MONITORING = get_monitoring_window()
 
 
 def _require_v2_enabled() -> None:

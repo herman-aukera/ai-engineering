@@ -39,7 +39,7 @@ def _is_external_image(value: str) -> bool:
 
 def _check_image_value(path: Path, root: Path, lineno: int, value: str) -> str | None:
     value = value.strip().strip('"').strip("'")
-    rel = str(path.relative_to(root))
+    rel = path.relative_to(root).as_posix()
     if not value:
         return None
     if "$" in value:
@@ -116,7 +116,8 @@ def find_mutable_image_refs(root: Path) -> list[str]:
                 continue
             image, alias = match.groups()
             if image not in stages and _is_external_image(image) and not DIGEST.search(image):
-                errors.append(f"{path.relative_to(root)}:{lineno}: mutable Dockerfile base image: {image}")
+                rel = path.relative_to(root).as_posix()
+                errors.append(f"{rel}:{lineno}: mutable Dockerfile base image: {image}")
             if alias:
                 stages.add(alias)
 

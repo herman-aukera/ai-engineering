@@ -12,7 +12,7 @@ DEFENSE_DOC = Path("docs/session04-live-plus-defense.md")
 
 
 def test_readme_documents_current_live_plus_architecture():
-    text = README.read_text()
+    text = README.read_text(encoding="utf-8")
 
     required = [
         "Session 04 Live Plus",
@@ -32,7 +32,7 @@ def test_readme_documents_current_live_plus_architecture():
 
 
 def test_readme_no_longer_claims_structured_guardrails_or_semantic_cache_are_missing():
-    text = README.read_text()
+    text = README.read_text(encoding="utf-8")
 
     forbidden = [
         "Structured JSON output from the LLM.",
@@ -48,7 +48,7 @@ def test_readme_no_longer_claims_structured_guardrails_or_semantic_cache_are_mis
 def test_class_defense_doc_exists_and_covers_production_hardening_topics():
     assert DEFENSE_DOC.exists()
 
-    text = DEFENSE_DOC.read_text()
+    text = DEFENSE_DOC.read_text(encoding="utf-8")
 
     required = [
         "Provider fallback ladder",

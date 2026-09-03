@@ -48,6 +48,8 @@ exact selected SHA
 → persisted retrieval evaluation
 → one bounded live EACHAT answer
 → full 11-case live golden-set evaluation
+→ full Compose build + readiness + authenticated RAG requests
+→ EACHAT restart + persisted RAG evidence re-query
 → secret scan
 → sanitized artifact upload
 ```
@@ -63,6 +65,7 @@ final-project-ingestion.json
 final-project-retrieval-report.json
 final-project-live-answer.json
 final-project-system-eval.json
+final-project-compose-smoke.json
 ```
 
 `final-project-ingestion.json` should show 16 sources, at least 16 active chunks, `text-embedding-3-small`, and `vector_backend=postgresql_pgvector_hnsw`.
@@ -75,6 +78,10 @@ final-project-system-eval.json
 
 The workflow invokes the system evaluator with `--strict`; a disposition mismatch is a
 failed proof, not a green run with a low score hidden in an artifact.
+
+`final-project-compose-smoke.json` proves that the Caddy/FastAPI/pgvector stack became
+ready, returned source evidence, restarted the EACHAT container, and returned persisted
+RAG evidence afterward. It records neither answers nor credentials.
 
 ## Failure handling
 

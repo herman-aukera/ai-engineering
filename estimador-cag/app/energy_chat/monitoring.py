@@ -106,6 +106,15 @@ class EnergyChatMonitoringWindow:
             self._samples.append(sample)
 
 
+_DEFAULT_MONITORING_WINDOW = EnergyChatMonitoringWindow(max_samples=500)
+
+
+def get_monitoring_window() -> EnergyChatMonitoringWindow:
+    """Return the process-wide bounded monitor shared by every product chat route."""
+
+    return _DEFAULT_MONITORING_WINDOW
+
+
 def render_monitoring_dashboard(snapshot: MonitoringSnapshot) -> str:
     cards = (
         ("Requests", str(snapshot.request_count)),
@@ -156,5 +165,6 @@ __all__ = [
     "EnergyChatMonitoringWindow",
     "MonitoringSample",
     "MonitoringSnapshot",
+    "get_monitoring_window",
     "render_monitoring_dashboard",
 ]

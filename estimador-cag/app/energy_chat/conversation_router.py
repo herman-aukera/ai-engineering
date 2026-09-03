@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from time import perf_counter
+
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.energy_chat.api_v2_contracts import (
@@ -29,6 +31,7 @@ from app.energy_chat.conversation_store import (
     ConversationTurnConflictError,
 )
 from app.energy_chat.graph_application import build_v2_error_detail
+from app.energy_chat.monitoring import get_monitoring_window
 from app.energy_chat.ownership_http import (
     assert_resource_owner,
     claim_resource,
@@ -38,6 +41,7 @@ from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
 from app.energy_chat.settings import energy_chat_v2_enabled
 
 router = APIRouter()
+_MONITORING = get_monitoring_window()
 
 
 def _require_v2_enabled() -> None:
@@ -131,6 +135,8 @@ def create_v2_conversation_turn(
     http_request: Request,
     response: Response,
 ) -> ConversationTurnResponse:
+    started = perf_counter()
+    completed = False
     _require_v2_enabled()
     assert_resource_owner(http_request, "conversation", conversation_id)
     try:
@@ -143,6 +149,15 @@ def create_v2_conversation_turn(
         claim_resource(http_request, "thread", result.turn.graph_thread_id)
         if result.replayed_idempotency_key:
             response.headers["X-Idempotent-Replay"] = "true"
+        graph_response = result.turn.graph_response
+        metrics = graph_response.provider_metrics_summary
+        _MONITORING.record_success(
+            wall_latency_ms=_elapsed_ms(started),
+            provider_call_count=metrics.provider_call_count,
+            provider_cost_usd=metrics.total_cost_usd,
+            disposition=graph_response.final_disposition,
+        )
+        completed = True
         return result
     except ConversationNotFoundError as exc:
         raise HTTPException(
@@ -193,3 +208,10 @@ def create_v2_conversation_turn(
                 "Conversation turn execution failed. See server logs for details.",
             ).model_dump(),
         ) from exc
+    finally:
+        if not completed:
+            _MONITORING.record_error(wall_latency_ms=_elapsed_ms(started))
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((perf_counter() - started) * 1000))

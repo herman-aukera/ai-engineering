@@ -30,6 +30,20 @@ Energy Card + Decision Ledger + safe trace
 
 Canonical application entry point: `app.energy_chat.production_app:app`. Canonical business APIs are under `/energy-chat/v2/*`; `/health`, `/ready` and `/version` are operational probes. Protected business and monitoring routes require signed actor identity.
 
+## Technical decisions: RAG, CAG and agent orchestration
+
+- **RAG is the support-evidence backbone.** Operational claims come from retrieved,
+  traceable documentation chunks rather than a static prompt or model memory.
+- **CAG is not presented as the live support corpus.** Historical Estimator CAG remains
+  regression-only; EACHAT injects bounded policies, constraints and conversation context,
+  while evidence-requiring Spring/PostgreSQL/Docker facts use the real RAG path.
+- **LangGraph provides the agentic mechanism.** It executes explicit evidence,
+  candidate, critic, score, decision, repair, human-gate, ledger and projection nodes.
+  Providers propose candidate text; deterministic policy retains final authority.
+- **PostgreSQL is the bounded durable platform.** The local topology shares one database
+  for pgvector evidence and EACHAT checkpoints/conversations/ownership, while keeping
+  those schemas and responsibilities separate.
+
 ## Real final-project RAG
 
 The source manifest is `docs/final_project/support_source_manifest.json` and currently contains 16 curated HTTPS pages from official Spring Boot, PostgreSQL and Docker documentation.
@@ -143,8 +157,15 @@ The local Compose defaults for DB password, encryption key and session-signing k
 
 ```bash
 cd estimador-cag
+uv sync --frozen --extra dev
 DEEPSEEK_API_KEY=test KIMI_API_KEY=test OPENAI_API_KEY=test uv run pytest -q
 bash scripts/validate_energy_chat.sh
+```
+
+On Windows without a system `libpq`, install the locked PostgreSQL wrapper as well:
+
+```powershell
+uv sync --frozen --extra dev --extra postgres
 ```
 
 Focused final-project contracts:
@@ -172,6 +193,7 @@ prove, for the exact selected SHA:
 → retrieval report
 → one bounded live answer
 → full 11-case live system evaluation
+→ full Compose build and restart-persistence smoke
 → sanitized artifacts
 ```
 
@@ -191,6 +213,8 @@ uv run uvicorn app.energy_chat.production_app:app --host 0.0.0.0 --port 8000
 ```
 
 Then inspect `/health`, `/ready`, `/version`, and `/energy-chat/v2/demo`.
+The browser requires a signed session token for business actions; use the token-generation
+step in `docs/final_project/DEMO_VIDEO_SCRIPT.md` and paste it into the password field.
 
 ## Production-state boundaries inherited from EACHAT
 
@@ -206,6 +230,7 @@ EACHAT retains signed actor/tenant ownership, strict PostgreSQL-backed LangGraph
 - `docs/final_project/DEPLOYMENT_LOCAL.md`
 - `docs/final_project/ACCEPTANCE_AND_EVIDENCE.md`
 - `docs/final_project/LIVE_PROOF_RUNBOOK.md`
+- `docs/final_project/DEMO_VIDEO_SCRIPT.md`
 - `docs/final_project/support_source_manifest.json`
 
 ## Historical coursework compatibility
@@ -242,3 +267,15 @@ These Session 04/05 contracts remain regression evidence only; they are not moun
 Repository-controlled implementation covers the concrete domain, real-data manifest, ingestion/chunking/embeddings, native pgvector/index/retrieval path, governed graph, golden set, deterministic regressions, live evaluation harness, monitoring and reproducible local container topology.
 
 Still separate external evidence until actually produced for the final SHA: live source acquisition, real embedding/vector counts, measured live reports, local/full deployment smoke, and the assignment's public URL **or** required 2–3 minute video. The correct status before those artifacts exist is **LIVE-READY**, not production-ready or submission-complete.
+
+## Limitations and next steps
+
+Current limitations: the corpus is a curated 16-page, current-documentation slice rather
+than a version-complete support archive; retrieval has no reranker; semantic unsupported
+claims have no fixed judge; monitoring is a process-local rolling window; browser OIDC,
+public hosting, real-user telemetry and the submitted video are external work.
+
+Post-submission next steps are to add version-matched source families, evaluate reranking
+against a larger fixed set, adopt durable privacy-reviewed telemetry, integrate browser
+OIDC, and publish either a hardened deployment or the recorded demonstration. None of
+those future items is claimed as implemented here.

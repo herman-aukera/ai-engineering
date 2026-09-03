@@ -79,3 +79,39 @@ def test_production_monitoring_is_authenticated_and_observes_chat(monkeypatch) -
     assert dashboard.status_code == 200
     assert "EACHAT Final Project Monitoring" in dashboard.text
     assert "Prompts, answers, credentials" in dashboard.text
+
+
+def test_production_monitoring_observes_browser_conversation_turns(monkeypatch) -> None:
+    monkeypatch.setenv("LANGGRAPH_STRICT_MSGPACK", "true")
+    monkeypatch.setenv("EACHAT_ALLOW_IN_MEMORY", "true")
+    monkeypatch.setenv("EACHAT_SESSION_SIGNING_KEY", _SIGNING_KEY)
+    monkeypatch.delenv("EACHAT_POSTGRES_URL", raising=False)
+    monkeypatch.delenv("EACHAT_MEMORY_ENCRYPTION_KEY", raising=False)
+    monkeypatch.delenv("EACHAT_SUPPORT_RAG_ENABLED", raising=False)
+
+    token = SignedSessionCodec(_SIGNING_KEY.encode()).issue(
+        subject="browser-reviewer",
+        tenant_id="final-project",
+        roles=("member",),
+        expires_at=datetime.now(UTC) + timedelta(minutes=10),
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with TestClient(create_production_app()) as client:
+        before = client.get("/energy-chat/v2/monitoring", headers=headers).json()
+        created = client.post("/energy-chat/v2/conversations", headers=headers)
+        conversation_id = created.json()["conversation_id"]
+        turn = client.post(
+            f"/energy-chat/v2/conversations/{conversation_id}/turns",
+            headers=headers,
+            json={
+                "turn_id": "monitor-browser-turn",
+                "expected_revision": 0,
+                "user_message": "Which PostgreSQL connection limit should L2 inspect?",
+            },
+        )
+        after = client.get("/energy-chat/v2/monitoring", headers=headers).json()
+
+    assert turn.status_code == 200
+    assert after["request_count"] == before["request_count"] + 1
+    assert sum(after["disposition_counts"].values()) >= 1

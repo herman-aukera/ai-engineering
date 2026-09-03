@@ -68,6 +68,17 @@ def test_v2_product_ui_keeps_only_safe_conversation_index_locally(monkeypatch) -
     assert "replayThread" in html
 
 
+def test_v2_product_ui_sends_signed_identity_without_persisting_the_token(monkeypatch) -> None:
+    monkeypatch.setenv("EACHAT_V2_ENABLED", "true")
+    html = client.get("/energy-chat/v2/demo").text
+
+    assert 'id="sessionToken"' in html
+    assert 'type="password"' in html
+    assert "headers.Authorization=`Bearer ${token}`" in html
+    assert "Session token stays in memory only" in html
+    assert "localStorage.setItem('eachat:v2:session" not in html
+
+
 def test_v2_product_ui_exposes_real_context_and_human_authority(monkeypatch) -> None:
     monkeypatch.setenv("EACHAT_V2_ENABLED", "true")
     html = client.get("/energy-chat/v2/demo").text

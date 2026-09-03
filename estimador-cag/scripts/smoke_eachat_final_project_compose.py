@@ -89,6 +89,7 @@ def _compose(*args: str, env: dict[str, str], check: bool = True) -> subprocess.
         env=env,
         text=True,
         check=check,
+        stdout=sys.stderr,
     )
 
 

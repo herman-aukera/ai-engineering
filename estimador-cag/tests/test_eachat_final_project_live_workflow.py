@@ -7,6 +7,7 @@ REGISTERED_DISPATCHER = Path("../.github/workflows/energy-chat-ci.yml").read_tex
     encoding="utf-8"
 )
 RUNBOOK = Path("docs/final_project/LIVE_PROOF_RUNBOOK.md").read_text(encoding="utf-8")
+DOCKERFILE = Path("deploy/eachat/Dockerfile").read_text(encoding="utf-8")
 
 
 def test_live_rag_workflow_is_manual_exact_head_and_uses_pinned_pgvector() -> None:
@@ -35,6 +36,7 @@ def test_live_rag_workflow_executes_real_ingestion_retrieval_and_full_system_eva
         "scripts/ingest_eachat_support_rag.py",
         "evals/energy_chat/final_project_eval.py",
         "scripts/smoke_eachat_final_project_live.py",
+        "scripts/smoke_eachat_final_project_compose.py",
         "evals/energy_chat/final_project_system_eval.py",
         "EACHAT_SUPPORT_RAG_ENABLED: \"true\"",
         "EACHAT_SUPPORT_EMBEDDING_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
@@ -44,6 +46,7 @@ def test_live_rag_workflow_executes_real_ingestion_retrieval_and_full_system_eva
         "--effort \"${{ inputs.effort }}\"",
         "--strict",
         "final-project-system-eval.json",
+        "final-project-compose-smoke.json",
         "final-project-live-rag-${{ inputs.provider }}-${{ inputs.effort }}",
     )
     for item in required:
@@ -62,6 +65,11 @@ def test_live_rag_workflow_keeps_secrets_out_of_evidence_artifacts() -> None:
         assert "credential_recorded" in text
 
 
+def test_production_image_contains_every_exposed_browser_asset() -> None:
+    assert "docs/energy_chat_v2_demo.html" in DOCKERFILE
+    assert "docs/eachat_byok_tester.html" in DOCKERFILE
+
+
 def test_runbook_preserves_live_evidence_claim_boundary() -> None:
     assert "Deterministic CI must not silently call paid providers" in RUNBOOK
     assert "Energy Aware Chat CI" in RUNBOOK
@@ -70,3 +78,4 @@ def test_runbook_preserves_live_evidence_claim_boundary() -> None:
     assert "final-project-ingestion.json" in RUNBOOK
     assert "final-project-retrieval-report.json" in RUNBOOK
     assert "final-project-live-answer.json" in RUNBOOK
+    assert "final-project-compose-smoke.json" in RUNBOOK

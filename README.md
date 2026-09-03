@@ -102,6 +102,7 @@ estimador-cag/docs/final_project/EVALUATION.md
 estimador-cag/docs/final_project/DEPLOYMENT_LOCAL.md
 estimador-cag/docs/final_project/ACCEPTANCE_AND_EVIDENCE.md
 estimador-cag/docs/final_project/LIVE_PROOF_RUNBOOK.md
+estimador-cag/docs/final_project/DEMO_VIDEO_SCRIPT.md
 estimador-cag/docs/final_project/support_source_manifest.json
 estimador-cag/evals/energy_chat/final_project_golden.json
 ```
@@ -110,9 +111,13 @@ estimador-cag/evals/energy_chat/final_project_golden.json
 
 ```bash
 cd estimador-cag
+uv sync --frozen --extra dev
 DEEPSEEK_API_KEY=test KIMI_API_KEY=test OPENAI_API_KEY=test uv run pytest -q
 bash scripts/validate_energy_chat.sh
 ```
+
+Windows hosts without system `libpq` should use
+`uv sync --frozen --extra dev --extra postgres`.
 
 Focused final-project contracts:
 
@@ -150,6 +155,7 @@ For the exact selected SHA it is designed to prove:
 → retrieval evaluation
 → one bounded live answer
 → full 11-case live evaluation
+→ full Compose build and restart-persistence smoke
 → sanitized evidence artifacts
 ```
 
@@ -159,7 +165,7 @@ The workflow is manual-only so normal pushes never spend provider budget.
 
 Repository-controlled implementation is now designed to cover FastAPI, real-data ingestion, embeddings, pgvector/indexed retrieval, LangGraph/critics, golden-set evaluation, monitoring and reproducible container deployment. Those features remain **LIVE-READY rather than LIVE-VERIFIED** until the corresponding external commands/workflow actually succeed for the final SHA.
 
-The assignment separately requires an accessible demonstration path: **public URL or the required 2–3 minute video**. That external evidence is not inferred from CI.
+The assignment separately requires an accessible demonstration path: **public URL or the required 2–3 minute video**. `estimador-cag/docs/final_project/DEMO_VIDEO_SCRIPT.md` is the recording-ready three-minute package; the uploaded video remains external evidence and is not inferred from CI.
 
 ## Historical coursework
 
