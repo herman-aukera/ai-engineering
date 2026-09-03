@@ -54,6 +54,19 @@ def test_missing_incident_evidence_clarifies_instead_of_inventing_root_cause() -
     assert "diagnostic evidence" in outcome.reason.casefold()
 
 
+def test_version_specific_request_clarifies_when_corpus_is_current_only() -> None:
+    state = _run(
+        "Our service runs Spring Boot 2.7.18. Are the current Actuator health endpoint "
+        "defaults exactly the same? Give me a version-specific answer."
+    )
+
+    outcome = state.decision_outcomes[-1]
+    assert outcome.disposition == "clarify"
+    assert outcome.policy_rule_id == "version_matched_source_required"
+    assert "spring boot 2.7.18" in outcome.reason.casefold()
+    assert "version-matched authoritative source" in outcome.reason.casefold()
+
+
 def test_java_source_patch_request_escalates_beyond_l2_authority() -> None:
     state = _run("Our Spring Boot service is failing. Patch the Java source code for me.")
 
@@ -76,6 +89,15 @@ def test_kubernetes_request_escalates_as_unsupported_final_project_scope() -> No
 def test_normal_supported_question_remains_allowed_by_request_policy() -> None:
     assessment = assess_request_policy(
         "Which PostgreSQL connection limits should I inspect when the pool is exhausted?"
+    )
+
+    assert assessment.directive == "continue"
+    assert assessment.rule_id == "request_allowed"
+
+
+def test_port_number_is_not_misclassified_as_postgresql_version() -> None:
+    assessment = assess_request_policy(
+        "The application cannot reach PostgreSQL on port 5432. Which connection evidence should I inspect?"
     )
 
     assert assessment.directive == "continue"
