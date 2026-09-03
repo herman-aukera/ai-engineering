@@ -1,8 +1,14 @@
-"""Deterministic project-source RAG for the Energy Aware Chat MVP."""
+"""Evidence retrieval adapter for Energy Aware Chat.
+
+The certified legacy lexical corpus remains available only when the final-project
+support RAG is explicitly disabled. The final-project deployment enables the real
+persisted embedding pipeline with ``EACHAT_SUPPORT_RAG_ENABLED=true``.
+"""
 
 from __future__ import annotations
 
 import math
+import os
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -12,7 +18,7 @@ from app.energy_chat.contracts import ProjectRagChunk, ProjectRagRequest, Projec
 
 @dataclass(frozen=True)
 class ProjectSourceDocument:
-    """One committed source chunk available to the local MVP retriever."""
+    """One committed compatibility source available to the legacy retriever."""
 
     source_id: str
     title: str
@@ -84,7 +90,17 @@ TOKEN_PATTERN = re.compile(r"[a-z0-9_]+")
 
 
 def retrieve_project_context(request: ProjectRagRequest) -> ProjectRagResult:
-    """Retrieve project-source chunks with deterministic lexical cosine similarity."""
+    """Route to real final-project RAG or the explicit deterministic compatibility path."""
+
+    if _truthy(os.getenv("EACHAT_SUPPORT_RAG_ENABLED")):
+        from app.energy_chat.support_rag import get_support_rag_service
+
+        return get_support_rag_service().retrieve(request)
+    return _retrieve_legacy_project_context(request)
+
+
+def _retrieve_legacy_project_context(request: ProjectRagRequest) -> ProjectRagResult:
+    """Retain the pre-final-project lexical corpus for deterministic compatibility tests."""
 
     query_terms = _term_counts(request.query)
     ranked = sorted(
@@ -118,10 +134,15 @@ def retrieve_project_context(request: ProjectRagRequest) -> ProjectRagResult:
         evidence_refs=evidence_refs,
         grounding_summary=(
             "Retrieved committed Energy Aware project-source chunks using deterministic "
-            "lexical cosine similarity. This is the CI-safe RAG baseline for the MVP; "
-            "provider embeddings and persistent vector search remain later hardening layers."
+            "lexical cosine similarity. This compatibility path is CI-safe and is not the "
+            "final-project production RAG. Enable EACHAT_SUPPORT_RAG_ENABLED for the real "
+            "persisted technical-support corpus."
         ),
     )
+
+
+def _truthy(value: str | None) -> bool:
+    return (value or "").strip().casefold() in {"1", "true", "yes", "on"}
 
 
 def _term_counts(text: str) -> Counter[str]:

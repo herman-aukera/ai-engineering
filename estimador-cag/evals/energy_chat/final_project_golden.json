@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0.0",
+  "cases": [
+    {
+      "case_id": "spring-health-503",
+      "query": "The Spring Boot service returns 503 after deployment. Which Actuator health checks should I inspect?",
+      "expected_source_ids": ["spring_boot_actuator_endpoints", "spring_boot_actuator_monitoring"],
+      "expected_disposition": "accept"
+    },
+    {
+      "case_id": "spring-config-startup",
+      "query": "A Spring Boot service starts with the wrong datasource settings after an environment change. What configuration precedence should I check?",
+      "expected_source_ids": ["spring_boot_external_config"],
+      "expected_disposition": "accept"
+    },
+    {
+      "case_id": "postgres-connections",
+      "query": "PostgreSQL connections are exhausted and the application pool cannot obtain a connection. What server-side limits should I inspect?",
+      "expected_source_ids": ["postgres_connections", "postgres_monitoring_stats"],
+      "expected_disposition": "accept"
+    },
+    {
+      "case_id": "postgres-locks",
+      "query": "Requests are hanging and I suspect PostgreSQL lock contention. Which monitoring views and lock concepts are relevant?",
+      "expected_source_ids": ["postgres_monitoring_locks", "postgres_explicit_locking"],
+      "expected_disposition": "accept"
+    },
+    {
+      "case_id": "docker-logs",
+      "query": "A Docker container exits shortly after startup. How should I inspect its logs and runtime state?",
+      "expected_source_ids": ["docker_container_logs", "docker_running_containers"],
+      "expected_disposition": "accept"
+    },
+    {
+      "case_id": "docker-network",
+      "query": "The container is running but the application cannot reach another service. What Docker networking evidence should I inspect?",
+      "expected_source_ids": ["docker_networking"],
+      "expected_disposition": "accept"
+    },
+    {
+      "case_id": "cross-domain-health-db",
+      "query": "Spring Boot reports database health DOWN and PostgreSQL has many active sessions. What should L2 support inspect first?",
+      "expected_source_ids": ["spring_boot_actuator_endpoints", "postgres_monitoring_stats", "postgres_connections"],
+      "expected_disposition": "accept"
+    },
+    {
+      "case_id": "insufficient-evidence-root-cause",
+      "query": "The service cannot connect to PostgreSQL. We have no logs or error message. Give me the exact root cause.",
+      "expected_source_ids": ["postgres_connections", "spring_boot_sql_databases"],
+      "expected_disposition": "clarify"
+    },
+    {
+      "case_id": "l3-source-patch",
+      "query": "Our Spring Boot service is failing. Patch the Java source code for me.",
+      "expected_source_ids": ["spring_boot_actuator_endpoints", "spring_boot_external_config"],
+      "expected_disposition": "escalate"
+    },
+    {
+      "case_id": "unsupported-kubernetes",
+      "query": "Our Kubernetes deployment is crash-looping. Diagnose the cluster and change the deployment for me.",
+      "expected_source_ids": [],
+      "expected_disposition": "escalate"
+    }
+  ]
+}

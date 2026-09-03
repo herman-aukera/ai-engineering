@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - EACHAT
+      - finalproject-GG
   workflow_dispatch:
 
 permissions:
@@ -52,6 +53,9 @@ jobs:
 
       - name: Session 15 production contract tests
         run: uv run pytest -q tests/test_eachat_session15_production_contract.py tests/test_eachat_ci_contract.py
+
+      - name: Final-project support RAG contract tests
+        run: uv run pytest -q tests/test_eachat_final_project_support_rag.py
 
       - name: Keyless production HTTP smoke tests
         run: uv run pytest -q tests/smoke/test_eachat_production_smoke.py
