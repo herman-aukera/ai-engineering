@@ -13,8 +13,8 @@ Status: live final-project gate
 | Persistent/indexed storage | PostgreSQL support chunk store | store contract + live DB proof | IMPLEMENTED / LIVE DB PROOF PENDING |
 | Retrieval | exact cosine top-k adapter into `ProjectRagResult` | deterministic retrieval tests + real-corpus report | IMPLEMENTED / REAL REPORT PENDING |
 | Agent/orchestration | existing EACHAT LangGraph | graph tests + trace | IMPLEMENTED / EXACT-HEAD CI REQUIRED |
-| Mandatory dispositions | clarify insufficient diagnostics; escalate L3/unsupported scope | final-project graph regression tests | IMPLEMENTED / EXACT-HEAD CI REQUIRED |
-| Evals | 10-case golden set + retrieval runner | report + disposition/regression evidence | FIXTURES/RUNNER DONE / LIVE METRICS PENDING |
+| Mandatory dispositions | clarify insufficient diagnostics/version conflicts; escalate L3/unsupported scope | final-project graph regression tests | IMPLEMENTED / EXACT-HEAD CI REQUIRED |
+| Evals | 11-case golden set + retrieval runner | report + disposition/regression evidence | FIXTURES/RUNNER DONE / LIVE METRICS PENDING |
 | README | reviewer-first final-project README | reviewer inspection | IMPLEMENTED |
 | Deployment evidence | public URL OR 2–3 minute video | externally accessible link | EXTERNAL BLOCKER |
 | Final branch | `finalproject-GG` | Git ref | DONE |
@@ -34,11 +34,12 @@ The final-project branch adds repository-controlled evidence for:
 - persistent PostgreSQL support-chunk storage;
 - exact cosine retrieval into the existing `ProjectRagResult` contract;
 - deterministic no-silent-fallback behavior when final-project RAG is enabled;
-- a fixed 10-case golden set;
+- an 11-case golden set including a version/source-conflict regression;
 - mandatory clarify/escalate governance regressions;
-- a reviewer-first README and executable validation commands.
+- a reviewer-first README and executable validation commands;
+- a manual exact-head live-proof workflow that ingests, persists, retrieves and performs one bounded provider call without putting paid calls in deterministic CI.
 
-None of those repository-controlled artifacts substitutes for a real external ingestion run.
+None of those repository-controlled artifacts substitutes for a successful real external ingestion run.
 
 ## Final-project GO rule
 
@@ -69,6 +70,8 @@ The final demonstration environment must produce and retain, without secrets:
 4. `evals/energy_chat/final_project_retrieval_report.json` generated from that persisted corpus;
 5. one bounded end-to-end support answer showing retrieved evidence plus final disposition;
 6. public URL or 2–3 minute video link required by the assignment.
+
+The repository provides `.github/workflows/final-project-live-rag.yml` and `docs/final_project/LIVE_PROOF_RUNBOOK.md` for items 1–5. The workflow is manual-only so deterministic pushes do not spend provider budget.
 
 If any live gate fails, keep the failure visible. Do not replace it with deterministic fixtures and call the project green.
 
