@@ -134,9 +134,9 @@ def _retrieve_legacy_project_context(request: ProjectRagRequest) -> ProjectRagRe
         evidence_refs=evidence_refs,
         grounding_summary=(
             "Retrieved committed Energy Aware project-source chunks using deterministic "
-            "lexical cosine similarity. This compatibility path is CI-safe and is not the "
-            "final-project production RAG. Enable EACHAT_SUPPORT_RAG_ENABLED for the real "
-            "persisted technical-support corpus."
+            "lexical cosine similarity. This is the CI-safe RAG baseline compatibility path "
+            "and is not the final-project production RAG. Enable EACHAT_SUPPORT_RAG_ENABLED "
+            "for the real persisted technical-support corpus."
         ),
     )
 

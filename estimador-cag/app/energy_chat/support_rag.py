@@ -11,12 +11,12 @@ import json
 import math
 import os
 import re
+from collections.abc import Protocol
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import lru_cache
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Protocol
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -475,7 +475,7 @@ class SupportRagService:
         allowed_hosts, ingestion_version, sources = load_source_manifest(manifest_path)
         self.store.setup()
         source_counts: dict[str, int] = {}
-        retrieved_at = datetime.now(timezone.utc)
+        retrieved_at = datetime.now(UTC)
         for source in sources:
             html = fetcher(source.canonical_url, allowed_hosts)
             sections = extract_sections(html)
