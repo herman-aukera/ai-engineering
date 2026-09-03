@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
+
 from app.energy_chat.contracts import EnergyPolicy, RequestPolicyAssessment
 
-REQUEST_POLICY_VERSION = "energy-chat-request-policy-1.1.0"
+REQUEST_POLICY_VERSION = "energy-chat-request-policy-1.2.0"
 
 REFUSAL_RULES: tuple[tuple[str, str, str], ...] = (
     (
@@ -83,6 +85,21 @@ _MISSING_DIAGNOSTIC_MARKERS = (
     "no diagnostic",
 )
 
+_VERSION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "Spring Boot",
+        re.compile(r"\bspring\s+boot\s+v?(\d{1,2}(?:\.\d{1,3}){1,2})\b", re.IGNORECASE),
+    ),
+    (
+        "PostgreSQL",
+        re.compile(r"\bpostgres(?:ql)?\s+v?(\d{1,2}(?:\.\d{1,3}){0,2})\b", re.IGNORECASE),
+    ),
+    (
+        "Docker",
+        re.compile(r"\bdocker(?:\s+engine)?\s+v?(\d{1,2}(?:\.\d{1,3}){0,2})\b", re.IGNORECASE),
+    ),
+)
+
 
 def default_chat_lite_policy() -> EnergyPolicy:
     """Return the deterministic MVP policy for chat_lite evaluations."""
@@ -120,6 +137,20 @@ def assess_request_policy(user_request: str) -> RequestPolicyAssessment:
                 "diagnostic evidence; request logs, the concrete error, or equivalent evidence."
             ),
         )
+    version_scope = _explicit_supported_product_version(user_request)
+    if version_scope is not None:
+        product, requested_version = version_scope
+        return RequestPolicyAssessment(
+            version=REQUEST_POLICY_VERSION,
+            directive="clarify",
+            rule_id="version_matched_source_required",
+            reason=(
+                f"The request is explicitly scoped to {product} {requested_version}, while the "
+                "final-project support corpus is curated from current-version documentation. "
+                "A version-matched authoritative source is required before making a "
+                "version-specific claim."
+            ),
+        )
     return RequestPolicyAssessment(
         version=REQUEST_POLICY_VERSION,
         directive="continue",
@@ -134,3 +165,11 @@ def _requires_diagnostic_clarification(normalized: str) -> bool:
         marker in normalized for marker in _MISSING_DIAGNOSTIC_MARKERS
     )
     return asks_for_exact_cause and declares_missing_diagnostics
+
+
+def _explicit_supported_product_version(user_request: str) -> tuple[str, str] | None:
+    for product, pattern in _VERSION_PATTERNS:
+        match = pattern.search(user_request)
+        if match is not None:
+            return product, match.group(1)
+    return None
