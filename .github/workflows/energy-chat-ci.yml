@@ -55,7 +55,7 @@ jobs:
         run: uv run pytest -q tests/test_eachat_session15_production_contract.py tests/test_eachat_ci_contract.py
 
       - name: Final-project support RAG and disposition contract tests
-        run: uv run pytest -q tests/test_eachat_final_project_support_rag.py tests/test_eachat_final_project_dispositions.py
+        run: uv run pytest -q tests/test_eachat_final_project_*.py
 
       - name: Keyless production HTTP smoke tests
         run: uv run pytest -q tests/smoke/test_eachat_production_smoke.py
