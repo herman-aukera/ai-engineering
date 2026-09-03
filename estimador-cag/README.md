@@ -45,7 +45,7 @@ Canonical application entry point:
 app.energy_chat.production_app:app
 ```
 
-Canonical business routes include:
+Canonical production business APIs are under `/energy-chat/v2/*`. Representative routes include:
 
 ```text
 POST /energy-chat/v2/chat
@@ -162,9 +162,7 @@ Focused final-project contracts:
 ```bash
 cd estimador-cag
 DEEPSEEK_API_KEY=test KIMI_API_KEY=test OPENAI_API_KEY=test \
-uv run pytest -q \
-  tests/test_eachat_final_project_support_rag.py \
-  tests/test_eachat_final_project_dispositions.py
+uv run pytest -q tests/test_eachat_final_project_*.py
 ```
 
 Full EACHAT deterministic gate:
@@ -224,6 +222,35 @@ EACHAT retains the certified architecture on which the final project was based:
 - isolated production dependency lock and non-root image contract.
 
 Those controls are valuable engineering evidence, but they do not turn this educational final-project branch into a claim of real-world production readiness.
+
+## Historical coursework compatibility
+
+The repository still carries historical LIDR coursework and regression tests. These contracts are retained as compatibility evidence; they are not the canonical final-project production surface.
+
+### Session 04 Live Plus
+
+The historical Session 04 Live Plus estimator used a typed product request and Structured JSON output with deterministic validation. Its documented provider fallback ladder was:
+
+```text
+DeepSeek flash → DeepSeek pro → Kimi 2.5 backup → Kimi 2.6 backup_pro
+```
+
+Historical cache semantics were explicit: Exact Redis cache runs before semantic cache. Semantic cache shadow mode observed candidates without serving them. Responses exposed `requested_tier`, `served_tier`, `fallback_used`, `semantic_cache_mode`, and `semantic_candidate_found` as troubleshooting evidence.
+
+### Session 05 memory and attachments
+
+Session 05 added conversational memory and document attachment support to the historical coursework application through:
+
+```text
+POST /sessions
+POST /sessions/{session_id}/estimate
+```
+
+It retained `project_metadata` beside `ConversationHistory`, used a bounded sliding window, accepted attachment requests through `multipart/form-data`, parsed PDF content with `pypdf`, and parsed DOCX with `python-docx`.
+
+The historical Streamlit path exposed **New conversation**, **Project metadata**, PDF and DOCX attachment controls, and supported `ESTIMADOR_BACKEND_URL` for the backend address.
+
+These Session 04 and Session 05 contracts remain regression-tested coursework evidence and are not mounted as canonical `/energy-chat/v2/*` final-project APIs.
 
 ## Submission evidence and claim boundary
 
