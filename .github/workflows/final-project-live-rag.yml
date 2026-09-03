@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       provider:
-        description: Credentialed provider for the bounded answer call
+        description: Credentialed provider for bounded EACHAT answer calls
         required: true
         type: choice
         options:
@@ -35,7 +35,7 @@ jobs:
     environment: eachat-live-smoke
     services:
       postgres:
-        image: postgres:16@sha256:e17e86066e5ef83e0952a9347f5c792b7ece00972e2aa787a6986f471b3dd3d5
+        image: pgvector/pgvector:pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
         env:
           POSTGRES_USER: eachat
           POSTGRES_PASSWORD: eachat_test
@@ -49,10 +49,12 @@ jobs:
           --health-retries 10
     env:
       EXPECTED_HEAD_SHA: ${{ github.sha }}
+      GIT_SHA: ${{ github.sha }}
       EACHAT_SUPPORT_RAG_ENABLED: "true"
       EACHAT_SUPPORT_RAG_DATABASE_URL: postgresql://eachat:eachat_test@localhost:5432/eachat_final_project
       EACHAT_SUPPORT_EMBEDDING_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       EACHAT_SUPPORT_EMBEDDING_MODEL: text-embedding-3-small
+      EACHAT_SUPPORT_EMBEDDING_DIMENSIONS: "1536"
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
@@ -88,10 +90,27 @@ jobs:
           test -n "$OPENAI_API_KEY" || { echo "Missing OPENAI_API_KEY in eachat-live-smoke"; exit 1; }
           test "$OPENAI_API_KEY" != "test" || { echo "OPENAI_API_KEY is a sentinel, not a live credential"; exit 1; }
 
+      - name: Verify selected answer-provider credential exists
+        env:
+          SELECTED_PROVIDER: ${{ inputs.provider }}
+        run: |
+          python - <<'PY'
+          import os
+
+          provider = os.environ['SELECTED_PROVIDER']
+          keys = {
+              'openai': ('OPENAI_API_KEY',),
+              'deepseek': ('DEEPSEEK_API_KEY',),
+              'kimi': ('MOONSHOT_API_KEY', 'KIMI_API_KEY'),
+          }[provider]
+          values = [os.getenv(name, '').strip() for name in keys]
+          assert any(value and value != 'test' for value in values), f'Missing live credential for {provider}'
+          PY
+
       - name: Install frozen dependencies
         run: uv sync --frozen --extra dev
 
-      - name: Ingest real allowlisted support corpus
+      - name: Ingest real allowlisted support corpus into pgvector
         run: uv run python scripts/ingest_eachat_support_rag.py > /tmp/final-project-ingestion.json
 
       - name: Validate live ingestion evidence
@@ -106,9 +125,10 @@ jobs:
           assert report['active_chunks'] >= 16, report
           assert len(report['chunks_by_source']) == 16, report
           assert report['embedding_model'] == 'text-embedding-3-small', report
+          assert report['vector_backend'] == 'postgresql_pgvector_hnsw', report
           PY
 
-      - name: Evaluate persisted real retrieval
+      - name: Evaluate persisted pgvector retrieval
         run: >-
           uv run python evals/energy_chat/final_project_eval.py
           --output /tmp/final-project-retrieval-report.json
@@ -122,6 +142,14 @@ jobs:
           --effort "${{ inputs.effort }}"
           --output /tmp/final-project-live-answer.json
 
+      - name: Run full 11-case live golden-set evaluation
+        run: >-
+          uv run python evals/energy_chat/final_project_system_eval.py
+          --live
+          --provider "${{ inputs.provider }}"
+          --effort "${{ inputs.effort }}"
+          --output /tmp/final-project-system-eval.json
+
       - name: Reject secrets from evidence artifacts
         run: |
           python - <<'PY'
@@ -132,6 +160,7 @@ jobs:
               Path('/tmp/final-project-ingestion.json'),
               Path('/tmp/final-project-retrieval-report.json'),
               Path('/tmp/final-project-live-answer.json'),
+              Path('/tmp/final-project-system-eval.json'),
           ]
           patterns = (
               r'sk-[A-Za-z0-9_-]{20,}',
@@ -151,4 +180,5 @@ jobs:
             /tmp/final-project-ingestion.json
             /tmp/final-project-retrieval-report.json
             /tmp/final-project-live-answer.json
+            /tmp/final-project-system-eval.json
           if-no-files-found: error

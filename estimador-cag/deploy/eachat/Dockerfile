@@ -18,6 +18,8 @@ RUN uv export --project /tmp/eachat-runtime --frozen --no-dev \
 
 COPY --chown=eachat:eachat app /app/app
 COPY --chown=eachat:eachat docs/energy_chat_v2_demo.html /app/docs/energy_chat_v2_demo.html
+COPY --chown=eachat:eachat docs/final_project/support_source_manifest.json /app/docs/final_project/support_source_manifest.json
+COPY --chown=eachat:eachat scripts/ingest_eachat_support_rag.py /app/scripts/ingest_eachat_support_rag.py
 
 USER eachat
 EXPOSE 8000

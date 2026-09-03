@@ -54,8 +54,25 @@ jobs:
       - name: Session 15 production contract tests
         run: uv run pytest -q tests/test_eachat_session15_production_contract.py tests/test_eachat_ci_contract.py
 
-      - name: Final-project support RAG and disposition contract tests
+      - name: Final-project support RAG disposition and monitoring contracts
         run: uv run pytest -q tests/test_eachat_final_project_*.py
+
+      - name: Compile final-project operational executables
+        run: >-
+          uv run python -m py_compile
+          app/energy_chat/support_pgvector.py
+          app/energy_chat/monitoring.py
+          evals/energy_chat/final_project_eval.py
+          evals/energy_chat/final_project_system_eval.py
+          scripts/ingest_eachat_support_rag.py
+          scripts/smoke_eachat_final_project_live.py
+          scripts/smoke_eachat_final_project_compose.py
+
+      - name: Validate final-project Compose topology
+        working-directory: .
+        env:
+          EACHAT_SUPPORT_EMBEDDING_API_KEY: deterministic-ci-placeholder
+        run: docker compose -f docker-compose.final-project.yml config --quiet
 
       - name: Keyless production HTTP smoke tests
         run: uv run pytest -q tests/smoke/test_eachat_production_smoke.py

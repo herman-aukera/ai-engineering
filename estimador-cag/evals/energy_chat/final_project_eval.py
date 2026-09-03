@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from app.energy_chat.contracts import ProjectRagRequest
-from app.energy_chat.support_rag import build_support_rag_service_from_env
+from app.energy_chat.support_pgvector import build_pgvector_support_rag_service_from_env
 
 DEFAULT_CASES = Path("evals/energy_chat/final_project_golden.json")
 DEFAULT_OUTPUT = Path("evals/energy_chat/final_project_retrieval_report.json")
@@ -21,7 +21,7 @@ def main() -> int:
     args = parser.parse_args()
 
     payload = json.loads(args.cases.read_text(encoding="utf-8"))
-    service = build_support_rag_service_from_env()
+    service = build_pgvector_support_rag_service_from_env()
     results: list[dict[str, object]] = []
     evaluated = 0
     hits = 0
@@ -53,15 +53,16 @@ def main() -> int:
         )
 
     report = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "metric": f"retrieval_hit_at_{args.k}",
+        "vector_backend": "postgresql_pgvector_hnsw",
         "cases_total": len(payload["cases"]),
         "cases_evaluated_for_retrieval": evaluated,
         "retrieval_hits": hits,
         "retrieval_hit_rate": hits / evaluated if evaluated else None,
         "claim_boundary": (
-            "This report measures retrieval only. Expected dispositions are fixtures for "
-            "the separate agent/regression evaluation and are not scored here."
+            "This report measures pgvector retrieval only. Expected dispositions are fixtures for "
+            "the separate full-system agent evaluation and are not scored here."
         ),
         "results": results,
     }

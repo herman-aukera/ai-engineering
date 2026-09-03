@@ -93,9 +93,9 @@ def retrieve_project_context(request: ProjectRagRequest) -> ProjectRagResult:
     """Route to real final-project RAG or the explicit deterministic compatibility path."""
 
     if _truthy(os.getenv("EACHAT_SUPPORT_RAG_ENABLED")):
-        from app.energy_chat.support_rag import get_support_rag_service
+        from app.energy_chat.support_pgvector import get_pgvector_support_rag_service
 
-        return get_support_rag_service().retrieve(request)
+        return get_pgvector_support_rag_service().retrieve(request)
     return _retrieve_legacy_project_context(request)
 
 

@@ -84,9 +84,13 @@ def test_final_project_support_rag_evidence_reaches_authoritative_graph(
     service.ingest_manifest(manifest, fetcher=fetcher)
 
     monkeypatch.setenv("EACHAT_SUPPORT_RAG_ENABLED", "true")
-    import app.energy_chat.support_rag as support_rag
+    import app.energy_chat.support_pgvector as support_pgvector
 
-    monkeypatch.setattr(support_rag, "get_support_rag_service", lambda: service)
+    monkeypatch.setattr(
+        support_pgvector,
+        "get_pgvector_support_rag_service",
+        lambda: service,
+    )
 
     state = run_energy_chat_graph(
         EnergyChatGraphState(
@@ -104,10 +108,7 @@ def test_final_project_support_rag_evidence_reaches_authoritative_graph(
     )
 
     assert state.project_rag is not None
-    assert (
-        state.project_rag.retrieval_strategy
-        == "openai_embedding_postgres_exact_cosine_support_rag"
-    )
+    assert state.project_rag.retrieval_strategy == "openai_embedding_postgres_exact_cosine_support_rag"
     assert state.project_rag.results[0].source_id == "postgres-connections"
     assert state.evidence_refs
     assert state.candidate_versions[-1].evidence_refs == state.evidence_refs

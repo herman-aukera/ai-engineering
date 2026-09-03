@@ -10,7 +10,10 @@ from pathlib import Path
 from app.energy_chat.api_v2_contracts import EnergyChatV2Request
 from app.energy_chat.contracts import ProjectRagRequest
 from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
-from app.energy_chat.support_rag import build_support_rag_service_from_env
+from app.energy_chat.support_pgvector import (
+    RETRIEVAL_STRATEGY,
+    build_pgvector_support_rag_service_from_env,
+)
 
 _KEY_ENV = {
     "deepseek": ("DEEPSEEK_API_KEY",),
@@ -40,9 +43,9 @@ def main() -> None:
     if not any(_usable_secret(os.environ.get(name, "")) for name in _KEY_ENV[args.provider]):
         raise RuntimeError(f"No usable credential is configured for provider {args.provider}")
 
-    rag_service = build_support_rag_service_from_env()
+    rag_service = build_pgvector_support_rag_service_from_env()
     rag = rag_service.retrieve(ProjectRagRequest(query=QUESTION, mode="project", k=5))
-    if rag.retrieval_strategy != "openai_embedding_postgres_exact_cosine_support_rag":
+    if rag.retrieval_strategy != RETRIEVAL_STRATEGY:
         raise RuntimeError(f"Unexpected retrieval strategy: {rag.retrieval_strategy}")
     if not rag.results or not rag.evidence_refs:
         raise RuntimeError("Real support RAG returned no persisted evidence")

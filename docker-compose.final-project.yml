@@ -1,0 +1,99 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eachat
+      POSTGRES_PASSWORD: ${EACHAT_LOCAL_DB_PASSWORD:-eachat_dev_only}
+      POSTGRES_DB: eachat_final_project
+    expose:
+      - "5432"
+    volumes:
+      - eachat-final-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eachat -d eachat_final_project"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  ingest:
+    build:
+      context: ./estimador-cag
+      dockerfile: deploy/eachat/Dockerfile
+    restart: "no"
+    environment:
+      EACHAT_SUPPORT_RAG_DATABASE_URL: postgresql://eachat:${EACHAT_LOCAL_DB_PASSWORD:-eachat_dev_only}@db:5432/eachat_final_project
+      EACHAT_SUPPORT_EMBEDDING_API_KEY: ${EACHAT_SUPPORT_EMBEDDING_API_KEY:?Set a real embedding credential}
+      EACHAT_SUPPORT_EMBEDDING_MODEL: ${EACHAT_SUPPORT_EMBEDDING_MODEL:-text-embedding-3-small}
+      EACHAT_SUPPORT_EMBEDDING_DIMENSIONS: ${EACHAT_SUPPORT_EMBEDDING_DIMENSIONS:-1536}
+    command: ["python", "scripts/ingest_eachat_support_rag.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
+  eachat:
+    build:
+      context: ./estimador-cag
+      dockerfile: deploy/eachat/Dockerfile
+    restart: unless-stopped
+    environment:
+      LANGGRAPH_STRICT_MSGPACK: "true"
+      EACHAT_POSTGRES_URL: postgresql://eachat:${EACHAT_LOCAL_DB_PASSWORD:-eachat_dev_only}@db:5432/eachat_final_project
+      EACHAT_SUPPORT_RAG_DATABASE_URL: postgresql://eachat:${EACHAT_LOCAL_DB_PASSWORD:-eachat_dev_only}@db:5432/eachat_final_project
+      EACHAT_SUPPORT_RAG_ENABLED: "true"
+      EACHAT_SUPPORT_EMBEDDING_API_KEY: ${EACHAT_SUPPORT_EMBEDDING_API_KEY:?Set a real embedding credential}
+      EACHAT_SUPPORT_EMBEDDING_MODEL: ${EACHAT_SUPPORT_EMBEDDING_MODEL:-text-embedding-3-small}
+      EACHAT_SUPPORT_EMBEDDING_DIMENSIONS: ${EACHAT_SUPPORT_EMBEDDING_DIMENSIONS:-1536}
+      EACHAT_MEMORY_ENCRYPTION_KEY: ${EACHAT_MEMORY_ENCRYPTION_KEY:-AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=}
+      EACHAT_SESSION_SIGNING_KEY: ${EACHAT_SESSION_SIGNING_KEY:-local-final-project-signing-key-change-me-1234567890}
+      EACHAT_V2_ENABLED: "true"
+      EACHAT_CORS_ORIGINS: ""
+      GIT_SHA: ${GIT_SHA:-local-final-project}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      db:
+        condition: service_healthy
+      ingest:
+        condition: service_completed_successfully
+    networks:
+      - internal
+
+  edge:
+    image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./estimador-cag/deploy/eachat/final_project/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      eachat:
+        condition: service_healthy
+    networks:
+      - edge
+      - internal
+
+networks:
+  edge:
+  internal:
+    internal: true
+
+volumes:
+  eachat-final-postgres:

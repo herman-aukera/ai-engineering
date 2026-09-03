@@ -1,4 +1,4 @@
-"""Ingest the curated EACHAT final-project technical-support corpus."""
+"""Ingest the curated EACHAT final-project technical-support corpus into pgvector."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from app.energy_chat.support_rag import build_support_rag_service_from_env
+from app.energy_chat.support_pgvector import build_pgvector_support_rag_service_from_env
 
 DEFAULT_MANIFEST = Path("docs/final_project/support_source_manifest.json")
 
@@ -23,7 +23,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    service = build_support_rag_service_from_env()
+    service = build_pgvector_support_rag_service_from_env()
     report = service.ingest_manifest(args.manifest)
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0

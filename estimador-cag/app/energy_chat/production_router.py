@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from time import perf_counter
+
 from fastapi import APIRouter, HTTPException, Path, Request
+from fastapi.responses import HTMLResponse
 
 from app.energy_chat.api_v2_contracts import (
     EnergyChatV2Request,
@@ -14,6 +17,11 @@ from app.energy_chat.api_v2_contracts import (
 )
 from app.energy_chat.candidate_provider import ProviderBudgetExceededError
 from app.energy_chat.graph_application import build_v2_error_detail
+from app.energy_chat.monitoring import (
+    EnergyChatMonitoringWindow,
+    MonitoringSnapshot,
+    render_monitoring_dashboard,
+)
 from app.energy_chat.ownership_http import assert_resource_owner, claim_resource
 from app.energy_chat.runtime_container import (
     EnergyChatApplicationRuntime,
@@ -23,6 +31,7 @@ from app.energy_chat.runtime_container import (
 from app.energy_chat.settings import energy_chat_v2_enabled
 
 router = APIRouter()
+_MONITORING = EnergyChatMonitoringWindow(max_samples=500)
 
 
 def _require_v2_enabled() -> None:
@@ -128,12 +137,37 @@ def _execute_v2(
         ) from exc
 
 
+def _execute_v2_monitored(
+    request: EnergyChatV2Request,
+    execution_profile: ExecutionProfile,
+    http_request: Request,
+) -> EnergyChatV2Response:
+    started = perf_counter()
+    try:
+        response = _execute_v2(request, execution_profile, http_request)
+    except HTTPException:
+        _MONITORING.record_error(wall_latency_ms=_elapsed_ms(started))
+        raise
+    metrics = response.provider_metrics_summary
+    _MONITORING.record_success(
+        wall_latency_ms=_elapsed_ms(started),
+        provider_call_count=metrics.provider_call_count,
+        provider_cost_usd=metrics.total_cost_usd,
+        disposition=response.final_disposition,
+    )
+    return response
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((perf_counter() - started) * 1000))
+
+
 @router.post("/v2/chat", response_model=EnergyChatV2Response)
 def chat_v2_deterministic(
     request: EnergyChatV2Request,
     http_request: Request,
 ) -> EnergyChatV2Response:
-    return _execute_v2(request, "deterministic", http_request)
+    return _execute_v2_monitored(request, "deterministic", http_request)
 
 
 @router.post("/v2/chat/live", response_model=EnergyChatV2Response)
@@ -141,7 +175,17 @@ def chat_v2_live(
     request: EnergyChatV2Request,
     http_request: Request,
 ) -> EnergyChatV2Response:
-    return _execute_v2(request, "live_bounded", http_request)
+    return _execute_v2_monitored(request, "live_bounded", http_request)
+
+
+@router.get("/v2/monitoring", response_model=MonitoringSnapshot)
+def monitoring_snapshot() -> MonitoringSnapshot:
+    return _MONITORING.snapshot()
+
+
+@router.get("/v2/monitoring/dashboard", response_class=HTMLResponse, include_in_schema=False)
+def monitoring_dashboard() -> HTMLResponse:
+    return HTMLResponse(render_monitoring_dashboard(_MONITORING.snapshot()))
 
 
 @router.get(

@@ -124,9 +124,13 @@ def test_enabled_final_project_rag_never_silently_falls_back(monkeypatch) -> Non
     service = SupportRagService(store=store, embeddings=KeywordEmbeddingProvider())
     monkeypatch.setenv("EACHAT_SUPPORT_RAG_ENABLED", "true")
 
-    import app.energy_chat.support_rag as support_rag
+    import app.energy_chat.support_pgvector as support_pgvector
 
-    monkeypatch.setattr(support_rag, "get_support_rag_service", lambda: service)
+    monkeypatch.setattr(
+        support_pgvector,
+        "get_pgvector_support_rag_service",
+        lambda: service,
+    )
 
     with pytest.raises(SupportRagUnavailableError, match="no active chunks"):
         retrieve_project_context(ProjectRagRequest(query="Spring health", k=2))
