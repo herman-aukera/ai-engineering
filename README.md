@@ -1,170 +1,128 @@
-# AI Engineering Coursework
+# EACHAT Final Project — Energy-Aware AI Engineering Support Assistant ⚡
 
-This repository contains the LIDR AI Engineering coursework.
+This branch is the LIDR AI Engineering **Final Project** submission.
 
-## Current submission
+- Final branch: `finalproject-GG`
+- Product: **EACHAT**
+- Domain: evidence-grounded L2 support for **Spring Boot + PostgreSQL + Docker**
+- Canonical implementation: `estimador-cag/`
+- Canonical application entry point: `app.energy_chat.production_app:app`
+- Canonical business API surface: `/energy-chat/v2/*`
 
-Active project:
+> Reviewer entry point: read [`estimador-cag/README.md`](estimador-cag/README.md). It contains the complete problem statement, architecture, real-RAG design, agent/orchestration flow, evaluation strategy, run commands, limitations, and evidence boundaries.
 
-```text
-estimador-cag/
-```
+## What the final project does
 
-Current branch:
-
-```text
-gg-pre-session-06-cag-stress-test
-```
-
-Current deliverable:
+EACHAT is a governed AI support assistant. It does not treat an LLM answer as authority. The final-project path:
 
 ```text
-Session 06 — CAG stress test baseline
+support question
+    ↓
+request policy + evidence need
+    ↓
+real support RAG
+    ↓
+answer candidate
+    ↓
+deterministic critic panel
+    ↓
+Energy score + deterministic disposition
+    ↓
+accept | repair | clarify | reject | refuse | escalate
+    ↓
+Energy Card + Decision Ledger + safe trace
 ```
 
-## What this branch delivers
+The final-project corpus is an allowlisted set of official Spring Boot, PostgreSQL, and Docker documentation. The implemented RAG path performs official HTTPS acquisition, HTML normalization, bounded section-aware chunking, embeddings, PostgreSQL persistence, exact cosine top-k retrieval, and injection of retrieved evidence into the existing EACHAT graph.
 
-This branch adds a measurable stress baseline for the existing CAG system.
+## Final-project evidence map
 
-The goal is not to implement RAG yet. The goal is to measure where the current Cache Augmented Generation approach starts to degrade under longer conversations, larger attachments, and repeated load.
-
-## Required deliverables
+Primary reviewer files:
 
 ```text
-estimador-cag/evals/stress/REPORT.md
-estimador-cag/evals/stress/results.csv
+estimador-cag/README.md
+estimador-cag/docs/final_project/PRODUCT_SPEC.md
+estimador-cag/docs/final_project/ARCHITECTURE.md
+estimador-cag/docs/final_project/DATA_AND_RAG_SPEC.md
+estimador-cag/docs/final_project/EVALUATION_SPEC.md
+estimador-cag/docs/final_project/ACCEPTANCE_AND_EVIDENCE.md
+estimador-cag/docs/final_project/LIVE_PROOF_RUNBOOK.md
+estimador-cag/docs/final_project/support_source_manifest.json
+estimador-cag/evals/energy_chat/final_project_golden.json
+estimador-cag/evals/energy_chat/final_project_eval.py
+estimador-cag/scripts/ingest_eachat_support_rag.py
+estimador-cag/scripts/smoke_eachat_final_project_live.py
 ```
 
-The committed deterministic stress run contains 900 data rows plus a header.
+The fixed evaluation set currently contains **11 cases**, including supported Spring/PostgreSQL/Docker questions, insufficient-evidence clarification, L3 source-code escalation, unsupported Kubernetes escalation, and a current-versus-version-specific source conflict.
 
-```text
-3 scenarios × 5 attachment sizes × 3 repeats × 20 turns = 900 rows
-```
+## Deterministic validation
 
-A bounded live provider smoke was also run locally with DeepSeek.
-
-```text
-3 scenarios × 5 attachment sizes × 3 repeats × 2 turns = 90 rows
-```
-
-The live smoke was kept as local validation evidence. It is not committed because the required deliverable is the report and CSV in evals/stress/.
-
-## Main Session 06 additions
-
-```text
-estimador-cag/evals/stress/scenarios.py
-estimador-cag/evals/stress/metrics.py
-estimador-cag/evals/stress/run.py
-estimador-cag/evals/stress/fixtures/build_pdfs.py
-estimador-cag/evals/stress/results.csv
-estimador-cag/evals/stress/REPORT.md
-```
-
-The stress runner measures:
-
-* latency vs tokens
-* cumulative cost vs turn
-* fact recall vs conversation length
-* attachment size impact
-* cache hit kind
-* tier used
-* per turn token and cost metadata
-
-## Instrumentation
-
-Each conversational estimate exposes a turn_observed object with:
-
-```text
-turn_index
-session_id
-enriched_transcript_chars
-attachments_total_chars
-messages_in_window
-anchors_count
-summary_chars
-tokens_in
-tokens_out
-cost_usd
-latency_ms
-cache_hit_kind
-last_resolved_tier
-```
-
-## Validation
-
-Local validation completed:
-
-```text
-ruff clean
-py_compile clean
-232 pytest tests passed
-```
-
-GitHub Actions normal CI is green.
-
-Normal CI uses dummy provider keys for deterministic test execution. Real provider validation is available through the manual workflow:
-
-```text
-Live provider smoke - Estimador CAG
-```
-
-That workflow uses GitHub Actions repository secrets:
-
-```text
-DEEPSEEK_API_KEY
-KIMI_API_KEY
-```
-
-## Repository map
-
-```text
-.
-├── estimador-cag/      Active estimator project
-├── docs/               Shared notes and sample files
-├── scripts/            Helper scripts
-├── docker-compose.yml  Root compose file
-└── README.md           Current repository review guide
-```
-
-The old duplicate estimator/ project folder has been removed from this branch.
-
-## Run the active project
+From the active project directory:
 
 ```bash
-cd /workspaces/ai-engineering
-
-docker compose up -d redis
-
 cd estimador-cag
-uv sync --extra dev
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+DEEPSEEK_API_KEY=test KIMI_API_KEY=test OPENAI_API_KEY=test uv run pytest -q
+bash scripts/validate_energy_chat.sh
 ```
 
-## Run the mandatory stress runner
-
-With the backend running:
+Focused final-project contracts:
 
 ```bash
-cd /workspaces/ai-engineering/estimador-cag
-
-uv run python -m evals.stress.run \
-  --http http://localhost:8000 \
-  --scenarios growing,pivot,contradiction \
-  --attachment-sizes 0,5,20,50,100 \
-  --repeats 3 \
-  --output evals/stress/results.csv
+cd estimador-cag
+DEEPSEEK_API_KEY=test KIMI_API_KEY=test OPENAI_API_KEY=test \
+uv run pytest -q tests/test_eachat_final_project_*.py
 ```
 
-## Run local gates
+GitHub Actions also checks the production contract, final-project RAG/disposition contracts, keyless HTTP smoke tests, isolated production dependency lock, secret gates, diff hygiene, and immutable supply-chain policy.
+
+## Local FastAPI / browser demonstration
 
 ```bash
-cd /workspaces/ai-engineering/estimador-cag
-
-uv run ruff check app evals tests
-uv run python -m py_compile $(find app tests evals -name '*.py' -type f 2>/dev/null)
-DEEPSEEK_API_KEY=test KIMI_API_KEY=test uv run pytest -q
+cd estimador-cag
+LANGGRAPH_STRICT_MSGPACK=true \
+EACHAT_ALLOW_IN_MEMORY=true \
+EACHAT_SESSION_SIGNING_KEY='local-development-signing-key-at-least-32-bytes' \
+EACHAT_V2_ENABLED=true \
+uv run uvicorn app.energy_chat.production_app:app --host 0.0.0.0 --port 8000
 ```
 
-## Notes
+Then inspect:
 
-The committed full stress report is deterministic by design to avoid 900 live LLM calls. A smaller live DeepSeek smoke was run locally to verify the real provider path.
+```text
+http://localhost:8000/health
+http://localhost:8000/ready
+http://localhost:8000/version
+http://localhost:8000/energy-chat/v2/demo
+```
+
+## Real RAG / live proof
+
+Real ingestion and retrieval require a PostgreSQL database plus a real embedding credential. The manual GitHub Actions workflow is:
+
+```text
+Final Project - Live RAG Proof
+```
+
+It is designed to prove, separately from deterministic CI:
+
+```text
+real official-source acquisition
+→ real embeddings
+→ PostgreSQL persistence
+→ cross-process retrieval evaluation
+→ one bounded live provider answer
+→ sanitized evidence artifacts
+```
+
+The live run is intentionally not inferred from green deterministic CI.
+
+## Claim boundary
+
+Repository-controlled implementation and deterministic validation are separate from external evidence. Do **not** infer real-corpus ingestion, paid-provider success, public deployment, or production-scale reliability unless the corresponding live artifact exists.
+
+The final submission still requires an externally accessible demonstration path: **public URL or the required 2–3 minute video**, according to the assignment evidence route.
+
+## Historical coursework
+
+This repository also contains earlier LIDR coursework and estimator history. Those materials remain for regression and learning continuity, but they are **not the canonical Final Project surface**. For this branch, the reviewer should start with `estimador-cag/README.md` and `estimador-cag/docs/final_project/`.
