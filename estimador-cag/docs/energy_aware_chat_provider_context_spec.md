@@ -1,7 +1,7 @@
 # EACHAT provider routing, reasoning and context-compaction specification
 
-**Status:** canonical architecture. Provider catalog/adapters, strict provider routing, and request-scoped BYOK are implemented. Context-compaction extensions and expanded multi-agent execution remain evidence-gated follow-on work.  
-**Updated:** 2026-08-23  
+**Status:** canonical architecture. Provider catalog/adapters, strict provider routing, and request-scoped BYOK are implemented. Context-compaction extensions and expanded multi-agent execution remain evidence-gated follow-on work.
+**Updated:** 2026-08-23
 **Current provider fact authority:** `docs/energy_aware_chat_provider_fact_audit_2026-08-23.md`
 
 ## 1. Purpose
