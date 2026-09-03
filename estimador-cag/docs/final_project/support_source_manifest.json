@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0.0",
+  "ingestion_version": "finalproject-gg-v1",
+  "allowed_hosts": [
+    "docs.spring.io",
+    "www.postgresql.org",
+    "docs.docker.com"
+  ],
+  "sources": [
+    {
+      "source_id": "spring_boot_actuator_endpoints",
+      "source_family": "spring_boot",
+      "product": "Spring Boot",
+      "product_version": "current",
+      "title": "Actuator Endpoints",
+      "canonical_url": "https://docs.spring.io/spring-boot/reference/actuator/endpoints.html",
+      "support_categories": ["health", "observability", "runtime"]
+    },
+    {
+      "source_id": "spring_boot_actuator_monitoring",
+      "source_family": "spring_boot",
+      "product": "Spring Boot",
+      "product_version": "current",
+      "title": "Monitoring and Management over HTTP",
+      "canonical_url": "https://docs.spring.io/spring-boot/reference/actuator/monitoring.html",
+      "support_categories": ["health", "observability", "http"]
+    },
+    {
+      "source_id": "spring_boot_actuator_metrics",
+      "source_family": "spring_boot",
+      "product": "Spring Boot",
+      "product_version": "current",
+      "title": "Metrics",
+      "canonical_url": "https://docs.spring.io/spring-boot/reference/actuator/metrics.html",
+      "support_categories": ["observability", "runtime"]
+    },
+    {
+      "source_id": "spring_boot_external_config",
+      "source_family": "spring_boot",
+      "product": "Spring Boot",
+      "product_version": "current",
+      "title": "Externalized Configuration",
+      "canonical_url": "https://docs.spring.io/spring-boot/reference/features/external-config.html",
+      "support_categories": ["startup", "configuration"]
+    },
+    {
+      "source_id": "spring_boot_sql_databases",
+      "source_family": "spring_boot",
+      "product": "Spring Boot",
+      "product_version": "current",
+      "title": "SQL Databases",
+      "canonical_url": "https://docs.spring.io/spring-boot/reference/data/sql.html",
+      "support_categories": ["database_connections", "configuration", "transactions"]
+    },
+    {
+      "source_id": "postgres_monitoring",
+      "source_family": "postgresql",
+      "product": "PostgreSQL",
+      "product_version": "current",
+      "title": "Monitoring Database Activity",
+      "canonical_url": "https://www.postgresql.org/docs/current/monitoring.html",
+      "support_categories": ["observability", "database_connections", "query_performance"]
+    },
+    {
+      "source_id": "postgres_monitoring_stats",
+      "source_family": "postgresql",
+      "product": "PostgreSQL",
+      "product_version": "current",
+      "title": "Statistics Collector and Views",
+      "canonical_url": "https://www.postgresql.org/docs/current/monitoring-stats.html",
+      "support_categories": ["observability", "database_connections", "query_performance"]
+    },
+    {
+      "source_id": "postgres_monitoring_locks",
+      "source_family": "postgresql",
+      "product": "PostgreSQL",
+      "product_version": "current",
+      "title": "Viewing Locks",
+      "canonical_url": "https://www.postgresql.org/docs/current/monitoring-locks.html",
+      "support_categories": ["locks", "transactions", "observability"]
+    },
+    {
+      "source_id": "postgres_explicit_locking",
+      "source_family": "postgresql",
+      "product": "PostgreSQL",
+      "product_version": "current",
+      "title": "Explicit Locking",
+      "canonical_url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+      "support_categories": ["locks", "transactions"]
+    },
+    {
+      "source_id": "postgres_connections",
+      "source_family": "postgresql",
+      "product": "PostgreSQL",
+      "product_version": "current",
+      "title": "Connections and Authentication",
+      "canonical_url": "https://www.postgresql.org/docs/current/runtime-config-connection.html",
+      "support_categories": ["database_connections", "configuration"]
+    },
+    {
+      "source_id": "postgres_performance_tips",
+      "source_family": "postgresql",
+      "product": "PostgreSQL",
+      "product_version": "current",
+      "title": "Performance Tips",
+      "canonical_url": "https://www.postgresql.org/docs/current/performance-tips.html",
+      "support_categories": ["query_performance", "observability"]
+    },
+    {
+      "source_id": "docker_running_containers",
+      "source_family": "docker",
+      "product": "Docker Engine",
+      "product_version": "current",
+      "title": "Running Containers",
+      "canonical_url": "https://docs.docker.com/engine/containers/run/",
+      "support_categories": ["containers", "runtime", "configuration"]
+    },
+    {
+      "source_id": "docker_container_logs",
+      "source_family": "docker",
+      "product": "Docker Engine",
+      "product_version": "current",
+      "title": "View Container Logs",
+      "canonical_url": "https://docs.docker.com/engine/logging/",
+      "support_categories": ["containers", "observability"]
+    },
+    {
+      "source_id": "docker_networking",
+      "source_family": "docker",
+      "product": "Docker Engine",
+      "product_version": "current",
+      "title": "Networking Overview",
+      "canonical_url": "https://docs.docker.com/engine/network/",
+      "support_categories": ["networking", "containers"]
+    },
+    {
+      "source_id": "docker_volumes",
+      "source_family": "docker",
+      "product": "Docker Engine",
+      "product_version": "current",
+      "title": "Volumes",
+      "canonical_url": "https://docs.docker.com/engine/storage/volumes/",
+      "support_categories": ["volumes", "containers"]
+    },
+    {
+      "source_id": "dockerfile_healthcheck",
+      "source_family": "docker",
+      "product": "Docker",
+      "product_version": "current",
+      "title": "Dockerfile HEALTHCHECK Reference",
+      "canonical_url": "https://docs.docker.com/reference/dockerfile/#healthcheck",
+      "support_categories": ["health", "containers", "observability"]
+    }
+  ]
+}
