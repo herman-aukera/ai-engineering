@@ -128,17 +128,18 @@ The current evaluator measures retrieval hit-at-k only. It intentionally does no
 
 ## Golden evaluation set
 
-The fixed final-project cases are in:
+The fixed 11-case final-project set is in:
 
 ```text
 evals/energy_chat/final_project_golden.json
 ```
 
-They cover Spring Boot health/configuration, PostgreSQL connections/locks, Docker runtime/networking, a cross-domain health/database incident, insufficient diagnostic evidence, the L3 source-code boundary and unsupported Kubernetes scope.
+It covers Spring Boot health/configuration, PostgreSQL connections/locks, Docker runtime/networking, a cross-domain health/database incident, an explicit version/source conflict, insufficient diagnostic evidence, the L3 source-code boundary and unsupported Kubernetes scope.
 
 Mandatory deterministic regressions include:
 
 - a request for the exact PostgreSQL root cause while explicitly providing no logs/error message must `clarify`, not fabricate certainty;
+- a Spring Boot 2.7.18 request must `clarify` rather than treat the V1 `current` documentation corpus as version-matched proof;
 - a request to patch Java source must `escalate` beyond L2 authority;
 - Kubernetes diagnosis/mutation must `escalate` as unsupported final-project scope.
 
@@ -146,6 +147,7 @@ These governance regressions are executable in:
 
 ```text
 tests/test_eachat_final_project_dispositions.py
+tests/test_eachat_final_project_golden_contract.py
 ```
 
 ## Deterministic validation
@@ -184,6 +186,27 @@ uv run python scripts/session15_eachat_production_contract.py
 ```
 
 GitHub Actions additionally verifies the isolated production dependency lock, secret scanning and `git diff --check`. Deterministic green CI proves repository-controlled contracts; it does not prove paid-provider success, public deployment or live corpus ingestion.
+
+## Manual real-data proof
+
+Live external evidence is deliberately separated from blocking deterministic CI. Run the manual GitHub Actions workflow:
+
+```text
+Final Project - Live RAG Proof
+```
+
+Workflow and runbook:
+
+```text
+.github/workflows/final-project-live-rag.yml
+docs/final_project/LIVE_PROOF_RUNBOOK.md
+```
+
+The workflow checks out the exact selected `finalproject-GG` SHA, starts pinned PostgreSQL, fetches the 16 allowlisted official pages, creates real embeddings, persists chunks, evaluates retrieval from a separate process, executes one bounded live provider answer with fallback disabled, verifies that retrieved source refs survive into graph evidence, scans the evidence files for secrets and uploads only sanitized artifacts.
+
+Recommended first manual run is `provider=openai`, `effort=balanced`. It requires a real `OPENAI_API_KEY` in the `eachat-live-smoke` GitHub environment. The workflow is `workflow_dispatch` only: pushes never trigger paid provider calls.
+
+A successful live workflow still does **not** satisfy the assignment's separate public demonstration requirement; a public URL or the required 2–3 minute video remains necessary.
 
 ## Local API and browser shell
 
@@ -254,7 +277,7 @@ These Session 04 and Session 05 contracts remain regression-tested coursework ev
 
 ## Submission evidence and claim boundary
 
-Repository-controlled implementation now covers the final-project SDD, curated source manifest, ingestion/chunking/embedding/storage/retrieval code, golden set, deterministic RAG contracts and deterministic L2 disposition regressions.
+Repository-controlled implementation now covers the final-project SDD, curated source manifest, ingestion/chunking/embedding/storage/retrieval code, 11-case golden set, deterministic RAG contracts, live-proof harness and deterministic L2 disposition regressions.
 
 The following remain separate live/external evidence classes and must not be inferred from CI:
 
@@ -273,6 +296,7 @@ Until those artifacts exist, the correct status is **implementation complete for
 - `docs/final_project/DATA_AND_RAG_SPEC.md`
 - `docs/final_project/EVALUATION_SPEC.md`
 - `docs/final_project/ACCEPTANCE_AND_EVIDENCE.md`
+- `docs/final_project/LIVE_PROOF_RUNBOOK.md`
 - `docs/final_project/support_source_manifest.json`
 
 Shared inherited architecture references remain under `docs/`, including `ENERGY_AWARE_PROTOCOL_V1.md`, security/operations/release documentation and the product manifest.
