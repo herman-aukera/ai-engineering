@@ -1,7 +1,7 @@
 # Energy-Aware Protocol V1
 
-**Status:** portfolio convergence contract  
-**Version:** `energy-aware.protocol.v1`  
+**Status:** portfolio convergence contract
+**Version:** `energy-aware.protocol.v1`
 **Products:** Energy-Aware Estimator, EACHAT, EACODE
 
 This protocol defines the neutral vocabulary shared by the three Energy-Aware products. It does **not** prescribe one graph, one policy, one UI, or one domain model. Product semantics remain authoritative inside each product.
