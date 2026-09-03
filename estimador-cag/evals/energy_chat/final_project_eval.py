@@ -4,10 +4,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from app.energy_chat.contracts import ProjectRagRequest
-from app.energy_chat.support_pgvector import build_pgvector_support_rag_service_from_env
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.energy_chat.contracts import ProjectRagRequest  # noqa: E402
+from app.energy_chat.support_pgvector import (  # noqa: E402
+    build_pgvector_support_rag_service_from_env,
+)
 
 DEFAULT_CASES = Path("evals/energy_chat/final_project_golden.json")
 DEFAULT_OUTPUT = Path("evals/energy_chat/final_project_retrieval_report.json")

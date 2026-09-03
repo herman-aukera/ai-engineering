@@ -5,12 +5,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
-from app.energy_chat.api_v2_contracts import EnergyChatV2Request
-from app.energy_chat.contracts import ProjectRagRequest
-from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
-from app.energy_chat.support_pgvector import (
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.energy_chat.api_v2_contracts import EnergyChatV2Request  # noqa: E402
+from app.energy_chat.contracts import ProjectRagRequest  # noqa: E402
+from app.energy_chat.runtime_container import EnergyChatApplicationRuntime  # noqa: E402
+from app.energy_chat.support_pgvector import (  # noqa: E402
     RETRIEVAL_STRATEGY,
     build_pgvector_support_rag_service_from_env,
 )

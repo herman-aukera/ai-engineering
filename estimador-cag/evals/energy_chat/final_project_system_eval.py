@@ -10,13 +10,18 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import mean
 from time import perf_counter
 
-from app.energy_chat.api_v2_contracts import EnergyChatV2Request
-from app.energy_chat.runtime_container import EnergyChatApplicationRuntime
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.energy_chat.api_v2_contracts import EnergyChatV2Request  # noqa: E402
+from app.energy_chat.runtime_container import EnergyChatApplicationRuntime  # noqa: E402
 
 DEFAULT_CASES = Path("evals/energy_chat/final_project_golden.json")
 DEFAULT_RESULTS_DIR = Path("evals/energy_chat/results")
@@ -34,7 +39,11 @@ def main() -> int:
     parser.add_argument("--effort", choices=("fast", "balanced", "max"), default="balanced")
     parser.add_argument("--cases", type=Path, default=DEFAULT_CASES)
     parser.add_argument("--output", type=Path, default=None)
-    parser.add_argument("--strict", action="store_true", help="Fail unless disposition accuracy is 100%.")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail unless every disposition matches the fixed golden set.",
+    )
     args = parser.parse_args()
 
     if not args.live:
@@ -208,6 +217,10 @@ def _p95(values: list[int]) -> int:
     ordered = sorted(values)
     index = max(0, min(len(ordered) - 1, int((0.95 * len(ordered) + 0.999999) - 1)))
     return ordered[index]
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((perf_counter() - started) * 1000))
 
 
 def _source_id(ref: str) -> str:

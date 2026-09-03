@@ -10,15 +10,19 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from app.energy_chat.identity import SignedSessionCodec
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.energy_chat.identity import SignedSessionCodec  # noqa: E402
+
 COMPOSE_FILE = PROJECT_ROOT.parent / "docker-compose.final-project.yml"
 BASE_URL = "http://127.0.0.1:8080"
 DEFAULT_SIGNING_KEY = "local-final-project-signing-key-change-me-1234567890"
