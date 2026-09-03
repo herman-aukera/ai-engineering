@@ -4,29 +4,17 @@ Status: final-project SDD
 
 ## Corpus policy
 
-The corpus uses real, public, traceable technical-support sources. V1 is deliberately curated rather than a generic web crawl.
+The corpus uses real, public, traceable technical-support sources. V1 is deliberately curated rather than a generic web crawl. Source families are `spring_boot`, `postgresql`, `docker`, with `known_issue` reserved for selected public issues only when they improve a measured support case.
 
-Source families:
+The committed `support_source_manifest.json` is the acquisition allowlist and provenance seed. Full third-party manuals are not committed merely to inflate the repository; ingestion fetches selected official pages reproducibly.
 
-- `spring_boot`: official Spring Boot reference documentation.
-- `postgresql`: official PostgreSQL current documentation.
-- `docker`: official Docker documentation.
-- `known_issue`: selected resolved Spring Boot GitHub issues may be added only when they improve a measured support case.
+## Provenance per source/chunk
 
-The committed `support_source_manifest.json` is the acquisition allowlist and provenance seed. Full third-party manuals are not committed merely to inflate the repository; ingestion fetches the selected pages reproducibly.
-
-## Required provenance per source/chunk
-
-- source id
-- source family
-- title
-- canonical HTTPS URL
-- product/framework
-- product version when known
-- retrieval timestamp
-- section
-- content SHA-256
-- ingestion version
+- source id and family
+- title and canonical HTTPS URL
+- product/framework and product version when known
+- retrieval timestamp and section
+- content SHA-256 and ingestion version
 - embedding model
 
 ## Ingestion
@@ -34,63 +22,79 @@ The committed `support_source_manifest.json` is the acquisition allowlist and pr
 ```text
 manifest
 → validate official host + HTTPS
-→ fetch HTML with bounded size/time
-→ remove scripts/styles/navigation noise
-→ preserve heading/paragraph structure
-→ normalize whitespace
+→ bounded HTML fetch
+→ normalize document structure
 → section-aware chunking
 → content hash
 → OpenAI embedding
-→ PostgreSQL upsert
+→ PostgreSQL + pgvector upsert
 ```
 
-Ingestion is idempotent by deterministic chunk id. Reingesting the same content updates metadata without creating duplicate chunks.
+Ingestion uses deterministic chunk ids derived from source id, section, ordinal and content hash. Reingesting the same content updates the active record rather than intentionally duplicating it.
 
 ## Chunking
 
-V1 chunks by document section and bounded text size. A chunk must remain large enough to preserve diagnostic context but small enough to retrieve a focused procedure. Chunk ids are stable hashes of source id + section + ordinal + content hash.
-
-Target corpus guidance: roughly 50–150 source pages and 300–2,000 chunks when time permits. The deadline acceptance criterion is representative coverage and measurable retrieval quality, not a vanity count.
+V1 chunks by document section with a bounded word window and overlap. The purpose is to retain diagnostic context while producing focused evidence units. Corpus size is not itself a grading target; representative authoritative coverage plus measurable retrieval is preferred over an uncontrolled crawl.
 
 ## Embeddings
 
-Canonical production embedding model for this branch: `text-embedding-3-small`, using the already-supported OpenAI SDK. Tests inject deterministic fake embeddings; deterministic CI must not make paid provider calls.
+Canonical live embedding model: `text-embedding-3-small`, default dimensions `1536`. The implementation uses the existing OpenAI SDK. Deterministic tests inject fake embeddings and CI never requires paid embedding calls.
 
-## Storage
+Runtime configuration:
 
-PostgreSQL table `eachat_support_rag_chunks` stores chunk text, provenance metadata and embedding JSON. Metadata indexes cover active status, source family and source id. V1 retrieval loads the bounded active candidate set and computes exact cosine similarity in Python.
+```text
+EACHAT_SUPPORT_EMBEDDING_API_KEY
+EACHAT_SUPPORT_EMBEDDING_MODEL=text-embedding-3-small
+EACHAT_SUPPORT_EMBEDDING_DIMENSIONS=1536
+```
 
-This is intentionally not described as pgvector/ANN retrieval. Adding pgvector/HNSW is a post-deadline performance optimization after measured need.
+## Storage and vector index
+
+The final-project production RAG uses PostgreSQL with the `vector` extension. `app.energy_chat.support_pgvector.PgvectorSupportRagStore` creates `eachat_support_pgvector_chunks` with provenance, chunk content and a fixed-dimension `VECTOR` column.
+
+The store creates an HNSW cosine index:
+
+```text
+idx_eachat_support_pgvector_hnsw
+USING hnsw (embedding vector_cosine_ops)
+```
+
+The local final-project topology uses the pinned `pgvector/pgvector:pg16` image. External production PostgreSQL must have permission to provision the `vector` extension or have it pre-provisioned by the database operator.
 
 ## Retrieval
 
 ```text
 question
 → query embedding
-→ active persisted chunks
-→ exact cosine score
-→ deterministic tie-break by chunk id
-→ top-k chunks
-→ ProjectRagResult
+→ pgvector cosine search (`<=>`)
+→ top-k active chunks
+→ ProjectRagResult evidence refs
 → EACHAT candidate provider
+→ critics / deterministic disposition
 ```
 
-Every result maps back to an official canonical URL through the source manifest/provenance record.
+Canonical live strategy name:
+
+```text
+openai_embedding_postgres_pgvector_cosine_support_rag
+```
+
+Every result maps back to a canonical source URL through its source id and committed manifest.
+
+## Compatibility boundary
+
+`app.energy_chat.support_rag.SupportRagService` remains as a deterministic/in-memory seam and historical exact-cosine implementation used by focused tests. The old six-summary lexical project RAG also remains available only when `EACHAT_SUPPORT_RAG_ENABLED` is disabled.
+
+When `EACHAT_SUPPORT_RAG_ENABLED=true`, `app.energy_chat.rag.retrieve_project_context` routes to the pgvector-backed final-project service. It must not silently fall back to the historical lexical corpus.
 
 ## Version and freshness
 
-- Source version is retained when the documentation exposes it.
-- `retrieved_at` records acquisition time.
-- The manifest distinguishes versioned/current URLs.
-- Conflicting versions must not be silently fused; when the user gives a version, retrieval/evaluation should prefer matching metadata where available.
-- Questions requiring facts newer than the indexed corpus keep EACHAT's `external_required` boundary and must not be answered as if the index were live web search.
+- product version is retained when available;
+- `retrieved_at` records acquisition time;
+- current and versioned sources are not silently conflated;
+- an explicitly version-specific question must clarify if no matching authoritative source exists;
+- external/current facts outside the indexed corpus keep EACHAT's external-evidence boundary.
 
 ## Failure semantics
 
-With final-project RAG enabled:
-
-- missing DB URL → explicit configuration error;
-- missing embedding credential → explicit configuration/provider error;
-- empty corpus → explicit evidence-unavailable result/error;
-- acquisition failure → source-level ingestion failure with no fabricated content;
-- unsupported/out-of-scope question → clarification/escalation, not invented diagnosis.
+With final-project RAG enabled, missing database configuration, missing embedding credentials, empty corpus, source-acquisition failure or vector-dimension mismatch are explicit failures. Unsupported questions clarify/refuse/escalate according to the product policy; no missing evidence is replaced with invented diagnosis.

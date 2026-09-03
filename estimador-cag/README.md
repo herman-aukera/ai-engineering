@@ -1,21 +1,12 @@
 # EACHAT Final Project — Energy-Aware AI Engineering Support Assistant ⚡
 
-`finalproject-GG` turns the existing EACHAT governance architecture into a concrete AI Engineering final project: an evidence-grounded L2 support assistant for engineers operating Spring Boot services backed by PostgreSQL and deployed with Docker.
+`finalproject-GG` is an evidence-grounded L2 support assistant for engineers operating Spring Boot services backed by PostgreSQL and deployed with Docker. It retrieves authoritative support evidence, generates a candidate, runs critics, applies deterministic Energy/disposition policy, repairs when justified, and clarifies or escalates when evidence or authority is insufficient.
 
-The product does not try to guess an incident root cause from thin air. It retrieves bounded official technical evidence, generates an answer candidate, critiques that candidate, applies deterministic Energy/disposition policy, repairs once when justified, and clarifies or escalates when evidence or authority is insufficient.
+## Problem and scope
 
-## Final-project problem
+Supported V1: Spring Boot startup/configuration/Actuator/health/runtime symptoms; PostgreSQL connections/sessions/locks/transactions/query symptoms; Docker container state/logs/networking/environment/volumes/health; and observability-driven diagnosis.
 
-L2 support engineers routinely receive incomplete incident descriptions such as connection failures, unhealthy Spring Boot services, containers that exit after startup, or suspected database contention. A generic LLM can produce plausible but unsupported certainty. EACHAT instead treats support as a governed evidence workflow.
-
-Supported V1 domain:
-
-- Spring Boot startup, external configuration, profiles, Actuator, health/readiness, REST/runtime symptoms;
-- PostgreSQL connections, sessions, locks, transactions, slow-query symptoms and monitoring;
-- Docker container state, logs, ports/networking, environment configuration, volumes and health checks;
-- diagnostic use of logs, Actuator endpoints, health/readiness, metrics and PostgreSQL monitoring views.
-
-Explicitly out of scope include Santander/proprietary systems, customer or payment support, cybersecurity incident response, Kubernetes, Kafka, frontend/mobile work, arbitrary business-domain logic and arbitrary source-code repair. Source-code remediation is an L3/EACODE/human-engineering escalation, not an EACHAT execution claim.
+Out of scope: Santander/proprietary systems, customer/payment support, cybersecurity incident response, Kubernetes, Kafka, frontend/mobile work, arbitrary business logic and arbitrary source-code repair. Source-code remediation is an L3/EACODE/human-engineering escalation.
 
 ## Architecture
 
@@ -24,7 +15,7 @@ support question
     ↓
 request policy + evidence need
     ↓
-real support RAG
+real support RAG (OpenAI embeddings + PostgreSQL/pgvector/HNSW)
     ↓
 answer candidate
     ↓
@@ -37,180 +28,153 @@ accept | repair | clarify | reject | refuse | escalate
 Energy Card + Decision Ledger + safe trace
 ```
 
-The provider is a proposal mechanism, never the authority boundary. Deterministic code owns hard constraints, evidence requirements, retry budgets and final machine disposition. Protected continuation remains bound to authenticated human authority.
-
-Canonical application entry point:
-
-```text
-app.energy_chat.production_app:app
-```
-
-Canonical production business APIs are under `/energy-chat/v2/*`. Representative routes include:
-
-```text
-POST /energy-chat/v2/chat
-POST /energy-chat/v2/chat/live
-GET  /energy-chat/v2/threads/{thread_id}/state
-GET  /energy-chat/v2/demo
-```
-
-`/health`, `/ready` and `/version` are keyless operational probes. Protected business APIs require signed actor identity.
+Canonical application entry point: `app.energy_chat.production_app:app`. Canonical business APIs are under `/energy-chat/v2/*`; `/health`, `/ready` and `/version` are operational probes. Protected business and monitoring routes require signed actor identity.
 
 ## Real final-project RAG
 
-The final-project RAG is separate from the historical deterministic lexical project-RAG compatibility path.
-
-Source authority is committed in:
-
-```text
-docs/final_project/support_source_manifest.json
-```
-
-The manifest currently contains 16 curated HTTPS pages from official Spring Boot, PostgreSQL and Docker documentation. The ingestion path performs:
+The source manifest is `docs/final_project/support_source_manifest.json` and currently contains 16 curated HTTPS pages from official Spring Boot, PostgreSQL and Docker documentation.
 
 ```text
 allowlisted official HTTPS acquisition
 → HTML normalization
 → section-aware bounded chunking
-→ OpenAI embedding adapter
-→ PostgreSQL persistence
-→ exact cosine top-k retrieval
+→ text-embedding-3-small
+→ PostgreSQL VECTOR(1536)
+→ HNSW cosine index
+→ native pgvector top-k search
 → ProjectRagResult evidence
 → existing EACHAT graph
 ```
 
-Implementation:
+Primary implementation:
 
 ```text
-app/energy_chat/support_rag.py
-scripts/ingest_eachat_support_rag.py
+app/energy_chat/support_rag.py          acquisition/chunking/embedding contracts
+app/energy_chat/support_pgvector.py     native pgvector store/retrieval
+scripts/ingest_eachat_support_rag.py    reproducible ingestion
+evals/energy_chat/final_project_eval.py persisted retrieval evaluation
 ```
 
-The current implementation deliberately uses exact cosine retrieval over persisted vectors rather than claiming pgvector/HNSW or ANN optimization. That optimization is not required for this bounded final-project corpus.
+With `EACHAT_SUPPORT_RAG_ENABLED=true`, the graph routes to the pgvector-backed support RAG. The historical lexical project corpus remains only as an explicit deterministic compatibility path when final-project RAG is disabled.
 
-### RAG runtime configuration
-
-Real ingestion/retrieval requires a PostgreSQL database and a real embedding credential:
+Runtime variables:
 
 ```bash
 export EACHAT_SUPPORT_RAG_DATABASE_URL='postgresql://...'
 export EACHAT_SUPPORT_EMBEDDING_API_KEY='...'
+export EACHAT_SUPPORT_EMBEDDING_MODEL='text-embedding-3-small'
+export EACHAT_SUPPORT_EMBEDDING_DIMENSIONS='1536'
 export EACHAT_SUPPORT_RAG_ENABLED=true
 ```
 
-`EACHAT_POSTGRES_URL` may be used as the database fallback and `OPENAI_API_KEY` as the embedding-key fallback. The default embedding model is `text-embedding-3-small` unless `EACHAT_SUPPORT_EMBEDDING_MODEL` is explicitly set.
+Never commit credentials.
 
-Never commit credentials. Use runtime secret injection.
+## Golden evaluation and live system evaluation
 
-### Ingest the curated corpus
+The fixed 11-case set is `evals/energy_chat/final_project_golden.json`. It covers supported Spring/PostgreSQL/Docker cases, a cross-domain incident, version/source conflict, insufficient evidence, L3 source-code escalation and unsupported Kubernetes scope.
+
+Deterministic regressions require:
+
+- no evidence + demand exact root cause → `clarify`;
+- Spring Boot 2.7.18 against current-only evidence → `clarify`;
+- request to patch Java source → `escalate`;
+- Kubernetes diagnosis/mutation → `escalate`.
+
+After real ingestion, retrieval evaluation is:
 
 ```bash
 cd estimador-cag
-uv run python scripts/ingest_eachat_support_rag.py
+uv run python evals/energy_chat/final_project_eval.py --k 5
 ```
 
-This command fetches the allowlisted source pages, chunks them, creates embeddings and persists the active chunks. A successful command is live evidence only for the environment in which it was actually executed; deterministic CI does not substitute for it.
-
-### Evaluate real retrieval
+The full real-provider golden-set evaluation is manual/live only:
 
 ```bash
 cd estimador-cag
-uv run python evals/energy_chat/final_project_eval.py
+uv run python evals/energy_chat/final_project_system_eval.py \
+  --live --provider openai --effort balanced
 ```
 
-The default report is written to:
+It records disposition/clarification/escalation accuracy, graph-retained retrieval evidence, error rate, mean/p95 latency, provider calls and cost. It does not fabricate semantic unsupported-claim scores without a fixed judge.
+
+## Monitoring
+
+Protected endpoints:
 
 ```text
-evals/energy_chat/final_project_retrieval_report.json
+GET /energy-chat/v2/monitoring
+GET /energy-chat/v2/monitoring/dashboard
 ```
 
-The current evaluator measures retrieval hit-at-k only. It intentionally does not pretend that expected disposition fixtures were executed or that unsupported-claim quality was measured by the retrieval script.
+They expose aggregate request/success/error counts, error rate, mean/p95 wall latency, mean provider cost, provider-call count and disposition counts. Prompts, answer bodies, credentials and checkpoint contents are excluded.
 
-## Golden evaluation set
+## Reproducible final-project container stack
 
-The fixed 11-case final-project set is in:
+From repository root, `docker-compose.final-project.yml` provides:
 
 ```text
-evals/energy_chat/final_project_golden.json
+Caddy public edge :8080
+        ↓
+EACHAT FastAPI :8000 (internal)
+        ↓
+PostgreSQL + pgvector (internal + persistent volume)
 ```
 
-It covers Spring Boot health/configuration, PostgreSQL connections/locks, Docker runtime/networking, a cross-domain health/database incident, an explicit version/source conflict, insufficient diagnostic evidence, the L3 source-code boundary and unsupported Kubernetes scope.
+A one-shot `ingest` service populates the vector corpus before EACHAT starts. Details: `docs/final_project/DEPLOYMENT_LOCAL.md`.
 
-Mandatory deterministic regressions include:
+With a real embedding credential:
 
-- a request for the exact PostgreSQL root cause while explicitly providing no logs/error message must `clarify`, not fabricate certainty;
-- a Spring Boot 2.7.18 request must `clarify` rather than treat the V1 `current` documentation corpus as version-matched proof;
-- a request to patch Java source must `escalate` beyond L2 authority;
-- Kubernetes diagnosis/mutation must `escalate` as unsupported final-project scope.
-
-These governance regressions are executable in:
-
-```text
-tests/test_eachat_final_project_dispositions.py
-tests/test_eachat_final_project_golden_contract.py
+```bash
+EACHAT_SUPPORT_EMBEDDING_API_KEY="$EACHAT_SUPPORT_EMBEDDING_API_KEY" \
+docker compose -f docker-compose.final-project.yml up -d --build
 ```
+
+Automated app-restart/RAG-persistence proof:
+
+```bash
+cd estimador-cag
+EACHAT_SUPPORT_EMBEDDING_API_KEY="$EACHAT_SUPPORT_EMBEDDING_API_KEY" \
+uv run python scripts/smoke_eachat_final_project_compose.py --cleanup
+```
+
+The local Compose defaults for DB password, encryption key and session-signing key are development-only and must not be reused for an internet-facing deployment.
 
 ## Deterministic validation
-
-CI must remain keyless and reproducible. Run locally with sentinel provider credentials:
 
 ```bash
 cd estimador-cag
 DEEPSEEK_API_KEY=test KIMI_API_KEY=test OPENAI_API_KEY=test uv run pytest -q
+bash scripts/validate_energy_chat.sh
 ```
 
 Focused final-project contracts:
 
 ```bash
-cd estimador-cag
 DEEPSEEK_API_KEY=test KIMI_API_KEY=test OPENAI_API_KEY=test \
 uv run pytest -q tests/test_eachat_final_project_*.py
 ```
 
-Full EACHAT deterministic gate:
-
-```bash
-cd estimador-cag
-bash scripts/validate_energy_chat.sh
-```
-
-Production-contract checks:
-
-```bash
-cd estimador-cag
-uv run pytest -q \
-  tests/test_eachat_session15_production_contract.py \
-  tests/test_eachat_ci_contract.py \
-  tests/smoke/test_eachat_production_smoke.py
-uv run python scripts/session15_eachat_production_contract.py
-```
-
-GitHub Actions additionally verifies the isolated production dependency lock, secret scanning and `git diff --check`. Deterministic green CI proves repository-controlled contracts; it does not prove paid-provider success, public deployment or live corpus ingestion.
+Deterministic CI remains keyless. It validates final-project contracts, compileability, Compose syntax, production smokes, isolated production dependency lock, secret scanning and diff hygiene. A green deterministic run does not imply live acquisition/provider success.
 
 ## Manual real-data proof
 
-Live external evidence is deliberately separated from blocking deterministic CI. Run the manual GitHub Actions workflow:
+GitHub Actions workflow: `Final Project - Live RAG Proof` (`.github/workflows/final-project-live-rag.yml`). It is `workflow_dispatch` only and is designed to prove, for the exact selected SHA:
 
 ```text
-Final Project - Live RAG Proof
+16 real official sources
+→ real embeddings
+→ PostgreSQL/pgvector persistence
+→ retrieval report
+→ one bounded live answer
+→ full 11-case live system evaluation
+→ sanitized artifacts
 ```
 
-Workflow and runbook:
+Runbook: `docs/final_project/LIVE_PROOF_RUNBOOK.md`. Recommended first run: `provider=openai`, `effort=balanced`.
 
-```text
-.github/workflows/final-project-live-rag.yml
-docs/final_project/LIVE_PROOF_RUNBOOK.md
-```
+## Local process-only demo
 
-The workflow checks out the exact selected `finalproject-GG` SHA, starts pinned PostgreSQL, fetches the 16 allowlisted official pages, creates real embeddings, persists chunks, evaluates retrieval from a separate process, executes one bounded live provider answer with fallback disabled, verifies that retrieved source refs survive into graph evidence, scans the evidence files for secrets and uploads only sanitized artifacts.
-
-Recommended first manual run is `provider=openai`, `effort=balanced`. It requires a real `OPENAI_API_KEY` in the `eachat-live-smoke` GitHub environment. The workflow is `workflow_dispatch` only: pushes never trigger paid provider calls.
-
-A successful live workflow still does **not** satisfy the assignment's separate public demonstration requirement; a public URL or the required 2–3 minute video remains necessary.
-
-## Local API and browser shell
-
-A keyless development composition can start the production transport with process-local state:
+For a keyless transport demo without durable RAG:
 
 ```bash
 cd estimador-cag
@@ -221,82 +185,30 @@ EACHAT_V2_ENABLED=true \
 uv run uvicorn app.energy_chat.production_app:app --host 0.0.0.0 --port 8000
 ```
 
-Then inspect:
-
-```text
-http://localhost:8000/health
-http://localhost:8000/ready
-http://localhost:8000/version
-http://localhost:8000/energy-chat/v2/demo
-```
-
-The browser shell does not fake a production login/OIDC system. Protected business calls require signed identity. Durable production composition additionally requires PostgreSQL-backed ownership/checkpoints and encrypted conversation memory.
+Then inspect `/health`, `/ready`, `/version`, and `/energy-chat/v2/demo`.
 
 ## Production-state boundaries inherited from EACHAT
 
-EACHAT retains the certified architecture on which the final project was based:
+EACHAT retains signed actor/tenant ownership, strict PostgreSQL-backed LangGraph checkpoints in durable mode, encrypted conversation memory, replay-safe protected human continuation, bounded provider routing/BYOK isolation, operational telemetry, and an isolated non-root production image. These are engineering controls, not claims of production-scale reliability.
 
-- signed actor and tenant ownership;
-- PostgreSQL-backed strict LangGraph checkpoints in durable mode;
-- encrypted conversation memory;
-- replay-safe protected human continuation;
-- bounded provider routing and BYOK isolation;
-- neutral `energy-aware.event.v1` operational telemetry;
-- isolated production dependency lock and non-root image contract.
-
-Those controls are valuable engineering evidence, but they do not turn this educational final-project branch into a claim of real-world production readiness.
-
-## Historical coursework compatibility
-
-The repository still carries historical LIDR coursework and regression tests. These contracts are retained as compatibility evidence; they are not the canonical final-project production surface.
-
-### Session 04 Live Plus
-
-The historical Session 04 Live Plus estimator used a typed product request and Structured JSON output with deterministic validation. Its documented provider fallback ladder was:
-
-```text
-DeepSeek flash → DeepSeek pro → Kimi 2.5 backup → Kimi 2.6 backup_pro
-```
-
-Historical cache semantics were explicit: Exact Redis cache runs before semantic cache. Semantic cache shadow mode observed candidates without serving them. Responses exposed `requested_tier`, `served_tier`, `fallback_used`, `semantic_cache_mode`, and `semantic_candidate_found` as troubleshooting evidence.
-
-### Session 05 memory and attachments
-
-Session 05 added conversational memory and document attachment support to the historical coursework application through:
-
-```text
-POST /sessions
-POST /sessions/{session_id}/estimate
-```
-
-It retained `project_metadata` beside `ConversationHistory`, used a bounded sliding window, accepted attachment requests through `multipart/form-data`, parsed PDF content with `pypdf`, and parsed DOCX with `python-docx`.
-
-The historical Streamlit path exposed **New conversation**, **Project metadata**, PDF and DOCX attachment controls, and supported `ESTIMADOR_BACKEND_URL` for the backend address.
-
-These Session 04 and Session 05 contracts remain regression-tested coursework evidence and are not mounted as canonical `/energy-chat/v2/*` final-project APIs.
-
-## Submission evidence and claim boundary
-
-Repository-controlled implementation now covers the final-project SDD, curated source manifest, ingestion/chunking/embedding/storage/retrieval code, 11-case golden set, deterministic RAG contracts, live-proof harness and deterministic L2 disposition regressions.
-
-The following remain separate live/external evidence classes and must not be inferred from CI:
-
-- successful acquisition of the current 16-source corpus in the final demonstration environment;
-- real embedding generation and persisted PostgreSQL chunk counts;
-- the measured real-corpus retrieval report;
-- a bounded live answer path using real external services where required;
-- a public URL or the required 2–3 minute demonstration video.
-
-Until those artifacts exist, the correct status is **implementation complete for the repository-controlled slice, final submission evidence still pending** rather than “production-ready”.
-
-## Final-project SDD
+## Final-project documentation
 
 - `docs/final_project/PRODUCT_SPEC.md`
 - `docs/final_project/ARCHITECTURE.md`
 - `docs/final_project/DATA_AND_RAG_SPEC.md`
 - `docs/final_project/EVALUATION_SPEC.md`
+- `docs/final_project/EVALUATION.md`
+- `docs/final_project/DEPLOYMENT_LOCAL.md`
 - `docs/final_project/ACCEPTANCE_AND_EVIDENCE.md`
 - `docs/final_project/LIVE_PROOF_RUNBOOK.md`
 - `docs/final_project/support_source_manifest.json`
 
-Shared inherited architecture references remain under `docs/`, including `ENERGY_AWARE_PROTOCOL_V1.md`, security/operations/release documentation and the product manifest.
+## Historical coursework compatibility
+
+The repository still carries historical LIDR Estimator/coursework code and regression tests. They remain learning/regression evidence but are not the canonical Final Project surface. Historical Session 04/05 provider routing, memory, attachment and cache contracts remain available in their original documentation/tests and are not mounted as canonical `/energy-chat/v2/*` APIs.
+
+## Submission claim boundary
+
+Repository-controlled implementation covers the concrete domain, real-data manifest, ingestion/chunking/embeddings, native pgvector/index/retrieval path, governed graph, golden set, deterministic regressions, live evaluation harness, monitoring and reproducible local container topology.
+
+Still separate external evidence until actually produced for the final SHA: live source acquisition, real embedding/vector counts, measured live reports, local/full deployment smoke, and the assignment's public URL **or** required 2–3 minute video. The correct status before those artifacts exist is **LIVE-READY**, not production-ready or submission-complete.

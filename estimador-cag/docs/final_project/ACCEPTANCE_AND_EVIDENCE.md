@@ -1,91 +1,63 @@
 # EACHAT Final Project Acceptance and Evidence Matrix
 
-Status: live final-project gate
+Status: final-project closure gate
 
-| Official requirement | Implementation target | Required evidence | Current status |
-|---|---|---|---|
-| Concrete domain | L2 Spring Boot/PostgreSQL/Docker support | Product spec + README | IMPLEMENTED |
-| Real data | 16 curated official public documentation pages | Source manifest + live ingestion report | MANIFEST DONE / LIVE ACQUISITION PENDING |
-| FastAPI | `app.energy_chat.production_app:app` | `/health`, `/ready`, `/version`, business-route smoke | IMPLEMENTED / EXACT-HEAD CI REQUIRED |
-| RAG ingestion | `app.energy_chat.support_rag` + ingestion script | deterministic tests + live ingestion report | IMPLEMENTED / LIVE PROOF PENDING |
-| Chunking | section-aware bounded support chunker | deterministic tests + live chunk counts | IMPLEMENTED / LIVE COUNTS PENDING |
-| Embeddings | OpenAI embedding adapter with fake CI seam | deterministic adapter contract + bounded live proof | IMPLEMENTED / LIVE PROOF PENDING |
-| Persistent/indexed storage | PostgreSQL support chunk store | store contract + live DB proof | IMPLEMENTED / LIVE DB PROOF PENDING |
-| Retrieval | exact cosine top-k adapter into `ProjectRagResult` | deterministic retrieval tests + real-corpus report | IMPLEMENTED / REAL REPORT PENDING |
-| Agent/orchestration | existing EACHAT LangGraph | graph tests + trace | IMPLEMENTED / EXACT-HEAD CI REQUIRED |
-| Mandatory dispositions | clarify insufficient diagnostics/version conflicts; escalate L3/unsupported scope | final-project graph regression tests | IMPLEMENTED / EXACT-HEAD CI REQUIRED |
-| Evals | 11-case golden set + retrieval runner | report + disposition/regression evidence | FIXTURES/RUNNER DONE / LIVE METRICS PENDING |
-| README | reviewer-first final-project README | reviewer inspection | IMPLEMENTED |
-| Deployment evidence | public URL OR 2–3 minute video | externally accessible link | EXTERNAL BLOCKER |
-| Final branch | `finalproject-GG` | Git ref | DONE |
-| No secrets | existing secret gates | exact-head CI/diff scan | EXACT-HEAD CI REQUIRED |
+| Requirement | Implementation | Current evidence/status |
+|---|---|---|
+| Concrete domain | L2 Spring Boot/PostgreSQL/Docker support | IMPLEMENTED |
+| Real data | 16 curated official public pages | MANIFEST IMPLEMENTED / LIVE ACQUISITION PENDING |
+| FastAPI | `app.energy_chat.production_app:app` | IMPLEMENTED / FINAL EXACT-HEAD CI PENDING |
+| Ingestion + chunking | allowlisted acquisition + section chunking | IMPLEMENTED / LIVE COUNTS PENDING |
+| Embeddings | `text-embedding-3-small`, fake CI seam | IMPLEMENTED / LIVE PROOF PENDING |
+| Vector DB/index | PostgreSQL `vector` + HNSW cosine index | IMPLEMENTED / LIVE DB PROOF PENDING |
+| Retrieval | native pgvector cosine top-k into `ProjectRagResult` | IMPLEMENTED / REAL REPORT PENDING |
+| Agent/orchestration | EACHAT LangGraph + critics + deterministic disposition | IMPLEMENTED / FINAL CI PENDING |
+| Governance regressions | clarify version/insufficient evidence; escalate L3/unsupported | IMPLEMENTED / FINAL CI PENDING |
+| Golden set | 11 fixed domain cases | IMPLEMENTED |
+| Retrieval eval | persisted pgvector runner | IMPLEMENTED / LIVE REPORT PENDING |
+| Full-system eval | 11-case real-provider runner | IMPLEMENTED / LIVE REPORT PENDING |
+| Monitoring | authenticated JSON + HTML dashboard | IMPLEMENTED / FINAL CI + BROWSER PROOF PENDING |
+| Local deployment | Caddy → EACHAT → PostgreSQL/pgvector + one-shot ingest | IMPLEMENTED / LIVE COMPOSE SMOKE PENDING |
+| Restart persistence proof | compose smoke restarts EACHAT then re-queries RAG | IMPLEMENTED / EXECUTION PENDING |
+| README/docs | reviewer-first final-project package | IMPLEMENTED / FINAL DOC REVIEW PENDING |
+| No secrets | deterministic secret/diff gates | FINAL EXACT-HEAD CI PENDING |
+| Deployment evidence | public URL OR 2–3 minute video | EXTERNAL BLOCKER |
+| Final branch | `finalproject-GG` | DONE |
 
-## Existing reusable evidence
+## Repository-controlled additions
 
-The branch was created directly from certified EACHAT commit `c303c0d7d5c12682a88e195bd38a8d5833ded8b5`. Historical certification run `32661638856` was successful for that exact source commit. This proves the inherited repository-controlled baseline only; every final-project commit must be revalidated.
+The final-project branch now contains the concrete domain, allowlisted corpus, real ingestion/chunking/embedding path, native pgvector persistence/index/retrieval, evidence integration into the existing graph, 11-case golden set, deterministic governance regressions, full-system live evaluator, safe monitoring dashboard and reproducible local Compose topology.
 
-The final-project branch adds repository-controlled evidence for:
+The local topology intentionally adapts the teacher's Docker exercise to EACHAT rather than adding a fake Rails layer. Only the Caddy edge exposes a host port; EACHAT and PostgreSQL/pgvector remain internal. The same PostgreSQL instance holds durable EACHAT state and RAG vectors for this bounded final-project deployment.
 
-- a concrete L2 support domain and authority boundary;
-- a committed allowlisted real-source manifest;
-- bounded official-HTML acquisition;
-- section-aware chunking;
-- an injectable real embedding adapter;
-- persistent PostgreSQL support-chunk storage;
-- exact cosine retrieval into the existing `ProjectRagResult` contract;
-- deterministic no-silent-fallback behavior when final-project RAG is enabled;
-- an 11-case golden set including a version/source-conflict regression;
-- mandatory clarify/escalate governance regressions;
-- a reviewer-first README and executable validation commands;
-- a manual exact-head live-proof workflow that ingests, persists, retrieves and performs one bounded provider call without putting paid calls in deterministic CI.
+## Live evidence required before GO
 
-None of those repository-controlled artifacts substitutes for a successful real external ingestion run.
+A GO claim still requires external execution evidence for the final SHA:
+
+1. live ingestion of all allowlisted sources;
+2. real embedding generation;
+3. pgvector persistence and retrieval report;
+4. bounded live answer with retrieved evidence retained by the graph;
+5. full 11-case live system-evaluation report;
+6. local Compose/restart proof or equivalent deployment evidence;
+7. public URL or required 2–3 minute video.
+
+The repository provides the manual `Final Project - Live RAG Proof` workflow for items 1–5 and `scripts/smoke_eachat_final_project_compose.py` for the local full-stack/restart proof. These are LIVE-READY until actually executed.
 
 ## Final-project GO rule
 
-GO requires all mandatory rows to be evidenced at the final commit and at least one accessible demonstration path:
-
 ```text
-real corpus
-AND ingestion
-AND chunking
-AND embeddings
-AND persistent retrieval
-AND evidence reaches the graph
-AND agents/critics execute
-AND eval test set + metrics + regression exist
-AND FastAPI works
-AND README matches executable truth
-AND public URL OR 2–3 minute video exists
-AND TA can access finalproject-GG
+real corpus + embeddings + pgvector retrieval
+AND evidence reaches the governed graph
+AND golden set + metrics + regressions
+AND FastAPI + monitoring
+AND reproducible container topology
+AND exact-head deterministic CI green
+AND public URL OR 2–3 minute video
 ```
 
-## Live evidence still required
+Do not convert a missing live artifact into a deterministic claim. Failures remain visible.
 
-The final demonstration environment must produce and retain, without secrets:
+## Post-deadline only
 
-1. the ingestion command and sanitized report with source/chunk counts;
-2. evidence that embeddings were produced with the configured real embedding model;
-3. evidence that chunks survived in PostgreSQL and were retrieved after ingestion;
-4. `evals/energy_chat/final_project_retrieval_report.json` generated from that persisted corpus;
-5. one bounded end-to-end support answer showing retrieved evidence plus final disposition;
-6. public URL or 2–3 minute video link required by the assignment.
-
-The repository provides `.github/workflows/final-project-live-rag.yml` and `docs/final_project/LIVE_PROOF_RUNBOOK.md` for items 1–5. The workflow is manual-only so deterministic pushes do not spend provider budget.
-
-If any live gate fails, keep the failure visible. Do not replace it with deterministic fixtures and call the project green.
-
-## Non-blocking post-deadline work
-
-- pgvector/HNSW optimization;
-- large-scale corpus expansion;
-- reranking;
-- AWS Spot-specific deployment;
-- enterprise OIDC;
-- real production SLOs/alerts;
-- backup/restore drill;
-- EACODE execution integration.
-
-## Claim discipline
-
-Do not claim production-scale reliability, universal hallucination prevention, ANN/pgvector retrieval, live-provider success, real-corpus metrics or public availability until corresponding evidence exists.
+Large-scale corpus expansion, reranking, AWS Spot, enterprise OIDC, production SLO/alert infrastructure, backup/restore drills and EACODE integration are intentionally outside the submission-critical slice.

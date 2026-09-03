@@ -4,9 +4,9 @@ Status: final-project SDD
 
 ## Context
 
-EACHAT preserves the certified Energy-Aware graph and changes the evidence backend from a six-summary lexical baseline into a real, reproducible technical-support RAG pipeline.
+EACHAT preserves the certified Energy-Aware graph and replaces the final-project evidence backend with a real technical-support RAG pipeline using authoritative public documentation, embeddings, PostgreSQL and pgvector.
 
-## System architecture
+## Runtime architecture
 
 ```text
 Official public documentation
@@ -25,11 +25,11 @@ Official public documentation
       OpenAI embeddings
              │
              ▼
- PostgreSQL support-rag chunk store
- (content + provenance + vectors)
+ PostgreSQL + pgvector
+ metadata + chunks + VECTOR(1536)
              │
              ▼
- exact cosine vector retrieval
+ HNSW cosine top-k retrieval
              │
              ▼
        ProjectRagResult
@@ -47,42 +47,65 @@ Official public documentation
  answer + citations + Energy Card + ledger
              │
              ▼
- FastAPI `/energy-chat/v2/*` + browser tester
+ FastAPI `/energy-chat/v2/*`
 ```
+
+## Local final-project deployment topology
+
+```text
+browser / evaluator
+       │
+       ▼
+Caddy edge :8080
+       │
+       ▼
+EACHAT FastAPI :8000  (internal only)
+       │
+       ├───────────────┐
+       ▼               ▼
+PostgreSQL + pgvector  durable EACHAT state
+(internal only)        checkpoints/conversations/ownership
+       │
+       ▼
+RAG chunks + vectors
+```
+
+`docker-compose.final-project.yml` also includes a one-shot `ingest` service that runs only after PostgreSQL is healthy. EACHAT starts after ingestion succeeds. Only the Caddy edge publishes a host port.
 
 ## Architectural decisions
 
 ### Preserve the existing graph
 
-The existing LangGraph already separates evidence routing, candidate generation, critic evaluation, deterministic scoring/decision, bounded repair, protected human continuation, ledger recording and final projection. Replacing it would increase deadline risk without improving rubric coverage.
+The LangGraph already separates evidence routing, candidate generation, critic evaluation, deterministic scoring/decision, bounded repair, protected human continuation, ledger recording and final projection. Replacing it would add risk without improving rubric coverage.
 
 ### Product-local RAG boundary
 
-Final-project retrieval is implemented under `app.energy_chat.support_rag`. It must not import Estimator or EACODE runtime modules. The existing `ProjectRagRequest`, `ProjectRagChunk` and `ProjectRagResult` contracts remain the adapter boundary into the graph.
+Final-project retrieval stays under `app.energy_chat`. `app.energy_chat.support_pgvector` owns the native pgvector store and reuses the acquisition/chunking/embedding contracts from `app.energy_chat.support_rag`. Estimator and EACODE runtime modules are not imported.
 
-### Persistent exact vector search first
+### Native pgvector rather than JSON vector storage
 
-The deadline implementation persists embeddings and provenance in PostgreSQL and computes exact cosine similarity over the bounded corpus. This satisfies a real embeddings + persistent retrieval pipeline without introducing a new production dependency or changing the certified EACHAT lock. Approximate-nearest-neighbour/pgvector indexing is a documented optimization, not a claim.
+The live final-project path stores embeddings in a fixed-dimension PostgreSQL `VECTOR` column and executes cosine search in PostgreSQL using `<=>`. An HNSW cosine index is created for the active corpus. This directly satisfies the vector-database/indexing intent while keeping PostgreSQL as the existing durable platform.
 
 ### No silent legacy fallback
 
-When `EACHAT_SUPPORT_RAG_ENABLED=true`, missing PostgreSQL or embedding configuration is an explicit RAG-unavailable error. The old lexical project corpus remains only for deterministic compatibility when the final-project RAG feature is disabled; it must never masquerade as the final-project production RAG.
+When `EACHAT_SUPPORT_RAG_ENABLED=true`, missing PostgreSQL, extension capability, embedding configuration or corpus data is an explicit failure. The historical lexical corpus remains only for deterministic compatibility when the feature is disabled.
 
 ### Separate ingestion from serving
 
-Network acquisition and embedding are an explicit ingestion operation. The production request path only embeds the query and searches already-persisted chunks. This reduces latency, cost and external failure modes.
+Acquisition/chunking/document embedding is explicit ingestion. The serving path only creates a query embedding and searches persisted chunks, reducing external calls and request latency.
+
+### Minimal monitoring rather than a new monitoring platform
+
+The production V2 router records safe rolling aggregates for chat requests: request/success/error counts, error rate, mean and p95 wall latency, provider calls, mean provider cost and dispositions. Protected endpoints expose JSON and a small server-rendered dashboard. Prompts, answer bodies, credentials and checkpoint contents are excluded.
 
 ## Authority boundaries
 
-- LLM/provider: proposes answer text only.
-- RAG store: authoritative for indexed support evidence and provenance.
-- deterministic critics/policy: authoritative for disposition and repair budget.
-- human: authoritative for protected continuation/escalation decisions.
-- PostgreSQL: authoritative durable state for EACHAT runtime and support corpus.
+- LLM/provider: proposes answer text.
+- RAG store: indexed evidence/provenance.
+- deterministic critics/policy: disposition and repair budget.
+- human: protected continuation/escalation authority.
+- PostgreSQL: durable runtime and RAG state.
 
 ## Security and claim boundaries
 
-- Only HTTPS sources on allowlisted official hosts are ingested.
-- API keys are read from environment/request-scoped BYOK infrastructure and never persisted in corpus records.
-- Retrieved evidence exposes provenance but not hidden model reasoning.
-- No claim of production-scale support, universal correctness or ANN performance is allowed without evidence.
+Only allowlisted HTTPS sources are ingested. Credentials are runtime-only. Internal database and EACHAT ports are not published by the final-project Compose topology. Monitoring is authenticated and aggregate-only. Repository implementation is not described as live-verified until the credentialed proof workflow actually succeeds for the exact final SHA.
