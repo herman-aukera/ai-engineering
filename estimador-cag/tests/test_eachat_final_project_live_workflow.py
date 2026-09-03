@@ -49,7 +49,7 @@ def test_live_rag_workflow_keeps_secrets_out_of_evidence_artifacts() -> None:
 
 
 def test_runbook_preserves_live_evidence_claim_boundary() -> None:
-    assert "deterministic CI must not silently call paid providers" in RUNBOOK
+    assert "Deterministic CI must not silently call paid providers" in RUNBOOK
     assert "public deployment URL **or** the required 2–3 minute video" in RUNBOOK
     assert "final-project-ingestion.json" in RUNBOOK
     assert "final-project-retrieval-report.json" in RUNBOOK
