@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import sys
@@ -9,11 +10,18 @@ MANIFEST_SCRIPT = ROOT / "scripts" / "export_energy_chat_manifest.sh"
 
 def _bash_executable() -> str:
     if sys.platform == "win32":
+        for variable in ("PROGRAMFILES", "PROGRAMFILES(X86)"):
+            program_files = os.getenv(variable)
+            if program_files:
+                candidate = Path(program_files) / "Git" / "bin" / "bash.exe"
+                if candidate.is_file():
+                    return str(candidate)
         git = shutil.which("git")
         if git:
-            candidate = Path(git).resolve().parents[1] / "bin" / "bash.exe"
-            if candidate.is_file():
-                return str(candidate)
+            for parent in Path(git).resolve().parents:
+                candidate = parent / "bin" / "bash.exe"
+                if candidate.is_file():
+                    return str(candidate)
     return "bash"
 
 
