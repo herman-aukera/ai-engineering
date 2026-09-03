@@ -71,7 +71,7 @@ Never commit credentials.
 
 ## Golden evaluation and live system evaluation
 
-The fixed 11-case set is `evals/energy_chat/final_project_golden.json`. It covers supported Spring/PostgreSQL/Docker cases, a cross-domain incident, version/source conflict, insufficient evidence, L3 source-code escalation and unsupported Kubernetes scope.
+The fixed 11-case set is `evals/energy_chat/final_project_golden.json`. It covers supported Spring Boot/PostgreSQL/Docker cases, a cross-domain incident, version/source conflict, insufficient evidence, L3 source-code escalation and unsupported Kubernetes scope.
 
 Deterministic regressions require:
 
@@ -205,7 +205,32 @@ EACHAT retains signed actor/tenant ownership, strict PostgreSQL-backed LangGraph
 
 ## Historical coursework compatibility
 
-The repository still carries historical LIDR Estimator/coursework code and regression tests. They remain learning/regression evidence but are not the canonical Final Project surface. Historical Session 04/05 provider routing, memory, attachment and cache contracts remain available in their original documentation/tests and are not mounted as canonical `/energy-chat/v2/*` APIs.
+Historical Estimator coursework remains in this repository because its regression tests protect earlier course deliverables; it is not the canonical Final Project product surface.
+
+### Session 04 Live Plus
+
+The historical Session 04 Live Plus path used **Structured JSON output** with deterministic validation and the documented provider fallback ladder:
+
+```text
+DeepSeek flash → DeepSeek pro → Kimi 2.5 backup → Kimi 2.6 backup_pro
+```
+
+**Exact Redis cache runs before semantic cache.** **Semantic cache shadow mode** observes semantic candidates without serving them. Historical responses expose `requested_tier`, `served_tier`, `fallback_used`, `semantic_cache_mode`, and `semantic_candidate_found` for troubleshooting and class-defense evidence.
+
+### Session 05 memory and attachments
+
+Historical Session 05 added conversation memory and attachment support through:
+
+```text
+POST /sessions
+POST /sessions/{session_id}/estimate
+```
+
+It retains `project_metadata` alongside `ConversationHistory`, uses a bounded sliding window, accepts attachments as `multipart/form-data`, parses PDF files with `pypdf`, and DOCX files with `python-docx`.
+
+The historical Streamlit interface includes **New conversation**, **Project metadata**, PDF and DOCX controls, and supports `ESTIMADOR_BACKEND_URL` for the backend address.
+
+These Session 04/05 contracts remain regression evidence only; they are not mounted as canonical `/energy-chat/v2/*` Final Project APIs.
 
 ## Submission claim boundary
 
