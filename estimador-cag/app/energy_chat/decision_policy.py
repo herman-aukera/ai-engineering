@@ -51,6 +51,15 @@ def decide_complete(
             required_repairs=required_repairs,
             evidence_refs=evidence_refs,
         )
+    if request_policy.directive == "clarify":
+        return EnergyDecision(
+            decision="clarify",
+            energy=score.total_energy,
+            reasoning_summary=request_policy.reason,
+            policy_rule_id=request_policy.rule_id,
+            required_repairs=[],
+            evidence_refs=evidence_refs,
+        )
 
     base = decide(score, policy, evidence_refs)
     if base.decision == "repair" and retry_budget.remaining == 0:
