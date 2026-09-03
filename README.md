@@ -6,36 +6,89 @@ This branch is the LIDR AI Engineering **Final Project** submission.
 - Product: **EACHAT**
 - Domain: evidence-grounded L2 support for **Spring Boot + PostgreSQL + Docker**
 - Canonical implementation: `estimador-cag/`
-- Canonical application entry point: `app.energy_chat.production_app:app`
-- Canonical business API surface: `/energy-chat/v2/*`
+- Production entry point: `app.energy_chat.production_app:app`
+- Business API: `/energy-chat/v2/*`
 
-> Reviewer entry point: read [`estimador-cag/README.md`](estimador-cag/README.md). It contains the complete problem statement, architecture, real-RAG design, agent/orchestration flow, evaluation strategy, run commands, limitations, and evidence boundaries.
+> Reviewer entry point: [`estimador-cag/README.md`](estimador-cag/README.md) contains the complete problem statement, architecture, real-RAG design, orchestration, evaluation, monitoring, deployment instructions, limitations and claim boundaries.
 
-## What the final project does
-
-EACHAT is a governed AI support assistant. It does not treat an LLM answer as authority. The final-project path:
+## Product flow
 
 ```text
 support question
     ↓
 request policy + evidence need
     ↓
-real support RAG
+real technical-support RAG
     ↓
 answer candidate
     ↓
-deterministic critic panel
+deterministic critics
     ↓
-Energy score + deterministic disposition
+Energy score + disposition
     ↓
 accept | repair | clarify | reject | refuse | escalate
     ↓
 Energy Card + Decision Ledger + safe trace
 ```
 
-The final-project corpus is an allowlisted set of official Spring Boot, PostgreSQL, and Docker documentation. The implemented RAG path performs official HTTPS acquisition, HTML normalization, bounded section-aware chunking, embeddings, PostgreSQL persistence, exact cosine top-k retrieval, and injection of retrieved evidence into the existing EACHAT graph.
+## Real RAG
 
-## Final-project evidence map
+The final-project corpus is an allowlisted set of 16 official Spring Boot, PostgreSQL and Docker documentation pages. The live path performs:
+
+```text
+official HTTPS acquisition
+→ section-aware chunking
+→ text-embedding-3-small
+→ PostgreSQL VECTOR(1536)
+→ HNSW cosine index
+→ native pgvector top-k retrieval
+→ ProjectRagResult evidence
+→ governed EACHAT graph
+```
+
+The historical six-summary lexical project RAG remains only as a deterministic compatibility path when final-project support RAG is disabled.
+
+## Production/container topology
+
+`docker-compose.final-project.yml` adapts the teacher's Dockerization intent to the actual EACHAT product without adding an artificial Rails layer:
+
+```text
+browser / evaluator
+       ↓
+Caddy :8080              public edge
+       ↓
+EACHAT FastAPI :8000     internal only
+       ↓
+PostgreSQL + pgvector    internal + persistent
+```
+
+A one-shot ingestion container populates the real vector corpus after PostgreSQL becomes healthy and before EACHAT starts. `scripts/smoke_eachat_final_project_compose.py` is the explicit live end-to-end/restart-persistence proof path.
+
+## Golden set and evaluation
+
+The fixed evaluation set contains **11 cases** covering supported Spring Boot/PostgreSQL/Docker support, cross-domain diagnosis, insufficient-evidence clarification, version/source conflict, L3 source-code escalation and unsupported Kubernetes escalation.
+
+Evaluation is intentionally split:
+
+- deterministic CI: contracts, RAG seams, dispositions, regressions, monitoring and Compose syntax;
+- persisted retrieval: `estimador-cag/evals/energy_chat/final_project_eval.py`;
+- full live system: `estimador-cag/evals/energy_chat/final_project_system_eval.py`;
+- bounded one-answer proof: `estimador-cag/scripts/smoke_eachat_final_project_live.py`.
+
+The live system report measures disposition/clarification/escalation accuracy, retrieval/evidence presence, error rate, mean/p95 latency, provider calls and cost. Semantic unsupported-claim rate is not invented without a fixed judge.
+
+## Monitoring
+
+Authenticated reviewer endpoints:
+
+```text
+GET /energy-chat/v2/monitoring
+GET /energy-chat/v2/monitoring/dashboard
+```
+
+They expose safe rolling aggregates: request/success/error counts, error rate, mean/p95 latency, mean provider cost, provider-call count and disposition counts. Prompts, answer bodies, credentials and checkpoint contents are excluded.
+
+## Evidence map
 
 Primary reviewer files:
 
@@ -45,20 +98,15 @@ estimador-cag/docs/final_project/PRODUCT_SPEC.md
 estimador-cag/docs/final_project/ARCHITECTURE.md
 estimador-cag/docs/final_project/DATA_AND_RAG_SPEC.md
 estimador-cag/docs/final_project/EVALUATION_SPEC.md
+estimador-cag/docs/final_project/EVALUATION.md
+estimador-cag/docs/final_project/DEPLOYMENT_LOCAL.md
 estimador-cag/docs/final_project/ACCEPTANCE_AND_EVIDENCE.md
 estimador-cag/docs/final_project/LIVE_PROOF_RUNBOOK.md
 estimador-cag/docs/final_project/support_source_manifest.json
 estimador-cag/evals/energy_chat/final_project_golden.json
-estimador-cag/evals/energy_chat/final_project_eval.py
-estimador-cag/scripts/ingest_eachat_support_rag.py
-estimador-cag/scripts/smoke_eachat_final_project_live.py
 ```
 
-The fixed evaluation set currently contains **11 cases**, including supported Spring/PostgreSQL/Docker questions, insufficient-evidence clarification, L3 source-code escalation, unsupported Kubernetes escalation, and a current-versus-version-specific source conflict.
-
 ## Deterministic validation
-
-From the active project directory:
 
 ```bash
 cd estimador-cag
@@ -74,55 +122,36 @@ DEEPSEEK_API_KEY=test KIMI_API_KEY=test OPENAI_API_KEY=test \
 uv run pytest -q tests/test_eachat_final_project_*.py
 ```
 
-GitHub Actions also checks the production contract, final-project RAG/disposition contracts, keyless HTTP smoke tests, isolated production dependency lock, secret gates, diff hygiene, and immutable supply-chain policy.
+Green deterministic CI proves repository-controlled contracts only. It does not prove paid-provider success, current real-source acquisition or public deployment.
 
-## Local FastAPI / browser demonstration
+## Manual real-data/live proof
 
-```bash
-cd estimador-cag
-LANGGRAPH_STRICT_MSGPACK=true \
-EACHAT_ALLOW_IN_MEMORY=true \
-EACHAT_SESSION_SIGNING_KEY='local-development-signing-key-at-least-32-bytes' \
-EACHAT_V2_ENABLED=true \
-uv run uvicorn app.energy_chat.production_app:app --host 0.0.0.0 --port 8000
-```
-
-Then inspect:
-
-```text
-http://localhost:8000/health
-http://localhost:8000/ready
-http://localhost:8000/version
-http://localhost:8000/energy-chat/v2/demo
-```
-
-## Real RAG / live proof
-
-Real ingestion and retrieval require a PostgreSQL database plus a real embedding credential. The manual GitHub Actions workflow is:
+Run GitHub Actions workflow:
 
 ```text
 Final Project - Live RAG Proof
 ```
 
-It is designed to prove, separately from deterministic CI:
+For the exact selected SHA it is designed to prove:
 
 ```text
-real official-source acquisition
+16 real official sources
 → real embeddings
-→ PostgreSQL persistence
-→ cross-process retrieval evaluation
-→ one bounded live provider answer
+→ PostgreSQL/pgvector persistence
+→ retrieval evaluation
+→ one bounded live answer
+→ full 11-case live evaluation
 → sanitized evidence artifacts
 ```
 
-The live run is intentionally not inferred from green deterministic CI.
+The workflow is manual-only so normal pushes never spend provider budget.
 
-## Claim boundary
+## Claim boundary and final external requirement
 
-Repository-controlled implementation and deterministic validation are separate from external evidence. Do **not** infer real-corpus ingestion, paid-provider success, public deployment, or production-scale reliability unless the corresponding live artifact exists.
+Repository-controlled implementation is now designed to cover FastAPI, real-data ingestion, embeddings, pgvector/indexed retrieval, LangGraph/critics, golden-set evaluation, monitoring and reproducible container deployment. Those features remain **LIVE-READY rather than LIVE-VERIFIED** until the corresponding external commands/workflow actually succeed for the final SHA.
 
-The final submission still requires an externally accessible demonstration path: **public URL or the required 2–3 minute video**, according to the assignment evidence route.
+The assignment separately requires an accessible demonstration path: **public URL or the required 2–3 minute video**. That external evidence is not inferred from CI.
 
 ## Historical coursework
 
-This repository also contains earlier LIDR coursework and estimator history. Those materials remain for regression and learning continuity, but they are **not the canonical Final Project surface**. For this branch, the reviewer should start with `estimador-cag/README.md` and `estimador-cag/docs/final_project/`.
+Earlier Estimator/LIDR coursework remains in the repository for regression and learning continuity but is not the canonical Final Project surface.
