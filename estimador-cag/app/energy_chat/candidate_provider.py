@@ -153,7 +153,9 @@ class BaselineCandidateProvider:
             tier_ladder=self._fallback_tier_ladder,
         )
         latency_ms = max(0, round((self._clock() - started) * 1000))
-        evidence_refs = list(baseline.evidence_refs)
+        evidence_refs = list(
+            dict.fromkeys([*request.evidence_refs, *baseline.evidence_refs])
+        )
         if baseline.fallback_used and self._allow_provider_fallback:
             evidence_refs.extend(
                 [
