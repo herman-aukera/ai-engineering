@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import yaml
+
 WORKFLOW = Path("../.github/workflows/final-project-live-rag.yml").read_text(
     encoding="utf-8"
 )
@@ -8,6 +10,9 @@ REGISTERED_DISPATCHER = Path("../.github/workflows/energy-chat-ci.yml").read_tex
 )
 RUNBOOK = Path("docs/final_project/LIVE_PROOF_RUNBOOK.md").read_text(encoding="utf-8")
 DOCKERFILE = Path("deploy/eachat/Dockerfile").read_text(encoding="utf-8")
+COMPOSE = yaml.safe_load(
+    Path("../docker-compose.final-project.yml").read_text(encoding="utf-8")
+)
 
 
 def test_live_rag_workflow_is_manual_exact_head_and_uses_pinned_pgvector() -> None:
@@ -68,6 +73,15 @@ def test_live_rag_workflow_keeps_secrets_out_of_evidence_artifacts() -> None:
 def test_production_image_contains_every_exposed_browser_asset() -> None:
     assert "docs/energy_chat_v2_demo.html" in DOCKERFILE
     assert "docs/eachat_byok_tester.html" in DOCKERFILE
+
+
+def test_compose_keeps_services_unpublished_but_allows_required_https_egress() -> None:
+    services = COMPOSE["services"]
+    for service in ("db", "ingest", "eachat"):
+        assert "ports" not in services[service]
+        assert "internal" in services[service]["networks"]
+
+    assert COMPOSE["networks"]["internal"] is None
 
 
 def test_runbook_preserves_live_evidence_claim_boundary() -> None:

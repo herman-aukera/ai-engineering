@@ -71,6 +71,8 @@ RAG chunks + vectors
 ```
 
 `docker-compose.final-project.yml` also includes a one-shot `ingest` service that runs only after PostgreSQL is healthy. EACHAT starts after ingestion succeeds. Only the Caddy edge publishes a host port.
+The unexposed service bridge deliberately retains outbound HTTPS because live source
+acquisition, embeddings and provider calls require egress.
 
 ## Architectural decisions
 

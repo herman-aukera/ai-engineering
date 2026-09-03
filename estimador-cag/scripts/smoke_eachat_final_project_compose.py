@@ -40,7 +40,11 @@ def main() -> int:
     env = os.environ.copy()
     signing_key = env.get("EACHAT_SESSION_SIGNING_KEY", DEFAULT_SIGNING_KEY)
     try:
-        _compose("up", "-d", "--build", env=env)
+        try:
+            _compose("up", "-d", "--build", env=env)
+        except subprocess.CalledProcessError:
+            _compose("logs", "--no-color", "ingest", "eachat", "edge", env=env, check=False)
+            raise
         _wait_ready()
         token = _token(signing_key)
         before = _chat(

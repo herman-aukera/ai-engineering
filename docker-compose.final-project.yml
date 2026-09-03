@@ -93,7 +93,6 @@ services:
 networks:
   edge:
   internal:
-    internal: true
 
 volumes:
   eachat-final-postgres:

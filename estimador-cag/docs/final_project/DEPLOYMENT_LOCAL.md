@@ -18,6 +18,10 @@ PostgreSQL + pgvector    internal only + persistent volume
 
 A one-shot `ingest` container runs after PostgreSQL becomes healthy, fetches the curated official corpus, creates real embeddings and persists chunks/vectors. EACHAT starts only after ingestion succeeds.
 
+“Internal only” means the database, ingestion worker and application publish no host
+ports. Their shared bridge network still permits the outbound HTTPS required to fetch
+the allowlisted corpus and call the embedding/provider APIs.
+
 ## Required live input
 
 Set a real embedding credential in your shell or secret manager:
