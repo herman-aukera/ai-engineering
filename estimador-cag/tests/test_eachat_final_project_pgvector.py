@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 
 from app.energy_chat.contracts import ProjectRagRequest
 from app.energy_chat.support_pgvector import (
-    PgvectorSupportRagService,
     RETRIEVAL_STRATEGY,
+    PgvectorSupportRagService,
     _vector_literal,
 )
 from app.energy_chat.support_rag import SupportChunk
