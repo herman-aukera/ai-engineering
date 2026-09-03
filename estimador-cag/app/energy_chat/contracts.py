@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 Decision = Literal["accept", "repair", "reject", "clarify", "refuse", "escalate"]
-PolicyDirective = Literal["continue", "refuse", "escalate"]
+PolicyDirective = Literal["continue", "clarify", "refuse", "escalate"]
 ConstraintType = Literal["hard_reject", "hard_repair", "soft"]
 Mode = Literal["chat_lite", "research", "project", "tutor"]
 DeepSeekTier = Literal["flash", "pro"]
