@@ -21,6 +21,16 @@ on:
           - balanced
           - max
         default: balanced
+  workflow_call:
+    inputs:
+      provider:
+        description: Credentialed provider for bounded EACHAT answer calls
+        required: true
+        type: string
+      effort:
+        description: EACHAT effort profile
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -148,6 +158,7 @@ jobs:
           --live
           --provider "${{ inputs.provider }}"
           --effort "${{ inputs.effort }}"
+          --strict
           --output /tmp/final-project-system-eval.json
 
       - name: Reject secrets from evidence artifacts

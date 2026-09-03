@@ -34,7 +34,8 @@ cd estimador-cag
 uv run python evals/energy_chat/final_project_system_eval.py \
   --live \
   --provider openai \
-  --effort balanced
+  --effort balanced \
+  --strict
 ```
 
 The default timestamped report is written under `evals/energy_chat/results/`. It records no prompt or answer bodies.
@@ -52,6 +53,9 @@ Directly measured aggregates include:
 - mean/total estimated cost
 
 `unsupported_claim_rate` is intentionally not fabricated. It remains unmeasured without a fixed semantic judge/manual rubric.
+
+The live workflow uses `--strict`, so any disposition mismatch makes the proof run fail
+even when provider calls themselves succeed.
 
 ## Monitoring evidence
 

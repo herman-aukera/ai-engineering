@@ -92,10 +92,10 @@ The full real-provider golden-set evaluation is manual/live only:
 ```bash
 cd estimador-cag
 uv run python evals/energy_chat/final_project_system_eval.py \
-  --live --provider openai --effort balanced
+  --live --provider openai --effort balanced --strict
 ```
 
-It records disposition/clarification/escalation accuracy, graph-retained retrieval evidence, error rate, mean/p95 latency, provider calls and cost. It does not fabricate semantic unsupported-claim scores without a fixed judge.
+It records disposition/clarification/escalation accuracy, graph-retained retrieval evidence, error rate, mean/p95 latency, provider calls and cost. `--strict` makes disposition regression a failing live gate. It does not fabricate semantic unsupported-claim scores without a fixed judge.
 
 ## Monitoring
 
@@ -158,7 +158,12 @@ Deterministic CI remains keyless. It validates final-project contracts, compilea
 
 ## Manual real-data proof
 
-GitHub Actions workflow: `Final Project - Live RAG Proof` (`.github/workflows/final-project-live-rag.yml`). It is `workflow_dispatch` only and is designed to prove, for the exact selected SHA:
+Before merge, manually dispatch the already-registered `Energy Aware Chat CI` workflow
+on `finalproject-GG`. After its deterministic job passes, a manual-only dependent job
+calls `.github/workflows/final-project-live-rag.yml` with OpenAI/balanced. Once that
+standalone workflow exists on the default branch, `Final Project - Live RAG Proof` can
+also be dispatched directly with provider/effort choices. Both paths are designed to
+prove, for the exact selected SHA:
 
 ```text
 16 real official sources

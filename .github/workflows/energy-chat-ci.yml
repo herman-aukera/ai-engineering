@@ -97,3 +97,12 @@ jobs:
             printf '%s\n' "$unapproved" | cut -d: -f1-2
             false
           fi
+
+  final-project-live-rag:
+    if: github.event_name == 'workflow_dispatch'
+    needs: energy-chat-validation
+    uses: ./.github/workflows/final-project-live-rag.yml
+    with:
+      provider: openai
+      effort: balanced
+    secrets: inherit

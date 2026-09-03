@@ -3,11 +3,15 @@ from pathlib import Path
 WORKFLOW = Path("../.github/workflows/final-project-live-rag.yml").read_text(
     encoding="utf-8"
 )
+REGISTERED_DISPATCHER = Path("../.github/workflows/energy-chat-ci.yml").read_text(
+    encoding="utf-8"
+)
 RUNBOOK = Path("docs/final_project/LIVE_PROOF_RUNBOOK.md").read_text(encoding="utf-8")
 
 
 def test_live_rag_workflow_is_manual_exact_head_and_uses_pinned_pgvector() -> None:
     assert "workflow_dispatch:" in WORKFLOW
+    assert "workflow_call:" in WORKFLOW
     assert "push:" not in WORKFLOW
     assert "EXPECTED_HEAD_SHA: ${{ github.sha }}" in WORKFLOW
     assert 'ref: ${{ env.EXPECTED_HEAD_SHA }}' in WORKFLOW
@@ -15,6 +19,15 @@ def test_live_rag_workflow_is_manual_exact_head_and_uses_pinned_pgvector() -> No
         "pgvector/pgvector:pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b"
         in WORKFLOW
     )
+
+
+def test_registered_ci_dispatcher_can_run_live_proof_before_default_branch_merge() -> None:
+    assert "if: github.event_name == 'workflow_dispatch'" in REGISTERED_DISPATCHER
+    assert "uses: ./.github/workflows/final-project-live-rag.yml" in REGISTERED_DISPATCHER
+    assert "needs: energy-chat-validation" in REGISTERED_DISPATCHER
+    assert "provider: openai" in REGISTERED_DISPATCHER
+    assert "effort: balanced" in REGISTERED_DISPATCHER
+    assert "secrets: inherit" in REGISTERED_DISPATCHER
 
 
 def test_live_rag_workflow_executes_real_ingestion_retrieval_and_full_system_eval() -> None:
@@ -29,6 +42,7 @@ def test_live_rag_workflow_executes_real_ingestion_retrieval_and_full_system_eva
         "postgresql_pgvector_hnsw",
         "--provider \"${{ inputs.provider }}\"",
         "--effort \"${{ inputs.effort }}\"",
+        "--strict",
         "final-project-system-eval.json",
         "final-project-live-rag-${{ inputs.provider }}-${{ inputs.effort }}",
     )
@@ -50,6 +64,8 @@ def test_live_rag_workflow_keeps_secrets_out_of_evidence_artifacts() -> None:
 
 def test_runbook_preserves_live_evidence_claim_boundary() -> None:
     assert "Deterministic CI must not silently call paid providers" in RUNBOOK
+    assert "Energy Aware Chat CI" in RUNBOOK
+    assert "Before the branch is merged" in RUNBOOK
     assert "public deployment URL **or** the required 2–3 minute video" in RUNBOOK
     assert "final-project-ingestion.json" in RUNBOOK
     assert "final-project-retrieval-report.json" in RUNBOOK

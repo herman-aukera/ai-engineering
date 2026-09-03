@@ -126,7 +126,16 @@ Green deterministic CI proves repository-controlled contracts only. It does not 
 
 ## Manual real-data/live proof
 
-Run GitHub Actions workflow:
+For the current pre-merge branch, manually run the already-registered GitHub Actions
+workflow:
+
+```text
+Energy Aware Chat CI
+```
+
+Its deterministic job must pass before a dependent OpenAI/balanced live-proof job
+executes. Once the standalone workflow exists on the default branch, it can also be
+run directly as:
 
 ```text
 Final Project - Live RAG Proof
